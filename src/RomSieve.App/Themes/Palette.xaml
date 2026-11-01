@@ -1,0 +1,290 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Colors of the application, by role, for the Light and Dark variants (same keys in both: GuiTests checks it) -->
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <!-- Window, panels and text -->
+      <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F4F5F7" />
+      <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#F8FAFC" />
+      <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ControlBorderBrush" Color="#CBD5E1" />
+      <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1E293B" />
+      <SolidColorBrush x:Key="TextMutedBrush" Color="#94A3B8" />
+      <!-- Secondary text that must stay readable: hints, captions of the pattern preview -->
+      <SolidColorBrush x:Key="HintForegroundBrush" Color="#556275" />
+      <SolidColorBrush x:Key="PatternWarningForegroundBrush" Color="#B45309" />
+      <SolidColorBrush x:Key="OnAccentForegroundBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#F1F5F9" />
+      <SolidColorBrush x:Key="GridLineBrush" Color="#E2E8F0" />
+
+      <!-- Navigation by steps: entries, selected entry, and the state line under a step (key: Step{StepIndicatorTone}IndicatorBrush) -->
+      <SolidColorBrush x:Key="NavForegroundBrush" Color="#334155" />
+      <SolidColorBrush x:Key="NavSelectedForegroundBrush" Color="#0F172A" />
+      <SolidColorBrush x:Key="NavHoverBackgroundBrush" Color="#E5EAF0" />
+      <SolidColorBrush x:Key="NavSelectedBackgroundBrush" Color="#DCE8F8" />
+      <SolidColorBrush x:Key="NavSelectedMarkerBrush" Color="#1976D2" />
+      <SolidColorBrush x:Key="StepNoneIndicatorBrush" Color="#556275" />
+      <SolidColorBrush x:Key="StepInfoIndicatorBrush" Color="#1D4ED8" />
+      <SolidColorBrush x:Key="StepWarningIndicatorBrush" Color="#9A3D00" />
+
+      <!-- Tabs (selection steps, results) -->
+      <SolidColorBrush x:Key="TabForegroundBrush" Color="#334155" />
+      <SolidColorBrush x:Key="TabBackgroundBrush" Color="#E2E8F0" />
+      <SolidColorBrush x:Key="TabHoverBackgroundBrush" Color="#EDF2F7" />
+      <SolidColorBrush x:Key="TabSelectedForegroundBrush" Color="#0F172A" />
+
+      <!-- Secondary buttons -->
+      <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#475569" />
+      <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#F1F5F9" />
+
+      <!-- Execution buttons -->
+      <SolidColorBrush x:Key="SimulateButtonBackgroundBrush" Color="#1976D2" />
+      <SolidColorBrush x:Key="SimulateButtonBorderBrush" Color="#1565C0" />
+      <SolidColorBrush x:Key="SimulateButtonHoverBackgroundBrush" Color="#1565C0" />
+      <SolidColorBrush x:Key="StartButtonBackgroundBrush" Color="#388E3C" />
+      <SolidColorBrush x:Key="StartButtonBorderBrush" Color="#2E7D32" />
+      <SolidColorBrush x:Key="StartButtonHoverBackgroundBrush" Color="#2E7D32" />
+      <SolidColorBrush x:Key="StopButtonBackgroundBrush" Color="#D32F2F" />
+      <SolidColorBrush x:Key="StopButtonBorderBrush" Color="#C62828" />
+      <SolidColorBrush x:Key="StopButtonHoverBackgroundBrush" Color="#C62828" />
+
+      <!-- Progress bar and statistics banner -->
+      <SolidColorBrush x:Key="ProgressTrackBrush" Color="#F1F5F9" />
+      <SolidColorBrush x:Key="ProgressFillBrush" Color="#2563EB" />
+      <SolidColorBrush x:Key="StatsBannerBackgroundBrush" Color="#F5F5F5" />
+      <SolidColorBrush x:Key="StatsBannerBorderBrush" Color="#E0E0E0" />
+      <SolidColorBrush x:Key="DatStatsForegroundBrush" Color="#00796B" />
+      <SolidColorBrush x:Key="VolumeForegroundBrush" Color="#1565C0" />
+      <SolidColorBrush x:Key="SizeWarningForegroundBrush" Color="#C62828" />
+
+      <!-- Status filter chips -->
+      <SolidColorBrush x:Key="ChipBorderBrush" Color="#D4D4D4" />
+      <SolidColorBrush x:Key="ChipTotalBrush" Color="#212121" />
+      <SolidColorBrush x:Key="ChipTotalCheckedBackgroundBrush" Color="#424242" />
+      <SolidColorBrush x:Key="ChipValidBrush" Color="#2E7D32" />
+      <SolidColorBrush x:Key="ChipValidBorderBrush" Color="#1B5E20" />
+      <SolidColorBrush x:Key="ChipExcludedBrush" Color="#E65100" />
+      <SolidColorBrush x:Key="ChipExcludedBorderBrush" Color="#BF360C" />
+      <SolidColorBrush x:Key="ChipUnmatchedBrush" Color="#6A1B9A" />
+      <SolidColorBrush x:Key="ChipUnmatchedBorderBrush" Color="#4A148C" />
+      <SolidColorBrush x:Key="ChipDuplicatesBrush" Color="#C62828" />
+      <SolidColorBrush x:Key="ChipDuplicatesBorderBrush" Color="#8E0000" />
+      <SolidColorBrush x:Key="ChipChangedBrush" Color="#1565C0" />
+      <SolidColorBrush x:Key="ChipChangedBorderBrush" Color="#0D47A1" />
+      <SolidColorBrush x:Key="ChipSelectionBrush" Color="#00796B" />
+      <SolidColorBrush x:Key="ChipSelectionBorderBrush" Color="#004D40" />
+      <SolidColorBrush x:Key="PriorityChipFocusBorderBrush" Color="#2563EB" />
+      <SolidColorBrush x:Key="ChipCheckedForegroundBrush" Color="#FFFFFF" />
+      <!-- Marker of the preview rows changed since the previous simulation (key: RowChange{PreviewRowChange}MarkerBrush) -->
+      <SolidColorBrush x:Key="RowChangeNoneMarkerBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="RowChangeAddedMarkerBrush" Color="#2E7D32" />
+      <SolidColorBrush x:Key="RowChangeModifiedMarkerBrush" Color="#1565C0" />
+
+      <!-- Status badges of the preview table (key: Status{FileStatus}Badge{Foreground|Background}Brush) -->
+      <SolidColorBrush x:Key="StatusValidBadgeForegroundBrush" Color="#1B5E20" />
+      <SolidColorBrush x:Key="StatusValidBadgeBackgroundBrush" Color="#E3F2E4" />
+      <SolidColorBrush x:Key="StatusExcludedBadgeForegroundBrush" Color="#9A3D00" />
+      <SolidColorBrush x:Key="StatusExcludedBadgeBackgroundBrush" Color="#FFF0DC" />
+      <SolidColorBrush x:Key="StatusUnmatchedBadgeForegroundBrush" Color="#6A1B9A" />
+      <SolidColorBrush x:Key="StatusUnmatchedBadgeBackgroundBrush" Color="#F3E5F5" />
+      <SolidColorBrush x:Key="StatusDuplicateBadgeForegroundBrush" Color="#B71C1C" />
+      <SolidColorBrush x:Key="StatusDuplicateBadgeBackgroundBrush" Color="#FDE8E8" />
+      <SolidColorBrush x:Key="StatusErrorBadgeForegroundBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="StatusErrorBadgeBackgroundBrush" Color="#C62828" />
+
+      <!-- Badge of a 1G1R winner chosen by hand, in the preview table -->
+      <SolidColorBrush x:Key="ForcedBadgeForegroundBrush" Color="#7A4300" />
+      <SolidColorBrush x:Key="ForcedBadgeBackgroundBrush" Color="#FFF3C4" />
+      <SolidColorBrush x:Key="RequiredBadgeForegroundBrush" Color="#0B4A66" />
+      <SolidColorBrush x:Key="RequiredBadgeBackgroundBrush" Color="#D9EEF7" />
+      <!-- Badge of the files transferred with a row (tracks, CHDs), next to its source name -->
+      <SolidColorBrush x:Key="RelatedBadgeForegroundBrush" Color="#334155" />
+      <SolidColorBrush x:Key="RelatedBadgeBackgroundBrush" Color="#E6EBF1" />
+
+      <!-- Naming convention badge (key: Badge{Tone}...Brush) -->
+      <SolidColorBrush x:Key="BadgeAutoForegroundBrush" Color="#475569" />
+      <SolidColorBrush x:Key="BadgeAutoBackgroundBrush" Color="#F1F5F9" />
+      <SolidColorBrush x:Key="BadgeAutoBorderBrush" Color="#CBD5E1" />
+      <SolidColorBrush x:Key="BadgeTosecForegroundBrush" Color="#1D4ED8" />
+      <SolidColorBrush x:Key="BadgeTosecBackgroundBrush" Color="#EFF6FF" />
+      <SolidColorBrush x:Key="BadgeTosecBorderBrush" Color="#BFDBFE" />
+      <SolidColorBrush x:Key="BadgeNoIntroForegroundBrush" Color="#047857" />
+      <SolidColorBrush x:Key="BadgeNoIntroBackgroundBrush" Color="#ECFDF5" />
+      <SolidColorBrush x:Key="BadgeNoIntroBorderBrush" Color="#A7F3D0" />
+      <SolidColorBrush x:Key="BadgeRedumpForegroundBrush" Color="#6D28D9" />
+      <SolidColorBrush x:Key="BadgeRedumpBackgroundBrush" Color="#F5F3FF" />
+      <SolidColorBrush x:Key="BadgeRedumpBorderBrush" Color="#DDD6FE" />
+      <SolidColorBrush x:Key="BadgeMameForegroundBrush" Color="#B45309" />
+      <SolidColorBrush x:Key="BadgeMameBackgroundBrush" Color="#FFFBEB" />
+      <SolidColorBrush x:Key="BadgeMameBorderBrush" Color="#FDE68A" />
+
+      <!-- DAT file summary (key: DatInfo{Tone}ForegroundBrush) -->
+      <SolidColorBrush x:Key="DatInfoNeutralForegroundBrush" Color="#0E7490" />
+      <SolidColorBrush x:Key="DatInfoOkForegroundBrush" Color="#2E7D32" />
+      <SolidColorBrush x:Key="DatInfoErrorForegroundBrush" Color="#C62828" />
+
+      <!-- Update notification banner -->
+      <SolidColorBrush x:Key="UpdateBannerBackgroundBrush" Color="#EFF6FF" />
+      <SolidColorBrush x:Key="UpdateBannerBorderBrush" Color="#BFDBFE" />
+      <SolidColorBrush x:Key="UpdateBannerForegroundBrush" Color="#1D4ED8" />
+
+      <!-- Execution log, a dark panel in both themes: light level colors (level key: LogLevel{TAG}Brush) -->
+      <SolidColorBrush x:Key="LogBackgroundBrush" Color="#1E1E1E" />
+      <SolidColorBrush x:Key="LogForegroundBrush" Color="#D4D4D4" />
+      <SolidColorBrush x:Key="LogBorderBrush" Color="#3C3C3C" />
+      <SolidColorBrush x:Key="LogTextBrush" Color="#E0E0E0" />
+      <SolidColorBrush x:Key="LogHoverBackgroundBrush" Color="#2A2D2E" />
+      <SolidColorBrush x:Key="LogSelectionBackgroundBrush" Color="#264F78" />
+      <SolidColorBrush x:Key="LogLevelOKBrush" Color="#66BB6A" />
+      <SolidColorBrush x:Key="LogLevelSKIPBrush" Color="#FFA726" />
+      <SolidColorBrush x:Key="LogLevelUNMATCHEDBrush" Color="#CE93D8" />
+      <SolidColorBrush x:Key="LogLevelINFOBrush" Color="#64B5F6" />
+      <SolidColorBrush x:Key="LogLevelWARNBrush" Color="#FFD54F" />
+      <SolidColorBrush x:Key="LogLevelERRORBrush" Color="#EF5350" />
+      <SolidColorBrush x:Key="LogLevelPLANNEDBrush" Color="#90A4AE" />
+      <SolidColorBrush x:Key="LogLevelDefaultBrush" Color="#9E9E9E" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <!-- Window, panels and text -->
+      <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#111418" />
+      <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#161A20" />
+      <SolidColorBrush x:Key="SurfaceBrush" Color="#1C2128" />
+      <SolidColorBrush x:Key="ControlBorderBrush" Color="#3A4350" />
+      <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E2E8F0" />
+      <SolidColorBrush x:Key="TextMutedBrush" Color="#8B95A5" />
+      <!-- Secondary text that must stay readable: hints, captions of the pattern preview -->
+      <SolidColorBrush x:Key="HintForegroundBrush" Color="#A3AEBD" />
+      <SolidColorBrush x:Key="PatternWarningForegroundBrush" Color="#FBBF24" />
+      <SolidColorBrush x:Key="OnAccentForegroundBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#232A33" />
+      <SolidColorBrush x:Key="GridLineBrush" Color="#2C333D" />
+
+      <!-- Navigation by steps: entries, selected entry, and the state line under a step (key: Step{StepIndicatorTone}IndicatorBrush) -->
+      <SolidColorBrush x:Key="NavForegroundBrush" Color="#CBD5E1" />
+      <SolidColorBrush x:Key="NavSelectedForegroundBrush" Color="#F8FAFC" />
+      <SolidColorBrush x:Key="NavHoverBackgroundBrush" Color="#1F252D" />
+      <SolidColorBrush x:Key="NavSelectedBackgroundBrush" Color="#1C2E47" />
+      <SolidColorBrush x:Key="NavSelectedMarkerBrush" Color="#60A5FA" />
+      <SolidColorBrush x:Key="StepNoneIndicatorBrush" Color="#A3AEBD" />
+      <SolidColorBrush x:Key="StepInfoIndicatorBrush" Color="#93C5FD" />
+      <SolidColorBrush x:Key="StepWarningIndicatorBrush" Color="#FBBF24" />
+
+      <!-- Tabs (selection steps, results) -->
+      <SolidColorBrush x:Key="TabForegroundBrush" Color="#CBD5E1" />
+      <SolidColorBrush x:Key="TabBackgroundBrush" Color="#232A33" />
+      <SolidColorBrush x:Key="TabHoverBackgroundBrush" Color="#2C3440" />
+      <SolidColorBrush x:Key="TabSelectedForegroundBrush" Color="#F8FAFC" />
+
+      <!-- Secondary buttons -->
+      <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#CBD5E1" />
+      <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#2A313B" />
+
+      <!-- Execution buttons -->
+      <SolidColorBrush x:Key="SimulateButtonBackgroundBrush" Color="#1565C0" />
+      <SolidColorBrush x:Key="SimulateButtonBorderBrush" Color="#0D47A1" />
+      <SolidColorBrush x:Key="SimulateButtonHoverBackgroundBrush" Color="#1976D2" />
+      <SolidColorBrush x:Key="StartButtonBackgroundBrush" Color="#2E7D32" />
+      <SolidColorBrush x:Key="StartButtonBorderBrush" Color="#1B5E20" />
+      <SolidColorBrush x:Key="StartButtonHoverBackgroundBrush" Color="#388E3C" />
+      <SolidColorBrush x:Key="StopButtonBackgroundBrush" Color="#C62828" />
+      <SolidColorBrush x:Key="StopButtonBorderBrush" Color="#B71C1C" />
+      <SolidColorBrush x:Key="StopButtonHoverBackgroundBrush" Color="#D32F2F" />
+
+      <!-- Progress bar and statistics banner -->
+      <SolidColorBrush x:Key="ProgressTrackBrush" Color="#2A313B" />
+      <SolidColorBrush x:Key="ProgressFillBrush" Color="#3B82F6" />
+      <SolidColorBrush x:Key="StatsBannerBackgroundBrush" Color="#1A1F26" />
+      <SolidColorBrush x:Key="StatsBannerBorderBrush" Color="#2C333D" />
+      <SolidColorBrush x:Key="DatStatsForegroundBrush" Color="#4DB6AC" />
+      <SolidColorBrush x:Key="VolumeForegroundBrush" Color="#64B5F6" />
+      <SolidColorBrush x:Key="SizeWarningForegroundBrush" Color="#FF8A65" />
+
+      <!-- Status filter chips (lighter colors, dark text when checked) -->
+      <SolidColorBrush x:Key="ChipBorderBrush" Color="#3A4350" />
+      <SolidColorBrush x:Key="ChipTotalBrush" Color="#E2E8F0" />
+      <SolidColorBrush x:Key="ChipTotalCheckedBackgroundBrush" Color="#CBD5E1" />
+      <SolidColorBrush x:Key="ChipValidBrush" Color="#66BB6A" />
+      <SolidColorBrush x:Key="ChipValidBorderBrush" Color="#43A047" />
+      <SolidColorBrush x:Key="ChipExcludedBrush" Color="#FFA726" />
+      <SolidColorBrush x:Key="ChipExcludedBorderBrush" Color="#FB8C00" />
+      <SolidColorBrush x:Key="ChipUnmatchedBrush" Color="#CE93D8" />
+      <SolidColorBrush x:Key="ChipUnmatchedBorderBrush" Color="#AB47BC" />
+      <SolidColorBrush x:Key="ChipDuplicatesBrush" Color="#EF5350" />
+      <SolidColorBrush x:Key="ChipDuplicatesBorderBrush" Color="#E53935" />
+      <SolidColorBrush x:Key="ChipChangedBrush" Color="#64B5F6" />
+      <SolidColorBrush x:Key="ChipChangedBorderBrush" Color="#42A5F5" />
+      <SolidColorBrush x:Key="ChipSelectionBrush" Color="#4DB6AC" />
+      <SolidColorBrush x:Key="ChipSelectionBorderBrush" Color="#26A69A" />
+      <SolidColorBrush x:Key="PriorityChipFocusBorderBrush" Color="#60A5FA" />
+      <SolidColorBrush x:Key="ChipCheckedForegroundBrush" Color="#111418" />
+      <!-- Marker of the preview rows changed since the previous simulation (key: RowChange{PreviewRowChange}MarkerBrush) -->
+      <SolidColorBrush x:Key="RowChangeNoneMarkerBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="RowChangeAddedMarkerBrush" Color="#66BB6A" />
+      <SolidColorBrush x:Key="RowChangeModifiedMarkerBrush" Color="#64B5F6" />
+
+      <!-- Status badges of the preview table (key: Status{FileStatus}Badge{Foreground|Background}Brush) -->
+      <SolidColorBrush x:Key="StatusValidBadgeForegroundBrush" Color="#A5D6A7" />
+      <SolidColorBrush x:Key="StatusValidBadgeBackgroundBrush" Color="#1E3824" />
+      <SolidColorBrush x:Key="StatusExcludedBadgeForegroundBrush" Color="#FFCC80" />
+      <SolidColorBrush x:Key="StatusExcludedBadgeBackgroundBrush" Color="#3D2A12" />
+      <SolidColorBrush x:Key="StatusUnmatchedBadgeForegroundBrush" Color="#E1BEE7" />
+      <SolidColorBrush x:Key="StatusUnmatchedBadgeBackgroundBrush" Color="#36213E" />
+      <SolidColorBrush x:Key="StatusDuplicateBadgeForegroundBrush" Color="#F4A3A3" />
+      <SolidColorBrush x:Key="StatusDuplicateBadgeBackgroundBrush" Color="#3F1F1F" />
+      <SolidColorBrush x:Key="StatusErrorBadgeForegroundBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="StatusErrorBadgeBackgroundBrush" Color="#B3261E" />
+
+      <!-- Badge of a 1G1R winner chosen by hand, in the preview table -->
+      <SolidColorBrush x:Key="ForcedBadgeForegroundBrush" Color="#FFD54F" />
+      <SolidColorBrush x:Key="ForcedBadgeBackgroundBrush" Color="#3A3014" />
+      <SolidColorBrush x:Key="RequiredBadgeForegroundBrush" Color="#8FD3F2" />
+      <SolidColorBrush x:Key="RequiredBadgeBackgroundBrush" Color="#12303D" />
+      <!-- Badge of the files transferred with a row (tracks, CHDs), next to its source name -->
+      <SolidColorBrush x:Key="RelatedBadgeForegroundBrush" Color="#CBD5E1" />
+      <SolidColorBrush x:Key="RelatedBadgeBackgroundBrush" Color="#2B3440" />
+
+      <!-- Naming convention badge (key: Badge{Tone}...Brush) -->
+      <SolidColorBrush x:Key="BadgeAutoForegroundBrush" Color="#CBD5E1" />
+      <SolidColorBrush x:Key="BadgeAutoBackgroundBrush" Color="#2A313B" />
+      <SolidColorBrush x:Key="BadgeAutoBorderBrush" Color="#3A4350" />
+      <SolidColorBrush x:Key="BadgeTosecForegroundBrush" Color="#93C5FD" />
+      <SolidColorBrush x:Key="BadgeTosecBackgroundBrush" Color="#1E2A44" />
+      <SolidColorBrush x:Key="BadgeTosecBorderBrush" Color="#2C4A7A" />
+      <SolidColorBrush x:Key="BadgeNoIntroForegroundBrush" Color="#6EE7B7" />
+      <SolidColorBrush x:Key="BadgeNoIntroBackgroundBrush" Color="#12302A" />
+      <SolidColorBrush x:Key="BadgeNoIntroBorderBrush" Color="#1F5546" />
+      <SolidColorBrush x:Key="BadgeRedumpForegroundBrush" Color="#C4B5FD" />
+      <SolidColorBrush x:Key="BadgeRedumpBackgroundBrush" Color="#2A2142" />
+      <SolidColorBrush x:Key="BadgeRedumpBorderBrush" Color="#43357A" />
+      <SolidColorBrush x:Key="BadgeMameForegroundBrush" Color="#FCD34D" />
+      <SolidColorBrush x:Key="BadgeMameBackgroundBrush" Color="#33290F" />
+      <SolidColorBrush x:Key="BadgeMameBorderBrush" Color="#6B5317" />
+
+      <!-- DAT file summary (key: DatInfo{Tone}ForegroundBrush) -->
+      <SolidColorBrush x:Key="DatInfoNeutralForegroundBrush" Color="#88C0D0" />
+      <SolidColorBrush x:Key="DatInfoOkForegroundBrush" Color="#66BB6A" />
+      <SolidColorBrush x:Key="DatInfoErrorForegroundBrush" Color="#EF5350" />
+
+      <!-- Update notification banner -->
+      <SolidColorBrush x:Key="UpdateBannerBackgroundBrush" Color="#1E2A44" />
+      <SolidColorBrush x:Key="UpdateBannerBorderBrush" Color="#2C4A7A" />
+      <SolidColorBrush x:Key="UpdateBannerForegroundBrush" Color="#93C5FD" />
+
+      <!-- Execution log (level key: LogLevel{TAG}Brush) -->
+      <SolidColorBrush x:Key="LogBackgroundBrush" Color="#0D1014" />
+      <SolidColorBrush x:Key="LogForegroundBrush" Color="#D4D4D4" />
+      <SolidColorBrush x:Key="LogBorderBrush" Color="#2C333D" />
+      <SolidColorBrush x:Key="LogTextBrush" Color="#E0E0E0" />
+      <SolidColorBrush x:Key="LogHoverBackgroundBrush" Color="#1E242C" />
+      <SolidColorBrush x:Key="LogSelectionBackgroundBrush" Color="#264F78" />
+      <SolidColorBrush x:Key="LogLevelOKBrush" Color="#66BB6A" />
+      <SolidColorBrush x:Key="LogLevelSKIPBrush" Color="#FFA726" />
+      <SolidColorBrush x:Key="LogLevelUNMATCHEDBrush" Color="#CE93D8" />
+      <SolidColorBrush x:Key="LogLevelINFOBrush" Color="#64B5F6" />
+      <SolidColorBrush x:Key="LogLevelWARNBrush" Color="#FFD54F" />
+      <SolidColorBrush x:Key="LogLevelERRORBrush" Color="#EF5350" />
+      <SolidColorBrush x:Key="LogLevelPLANNEDBrush" Color="#90A4AE" />
+      <SolidColorBrush x:Key="LogLevelDefaultBrush" Color="#9E9E9E" />
+    </ResourceDictionary>  </ResourceDictionary.ThemeDictionaries>
+
+</ResourceDictionary>

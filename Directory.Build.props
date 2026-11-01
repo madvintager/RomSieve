@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <!-- Version of a local build; a release is published with the version of its tag (-p:Version=...) -->
+    <Version>0.0.0-dev</Version>
+    <!-- Shown in the properties of the executables under Windows -->
+    <Product>RomSieve</Product>
+    <Company>MadVintager</Company>
+    <Authors>MadVintager</Authors>
+    <Copyright>Copyright © 2026 MadVintager</Copyright>
+  </PropertyGroup>
+</Project>

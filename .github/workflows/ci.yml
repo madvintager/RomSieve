@@ -1,0 +1,97 @@
+name: CI
+
+# The actions are pinned to a commit, with its version in a comment, as in the release workflow: update both together.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same branch or pull request cancels the run still in progress
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+jobs:
+  # The release archives ship the guide in HTML: a broken link or anchor of docs/ fails here, not at the release
+  docs:
+    name: User guide
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
+      - name: Build the HTML guide and check its links
+        run: bash scripts/build-docs.sh "$RUNNER_TEMP/docs"
+
+  build-test:
+    name: Build and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+
+      # Package versions are all declared in Directory.Packages.props (central package management)
+      - name: Cache NuGet packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'global.json', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (warnings are errors)
+        run: dotnet build --no-restore --configuration Release -warnaserror
+
+      - name: Check formatting
+        run: dotnet format --no-restore --verify-no-changes
+
+      - name: Test with coverage
+        run: >
+          dotnet test --no-build --configuration Release
+          --logger trx
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Publish and run the single-file command line
+        shell: bash
+        run: |
+          rid=${{ runner.os == 'Windows' && 'win-x64' || 'linux-x64' }}
+          dotnet publish src/RomSieve.Cli/RomSieve.Cli.csproj -c Release -r "$rid" --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./publish-cli
+          ./publish-cli/romsieve-cli --help --lang en
+          set +e
+          ./publish-cli/romsieve-cli run --unknown-option
+          code=$?
+          set -e
+          test "$code" -eq 2
+
+      - name: Publish test results and coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results-${{ matrix.os }}
+          path: TestResults
+          if-no-files-found: warn

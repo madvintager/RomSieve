@@ -1,0 +1,202 @@
+name: Release
+
+# Publishes the interface and the command line for Windows and Linux when a version tag (v1.2.0, v1.2.0-beta1) is
+# pushed on the default branch. The GitHub release goes through the gh command line, preinstalled on the runners.
+# The notes are those of Notes-<version>.md at the root when it exists (Notes-1.2.0.md for v1.2.0), otherwise the list
+# of the commits since the previous tag. The HTML user guide is built once, with the pandoc of Ubuntu, and shipped in
+# both archives.
+# A manual run builds the archives as workflow artifacts without publishing anything.
+# The actions are pinned to a commit, with its version in a comment: a tag moved in their repository cannot change
+# what runs with the right to write to this one. Update them all together, with the same commits as the CI.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version of the test archives (no release is published)
+        required: false
+        default: 0.0.0-manual
+
+permissions:
+  contents: write
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  prepare:
+    name: Prepare the release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            tag="${{ github.ref_name }}"
+            if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::Invalid version tag: $tag (expected v1.2.0 or v1.2.0-beta1)"
+              exit 1
+            fi
+            branch="${{ github.event.repository.default_branch }}"
+            git fetch --no-tags origin "$branch"
+            if ! git merge-base --is-ancestor "${{ github.sha }}" "origin/$branch"; then
+              echo "::error::The tag $tag does not point to a commit of $branch"
+              exit 1
+            fi
+            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create the draft release
+        if: steps.version.outputs.publish == 'true'
+        shell: bash
+        run: |
+          tag="${{ github.ref_name }}"
+          written="Notes-${tag#v}.md"
+          if [ -f "$written" ]; then
+            cp "$written" notes.md
+          else
+            previous="$(git describe --tags --abbrev=0 "$tag^" 2>/dev/null || true)"
+            if [ -n "$previous" ]; then range="$previous..$tag"; else range="$tag"; fi
+            {
+              echo "## Changes"
+              echo
+              git log --no-merges --pretty='- %s' "$range"
+              echo
+              echo "## Downloads"
+              echo
+              echo "- Windows x64: RomSieve-${tag#v}-win-x64.zip"
+              echo "- Linux x64: RomSieve-${tag#v}-linux-x64.tar.gz"
+              echo
+              echo "Each archive holds the interface (RomSieve) and the command line (romsieve-cli), self-contained:"
+              echo "no .NET installation is needed. The user guide, in English and French, opens in a browser:"
+              echo "docs/index.html. Check a download with: sha256sum -c <archive>.sha256"
+            } > notes.md
+          fi
+
+          # Always explicit: a tag with a dash (v1.2.0-beta1) is a prerelease, which never becomes the latest release
+          if [[ "$tag" == *-* ]]; then prerelease=--prerelease; else prerelease=--prerelease=false; fi
+
+          # A release left by a failed run of the same tag is reused, with its notes refreshed
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release edit "$tag" --notes-file notes.md "$prerelease"
+          else
+            gh release create "$tag" --verify-tag --draft --title "RomSieve ${tag#v}" --notes-file notes.md "$prerelease"
+          fi
+
+  docs:
+    name: Build the user guide
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
+      - name: Build the HTML guide
+        run: bash scripts/build-docs.sh dist/docs
+
+      - name: Keep the guide for the archives
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: docs-html
+          path: dist/docs
+          if-no-files-found: error
+
+  package:
+    name: Package (${{ matrix.rid }})
+    needs: [prepare, docs]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+
+      # Nothing is published from a build that the CI would refuse
+      - name: Build and test
+        shell: bash
+        run: |
+          dotnet restore
+          dotnet build --no-restore --configuration Release -warnaserror
+          dotnet test --no-build --configuration Release
+
+      - name: Get the user guide
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: docs-html
+          path: docs-html
+
+      - name: Package
+        id: package
+        shell: bash
+        run: |
+          export DOCS_HTML_DIR="$PWD/docs-html"
+          archive="$(bash scripts/package-release.sh "${{ matrix.rid }}" "${{ needs.prepare.outputs.version }}" dist | tail -n 1)"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Attach to the release
+        if: needs.prepare.outputs.publish == 'true'
+        shell: bash
+        run: |
+          archive="${{ steps.package.outputs.archive }}"
+          gh release upload "${{ github.ref_name }}" "$archive" "$archive.sha256" --clobber
+
+      - name: Keep the test archives
+        if: needs.prepare.outputs.publish != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: romsieve-${{ needs.prepare.outputs.version }}-${{ matrix.rid }}
+          path: dist/*
+          if-no-files-found: error
+
+  finalize:
+    name: Publish the release
+    needs: [prepare, package]
+    if: needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the draft
+        shell: bash
+        run: |
+          # The release only becomes visible with its four files (two archives and their checksums)
+          tag="${{ github.ref_name }}"
+          count="$(gh release view "$tag" --json assets --jq '.assets | length')"
+          if [ "$count" -lt 4 ]; then
+            echo "::error::The draft release holds $count files instead of 4"
+            exit 1
+          fi
+
+          # The prerelease flag is passed again: publishing the draft must never turn a prerelease into the latest release
+          if [[ "$tag" == *-* ]]; then
+            gh release edit "$tag" --draft=false --prerelease
+          else
+            gh release edit "$tag" --draft=false --prerelease=false
+          fi
+          gh release view "$tag" --json isDraft,isPrerelease

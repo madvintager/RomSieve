@@ -1,0 +1,159 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RomSieve.App.ViewModels"
+        x:Class="RomSieve.App.Views.PreferencesWindow"
+        x:DataType="vm:PreferencesViewModel"
+        Title="{Binding I18n[prefs.window_title]}"
+        Width="480"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Icon="avares://RomSieve.App/Assets/icon.png"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        FontSize="11"
+        WindowStartupLocation="CenterOwner">
+
+  <Window.Styles>
+    <!-- Same compact controls as the main window -->
+    <Style Selector="TextBlock.section-title">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+    <Style Selector="TextBlock.note">
+      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="20" />
+      <Setter Property="Padding" Value="6,0,0,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+    </Style>
+    <Style Selector="Button">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Padding" Value="10,2" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="3" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel Margin="16,14">
+    <Button x:Name="BtnClosePreferences"
+            DockPanel.Dock="Bottom"
+            HorizontalAlignment="Right"
+            Margin="0,16,0,0"
+            MinWidth="85"
+            HorizontalContentAlignment="Center"
+            IsCancel="True"
+            Content="{Binding I18n[prefs.btn_close]}"
+            Click="OnCloseClick" />
+
+    <!-- Labels share one column, so that the lists of all the sections line up -->
+    <StackPanel Grid.IsSharedSizeScope="True">
+      <!-- Interface: applied at once to the whole application -->
+      <TextBlock Classes="section-title" Text="{Binding I18n[prefs.section_interface]}" />
+      <Grid RowDefinitions="Auto,6,Auto">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" SharedSizeGroup="Label" />
+          <ColumnDefinition Width="8" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock x:Name="LblUiLanguage"
+                   Grid.Row="0"
+                   Grid.Column="0"
+                   Text="{Binding I18n[app.language]}"
+                   VerticalAlignment="Center" />
+        <ComboBox x:Name="ComboUiLanguage"
+                  Grid.Row="0"
+                  Grid.Column="2"
+                  HorizontalAlignment="Stretch"
+                  ToolTip.Tip="{Binding I18n[app.tooltip_language]}"
+                  ItemsSource="{Binding AvailableLocaleOptions}"
+                  SelectedValueBinding="{Binding Value}"
+                  DisplayMemberBinding="{Binding Label}"
+                  SelectedValue="{Binding UiLocale, Mode=TwoWay}" />
+        <TextBlock x:Name="LblUiTheme"
+                   Grid.Row="2"
+                   Grid.Column="0"
+                   Text="{Binding I18n[app.theme]}"
+                   VerticalAlignment="Center" />
+        <ComboBox x:Name="ComboUiTheme"
+                  Grid.Row="2"
+                  Grid.Column="2"
+                  HorizontalAlignment="Stretch"
+                  ToolTip.Tip="{Binding I18n[app.tooltip_theme]}"
+                  ItemsSource="{Binding UiThemeOptions}"
+                  SelectedValueBinding="{Binding Value}"
+                  DisplayMemberBinding="{Binding Label}"
+                  SelectedValue="{Binding UiTheme, Mode=TwoWay}" />
+      </Grid>
+
+      <!-- Updates -->
+      <TextBlock Classes="section-title" Margin="0,16,0,6" Text="{Binding I18n[prefs.section_updates]}" />
+      <CheckBox x:Name="ChkCheckUpdates"
+                Content="{Binding I18n[app.chk_check_updates_startup]}"
+                ToolTip.Tip="{Binding I18n[app.tooltip_check_updates_startup]}"
+                IsChecked="{Binding Updates.CheckOnStartup, Mode=TwoWay}" />
+      <Button x:Name="BtnCheckUpdates"
+              Margin="0,6,0,0"
+              HorizontalAlignment="Left"
+              Content="{Binding I18n[prefs.btn_check_now]}"
+              ToolTip.Tip="{Binding I18n[app.tooltip_check_updates]}"
+              Command="{Binding Updates.CheckForUpdatesCommand}" />
+
+      <!-- Analysis: a sort option, saved with the others and in the profiles -->
+      <TextBlock Classes="section-title" Margin="0,16,0,6" Text="{Binding I18n[prefs.section_analysis]}" />
+      <Grid x:Name="PanelHashingParallelism">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" SharedSizeGroup="Label" />
+          <ColumnDefinition Width="8" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0" Text="{Binding I18n[tab1.lbl_hashing_parallelism]}" VerticalAlignment="Center" />
+        <ComboBox x:Name="ComboHashingParallelism"
+                  Grid.Column="2"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="{Binding I18n[tab1.tooltip_hashing_parallelism]}"
+                  IsEnabled="{Binding !Directories.IsRunning}"
+                  ItemsSource="{Binding Directories.HashingParallelismOptions}"
+                  SelectedValueBinding="{Binding Value}"
+                  DisplayMemberBinding="{Binding Label}"
+                  SelectedValue="{Binding Directories.HashingParallelism, Mode=TwoWay}" />
+      </Grid>
+      <TextBlock x:Name="LblHashingNote"
+                 Classes="note"
+                 Margin="0,6,0,0"
+                 Text="{Binding I18n[prefs.hashing_note]}" />
+
+      <!-- About: version, license, and the licenses of the third-party components the executables embed -->
+      <TextBlock Classes="section-title" Margin="0,16,0,6" Text="{Binding I18n[prefs.section_about]}" />
+      <TextBlock x:Name="LblAboutVersion" Text="{Binding AboutVersionText}" />
+      <TextBlock x:Name="LblAboutLicense"
+                 Classes="note"
+                 Margin="0,4,0,0"
+                 Text="{Binding I18n[prefs.about_license]}" />
+      <Button x:Name="BtnThirdPartyNotices"
+              Margin="0,6,0,0"
+              HorizontalAlignment="Left"
+              Content="{Binding I18n[prefs.btn_third_party_notices]}"
+              ToolTip.Tip="{Binding I18n[prefs.tooltip_third_party_notices]}"
+              Command="{Binding OpenThirdPartyNoticesCommand}" />
+    </StackPanel>
+  </DockPanel>
+</Window>

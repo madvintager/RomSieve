@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>RomSieve.Cli</RootNamespace>
+    <AssemblyName>romsieve-cli</AssemblyName>
+    <AssemblyTitle>RomSieve command line</AssemblyTitle>
+    <Description>Command line of RomSieve: simulation, sort, undo and exports from config.json or a profile.</Description>
+    <ApplicationIcon>..\RomSieve.App\Assets\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RomSieve.Core\RomSieve.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RomSieve.Cli.Tests" />
+  </ItemGroup>
+
+  <!-- Licenses of the third-party components, next to the executable -->
+  <Import Project="..\ThirdPartyNotices.targets" />
+
+</Project>

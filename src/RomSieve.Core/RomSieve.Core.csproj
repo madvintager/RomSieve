@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>RomSieve.Core</RootNamespace>
+    <AssemblyName>RomSieve.Core</AssemblyName>
+    <Description>Engine of RomSieve: identification against DATs, filters, 1G1R selection and transfers of ROM collections (TOSEC, No-Intro, Redump, MAME and MAME software lists).</Description>
+    <!-- Required by the [LibraryImport] native calls of the hard links (FileTransferExecutor), whose generated
+         marshalling code is unsafe: without it, the build fails (SYSLIB1062) -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" />
+    <PackageReference Include="SharpCompress" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\i18n\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RomSieve.Core.Tests" />
+  </ItemGroup>
+
+</Project>

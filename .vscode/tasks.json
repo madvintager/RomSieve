@@ -1,0 +1,71 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/RomSieve.App/RomSieve.App.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "publish",
+                "${workspaceFolder}/src/RomSieve.App/RomSieve.App.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish-standalone",
+            "type": "shell",
+            "command": "dotnet publish '${workspaceFolder}/src/RomSieve.App/RomSieve.App.csproj' -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o '${workspaceFolder}/publish' && mv -f '${workspaceFolder}/publish/RomSieve.App.exe' '${workspaceFolder}/publish/RomSieve.exe'",
+            "windows": {
+                "command": "dotnet publish '${workspaceFolder}/src/RomSieve.App/RomSieve.App.csproj' -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o '${workspaceFolder}/publish'; if ($LASTEXITCODE -eq 0) { Move-Item -Force '${workspaceFolder}/publish/RomSieve.App.exe' '${workspaceFolder}/publish/RomSieve.exe' }"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish-standalone-linux",
+            "type": "shell",
+            "command": "dotnet publish '${workspaceFolder}/src/RomSieve.App/RomSieve.App.csproj' -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o '${workspaceFolder}/publish-linux' && mv -f '${workspaceFolder}/publish-linux/RomSieve.App' '${workspaceFolder}/publish-linux/RomSieve'",
+            "windows": {
+                "command": "dotnet publish '${workspaceFolder}/src/RomSieve.App/RomSieve.App.csproj' -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o '${workspaceFolder}/publish-linux'; if ($LASTEXITCODE -eq 0) { Move-Item -Force '${workspaceFolder}/publish-linux/RomSieve.App' '${workspaceFolder}/publish-linux/RomSieve' }"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish-cli-standalone",
+            "type": "shell",
+            "command": "dotnet publish '${workspaceFolder}/src/RomSieve.Cli/RomSieve.Cli.csproj' -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o '${workspaceFolder}/publish'",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish-cli-standalone-linux",
+            "type": "shell",
+            "command": "dotnet publish '${workspaceFolder}/src/RomSieve.Cli/RomSieve.Cli.csproj' -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o '${workspaceFolder}/publish-linux'",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "watch",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "watch",
+                "run",
+                "--project",
+                "${workspaceFolder}/src/RomSieve.App/RomSieve.App.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}

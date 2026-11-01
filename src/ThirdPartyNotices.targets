@@ -1,0 +1,50 @@
+<Project>
+  <!--
+    Notices of the third-party components that an executable of RomSieve embeds, imported by RomSieve.App and
+    RomSieve.Cli. THIRD-PARTY-NOTICES.txt (root of the repository: the copyright notices and license texts of every
+    component) goes next to the executable at each build and publish. A publish also writes in licenses/ the notices
+    that the .NET runtime and some packages ship with them, copied from the very versions it embeds: a notice that
+    cannot be found fails the publish, so that no executable is ever published without its notices.
+  -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\THIRD-PARTY-NOTICES.txt"
+          Link="THIRD-PARTY-NOTICES.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest"
+          ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
+  <Target Name="PublishPackageNotices" AfterTargets="Publish">
+    <PropertyGroup>
+      <_NoticesPackageRoot>$([MSBuild]::EnsureTrailingSlash('$(NuGetPackageRoot)'))</_NoticesPackageRoot>
+    </PropertyGroup>
+    <ItemGroup>
+      <!-- The .NET runtime of a self-contained executable, with its own components (zlib-ng, Brotli, Unicode data...) -->
+      <_RuntimeNotices Include="@(ResolvedRuntimePack->'%(PackageDirectory)/THIRD-PARTY-NOTICES.TXT')"
+                       Condition="'$(SelfContained)' == 'true' and '%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'"
+                       NoticesName="dotnet-runtime" />
+      <_PackageNotices Include="@(_RuntimeNotices)" />
+      <!-- Packages that ship the notices of the material they took from other projects (Skia, HarfBuzz, FreeType...).
+           HarfBuzzSharp ships them in its native packages only, one per platform -->
+      <_PackageNotices Include="@(RuntimeCopyLocalItems->'$(_NoticesPackageRoot)skiasharp/%(NuGetPackageVersion)/THIRD-PARTY-NOTICES.txt'->Distinct())"
+                       Condition="'%(RuntimeCopyLocalItems.NuGetPackageId)' == 'SkiaSharp'"
+                       NoticesName="SkiaSharp" />
+      <_PackageNotices Include="@(NativeCopyLocalItems->'$(_NoticesPackageRoot)harfbuzzsharp.nativeassets.linux/%(NuGetPackageVersion)/THIRD-PARTY-NOTICES.txt'->Distinct())"
+                       Condition="'%(NativeCopyLocalItems.NuGetPackageId)' == 'HarfBuzzSharp.NativeAssets.Linux'"
+                       NoticesName="HarfBuzzSharp" />
+      <_PackageNotices Include="@(NativeCopyLocalItems->'$(_NoticesPackageRoot)harfbuzzsharp.nativeassets.win32/%(NuGetPackageVersion)/THIRD-PARTY-NOTICES.txt'->Distinct())"
+                       Condition="'%(NativeCopyLocalItems.NuGetPackageId)' == 'HarfBuzzSharp.NativeAssets.Win32'"
+                       NoticesName="HarfBuzzSharp" />
+      <_PackageNotices Include="@(RuntimeCopyLocalItems->'$(_NoticesPackageRoot)communitytoolkit.mvvm/%(NuGetPackageVersion)/ThirdPartyNotices.txt'->Distinct())"
+                       Condition="'%(RuntimeCopyLocalItems.NuGetPackageId)' == 'CommunityToolkit.Mvvm'"
+                       NoticesName="CommunityToolkit.Mvvm" />
+    </ItemGroup>
+    <Error Condition="'$(SelfContained)' == 'true' and '@(_RuntimeNotices)' == ''"
+           Text="The notices of the .NET runtime were not found: no runtime pack of Microsoft.NETCore.App was resolved." />
+    <Error Condition="!Exists('%(_PackageNotices.Identity)')"
+           Text="The third-party notices of %(_PackageNotices.NoticesName) were not found: %(_PackageNotices.Identity)" />
+    <Copy SourceFiles="@(_PackageNotices)"
+          DestinationFiles="@(_PackageNotices->'$(PublishDir)licenses/%(NoticesName)-THIRD-PARTY-NOTICES.txt')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

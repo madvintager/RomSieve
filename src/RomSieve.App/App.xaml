@@ -1,0 +1,21 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:RomSieve.App.Converters"
+             x:Class="RomSieve.App.App"
+             RequestedThemeVariant="Light">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://RomSieve.App/Themes/Palette.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <conv:ThemeResourceConverter x:Key="ThemeResource" />
+        </ResourceDictionary>
+    </Application.Resources>
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
+        <Style Selector=":is(Control)">
+            <Setter Property="ToolTip.ShowDelay" Value="1000" />
+        </Style>
+    </Application.Styles>
+</Application>

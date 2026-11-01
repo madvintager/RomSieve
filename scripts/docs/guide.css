@@ -1,0 +1,124 @@
+/* Style of the HTML user guide shipped in the release archives (scripts/build-docs.sh), light and dark. */
+:root {
+  color-scheme: light dark;
+  --text: #1f2328;
+  --muted: #59636e;
+  --background: #ffffff;
+  --surface: #f6f8fa;
+  --border: #d1d9e0;
+  --link: #0969da;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e6edf3;
+    --muted: #9198a1;
+    --background: #0d1117;
+    --surface: #161b22;
+    --border: #3d444d;
+    --link: #4493f8;
+  }
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+  color: var(--text);
+  background: var(--background);
+  font-family: -apple-system, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  hyphens: none;
+}
+
+a {
+  color: var(--link);
+}
+
+h1, h2, h3, h4 {
+  line-height: 1.25;
+  margin: 1.6em 0 0.6em;
+}
+
+h1, h2 {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+
+h1 {
+  margin-top: 0.6em;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+figure {
+  margin: 1em 0;
+}
+
+figcaption {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  font-size: 0.9em;
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+pre {
+  overflow-x: auto;
+  padding: 0.8em 1em;
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+th, td {
+  padding: 0.4em 0.8em;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  background: var(--surface);
+}
+
+blockquote {
+  margin: 1em 0;
+  padding: 0 1em;
+  color: var(--muted);
+  border-left: 0.25em solid var(--border);
+}
+
+.guide-nav {
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+.guide-nav p {
+  margin: 0;
+}
