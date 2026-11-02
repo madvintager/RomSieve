@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest a new feature or an improvement.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to do
+      description: The task or the collection you work on, and what stops you today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Your idea
+      description: How RomSieve could help, in the interface or on the command line.
+    validations:
+      required: true
+  - type: dropdown
+    id: convention
+    attributes:
+      label: Conventions concerned
+      multiple: true
+      options:
+        - TOSEC
+        - No-Intro
+        - Redump
+        - MAME
+        - MAME software list
+        - All
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Other tools or workarounds
+      description: How you do it today, or how another tool does it.

@@ -1,0 +1,97 @@
+name: Bug report
+description: RomSieve crashed, lost or damaged a file, or did something it should not.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a problem. Please do not attach ROMs, disk images or any copyrighted
+        file: the logs and reports below are enough.
+  - type: input
+    id: version
+    attributes:
+      label: RomSieve version
+      description: In the title bar, or `romsieve-cli --version`.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - Windows x64
+        - Linux x64
+        - Other (say which below)
+    validations:
+      required: true
+  - type: dropdown
+    id: program
+    attributes:
+      label: Program
+      options:
+        - Interface (RomSieve)
+        - Command line (romsieve-cli)
+        - Both
+    validations:
+      required: true
+  - type: dropdown
+    id: convention
+    attributes:
+      label: Convention of the DAT
+      options:
+        - TOSEC
+        - No-Intro
+        - Redump
+        - MAME
+        - MAME software list
+        - No DAT
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Transfer mode
+      options:
+        - Simulation only
+        - Copy
+        - Move
+        - Hard links
+        - Symbolic links
+        - ZIP
+        - Not related to a sort
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What you did, from the start. For the command line, the full command.
+      placeholder: |
+        1. Select the source folder and the DAT...
+        2. Run a simulation...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and reports
+      description: |
+        Drag the files here. The full log of the run is in the `logs` folder (its path is given at the end of the log);
+        after an unexpected error or a crash, add the latest report of the `crashes` folder. Both are next to the
+        settings (see Installation in the user guide). The report exported after a simulation (Export > Report) helps
+        too. These files hold the paths of your folders: edit them out if you prefer.
+  - type: checkboxes
+    id: data
+    attributes:
+      label: Your files
+      options:
+        - label: A file of my collection was lost, damaged or written outside the destination.

@@ -100,8 +100,9 @@ un rapport est aussi enregistré.
 
 ### Signaler un problème
 
-Notez la version (barre de titre, ou `romsieve-cli --version`) et les étapes qui mènent au problème, et joignez le
-rapport exporté après une simulation (**Exporter** > **Rapport (JSON, CSV)...**), ou le journal complet de l'exécution
+Signalez-le sur la [page des tickets](https://github.com/madvintager/RomSieve/issues/new/choose) de RomSieve (en
+anglais de préférence) : un formulaire demande ce qu'il faut. Notez la version (barre de titre, ou
+`romsieve-cli --version`) et les étapes qui mènent au problème, et joignez le rapport exporté après une simulation (**Exporter** > **Rapport (JSON, CSV)...**), ou le journal complet de l'exécution
 concernée : son chemin est donné à la fin du journal (dossier `logs`, voir
 [Installation](installation.md#emplacement-des-fichiers-de-romsieve)). Après une erreur inattendue ou une fermeture brutale, joignez aussi le dernier rapport d'erreur du
 dossier `crashes` : il donne la version, le système et le détail technique de l'erreur, ainsi que les chemins des

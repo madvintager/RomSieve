@@ -92,8 +92,9 @@ latest one when you report the problem. If RomSieve closes on its own, a report 
 
 ### Reporting a problem
 
-Note the version (title bar, or `romsieve-cli --version`), the steps that lead to the problem, and attach the report
-exported after a simulation (**Export** > **Report (JSON, CSV)...**), or the full log of the run concerned: its path is
-given at the end of the log (`logs` folder, see [Installation](installation.md#where-romsieve-stores-its-files)).
+Report it on the [issues page](https://github.com/madvintager/RomSieve/issues/new/choose) of RomSieve: a form asks for
+what is needed. Note the version (title bar, or `romsieve-cli --version`), the steps that lead to the problem, and
+attach the report exported after a simulation (**Export** > **Report (JSON, CSV)...**), or the full log of the run
+concerned: its path is given at the end of the log (`logs` folder, see [Installation](installation.md#where-romsieve-stores-its-files)).
 After an unexpected error or a crash, also attach the latest crash report of the `crashes` folder: it holds the
 version, the system and the technical details of the error, and the paths of the files concerned, if any.

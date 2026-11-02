@@ -1,0 +1,76 @@
+name: File or DAT not recognized
+description: A file is unmatched, a DAT is misread, a name is misparsed, or the 1G1R winner looks wrong.
+labels: ["identification"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please give names, sizes and checksums only: do not attach ROMs, disk images or any copyrighted file.
+  - type: input
+    id: version
+    attributes:
+      label: RomSieve version
+      description: In the title bar, or `romsieve-cli --version`.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: problem
+    attributes:
+      label: Problem
+      options:
+        - A file is unmatched, but it is in the DAT
+        - A file is matched to the wrong game
+        - The DAT is refused or misread
+        - The convention of the DAT is not detected
+        - A file name is misparsed (title, country, language, disk...)
+        - The 1G1R winner is not the release I expected
+        - A MAME set, BIOS or CHD is mishandled
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: convention
+    attributes:
+      label: Convention of the DAT
+      options:
+        - TOSEC
+        - No-Intro
+        - Redump
+        - MAME
+        - MAME software list
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: dat
+    attributes:
+      label: DAT
+      description: Name and version of the DAT, as in its header, and where it comes from.
+      placeholder: "Commodore Amiga - Games - [ADF] (TOSEC-v2025-03-13)"
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Files concerned
+      description: |
+        The file names (and, inside an archive, the member names), with their size and CRC32. The detail panel of the
+        simulation table shows them, with the reason given by RomSieve.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: For a 1G1R winner, your languages and countries in order, and the release you expected to keep.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and reports
+      description: |
+        Drag the files here: the report exported after a simulation (Export > Report), or the full log of the run
+        (`logs` folder, next to the settings). These files hold the paths of your folders: edit them out if you prefer.

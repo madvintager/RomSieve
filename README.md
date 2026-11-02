@@ -125,5 +125,16 @@ AI was used in the development of RomSieve to write unit tests, to write github 
 
 ## License
 
-[GNU General Public License v3.0](LICENSE). RomSieve embeds components by other authors (.NET, Avalonia, SkiaSharp,
-SharpCompress...), each under its own license: see [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+Copyright (C) 2026 MadVintager.
+
+RomSieve is free software: you can redistribute it and/or modify it under the terms of the
+[GNU General Public License v3.0](LICENSE), or (at your option) any later version. It comes with absolutely no
+warranty. RomSieve embeds components by other authors (.NET, Avalonia, SkiaSharp, SharpCompress...), each under its own
+license: see [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+
+**Additional permission under GNU GPL version 3 section 7.** If you modify this Program, or any covered work, by linking
+or combining it with the libraries listed in THIRD-PARTY-NOTICES.txt (or a modified version of those libraries),
+containing parts covered by the terms of their own licenses, including the Microsoft Public License (Ms-PL) and the
+UnRAR license, the licensors of this Program grant you additional permission to convey the resulting work.
+Corresponding Source for a non-source form of such a combination shall include the source code for the parts of those
+libraries used as well as that of the covered work.

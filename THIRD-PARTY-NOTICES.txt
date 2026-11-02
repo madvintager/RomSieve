@@ -2,6 +2,14 @@ RomSieve: third-party notices
 ==============================
 
 RomSieve is free software, distributed under the GNU General Public License, version 3 (see LICENSE).
+Copyright (C) 2026 MadVintager.
+
+Additional permission under GNU GPL version 3 section 7: if you modify this Program, or any covered work, by linking or
+combining it with the libraries listed in this file (or a modified version of those libraries), containing parts
+covered by the terms of their own licenses, including the Microsoft Public License (Ms-PL) and the UnRAR license, the
+licensors of this Program grant you additional permission to convey the resulting work. Corresponding Source for a
+non-source form of such a combination shall include the source code for the parts of those libraries used as well as
+that of the covered work.
 
 Its two executables, RomSieve (the interface) and romsieve-cli (the command line), are self-contained: they embed the
 .NET runtime and the libraries below, written by other authors. Each of them keeps its own license. This file gives
