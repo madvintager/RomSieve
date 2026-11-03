@@ -685,13 +685,9 @@ public sealed partial class FileTransferExecutor
     private string ToTargetPath(ProcessItem item, string fileTarget) => UsesZip(item) ? Path.ChangeExtension(fileTarget, ".zip") : fileTarget;
 
     /// <summary>
-    /// Date of every ZIP entry, as in TorrentZip: a fixed date makes the archive depend on the content only.
-    /// </summary>
-    private static readonly DateTimeOffset DeterministicEntryTime = new(1996, 12, 24, 23, 32, 0, TimeSpan.Zero);
-
-    /// <summary>
-    /// ZIP mode: writes the item and its companions into one archive, deterministically (entries sorted by lowercase
-    /// name, fixed date, smallest Deflate size). Cancellable, removed on failure, optionally verified, then journaled.
+    /// ZIP mode: writes the item and its companions into one TorrentZip archive (<see cref="TorrentZipWriter"/>), the
+    /// archive that RomVault and igir write from the same files. Cancellable, removed on failure, optionally verified,
+    /// then journaled.
     /// </summary>
     private async Task TransferAsZipAsync(ProcessItem item, TargetSet set, FileStatus status, CancellationToken cancellationToken)
     {
@@ -714,8 +710,9 @@ public sealed partial class FileTransferExecutor
         };
         members.AddRange(item.RelatedItems.Select(rel => (GetRelatedTargetName(rel), rel)));
         var ordered = members
+            .Select(m => (EntryName: TorrentZipWriter.NormalizeName(m.EntryName), m.Source))
             .DistinctBy(m => m.EntryName, StringComparer.OrdinalIgnoreCase)
-            .OrderBy(m => m.EntryName.ToLowerInvariant(), StringComparer.Ordinal)
+            .OrderBy(m => m.EntryName, TorrentZipWriter.NameComparer)
             .ToList();
 
         try
@@ -732,19 +729,22 @@ public sealed partial class FileTransferExecutor
             var extendedZip = _organizer.FormatWindowsExtendedPath(zipPath);
             _currentTargetInProgress = writePath;
 
-            var crcs = new Dictionary<string, string>(StringComparer.Ordinal);
-            await using (var zipStream = WrapTarget(new FileStream(extendedWrite, FileMode.Create, FileAccess.Write, FileShare.None, CopyBufferSize, useAsync: true)))
-            using (var zip = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: false, Encoding.UTF8))
+            // CRC32 of each entry, in the order of the archive. The writer reads the stream back only to move the data of
+            // an entry whose expected size missed the ZIP64 decision
+            var crcs = new List<string>(ordered.Count);
+            await using (var zipStream = WrapTarget(new FileStream(extendedWrite, FileMode.Create, FileAccess.ReadWrite, FileShare.None, CopyBufferSize, useAsync: true)))
             {
+                var writer = new TorrentZipWriter(zipStream);
                 foreach (var (entryName, source) in ordered)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var entry = zip.CreateEntry(entryName, CompressionLevel.SmallestSize);
-                    entry.LastWriteTime = DeterministicEntryTime;
-                    await using var entryStream = entry.Open();
                     await using var sourceStream = WrapSource(OpenSource(source));
-                    crcs[entryName] = await CopyStreamAsync(sourceStream, entryStream, cancellationToken).ConfigureAwait(false);
+                    var expectedSize = sourceStream.CanSeek ? sourceStream.Length : source.FileSize;
+                    var crc = await writer.AddEntryAsync(entryName, sourceStream, expectedSize, cancellationToken).ConfigureAwait(false);
+                    crcs.Add(FormatCrc(crc));
                 }
+
+                await writer.FinishAsync(cancellationToken).ConfigureAwait(false);
             }
 
             await VerifyZipAsync(extendedWrite, crcs, cancellationToken).ConfigureAwait(false);
@@ -802,10 +802,12 @@ public sealed partial class FileTransferExecutor
             : new FileStream(item.SourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
 
     /// <summary>
-    /// When <see cref="SortConfig.VerifyCopies"/> is enabled, decompresses every entry of a written archive and compares
-    /// its CRC32 with the data read from its source (and with the CRC32 recorded by the archive).
+    /// When <see cref="SortConfig.VerifyCopies"/> is enabled, checks the TorrentZip signature of a written archive (its
+    /// comment and the CRC32 of its central directory), then decompresses every entry and compares its CRC32 with the
+    /// data read from its source (and with the CRC32 recorded by the archive). The entries are taken in the order of the
+    /// archive, not by name: a name written in code page 437 does not read back as written.
     /// </summary>
-    private async Task VerifyZipAsync(string extendedZip, IReadOnlyDictionary<string, string> expectedCrcs, CancellationToken cancellationToken)
+    private async Task VerifyZipAsync(string extendedZip, IReadOnlyList<string> expectedCrcs, CancellationToken cancellationToken)
     {
         AfterTargetWritten?.Invoke(extendedZip);
         if (!_config.VerifyCopies)
@@ -813,10 +815,23 @@ public sealed partial class FileTransferExecutor
             return;
         }
 
-        using var zip = ZipFile.OpenRead(extendedZip);
-        foreach (var (name, expected) in expectedCrcs)
+        await using (var archive = new FileStream(extendedZip, FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize, FileOptions.Asynchronous))
         {
-            var entry = zip.GetEntry(name) ?? throw new CopyVerificationException(expected, "--------");
+            var (declared, actual) = await TorrentZipWriter.ReadSignatureAsync(archive, cancellationToken).ConfigureAwait(false);
+            if (declared is null || !string.Equals(declared, actual, StringComparison.Ordinal))
+            {
+                throw new CopyVerificationException(declared?.ToLowerInvariant() ?? "--------", actual?.ToLowerInvariant() ?? "--------");
+            }
+        }
+
+        using var zip = ZipFile.OpenRead(extendedZip);
+        if (zip.Entries.Count != expectedCrcs.Count)
+        {
+            throw new CopyVerificationException(expectedCrcs.Count > 0 ? expectedCrcs[0] : "--------", "--------");
+        }
+
+        foreach (var (entry, expected) in zip.Entries.Zip(expectedCrcs))
+        {
             string actual;
             try
             {

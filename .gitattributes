@@ -1,2 +1,6 @@
 # Shell scripts keep LF line endings, also in a Windows checkout (bash fails on CRLF)
 *.sh text eol=lf
+
+# Inputs and reference archives of the TorrentZip tests, compared byte for byte: never converted
+tests/RomSieve.Core.Tests/Fixtures/TorrentZip/input/** binary
+tests/RomSieve.Core.Tests/Fixtures/TorrentZip/reference/** binary

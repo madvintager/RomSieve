@@ -42,6 +42,16 @@ public sealed partial class ThirdPartyNoticesTests
     }
 
     [Fact]
+    public void ZlibLibrary_ShouldBeNamedInTheNoticesWithItsLicense()
+    {
+        // RomSieve.Zlib is a project of the repository, not a package: ShippedPackages does not see it
+        var notices = File.ReadAllText(RepositoryFile(ShippedPackages.NoticesFileName));
+
+        notices.Should().Contain("13. RomSieve.Zlib").And.Contain("Microsoft Public License");
+        File.ReadAllText(RepositoryFile("src", "RomSieve.Zlib", "License.txt")).Should().StartWith("Microsoft Public License (MS-PL)");
+    }
+
+    [Fact]
     public void LicensesFolder_ShouldHoldExactlyTheFilesTheNoticesReferTo()
     {
         var named = LicensesFileRegex().Matches(File.ReadAllText(RepositoryFile(ShippedPackages.NoticesFileName)))

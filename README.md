@@ -42,7 +42,7 @@ not want (or filter the table) to sort only a part of it, each game with all its
 XML and ClrMamePro DATs, including parent/clone relations, shows how complete the collection is, and exports a miss
 list or a fixdat.
 
-**Safe file operations.** RomSieve can copy, move, create hard links or symbolic links, or write one ZIP per game,
+**Safe file operations.** RomSieve can copy, move, create hard links or symbolic links, or write one TorrentZip archive per game,
 into folder patterns such as `{publisher}/{title}/` or `{country}/{title}/`. Files that do not match go to
 `_unmatched/`, and a cancelled transfer leaves no partial file behind. Purging a destination deletes nothing: its
 content is set aside in `_purged/`. Every real sort is logged, so the last one can be undone.

@@ -949,7 +949,7 @@
   "tab1.tooltip_mode_hardlink": "Lien physique (Hardlink) : crée un pointeur direct vers les données sans occuper d'espace disque supplémentaire (nécessite le même système de fichiers).",
   "tab1.tooltip_mode_symlink": "Lien symbolique (Symlink) : crée un raccourci pointant vers le fichier source sans dupliquer les données.",
   "tab1.radio_zip": "ZIP",
-  "tab1.tooltip_mode_zip": "ZIP : copie chaque fichier dans sa propre archive ZIP (un .cue avec ses pistes dans la même archive), sans toucher à la source. Les archives sont déterministes : fichiers triés par nom, date fixe, compression maximale ; deux tris des mêmes fichiers donnent les mêmes archives. Ce n'est pas du TorrentZip certifié.",
+  "tab1.tooltip_mode_zip": "ZIP : copie chaque fichier dans sa propre archive ZIP (un .cue avec ses pistes dans la même archive), sans toucher à la source. Les archives sont au format TorrentZip, reconnu par RomVault et igir : elles ne dépendent que de leur contenu, si bien que deux tris des mêmes fichiers donnent des archives identiques à l'octet près, comme celles de ces outils.",
   "tab1.mode_hint_copy": "La source n'est pas modifiée.",
   "tab1.mode_hint_move": "Les fichiers quittent la source (instantané sur un même volume).",
   "tab1.mode_hint_hardlink": "Même volume requis ; aucun espace disque en plus.",

@@ -31,6 +31,8 @@
     <None Include="Fixtures\Archives\*.7z;Fixtures\Archives\*.rar" CopyToOutputDirectory="PreserveNewest" />
     <!-- Extracts of real MAME DATs read by MameDatTests and MameDescriptionParserTests -->
     <None Include="Fixtures\Mame\*.dat" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Inputs and reference TorrentZip archives of igir and RomVault, read by TorrentZipWriterTests and ZipOutputTests -->
+    <None Include="Fixtures\TorrentZip\input\**;Fixtures\TorrentZip\reference\*.zip" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

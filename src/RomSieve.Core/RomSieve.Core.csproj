@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Deflate compressor of zlib for the TorrentZip archives (Ms-PL, a library apart: src/RomSieve.Zlib/README.md) -->
+    <ProjectReference Include="..\RomSieve.Zlib\RomSieve.Zlib.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="Resources\i18n\*.json" />
   </ItemGroup>
 

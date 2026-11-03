@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Deflate compressor of zlib, ported to C# by DotNetZip and carried by SharpCompress, under the Microsoft Public
+    License (License.txt of this folder): a library apart from the code of RomSieve, see README.md.
+  -->
+  <PropertyGroup>
+    <RootNamespace>RomSieve.Zlib</RootNamespace>
+    <AssemblyName>RomSieve.Zlib</AssemblyName>
+    <Description>Raw Deflate compressor that writes the output of zlib at level 9, as TorrentZip requires: the managed zlib of DotNetZip, from SharpCompress (Microsoft Public License).</Description>
+  </PropertyGroup>
+
+</Project>

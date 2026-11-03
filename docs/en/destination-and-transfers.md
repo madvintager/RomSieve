@@ -107,8 +107,12 @@ details), and the sentence of the selected mode stays under the list.
 | **Symlink** | A shortcut pointing to the source | Must stay in place | No extra space. On Windows, creating symbolic links may require the Developer Mode or administrator rights. An emulator that writes to the file changes the one in the source. |
 | **ZIP** | One ZIP archive per file | Unchanged | A descriptor and its tracks share one archive. |
 
-About the **ZIP** mode: the archives are *deterministic* (files sorted by name, fixed date, maximal compression), so two
-sorts of the same files give byte-identical archives. They are not certified TorrentZip archives. A MAME set, which
+About the **ZIP** mode: the archives are in the *TorrentZip* format, which RomVault and igir recognize. This format fixes
+everything that could differ from one tool to another (order of the files, date, compression, headers): an archive only
+depends on its content, and two sorts of the same files give byte-identical archives, like those of these tools. A ROM
+manager therefore takes them as already in order, without compressing them again, and a shared collection stays the same
+from one user to another. Compressing takes longer than copying. With **Verify copied files**, every archive is read
+again and its TorrentZip signature checked. A MAME set, which
 already is an archive, and its CHDs are copied as they are (see [MAME DATs](naming-conventions-and-dats.md#mame-dats)),
 and so is a software of a MAME list.
 
@@ -126,7 +130,8 @@ The option is saved in the configuration and in the profiles, so the command lin
 ### Verify copied files
 
 With **Verify copied files**, below *Conflicts*, every file copied, extracted from an archive or moved to another disk is read again and
-its CRC32 is compared with the data read from the source. On a mismatch (faulty disk, cable, network), the copy is
+its CRC32 is compared with the data read from the source (in ZIP mode, every file of the archive, and the TorrentZip
+signature of the archive). On a mismatch (faulty disk, cable, network), the copy is
 deleted, the source is kept, and the file is marked in error. Links are not verified. This slows the sort down, since
 every file is read twice.
 

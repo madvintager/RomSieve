@@ -1,5 +1,7 @@
+using System.Buffers.Binary;
 using System.IO;
 using System.IO.Compression;
+using System.IO.Hashing;
 using System.Text;
 using RomSieve.Core.Models;
 using RomSieve.Core.Services;
@@ -8,8 +10,9 @@ using RomSieve.Core.Tests.Fixtures;
 namespace RomSieve.Core.Tests;
 
 /// <summary>
-/// ZIP transfer mode: one deterministic archive per item (a file, or a descriptor with its tracks), sources untouched,
-/// collisions resolved on the archive, cancellation and failures without partial archive, journal and undo.
+/// ZIP transfer mode: one TorrentZip archive per item (a file, or a descriptor with its tracks), identical to those of igir
+/// and RomVault, sources untouched, collisions resolved on the archive, cancellation and failures without partial archive,
+/// verification of the content and of the signature, journal and undo.
 /// </summary>
 public sealed class ZipOutputTests : IDisposable
 {
@@ -244,6 +247,111 @@ public sealed class ZipOutputTests : IDisposable
         item.StatusReason!.Key.Should().Be("reason.copy_verification_failed");
         File.Exists(target).Should().BeFalse("a corrupted archive is deleted");
         File.ReadAllBytes(source).Should().Equal(randomData);
+    }
+
+    [Fact]
+    public async Task SortedArchives_ShouldBeTheArchivesOfIgirAndRomVault()
+    {
+        // The fixture files of a disc (a descriptor and its two tracks) and of a single file, sorted in ZIP mode (the
+        // disc, without a DAT, is non-conforming: its archive goes to _unmatched, with the same content)
+        var fixtures = Path.Combine(AppContext.BaseDirectory, "Fixtures", "TorrentZip");
+        string[] games = ["Disc (1995)(Sony)", "Compressible (1990)(Test)"];
+        foreach (var file in games.SelectMany(game => Directory.GetFiles(Path.Combine(fixtures, "input", game))))
+        {
+            Source(Path.GetFileName(file), File.ReadAllBytes(file));
+        }
+
+        var result = await _services.Processor.ExecuteAsync(Config(), isDryRun: false);
+
+        result.Items.Select(i => Path.GetFileNameWithoutExtension(i.DisplayName)).Should().BeEquivalentTo(games);
+        foreach (var item in result.Items)
+        {
+            var game = Path.GetFileNameWithoutExtension(item.DisplayName);
+            item.Status.Should().NotBe(FileStatus.Error);
+            File.ReadAllBytes(item.FinalTargetPath!)
+                .Should().Equal(File.ReadAllBytes(Path.Combine(fixtures, "reference", game + ".zip")), $"{game}.zip is a TorrentZip archive");
+        }
+    }
+
+    [Fact]
+    public async Task VerifiedArchive_WithAWrongSignature_ShouldBeDeleted()
+    {
+        var source = Source(Alpha, AlphaData);
+        var target = _temp.GetFilePath(Path.Combine("dst", "Alpha (1990)(Ocean).zip"));
+        var config = Config();
+        config.VerifyCopies = true;
+        var executor = new FileTransferExecutor(
+            config, isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
+            _services.OpticalCompanionService, _services.ChecksumService)
+        {
+            AfterTargetWritten = path =>
+            {
+                // Change the central directory (its "version made by"): the entries still read well, the signature no
+                // longer matches
+                var bytes = File.ReadAllBytes(path);
+                var centralStart = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(bytes.Length - 44 + 16));
+                bytes[centralStart + 4] ^= 0x01;
+                File.WriteAllBytes(path, bytes);
+            }
+        };
+        var item = new ProcessItem { SourcePath = source, FileSize = AlphaData.Length, Parsed = _services.TosecParser.ParseFilename(Alpha), Status = FileStatus.Valid };
+
+        await executor.ProcessItemAsync(item, new HashSet<string>(), new ProcessStats());
+
+        item.Status.Should().Be(FileStatus.Error);
+        item.StatusReason!.Key.Should().Be("reason.copy_verification_failed");
+        File.Exists(target).Should().BeFalse("an archive whose signature is wrong is not TorrentZip");
+        Directory.GetFiles(_temp.GetFilePath("dst")).Should().BeEmpty("the temporary archive is deleted too");
+    }
+
+    [Fact]
+    public async Task FailedWrite_ShouldLeaveNoArchive()
+    {
+        var source = Source("Big Game (1990)(Ocean).adf", ArchiveFormatTests.Pattern("BIG---", 4 * 1024 * 1024));
+        var executor = new FileTransferExecutor(
+            Config(), isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
+            _services.OpticalCompanionService, _services.ChecksumService)
+        {
+            // The disk fills up in the middle of the compressed data
+            WrapTargetStream = stream => new FailingStream(stream, FailingStream.DiskFull) { FailAfterBytesWritten = 5000 }
+        };
+        var item = new ProcessItem { SourcePath = source, FileSize = 4 * 1024 * 1024, Parsed = _services.TosecParser.ParseFilename("Big Game (1990)(Ocean).adf"), Status = FileStatus.Valid };
+
+        await executor.ProcessItemAsync(item, new HashSet<string>(), new ProcessStats());
+
+        item.Status.Should().Be(FileStatus.Error);
+        executor.StopReason.Should().NotBeNull("a full disk stops the sort");
+        Directory.GetFiles(_temp.GetFilePath("dst")).Should().BeEmpty("neither the archive nor its temporary file stays");
+        File.ReadAllBytes(source).Should().Equal(ArchiveFormatTests.Pattern("BIG---", 4 * 1024 * 1024));
+    }
+
+    [Fact]
+    public async Task ArchiveOfTheFormerFormat_ShouldStillBeUndone()
+    {
+        // An archive written by an earlier version (ZipArchive, not TorrentZip) is journaled with its own CRC32
+        var source = Source(Alpha, AlphaData);
+        var target = _temp.GetFilePath(Path.Combine("dst", "Alpha (1990)(Ocean).zip"));
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        using (var zip = ZipFile.Open(target, ZipArchiveMode.Create))
+        {
+            using var entry = zip.CreateEntry(Alpha, CompressionLevel.SmallestSize).Open();
+            entry.Write(AlphaData);
+        }
+
+        var crc = Crc32.HashToUInt32(File.ReadAllBytes(target)).ToString("x8", System.Globalization.CultureInfo.InvariantCulture);
+        var crcCache = new CrcCacheService(_temp.GetFilePath(Path.Combine("cache", "crc_cache.json")));
+        var journal = new OperationJournalService(_temp.GetFilePath("journals"), _services.ChecksumService, crcCache);
+        await using (var writer = await journal.BeginAsync(Config()))
+        {
+            await writer.RecordAsync(new JournalOperation(JournalOperationKind.ZipArchive, target, source, Size: new FileInfo(target).Length, Crc: crc));
+            await writer.CompleteAsync(completed: true);
+        }
+
+        var report = await journal.UndoAsync(journal.FindLastUndoableJournal()!.Path);
+
+        report.Issues.Should().BeEmpty();
+        File.Exists(target).Should().BeFalse();
+        File.ReadAllBytes(source).Should().Equal(AlphaData);
     }
 
     [Fact]
