@@ -93,6 +93,53 @@ public sealed class NoIntroRedumpParserTests
         parsed.MediaType.Should().Be("cd");
     }
 
+    // Floppy disks of the No-Intro floppy DATs (Acorn - Archimedes, 2023-10-29): "Disk", with the label of some sets
+    [Theory]
+    [InlineData("Alone in the Dark (United Kingdom) (Disk 8).jfd", 8, null, "Alone in the Dark")]
+    [InlineData("Simon the Sorcerer (Europe) (Disk 10).adf", 10, null, "Simon the Sorcerer")]
+    [InlineData("Chocks Away (United Kingdom) (Disk 2, Maps Disk).adf", 2, null, "Chocks Away")]
+    [InlineData("Chocks Away (United Kingdom) (Disk 3, Misson Addon).adf", 3, null, "Chocks Away")]
+    [InlineData("Emotions - Search for Humanity (United Kingdom) (v1.11) (Disk 1 - Installation Disc One).jfd", 1, null, "Emotions - Search for Humanity")]
+    [InlineData("Krisalis Collection, The (United Kingdom) (Disk 3 - Revelation! - BUZZ Version).jfd", 3, null, "The Krisalis Collection")]
+    [InlineData("Game (Japan) (Disk 1 Side A).fds", 1, null, "Game")]
+    [InlineData("Game (Europe) (Disk 2 of 3).adf", 2, 3, "Game")]
+    [InlineData("Game (USA) (Disc 2).chd", 2, null, "Game")]
+    public void NoIntroFloppyDisk_ShouldReadTheDiskNumberAndKeepItOutOfTheOtherInformation(
+        string filename, int disk, int? total, string title)
+    {
+        var parsed = _parser.ParseFilename(filename);
+
+        parsed.IsConform.Should().BeTrue();
+        parsed.Convention.Should().Be(NamingConvention.NoIntro);
+        parsed.Title.Should().Be(title);
+        parsed.DiscNumber.Should().Be(disk);
+        parsed.DiscTotal.Should().Be(total);
+        parsed.IsMultiMedia.Should().BeTrue();
+        parsed.MoreInfo.Should().BeEmpty("the disk and its label are not an information of the release");
+    }
+
+    [Fact]
+    public void NoIntroFloppyDisk_DetectedConvention_ShouldBeNoIntro()
+    {
+        var parsed = _parser.ParseRomFilename("Alone in the Dark (United Kingdom) (Disk 1).jfd");
+
+        parsed.Convention.Should().Be(NamingConvention.NoIntro);
+        parsed.DiscNumber.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("Disk Station (Japan).dsk", "Disk Station")]
+    [InlineData("Game (Japan) (Disk Writer).fds", "(Disk Writer)")]
+    [InlineData("Game (Europe) (Disk 1.5).adf", "(Disk 1.5)")]
+    public void NoIntroDiskWithoutNumber_ShouldNotBeADisk(string filename, string kept)
+    {
+        var parsed = _parser.ParseFilename(filename);
+
+        parsed.DiscNumber.Should().BeNull();
+        parsed.IsMultiMedia.Should().BeFalse();
+        (parsed.Title + string.Join(string.Empty, parsed.MoreInfo)).Should().Contain(kept);
+    }
+
     [Fact]
     public void RedumpOpticalTracks_ShouldExtractTrackNumberAndRedumpConvention()
     {

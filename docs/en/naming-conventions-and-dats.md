@@ -61,6 +61,11 @@ For instance `Super Mario World (USA).sfc` or `Final Fantasy VII (Europe) (Disc 
 the languages, the revision, the development status (Beta, Proto, Sample...), the unofficial releases (Unl, Pirate,
 Hack...), the modern re-releases (Virtual Console, Switch Online, Classic Mini...) and the disc number.
 
+The No-Intro DATs of floppy disks (Acorn Archimedes...) number the disks `(Disk 1)`, `(Disk 2)`..., sometimes with a
+label: `(Disk 1, Game Disk)`, `(Disk 2 - Courses)`. RomSieve reads them as the disks of one set, kept or left out
+together by 1G1R, even when the DAT describes each disk as a game and makes the disks clones of one of them. Without a
+total in the name, the set counts as many disks as the highest number found.
+
 ### Optical media
 
 A descriptor (`.cue`, `.gdi`, `.ccd`) and its tracks (`.bin`, `.img`, `.sub`...) form a **set**: they are analyzed,

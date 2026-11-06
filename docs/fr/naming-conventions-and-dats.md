@@ -61,6 +61,11 @@ Par exemple `Super Mario World (USA).sfc` ou `Final Fantasy VII (Europe) (Disc 1
 les langues, la révision, le statut de développement (Beta, Proto, Sample...), les parutions non officielles (Unl,
 Pirate, Hack...), les rééditions modernes (Virtual Console, Switch Online, Classic Mini...) et le numéro de disque.
 
+Les DAT No-Intro de disquettes (Acorn Archimedes...) numérotent les disquettes `(Disk 1)`, `(Disk 2)`..., parfois avec
+un libellé : `(Disk 1, Game Disk)`, `(Disk 2 - Courses)`. RomSieve les lit comme les disques d'un même set, gardés ou
+écartés ensemble par le 1G1R, même quand le DAT décrit chaque disquette comme un jeu et fait des disquettes les clones
+de l'une d'elles. Sans total dans le nom, le set compte autant de disques que le plus grand numéro trouvé.
+
 ### Supports optiques
 
 Un descripteur (`.cue`, `.gdi`, `.ccd`) et ses pistes (`.bin`, `.img`, `.sub`...) forment un **set** : ils sont

@@ -100,7 +100,8 @@ public sealed partial class ReleaseScoringService : IReleaseScoringService
 
     private static readonly HashSet<string> FloppyExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".adf", ".d64", ".d71", ".d81", ".dsk", ".img", ".ima", ".ipf", ".st", ".stx", ".msa", ".g64", ".dmz", ".dms", ".fdi", ".scp"
+        ".adf", ".d64", ".d71", ".d81", ".dsk", ".img", ".ima", ".ipf", ".st", ".stx", ".msa", ".g64", ".dmz", ".dms", ".fdi", ".scp",
+        ".jfd"
     };
 
     private static readonly HashSet<string> TapeExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -380,8 +381,9 @@ public sealed partial class ReleaseScoringService : IReleaseScoringService
     {
         var ext = GetMediaExtension(filenameOrPath);
 
-        // Floppy family
-        if (ext is ".ipf" or ".stx" or ".g64" or ".scp" or ".fdi")
+        // Floppy family: the images that keep the copy protections (.jfd: JASPP floppy disk of the Acorn Archimedes)
+        // before the sector images
+        if (ext is ".ipf" or ".stx" or ".g64" or ".scp" or ".fdi" or ".jfd")
             return 30;
         if (ext is ".adf" or ".d64" or ".d71" or ".d81" or ".dsk" or ".st" or ".msa" or ".img" or ".ima")
         {
@@ -504,6 +506,13 @@ public sealed partial class ReleaseScoringService : IReleaseScoringService
                     score -= (varIdx - 1) * 2;
                 }
             }
+        }
+
+        // A demo is a preview of the game, like a development version: the full game wins over it (a demo of a game on
+        // several disks, whose names are longer, won the final tiebreak on the name)
+        if (!string.IsNullOrEmpty(parsed.Demo))
+        {
+            score -= 600;
         }
 
         if (!string.IsNullOrEmpty(parsed.Copyright))

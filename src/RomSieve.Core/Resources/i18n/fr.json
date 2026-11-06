@@ -251,7 +251,7 @@
   "tiebreak.tooltip_amiga_chipset": "Pour un Amiga AGA : la version AGA, puis celle qui tourne sur les deux familles, puis celle corrigée pour AGA.",
   "tiebreak.tooltip_good_dump_tosec": "Un dump vérifié [!] d'abord, puis un dump sans défaut : jamais un mauvais dump [b], un surdump [o], un sous-dump [u] ni un virus [v].",
   "tiebreak.tooltip_good_dump_nointro": "Un dump sans défaut plutôt qu'un mauvais dump [b].",
-  "tiebreak.tooltip_original_release_tosec": "La version originale plutôt qu'une version crackée [cr], avec trainer [t], hackée [h], corrigée [f], traduite [tr] ou alternative [a], une version de développement ou une réédition.",
+  "tiebreak.tooltip_original_release_tosec": "La version originale plutôt qu'une version crackée [cr], avec trainer [t], hackée [h], corrigée [f], traduite [tr] ou alternative [a], une version de développement, une démo ou une réédition.",
   "tiebreak.tooltip_original_release_nointro": "La version commerciale plutôt qu'une bêta, un prototype, une démo, une version pirate (Pirate), un hack (Hack) ou une réédition.",
   "tiebreak.tooltip_original_release_redump": "La version commerciale plutôt qu'une bêta, un prototype, une démo ou une réédition.",
   "tiebreak.tooltip_original_release_mame": "Le set original plutôt qu'un bootleg, un hack ou un prototype.",

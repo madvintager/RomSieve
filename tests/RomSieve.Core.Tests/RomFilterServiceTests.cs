@@ -223,6 +223,7 @@ public sealed class RomFilterServiceTests
 
         // Media categories
         Filter.GetMediaCategory("game.adf").Should().Be("floppy");
+        Filter.GetMediaCategory("game.jfd").Should().Be("floppy");
         Filter.GetMediaCategory("game.d64").Should().Be("floppy");
         Filter.GetMediaCategory("game.crt").Should().Be("cartridge");
         Filter.GetMediaCategory("game.nes").Should().Be("cartridge");
@@ -447,6 +448,7 @@ public sealed class RomFilterServiceTests
     [InlineData("Game (1991)(Pub).ipf", 30)]
     [InlineData("Game (1991)(Pub).stx", 30)]
     [InlineData("Game (1991)(Pub).g64", 30)]
+    [InlineData("Game (United Kingdom).jfd", 30)]
     [InlineData("Game (1991)(Pub).adf", 20)]
     [InlineData("Game (1991)(Pub).d64", 20)]
     [InlineData("Game (1991)(Pub).dsk", 20)]
@@ -464,6 +466,19 @@ public sealed class RomFilterServiceTests
     public void MediaFormatFidelityScore_ShouldReturnExpectedIntraFamilyRank(string filename, int expectedScore)
     {
         Filter.GetMediaFormatFidelityScore(filename).Should().Be(expectedScore);
+    }
+
+    [Theory]
+    [InlineData("Alone in the Dark (United Kingdom) (Demo).adf", "Alone in the Dark (United Kingdom) (Disk 1).jfd")]
+    [InlineData("Wolfchild (demo) (1992)(Core Design).adf", "Wolfchild (1992)(Core Design)(Disk 1 of 2).adf")]
+    [InlineData("Hamsters (United Kingdom) (v1.10) (Demo).adf", "Hamsters (United Kingdom) (v1.10).adf")]
+    public void OriginalReleaseScore_Demo_ShouldBeLowerThanTheFullGame(string demo, string fullGame)
+    {
+        var pDemo = NoIntro.ParseRomFilename(demo);
+        var pGame = NoIntro.ParseRomFilename(fullGame);
+
+        pDemo.Demo.Should().NotBeNullOrEmpty();
+        Filter.GetOriginalReleaseScore(pDemo).Should().BeLessThan(Filter.GetOriginalReleaseScore(pGame));
     }
 
     [Fact]

@@ -214,6 +214,36 @@ public sealed partial class OneGameOneRomResolver
         return 0;
     }
 
+    /// <summary>
+    /// Whether a release is a parent: none of its files is the clone of a game outside the release. Some DATs that
+    /// describe each disk as a game make the disks of a set the clones of one of them (No-Intro floppy DATs: disks 1
+    /// to 7 clones of disk 8); such a set is the parent release, and not a clone because of its first disk.
+    /// </summary>
+    internal static bool IsParentRelease(IReadOnlyList<ProcessItem> relItems)
+    {
+        HashSet<string>? releaseGames = null;
+        foreach (var it in relItems)
+        {
+            // The parent game by its name in the DAT (a MAME parent title is a description, never a game name)
+            var parent = !string.IsNullOrEmpty(it.Parsed.CloneOf) ? it.Parsed.CloneOf : it.Parsed.ParentTitle;
+            if (string.IsNullOrEmpty(parent))
+            {
+                continue;
+            }
+
+            releaseGames ??= relItems
+                .Select(r => r.DatGameName)
+                .OfType<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!releaseGames.Contains(parent))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private void ResolveForGame(
         List<ProcessItem> groupItems,
         MultiDiskEvaluationResult multiDiskResult)
@@ -282,7 +312,7 @@ public sealed partial class OneGameOneRomResolver
             var mediaFidelity = _filterService.GetMediaFormatFidelityScore(firstFileName, sampleParsed);
             var isMonolingual = !sampleParsed.IsMultilingual && sampleParsed.LanguageCodes.Count <= 1;
             var regionAffinity = _filterService.GetRegionLanguageAffinity(sampleParsed, _config.Filters.PriorityLanguages, r);
-            var isParent = (!string.IsNullOrEmpty(sampleParsed.CloneOf) || !string.IsNullOrEmpty(sampleParsed.ParentTitle)) ? 0 : 1;
+            var isParent = IsParentRelease(relItems) ? 1 : 0;
 
             int completeness;
             if (sampleParsed.IsMultiMedia)
@@ -357,10 +387,13 @@ public sealed partial class OneGameOneRomResolver
 
         foreach (var rel in rankedReleases)
         {
+            // A set that lacks disks loses to a complete release, even when no other set is complete (a demo on one disk
+            // beats a game whose first disk is missing); a release on one disk loses to a complete set of its media
             var totalExp = multiDiskResult.ReleaseTotals.GetValueOrDefault(rel.RelKey, 1);
-            rel.IsCompleteMultidisk = multidiskMediaCats.Contains(rel.MediaCat)
+            var isMultidiskRelease = rel.Completeness > 1 || totalExp > 1;
+            rel.IsCompleteMultidisk = isMultidiskRelease
                 ? ((rel.Completeness > 1 && rel.Completeness >= totalExp) ? 1 : 0)
-                : 1;
+                : (multidiskMediaCats.Contains(rel.MediaCat) ? 0 : 1);
 
             // A MAME set that lacks ROMs or disks (a split clone without its parent) does not run by itself: it loses
             // to a complete set as soon as this criterion, so that 1G1R never keeps it in place of its parent

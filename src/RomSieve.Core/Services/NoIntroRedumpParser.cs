@@ -43,7 +43,9 @@ public sealed partial class NoIntroRedumpParser : INoIntroRedumpParser
     [GeneratedRegex(@"^(?:Rev(?:ision)?\s*([0-9a-zA-Z]+)|v([0-9]+(?:\.[0-9a-zA-Z]+)*)|PRG(\d+))$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex RevisionSegmentRegex();
 
-    [GeneratedRegex(@"^Disc\s*(\d+)(?:\s*of\s*(\d+))?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    // A disc (Redump, No-Intro CDs) or a floppy disk (No-Intro floppy systems: "(Disk 2)"), with its total or not, and
+    // the label some sets give each disk: "(Disk 1, Game Disk)", "(Disk 2 - Courses)", "(Disk 1 Side A)"
+    [GeneratedRegex(@"^Dis[ck]\s*(\d+)(?:\s*of\s*(\d+))?(?:(?:\s*[,:-]|\s+(?=[a-z]))\s*\S.*)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DiscSegmentRegex();
 
     // A demo, alone or followed by its number or description; not a word that only starts like it ("Demolition")

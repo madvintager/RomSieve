@@ -85,10 +85,10 @@ v1.0 > no version* against a name without a version number, which comes after al
   language nor country counts as English. The `m` code (multilingual) matches a multilingual release that contains at
   least two of your languages (one if your list only has one), or whose name does not detail its languages (`M3`). A
   release in none of your languages comes after all the others.
-* **Complete set**: a set with all its disks present wins over an incomplete set on the same media; for MAME, a set
-  that has all its ROMs and CHDs. The expected number of disks comes from the name (`(Disk 1 of 3)`) or, failing that,
-  from the highest disk number found (`(Disc 1)`, `(Disc 2)`...). This criterion only separates releases on the same
-  type of media: if no complete set exists on floppy disks, it does not penalize the floppy releases.
+* **Complete set**: a set with all its disks present wins over an incomplete set; for MAME, a set that has all its ROMs
+  and CHDs. The expected number of disks comes from the name (`(Disk 1 of 3)`) or, failing that, from the highest disk
+  number found (`(Disc 1)`, `(Disk 2)`...). A set that lacks disks cannot be played: it also loses to a release on a
+  single disk, a demo for instance. A release on a single disk only loses to a complete set on the same type of media.
 * **Amiga chipset (AGA machine)**: no effect until the *Amiga machine* option of the Filters page is set to
   **Amiga 1200, 4000, CD32 (AGA)**. With this machine, the AGA and OCS versions of a game are one game, and the AGA
   version (`(AGA)`, `(A1200)`...) wins over a version that runs on both families (`(OCS-AGA)`, `(ECS-AGA)`), which
@@ -98,11 +98,12 @@ v1.0 > no version* against a name without a version number, which comes after al
   bad dump (`[b]`, `(Bad Dump)`), a virus-infected one (`[v]`), an overdump (`[o]`) or an underdump (`[u]`). Every
   dump of a Redump DAT is verified, and a MAME ROM marked *baddump* is the best dump known: their orders do not have
   this criterion.
-* **Original release**: the original release wins over a modified one. From the least to the most penalized: fixes
-  (`[f]`), re-releases (`(Virtual Console)`, `(Switch Online)`...), translations (`[tr]`, `[T-En]`), alternate dumps
-  (`[a]`), cracks (`[cr]`), trainers (`[t]`, `[t +2]`), modified releases (`[m]`), hacks (`[h]`, `(Hack)`), pirate
-  releases (`[p]`, `(Pirate)`), development versions (`(alpha)`, `(beta)`, `(proto)`, `(preview)`...) and extended
-  ADFs; each additional flag costs more, and `[a2]`, `[cr3]`... come after `[a]`, `[cr]`. For MAME, a bootleg or a
+* **Original release**: the original release wins over a modified one, and the full game over its demo. From the least
+  to the most penalized: fixes (`[f]`), re-releases (`(Virtual Console)`, `(Switch Online)`...), translations (`[tr]`,
+  `[T-En]`), alternate dumps (`[a]`), cracks (`[cr]`), trainers (`[t]`, `[t +2]`), modified releases (`[m]`), hacks
+  (`[h]`, `(Hack)`), pirate releases (`[p]`, `(Pirate)`), development versions (`(alpha)`, `(beta)`, `(proto)`,
+  `(preview)`...), demos (`(demo)`, `(demo-playable)`, `(Demo)`, `(Kiosk)`...) and extended ADFs; each additional flag
+  costs more, and `[a2]`, `[cr3]`... come after `[a]`, `[cr]`. For MAME, a bootleg or a
   hack loses to the original set; for a software of a MAME list, a pirate release, a hack, a crack, a trained release
   or a prototype loses to the retail release.
 * **MAME emulation (driver status)**: a machine whose emulation is *good* wins over an *imperfect* emulation, which
@@ -123,8 +124,8 @@ v1.0 > no version* against a name without a version number, which comes after al
   otherwise from a mention in the name (`(Disk 1 of 2)`, `(Tape)`, `(Cart)`).
 * **Format fidelity**: on the same media, the image format most faithful to the original wins, based on the
   extension:
-  * floppy disks: `.ipf`, `.stx`, `.g64`, `.scp`, `.fdi` (and `(sps)` images) > `.adf`, `.d64`, `.dsk`, `.st`,
-    `.msa`, `.img` > `.dms`, `.dmz`;
+  * floppy disks: `.ipf`, `.stx`, `.g64`, `.scp`, `.fdi`, `.jfd` (and `(sps)` images) > `.adf`, `.d64`, `.dsk`,
+    `.st`, `.msa`, `.img` > `.dms`, `.dmz`;
   * optical discs: `.chd` > `.cue`, `.gdi` > `.cdi`, `.mds`, `.ccd`, `.nrg` > `.iso`;
   * tapes: `.tzx`, `.cdt`, `.pzx`, `.uef` > `.tap`, `.cas`, `.t64`, `.k7` > `.wav`, `.voc`;
   * hard drives: `.lha`, `.hdf` > `.vhd` > `.hdz`;
@@ -153,7 +154,8 @@ v1.0 > no version* against a name without a version number, which comes after al
 * **Most disks (incomplete set)**: between two releases whose disks are not all there, the one with the most distinct
   disks or parts found wins (`Disk 1`, `Disk 2`... or `Side A`, `Side B`).
 * **Parent rather than clone**: with a DAT, the parent release of a game wins over its clones (the DAT's `cloneof`
-  attribute). Without a DAT, every release counts as a parent and this criterion decides nothing. TOSEC DATs describe
+  attribute). A set whose disks the DAT makes clones of one of them, as the No-Intro DATs of floppy disks do, counts as
+  a parent. Without a DAT, every release counts as a parent and this criterion decides nothing. TOSEC DATs describe
   no clone: the order of TOSEC does not have this criterion.
 
 and always last, the **name** itself: the shortest file name wins, since a name loaded with mentions usually describes

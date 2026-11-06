@@ -87,11 +87,11 @@ La raison affichée pour une version exclue nomme le critère décisif (par exem
   ni pays compte comme anglais. Le code `m` (multilingue) correspond à une version multilingue qui contient au moins
   deux de vos langues (une seule si votre liste n'en compte qu'une), ou dont le nom ne détaille pas les langues
   (`M3`). Une version dans aucune de vos langues passe après toutes les autres.
-* **Set complet** : un set dont tous les disques sont présents l'emporte sur un set incomplet du même support ; pour
-  MAME, un set qui a toutes ses ROM et tous ses CHD. Le nombre de disques attendu vient du nom (`(Disk 1 of 3)`) ou, à
-  défaut, du plus grand numéro de disque trouvé (`(Disc 1)`, `(Disc 2)`...). Ce critère ne départage que des versions
-  sur le même type de support : s'il n'existe aucun set complet sur disquettes, il ne pénalise pas les versions sur
-  disquettes.
+* **Set complet** : un set dont tous les disques sont présents l'emporte sur un set incomplet ; pour MAME, un set qui
+  a toutes ses ROM et tous ses CHD. Le nombre de disques attendu vient du nom (`(Disk 1 of 3)`) ou, à défaut, du plus
+  grand numéro de disque trouvé (`(Disc 1)`, `(Disk 2)`...). Un set auquel il manque des disques ne se joue pas : il
+  perd aussi face à une version sur un seul disque, une démo par exemple. Une version sur un seul disque ne perd que
+  face à un set complet sur le même type de support.
 * **Chipset Amiga (machine AGA)** : sans effet tant que l'option *Machine Amiga* de la page Filtres ne vaut pas
   **Amiga 1200, 4000, CD32 (AGA)**. Avec cette machine, les versions AGA et OCS d'un même jeu n'en font qu'un, et la
   version AGA (`(AGA)`, `(A1200)`...) l'emporte sur une version qui tourne sur les deux familles (`(OCS-AGA)`,
@@ -101,12 +101,12 @@ La raison affichée pour une version exclue nomme le critère décisif (par exem
   sur un mauvais dump (`[b]`, `(Bad Dump)`), infecté par un virus (`[v]`), surdimensionné (`[o]`) ou tronqué (`[u]`).
   Tous les dumps d'un DAT Redump sont vérifiés, et une ROM MAME marquée *baddump* est le meilleur dump connu : leurs
   ordres n'ont pas ce critère.
-* **Version originale** : la version originale l'emporte sur une version modifiée. Du moins pénalisé au plus
-  pénalisé : les correctifs (`[f]`), les rééditions (`(Virtual Console)`, `(Switch Online)`...), les traductions
-  (`[tr]`, `[T-Fr]`), les dumps alternatifs (`[a]`), les cracks (`[cr]`), les trainers (`[t]`, `[t +2]`), les versions
-  modifiées (`[m]`), les hacks (`[h]`, `(Hack)`), les versions pirates (`[p]`, `(Pirate)`), les versions de
-  développement (`(alpha)`, `(beta)`, `(proto)`, `(preview)`...) et les ADF étendus ; chaque marqueur supplémentaire
-  pénalise encore, et `[a2]`, `[cr3]`... passent après `[a]`, `[cr]`. Pour MAME, un bootleg ou un hack perd face au
+* **Version originale** : la version originale l'emporte sur une version modifiée, et le jeu complet sur sa démo. Du
+  moins pénalisé au plus pénalisé : les correctifs (`[f]`), les rééditions (`(Virtual Console)`, `(Switch Online)`...),
+  les traductions (`[tr]`, `[T-Fr]`), les dumps alternatifs (`[a]`), les cracks (`[cr]`), les trainers (`[t]`,
+  `[t +2]`), les versions modifiées (`[m]`), les hacks (`[h]`, `(Hack)`), les versions pirates (`[p]`, `(Pirate)`), les
+  versions de développement (`(alpha)`, `(beta)`, `(proto)`, `(preview)`...), les démos (`(demo)`, `(demo-playable)`,
+  `(Demo)`, `(Kiosk)`...) et les ADF étendus ; chaque marqueur supplémentaire pénalise encore, et `[a2]`, `[cr3]`... passent après `[a]`, `[cr]`. Pour MAME, un bootleg ou un hack perd face au
   set original ; pour un logiciel d'une liste MAME, une version pirate, un hack, un crack, une version avec trainer ou
   un prototype perd face à la version commerciale.
 * **Émulation MAME (statut du driver)** : une machine dont l'émulation est *bonne* l'emporte sur une émulation
@@ -128,8 +128,8 @@ La raison affichée pour une version exclue nomme le critère décisif (par exem
   `.hdf` pour le disque dur), sinon d'une mention du nom (`(Disk 1 of 2)`, `(Tape)`, `(Cart)`).
 * **Fidélité du format** : à support égal, le format d'image le plus fidèle à l'original l'emporte, d'après
   l'extension :
-  * disquettes : `.ipf`, `.stx`, `.g64`, `.scp`, `.fdi` (et les images `(sps)`) > `.adf`, `.d64`, `.dsk`, `.st`,
-    `.msa`, `.img` > `.dms`, `.dmz` ;
+  * disquettes : `.ipf`, `.stx`, `.g64`, `.scp`, `.fdi`, `.jfd` (et les images `(sps)`) > `.adf`, `.d64`, `.dsk`,
+    `.st`, `.msa`, `.img` > `.dms`, `.dmz` ;
   * disques optiques : `.chd` > `.cue`, `.gdi` > `.cdi`, `.mds`, `.ccd`, `.nrg` > `.iso` ;
   * cassettes : `.tzx`, `.cdt`, `.pzx`, `.uef` > `.tap`, `.cas`, `.t64`, `.k7` > `.wav`, `.voc` ;
   * disque dur : `.lha`, `.hdf` > `.vhd` > `.hdz` ;
@@ -158,7 +158,8 @@ La raison affichée pour une version exclue nomme le critère décisif (par exem
 * **Le plus de disques (set incomplet)** : entre deux versions dont il manque des disques, celle dont on a trouvé le
   plus de disques ou de parties distincts l'emporte (`Disk 1`, `Disk 2`... ou `Side A`, `Side B`).
 * **Parent plutôt que clone** : avec un DAT, la version parente d'un jeu l'emporte sur ses clones (attribut `cloneof`
-  du DAT). Sans DAT, toutes les versions comptent comme parentes et ce critère ne départage rien. Les DAT TOSEC ne
+  du DAT). Un set dont le DAT fait de chaque disque un clone de l'un d'eux, comme les DAT No-Intro de disquettes, compte
+  comme parent. Sans DAT, toutes les versions comptent comme parentes et ce critère ne départage rien. Les DAT TOSEC ne
   décrivent aucun clone : l'ordre de TOSEC n'a pas ce critère.
 
 et toujours en dernier, le **nom** lui-même : le nom de fichier le plus court l'emporte, car un nom chargé de mentions
