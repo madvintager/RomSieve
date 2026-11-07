@@ -36,3 +36,30 @@ public sealed record DatLotMember(string Name, string RelativePath, DatCatalog C
     /// <summary>Folder of the DAT relative to the folder read: empty for a DAT at its root.</summary>
     public string RelativeFolder => Path.GetDirectoryName(RelativePath) ?? string.Empty;
 }
+
+/// <summary>
+/// The DAT a file is sorted with, as its target path needs it (<see cref="Abstractions.IPathOrganizerService.BuildTargetPath"/>):
+/// its name, the value of <c>{dat}</c>, and, for a DAT of a lot (<see cref="IsLotMember"/>), its folder relative to the
+/// folder of DATs read. Only a DAT of a lot gets a folder of its own in the destination (<see cref="SortConfig.FolderPerDat"/>),
+/// under the folders of its path when they are mirrored (<see cref="SortConfig.DatFolderMirror"/>): a single DAT
+/// changes nothing to the targets.
+/// </summary>
+public sealed record DatPlacement(string Name, string? RelativeFolder = null, bool IsLotMember = false);
+
+/// <summary>
+/// What a sort found of one DAT of a lot (<see cref="ProcessStats.PerDat"/>): its ROMs, those present (a file of the
+/// source has their checksums, whatever DAT it is sorted with), those designated by the name of a CHD only, those
+/// missing, and the games with at least one ROM present.
+/// </summary>
+public sealed record DatLotStats(
+    string Name,
+    NamingConvention Convention,
+    int TotalRoms,
+    int MatchedCount,
+    int NameMatchedCount,
+    int MissingCount,
+    int GamesFound)
+{
+    /// <summary>Share of the ROMs of the DAT present, by checksum or by name, in percent.</summary>
+    public double CompletionPct => TotalRoms > 0 ? (MatchedCount + NameMatchedCount) / (double)TotalRoms * 100.0 : 0.0;
+}

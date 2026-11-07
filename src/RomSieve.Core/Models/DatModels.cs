@@ -308,8 +308,15 @@ public sealed partial class DatCatalog
             return this;
         }
 
-        return name is not null && _datByName!.TryGetValue(name.Trim(), out var member) ? member.Catalog : null;
+        return DatMemberFor(name)?.Catalog;
     }
+
+    /// <summary>
+    /// DAT of the lot named <paramref name="name"/> (case ignored), with its path; <c>null</c> when the lot has no such
+    /// DAT, or when this catalog is the catalog of a single DAT.
+    /// </summary>
+    public DatLotMember? DatMemberFor(string? name) =>
+        Dats is not null && name is not null && _datByName!.TryGetValue(name.Trim(), out var member) ? member : null;
 
     /// <summary>
     /// Catalog of a lot of DATs (<see cref="Dats"/>), in the given order, under a header named

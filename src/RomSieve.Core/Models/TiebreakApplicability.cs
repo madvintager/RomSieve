@@ -54,9 +54,14 @@ public static class TiebreakApplicability
             _ => null
         };
 
-    /// <summary>Parent / clone relations of a whole DAT catalog.</summary>
+    /// <summary>
+    /// Parent / clone relations of a whole DAT catalog: of the DAT, of one of its software lists, or of one of the DATs of
+    /// a lot.
+    /// </summary>
     public static DatCloneRelations GetCloneRelations(DatCatalog catalog) =>
-        catalog.CloneToParent.Count > 0 || catalog.SoftwareLists?.Values.Any(list => list.CloneToParent.Count > 0) == true
+        catalog.CloneToParent.Count > 0
+        || catalog.SoftwareLists?.Values.Any(list => list.CloneToParent.Count > 0) == true
+        || catalog.Dats?.Any(dat => dat.Catalog.CloneToParent.Count > 0) == true
             ? DatCloneRelations.Present
             : DatCloneRelations.None;
 }

@@ -360,24 +360,4 @@ public sealed class DatLotTests : IDisposable
         lot.IsReadFrom(Path.Combine(_dats, "Nintendo - Nintendo Entertainment System (20230501-101010).dat")).Should().BeTrue();
         lot.IsReadFrom(Path.Combine(_dats, "fixdat.dat")).Should().BeFalse();
     }
-
-    // =========================================================================
-    // Before the pipeline sorts with a lot
-    // =========================================================================
-
-    [Fact]
-    public async Task Sort_ShouldStillRefuseALot()
-    {
-        WriteNes();
-        WriteGameBoy();
-        var source = _tmp.CreateSubdirectory("src");
-        _tmp.WriteBytes(Path.Combine("src", "Tetris (USA).nes"), TetrisNes);
-        var config = new SortConfig { SourceDir = source, DestinationDir = _tmp.GetFilePath("dst"), DatFile = _dats };
-
-        var run = await FluentActions.Invoking(() => _services.Processor.ExecuteAsync(config, isDryRun: true))
-            .Should().ThrowAsync<InvalidOperationException>();
-
-        run.Which.Message.Should().Contain("Nintendo - Game Boy (20230414-173400).dat");
-        Directory.Exists(config.DestinationDir).Should().BeFalse();
-    }
 }

@@ -17,7 +17,7 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
 
     /// <summary>Variables of a directory pattern, written between braces (<c>{title}</c>).</summary>
     public static readonly IReadOnlyList<string> PatternVariableNames =
-        ["title", "letter", "version", "year", "publisher", "country", "language", "system", "chipset", "video", "dump_status", "genre", "category"];
+        ["title", "letter", "version", "year", "publisher", "country", "language", "system", "chipset", "video", "dump_status", "genre", "category", "dat"];
 
     private readonly ITosecParser _tosecParser;
 
@@ -114,7 +114,8 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
         bool restoreArticles = true,
         bool subfolderMultidisk = true,
         bool hiddenSubfolder = false,
-        bool? isMultiMediaOverride = null)
+        bool? isMultiMediaOverride = null,
+        string? datName = null)
     {
         if (!parsed.IsTosecConform)
         {
@@ -150,7 +151,10 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
             ["genre"] = SanitizePathSegment(parsed.Machine?.Category?.Genre ?? "Unknown"),
             ["category"] = SanitizePathSegment(parsed.Machine?.Category is { } category
                 ? category.Name.Replace(" / ", " - ", StringComparison.Ordinal)
-                : "Unknown")
+                : "Unknown"),
+
+            // Header name of the DAT the file is sorted with
+            ["dat"] = SanitizePathSegment(string.IsNullOrWhiteSpace(datName) ? "Unknown" : datName.Trim())
         };
 
         var rawPattern = (pattern ?? string.Empty).Trim().Trim('/', '\\');
@@ -197,7 +201,12 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
             : Path.Combine([.. sanitizedParts]);
     }
 
-    public string BuildTargetPath(ParsedRomName parsed, string fileName, SortConfig config, bool? isMultiMediaOverride = null)
+    public string BuildTargetPath(
+        ParsedRomName parsed,
+        string fileName,
+        SortConfig config,
+        bool? isMultiMediaOverride = null,
+        DatPlacement? dat = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         var hiddenSubfolder = config.GenerateM3u &&
@@ -210,17 +219,44 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
             restoreArticles: config.RestoreArticles,
             subfolderMultidisk: config.SubfolderMultidisk,
             hiddenSubfolder: hiddenSubfolder,
-            isMultiMediaOverride: isMultiMediaOverride);
+            isMultiMediaOverride: isMultiMediaOverride,
+            datName: dat?.Name);
 
-        var target = relTargetDir == "."
-            ? Path.Combine(config.DestinationDir, fileName)
-            : Path.Combine(config.DestinationDir, relTargetDir, fileName);
+        // The folder of the DAT of a lot goes above the folders of the pattern; _unmatched stays at the root
+        var datFolders = relTargetDir == UnmatchedFolderName ? [] : DatFolderSegments(dat, config);
+        string[] parts = [config.DestinationDir, .. datFolders, .. relTargetDir == "." ? Array.Empty<string>() : [relTargetDir], fileName];
+        var target = Path.Combine(parts);
 
         // In ZIP mode, the target is the archive named after the file; a MAME set already is an archive, and its CHD
         // disks must stay files
         return config.TransferMode == TransferMode.Zip && !parsed.Convention.IsMameSets()
             ? Path.ChangeExtension(target, ".zip")
             : target;
+    }
+
+    /// <summary>
+    /// Folders of the destination above the pattern for the files of <paramref name="dat"/>: none for a single DAT or
+    /// without <see cref="SortConfig.FolderPerDat"/>; otherwise the folder named after the DAT, under the folders of its
+    /// path in the folder of DATs read when they are mirrored (<see cref="SortConfig.DatFolderMirror"/>). Each folder is a
+    /// sanitized segment: a name read from a DAT or a path never leaves the destination.
+    /// </summary>
+    internal IReadOnlyList<string> DatFolderSegments(DatPlacement? dat, SortConfig config)
+    {
+        if (dat is not { IsLotMember: true } || !config.FolderPerDat)
+        {
+            return [];
+        }
+
+        var segments = new List<string>();
+        if (config.DatFolderMirror && !string.IsNullOrEmpty(dat.RelativeFolder))
+        {
+            segments.AddRange(PathSeparatorSplitRegex().Split(dat.RelativeFolder)
+                .Where(segment => !string.IsNullOrWhiteSpace(segment) && segment != ".")
+                .Select(segment => SanitizePathSegment(segment)));
+        }
+
+        segments.Add(SanitizePathSegment(string.IsNullOrWhiteSpace(dat.Name) ? "Unknown" : dat.Name.Trim()));
+        return segments;
     }
 
     /// <summary>

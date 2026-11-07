@@ -142,6 +142,36 @@ public sealed partial class FileTransferExecutor
     /// </summary>
     public bool IsMameRun { get; init; }
 
+    /// <summary>
+    /// Catalog of the run, which names the DAT of each file (<c>{dat}</c>) and, for a lot, its folder in the destination;
+    /// <c>null</c> without a DAT.
+    /// </summary>
+    public DatCatalog? DatCatalog { get; init; }
+
+    /// <summary>
+    /// The DAT <paramref name="item"/> is sorted with: its DAT of the lot (<see cref="ProcessItem.DatName"/>), with its
+    /// path; the DAT itself for a run with a single DAT; <c>null</c> without a DAT, or for a file no DAT of the lot knows.
+    /// </summary>
+    internal DatPlacement? PlacementOf(ProcessItem item)
+    {
+        if (DatCatalog is null)
+        {
+            return null;
+        }
+
+        if (DatCatalog.Dats is null)
+        {
+            var name = !string.IsNullOrWhiteSpace(DatCatalog.Header.Name)
+                ? DatCatalog.Header.Name
+                : Path.GetFileNameWithoutExtension(_config.DatFile);
+            return string.IsNullOrWhiteSpace(name) ? null : new DatPlacement(name);
+        }
+
+        return DatCatalog.DatMemberFor(item.DatName) is { } member
+            ? new DatPlacement(member.Name, member.RelativeFolder, IsLotMember: true)
+            : null;
+    }
+
     /// <summary>Test hook replacing the volume roots of the machine, to force a move across volumes.</summary>
     internal IReadOnlyList<string>? VolumeRoots
     {
@@ -489,7 +519,7 @@ public sealed partial class FileTransferExecutor
         var targetFilename = !string.IsNullOrEmpty(item.TargetFilename) ? item.TargetFilename : displayName;
         var targetPath = item.IsOutsideSelection && item.ReleaseStatus == FileStatus.Unmatched
             ? ToTargetPath(item, Path.Combine(destDir, PathOrganizerService.UnmatchedFolderName, displayName))
-            : _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia);
+            : _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item));
 
         item.TargetPath = targetPath;
         item.FinalTargetPath = targetPath;
@@ -531,7 +561,7 @@ public sealed partial class FileTransferExecutor
 
         var displayName = item.DisplayName;
         var targetFilename = !string.IsNullOrEmpty(item.TargetFilename) ? item.TargetFilename : displayName;
-        var candidateTarget = _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia);
+        var candidateTarget = _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item));
 
         item.TargetPath = candidateTarget;
 

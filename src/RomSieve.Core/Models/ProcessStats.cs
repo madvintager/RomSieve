@@ -56,6 +56,12 @@ public sealed class ProcessStats
     public int DatNameMatchedCount { get; set; }
     public int DatMissingCount { get; set; }
     public double DatCompletionPct { get; set; }
+
+    /// <summary>
+    /// What the sort found of each DAT of a lot, in the order of the lot (the totals above add them up); <c>null</c>
+    /// for a sort with a single DAT or none.
+    /// </summary>
+    public IReadOnlyList<DatLotStats>? PerDat { get; set; }
 }
 
 /// <summary>

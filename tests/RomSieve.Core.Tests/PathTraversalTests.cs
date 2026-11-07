@@ -352,4 +352,58 @@ public sealed class PathTraversalTests : IDisposable
         FilesOutsideTheDestination().Should().BeEmpty();
         _executorLogs.Should().ContainSingle(m => m.Message.Key == "log.target_outside_destination" && m.Level == LogLevel.Error);
     }
+
+    [Theory]
+    [InlineData("..")]
+    [InlineData("../../evil")]
+    [InlineData("..\\..\\evil")]
+    [InlineData("C:evil")]
+    [InlineData("/evil")]
+    public async Task DatOfALot_NamedOutOfTheDestination_ShouldKeepItsFilesInside(string datName)
+    {
+        var data = Encoding.ASCII.GetBytes("LOT GAME");
+        var crc = Crc32.HashToUInt32(data).ToString("x8");
+        foreach (var (file, name) in new[] { ("a.dat", datName), ("b.dat", "Other") })
+        {
+            _temp.WriteText(Path.Combine("dats", file), $"""
+                <?xml version="1.0"?>
+                <datafile>
+                	<header><name>{System.Security.SecurityElement.Escape(name)}</name><homepage>No-Intro</homepage></header>
+                	<game name="Game (World)"><description>Game (World)</description><rom name="Game (World).bin" size="{data.Length}" crc="{crc}"/></game>
+                </datafile>
+                """);
+        }
+
+        _temp.WriteBytes(Path.Combine("src", "game.bin"), data);
+        var config = Config(TransferMode.Copy, _temp.GetFilePath("dats"));
+        config.DatFolderMirror = true;
+        config.Pattern = "{dat}";
+
+        var result = await _processor.ExecuteAsync(config, isDryRun: false);
+
+        var item = result.Items.Single();
+        item.DatName.Should().Be(datName.Trim());
+        item.Status.Should().Be(FileStatus.Valid);
+        PathOrganizerService.IsInsideDirectory(item.FinalTargetPath!, _dst).Should().BeTrue();
+        FilesOutsideTheDestination().Should().BeEmpty();
+        DestinationFiles().Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData("../..", "../../x")]
+    [InlineData("..\\..", "..\\..\\x")]
+    [InlineData("C:evil", "C:/up")]
+    [InlineData("/evil", "/root/x")]
+    public void FolderOfADat_ShouldBeSanitizedSegments(string datName, string relativeFolder)
+    {
+        var config = Config();
+        config.DatFolderMirror = true;
+        config.Pattern = string.Empty;
+        var parsed = _services.TosecParser.ParseFilename(AlphaName);
+
+        var target = _services.Organizer.BuildTargetPath(parsed, AlphaName, config, dat: new DatPlacement(datName, relativeFolder, IsLotMember: true));
+
+        PathOrganizerService.IsInsideDirectory(target, _dst).Should().BeTrue(target);
+        Path.GetRelativePath(_dst, target).Split(Path.DirectorySeparatorChar).Should().NotContain("..");
+    }
 }

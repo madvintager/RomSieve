@@ -105,11 +105,15 @@ public sealed class EntryClassifier
     /// CRC32 of a scanned file (<see langword="null"/> without a DAT, empty when it was not computed)
     /// and size of its copier header, computed before its classification.
     /// </summary>
-    private readonly record struct Fingerprint(
-        string? Crc, int HeaderOffset, string? Sha1 = null, ChdInfo? Chd = null, string? ChdError = null, LocalizedMessage? ArchiveDamage = null);
+    internal readonly record struct Fingerprint(
+        string? Crc, int HeaderOffset, string? Sha1 = null, ChdInfo? Chd = null, string? ChdError = null, LocalizedMessage? ArchiveDamage = null)
+    {
+        /// <summary>Size of the file compared with the DAT: without its copier header.</summary>
+        public long EffectiveSize(ScanEntry entry) => HeaderOffset > 0 ? entry.FileSize - HeaderOffset : entry.FileSize;
+    }
 
     /// <summary>Fingerprints of a scanned entry and of its companion files.</summary>
-    private sealed record EntryFingerprints(Fingerprint Main, Fingerprint[] Related);
+    internal sealed record EntryFingerprints(Fingerprint Main, Fingerprint[] Related);
 
     private async Task<List<ProcessItem>> ClassifySequentiallyAsync(
         IReadOnlyList<ScanEntry> scanEntries,
@@ -166,6 +170,35 @@ public sealed class EntryClassifier
         CancellationToken cancellationToken,
         IProgress<SortProgress>? progress)
     {
+        var fingerprints = await ComputeFingerprintsAsync(scanEntries, degree, totalBytes, cancellationToken, progress).ConfigureAwait(false);
+        var items = new List<ProcessItem>(scanEntries.Count);
+        for (var index = 0; index < scanEntries.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var entry = scanEntries[index];
+            var item = Classify(entry, fingerprints[index].Main);
+            for (var i = 0; i < entry.RelatedEntries.Count; i++)
+            {
+                AddRelatedItem(item, Classify(entry.RelatedEntries[i], fingerprints[index].Related[i]));
+            }
+            items.Add(item);
+        }
+
+        return items;
+    }
+
+    /// <summary>
+    /// Fingerprints of every entry and of its companion files, computed for up to <paramref name="degree"/> entries at
+    /// the same time (one after the other for 1), in the order of <paramref name="scanEntries"/>. Only reads: nothing of
+    /// the classification depends on the order in which they end.
+    /// </summary>
+    internal async Task<EntryFingerprints[]> ComputeFingerprintsAsync(
+        IReadOnlyList<ScanEntry> scanEntries,
+        int degree,
+        long totalBytes,
+        CancellationToken cancellationToken,
+        IProgress<SortProgress>? progress)
+    {
         var totalFiles = scanEntries.Count;
         var fingerprints = new EntryFingerprints[totalFiles];
         var sw = Stopwatch.StartNew();
@@ -203,23 +236,11 @@ public sealed class EntryClassifier
             }
         }).ConfigureAwait(false);
 
-        var items = new List<ProcessItem>(totalFiles);
-        for (var index = 0; index < totalFiles; index++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var entry = scanEntries[index];
-            var item = Classify(entry, fingerprints[index].Main);
-            for (var i = 0; i < entry.RelatedEntries.Count; i++)
-            {
-                AddRelatedItem(item, Classify(entry.RelatedEntries[i], fingerprints[index].Related[i]));
-            }
-            items.Add(item);
-        }
-
-        return items;
+        return fingerprints;
     }
 
-    private static void AddRelatedItem(ProcessItem item, ProcessItem relItem)
+    /// <summary>Adds a companion file to the item of its set: a damaged track damages the set, a kept set keeps its tracks.</summary>
+    internal static void AddRelatedItem(ProcessItem item, ProcessItem relItem)
     {
         // A track damaged in its archive makes its whole set damaged
         if (ArchiveContentChecker.IsDamage(relItem.StatusReason) && !ArchiveContentChecker.IsDamage(item.StatusReason))
@@ -259,7 +280,11 @@ public sealed class EntryClassifier
             Message: LocalizedMessage.Create("progress.analyzing_file", ("name", displayName))));
     }
 
-    private void GroupUnlinkedDatCompanionItems(List<ProcessItem> items)
+    /// <summary>
+    /// Gathers the files of a game of several ROMs that the scan did not link (no descriptor naming them) under one item:
+    /// the descriptor when the game has one, otherwise its first file. The files gathered leave <paramref name="items"/>.
+    /// </summary>
+    internal void GroupUnlinkedDatCompanionItems(List<ProcessItem> items)
     {
         if (_datCatalog is null)
         {
@@ -491,7 +516,7 @@ public sealed class EntryClassifier
     /// the initial filters. Runs in the scan order: it updates <see cref="MatchedDatEntries"/> and
     /// <see cref="GameMatchedRoms"/>.
     /// </summary>
-    private ProcessItem Classify(ScanEntry entry, Fingerprint fingerprint)
+    internal ProcessItem Classify(ScanEntry entry, Fingerprint fingerprint)
     {
         var item = ClassifyCore(entry, fingerprint);
         item.Chd = fingerprint.Chd;
@@ -532,37 +557,8 @@ public sealed class EntryClassifier
         if (_datCatalog is not null)
         {
             var fileCrc = fingerprint.Crc;
-            var headerOffset = fingerprint.HeaderOffset;
-
-            var effectiveSize = headerOffset > 0 ? fileSize - headerOffset : fileSize;
-            var matches = !string.IsNullOrEmpty(fileCrc)
-                ? _datCatalog.FindAllMatches(fileSize: effectiveSize, crc: fileCrc)
-                : [];
-
-            // A CHD matches the disks of a MAME-style DAT by the SHA-1 of its header (data and metadata)
-            if (matches.Count == 0 && fingerprint.Chd is { } chd)
-            {
-                matches = _datCatalog.FindAllMatches(0, sha1: chd.Sha1).Where(m => m.IsDisk).ToList();
-            }
-
-            // With a verified SHA-1, only the entries without SHA-1 or with the same SHA-1 still match
-            LocalizedMessage? sha1Mismatch = null;
-            if (fingerprint.Sha1 is { } fileSha1 && matches.Count > 0)
-            {
-                var verified = matches
-                    .Where(m => string.IsNullOrEmpty(m.Sha1) || string.Equals(m.Sha1, fileSha1, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (verified.Count == 0)
-                {
-                    // Every entry left out has a SHA-1, otherwise it would have been kept
-                    sha1Mismatch = LocalizedMessage.Create("reason.sha1_mismatch",
-                        ("expected", matches[0].Sha1!.ToLowerInvariant()),
-                        ("actual", fileSha1));
-                }
-
-                matches = verified;
-            }
-
+            var effectiveSize = fingerprint.EffectiveSize(entry);
+            var matches = FindMatches(entry, fingerprint, out var sha1Mismatch);
             var match = _datCatalog.SelectMatch(matches, Path.GetFileName(displayName));
 
             if (match is not null)
@@ -642,19 +638,78 @@ public sealed class EntryClassifier
         return directItem;
     }
 
+    /// <summary>
+    /// Entries of the DAT the file matches: by size and CRC32, or, for a CHD, the disks of the SHA-1 of its header; with a
+    /// verified SHA-1, only those without SHA-1 or with the same one, <paramref name="sha1Mismatch"/> telling why none is
+    /// left when every entry had another SHA-1. Empty without a DAT.
+    /// </summary>
+    private IReadOnlyList<DatRomEntry> FindMatches(ScanEntry entry, Fingerprint fingerprint, out LocalizedMessage? sha1Mismatch)
+    {
+        sha1Mismatch = null;
+        if (_datCatalog is null)
+        {
+            return [];
+        }
+
+        var matches = !string.IsNullOrEmpty(fingerprint.Crc)
+            ? _datCatalog.FindAllMatches(fileSize: fingerprint.EffectiveSize(entry), crc: fingerprint.Crc)
+            : [];
+
+        // A CHD matches the disks of a MAME-style DAT by the SHA-1 of its header (data and metadata)
+        if (matches.Count == 0 && fingerprint.Chd is { } chd)
+        {
+            matches = _datCatalog.FindAllMatches(0, sha1: chd.Sha1).Where(m => m.IsDisk).ToList();
+        }
+
+        // With a verified SHA-1, only the entries without SHA-1 or with the same SHA-1 still match
+        if (fingerprint.Sha1 is { } fileSha1 && matches.Count > 0)
+        {
+            var verified = matches
+                .Where(m => string.IsNullOrEmpty(m.Sha1) || string.Equals(m.Sha1, fileSha1, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (verified.Count == 0)
+            {
+                // Every entry left out has a SHA-1, otherwise it would have been kept
+                sha1Mismatch = LocalizedMessage.Create("reason.sha1_mismatch",
+                    ("expected", matches[0].Sha1!.ToLowerInvariant()),
+                    ("actual", fileSha1));
+            }
+
+            matches = verified;
+        }
+
+        return matches;
+    }
+
+    /// <summary>
+    /// Whether the file matches an entry of the DAT (<see cref="FindMatches"/>), as its classification would find it.
+    /// </summary>
+    internal bool Knows(ScanEntry entry, Fingerprint fingerprint) => FindMatches(entry, fingerprint, out _).Count > 0;
+
+    /// <summary>
+    /// Marks the entries of the DAT that a file sorted with another DAT of a lot matches as present
+    /// (<see cref="MatchedDatEntries"/>): the ROM is in the source, whatever DAT the file is written with. The games of
+    /// the DAT do not count it among their files (<see cref="GameMatchedRoms"/>): a set of the DAT is only complete with
+    /// the files written with it.
+    /// </summary>
+    internal void MarkPresent(ScanEntry entry, Fingerprint fingerprint)
+    {
+        if (fingerprint.ArchiveDamage is null && fingerprint.ChdError is null)
+        {
+            MatchedDatEntries.UnionWith(FindMatches(entry, fingerprint, out _));
+        }
+    }
+
+    /// <summary>Convention of the DAT, detected once per run; <see cref="NamingConvention.Auto"/> without a DAT.</summary>
+    internal NamingConvention DatConvention => _datCatalog is null
+        ? NamingConvention.Auto
+        : _datConvention ??= _datCatalog.DetectConvention();
+
     /// <summary>Strict boundary: when a DAT is loaded, its detected convention governs ROM convention.</summary>
     private NamingConvention ResolveConvention()
     {
-        if (_datCatalog is not null)
-        {
-            var datConv = _datConvention ??= _datCatalog.DetectConvention();
-            if (datConv != NamingConvention.Auto)
-            {
-                return datConv;
-            }
-        }
-
-        return _config.NamingConvention;
+        var datConv = DatConvention;
+        return datConv != NamingConvention.Auto ? datConv : _config.NamingConvention;
     }
 
     /// <summary>

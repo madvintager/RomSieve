@@ -184,6 +184,19 @@ public sealed class ProcessItem
     /// Name of the DAT game the file was identified with, which disambiguates ROM names shared by several games.
     /// </summary>
     public string? DatGameName { get; set; }
+
+    /// <summary>
+    /// Name of the DAT of a lot the file is sorted with (<see cref="DatLotMember.Name"/>): the first DAT of the lot that
+    /// knows it, or that knows the first file of its set (a descriptor and its tracks); <see langword="null"/> for a
+    /// file no DAT knows, and for any sort with a single DAT or none.
+    /// </summary>
+    public string? DatName { get; set; }
+
+    /// <summary>
+    /// The other DATs of the lot that know the file or a file of its set, in the order of the lot: their ROMs are present
+    /// too, but the file is only sorted with <see cref="DatName"/>.
+    /// </summary>
+    public IReadOnlyList<string> OtherDats { get; set; } = [];
     public string Crc32 { get; set; } = string.Empty;
     public string? Md5 { get; set; }
     public string? Sha1 { get; set; }

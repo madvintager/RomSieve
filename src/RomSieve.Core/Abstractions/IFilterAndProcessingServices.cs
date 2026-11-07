@@ -87,14 +87,17 @@ public interface IPathOrganizerService
         bool restoreArticles = true,
         bool subfolderMultidisk = true,
         bool hiddenSubfolder = false,
-        bool? isMultiMediaOverride = null);
+        bool? isMultiMediaOverride = null,
+        string? datName = null);
 
     /// <summary>
-    /// Full target path of a file kept by a sort: the destination, the folders produced by the pattern (with the
-    /// multi-disk subfolder, hidden when the playlists are placed in the parent folder) and the file name, which is
-    /// the name of its archive in ZIP mode. Used by the transfers and by the live preview of the pattern.
+    /// Full target path of a file kept by a sort: the destination, the folder of the DAT of a lot (<paramref name="dat"/>,
+    /// <see cref="SortConfig.FolderPerDat"/>, under the folders of its path with <see cref="SortConfig.DatFolderMirror"/>),
+    /// the folders produced by the pattern (with the multi-disk subfolder, hidden when the playlists are placed in the
+    /// parent folder) and the file name, which is the name of its archive in ZIP mode. Used by the transfers and by the
+    /// live preview of the pattern.
     /// </summary>
-    string BuildTargetPath(ParsedRomName parsed, string fileName, SortConfig config, bool? isMultiMediaOverride = null);
+    string BuildTargetPath(ParsedRomName parsed, string fileName, SortConfig config, bool? isMultiMediaOverride = null, DatPlacement? dat = null);
 
     /// <summary>Unknown variables and unbalanced braces of a directory pattern, which the sort would drop or keep as text.</summary>
     PatternCheck CheckPattern(string? pattern);

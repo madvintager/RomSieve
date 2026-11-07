@@ -98,11 +98,12 @@ public sealed class MameSetIdentifier
     /// <summary>
     /// Convention of the whole archives a run sorts (<see cref="NamingConvention.Mame"/>,
     /// <see cref="NamingConvention.MameSoftwareList"/>): that of the DAT, or the one chosen for a DAT whose convention is
-    /// not recognized; <see cref="NamingConvention.Auto"/> when the run sorts files.
+    /// not recognized; <see cref="NamingConvention.Auto"/> when the run sorts files, always with a lot of DATs, which never
+    /// holds a MAME DAT.
     /// </summary>
     public static NamingConvention GetSetConvention(SortConfig config, DatCatalog? catalog)
     {
-        if (catalog is null)
+        if (catalog is null || catalog.Dats is not null)
         {
             return NamingConvention.Auto;
         }

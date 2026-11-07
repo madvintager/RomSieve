@@ -21,6 +21,29 @@ public sealed class SortConfig
     public string? DatFile { get; set; }
 
     /// <summary>
+    /// Whether a folder of DATs (<see cref="DatFile"/>) is read with its subfolders, a lot then gathering the DATs of the
+    /// whole tree. Ignored for a single DAT and for a folder of MAME software lists.
+    /// </summary>
+    public bool DatRecursive { get; set; }
+
+    /// <summary>
+    /// Header names of the DATs of a lot left out of the sort (case ignored; empty: every DAT): only their header is read.
+    /// </summary>
+    public List<string> ExcludedDats { get; set; } = [];
+
+    /// <summary>
+    /// Whether each DAT of a lot gets a folder of its own in the destination, named after it, above the folders of the
+    /// pattern (the default). Never for a single DAT, whose targets stay as they were.
+    /// </summary>
+    public bool FolderPerDat { get; set; } = true;
+
+    /// <summary>
+    /// Whether the folder of each DAT of a lot is placed under the folders of its path in the folder of DATs read (a lot
+    /// read with its subfolders, <see cref="DatRecursive"/>). Only with <see cref="FolderPerDat"/>.
+    /// </summary>
+    public bool DatFolderMirror { get; set; }
+
+    /// <summary>
     /// Folder of the CHDs of a MAME collection (<c>sf2/disk.chd</c>), kept apart from the ROM sets: with a MAME DAT, its
     /// CHD files are read in addition to the source and join their sets. Ignored by the other conventions.
     /// </summary>

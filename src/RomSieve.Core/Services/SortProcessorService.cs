@@ -123,6 +123,7 @@ public sealed class SortProcessorService : ISortProcessorService
         List<ProcessItem> itemsToProcess;
         List<DatRomEntry> missingRoms;
         IReadOnlyDictionary<string, HashSet<string>> gameMatchedRoms;
+        DatLotIdentifier? lotIdentifier = null;
         var isMameRun = MameSetIdentifier.IsMameRun(config, datCatalog);
         if (MameSetIdentifier.GetSetConvention(config, datCatalog).IsMameSets() && datCatalog is not null)
         {
@@ -182,6 +183,16 @@ public sealed class SortProcessorService : ISortProcessorService
             missingRoms = UpdateDatStatistics(stats, datCatalog, matchedEntries, new HashSet<DatRomEntry>(ReferenceEqualityComparer.Instance), Log, countedEntries);
             gameMatchedRoms = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         }
+        else if (datCatalog?.Dats is not null)
+        {
+            // A lot of DATs: a sort per DAT, from a single scan and a single computation of the fingerprints
+            var lot = new DatLotIdentifier(
+                config, datCatalog, _crcCache, _checksumService, _romParser, _filterService, _i18n, _opticalService, Log);
+            itemsToProcess = await lot.IdentifyAllAsync(scanEntries, cancellationToken, progress, totalBytes).ConfigureAwait(false);
+            missingRoms = UpdateLotStatistics(stats, lot, Log);
+            gameMatchedRoms = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            lotIdentifier = lot;
+        }
         else
         {
             // The CHD folder and the MAME files stay in the configuration for the next MAME sort: nothing to say here
@@ -205,7 +216,7 @@ public sealed class SortProcessorService : ISortProcessorService
             gameMatchedRoms = classifier.GameMatchedRoms;
         }
 
-        SelectReleases(config, itemsToProcess, datCatalog, gameMatchedRoms, progress, Log);
+        SelectReleases(config, itemsToProcess, datCatalog, gameMatchedRoms, progress, Log, lotIdentifier);
 
         // The selection of a partial sort only filters the transfers: the releases are chosen on the whole collection
         if (selection is not null)
@@ -254,7 +265,8 @@ public sealed class SortProcessorService : ISortProcessorService
                 journal,
                 _crcCache)
             {
-                IsMameRun = isMameRun
+                IsMameRun = isMameRun,
+                DatCatalog = datCatalog
             };
             ConfigureTransferExecutor?.Invoke(transferExecutor);
             if (!isDryRun)
@@ -487,11 +499,27 @@ public sealed class SortProcessorService : ISortProcessorService
         DatCatalog? datCatalog,
         IReadOnlyDictionary<string, HashSet<string>> gameMatchedRoms,
         IProgress<SortProgress>? progress,
-        Action<LogLevel, LocalizedMessage> log)
+        Action<LogLevel, LocalizedMessage> log,
+        DatLotIdentifier? lot = null)
     {
         ReportStep(progress, LocalizedMessage.Create("progress.selecting_releases"));
         var releaseSelector = new ReleaseSelector(config, _filterService, _i18n);
-        releaseSelector.Select(items, datCatalog, gameMatchedRoms);
+        if (lot is not null)
+        {
+            // A lot: the releases of each DAT are selected with its catalog and its files, never with another DAT's
+            foreach (var (datItems, datName) in GroupByDat(items))
+            {
+                releaseSelector.Select(
+                    datItems,
+                    datCatalog?.DatFor(datName),
+                    lot.ClassifierFor(datName)?.GameMatchedRoms ?? new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase));
+            }
+        }
+        else
+        {
+            releaseSelector.Select(items, datCatalog, gameMatchedRoms);
+        }
+
         if (releaseSelector.LastBudget is { } budget)
         {
             log(LogLevel.Info, LocalizedMessage.Create(
@@ -513,6 +541,41 @@ public sealed class SortProcessorService : ISortProcessorService
                 ("count", requiredSets.Count),
                 ("examples", string.Join(", ", requiredSets.Take(3)) + (requiredSets.Count > 3 ? ", …" : string.Empty))));
         }
+    }
+
+    /// <summary>
+    /// The items of a lot of DATs grouped by DAT (<see cref="ProcessItem.DatName"/>), in the order of their first item,
+    /// the files no DAT knows last, under a <c>null</c> name; each group keeps the order of <paramref name="items"/>.
+    /// </summary>
+    private static List<(List<ProcessItem> Items, string? DatName)> GroupByDat(IEnumerable<ProcessItem> items)
+    {
+        var groups = new List<(List<ProcessItem> Items, string? DatName)>();
+        var byName = new Dictionary<string, List<ProcessItem>>(StringComparer.OrdinalIgnoreCase);
+        var withoutDat = new List<ProcessItem>();
+        foreach (var item in items)
+        {
+            if (item.DatName is not { } name)
+            {
+                withoutDat.Add(item);
+                continue;
+            }
+
+            if (!byName.TryGetValue(name, out var group))
+            {
+                group = [];
+                byName[name] = group;
+                groups.Add((group, name));
+            }
+
+            group.Add(item);
+        }
+
+        if (withoutDat.Count > 0)
+        {
+            groups.Add((withoutDat, null));
+        }
+
+        return groups;
     }
 
     public async Task<CatalogSelectionResult> SelectFromCatalogAsync(
@@ -767,7 +830,7 @@ public sealed class SortProcessorService : ISortProcessorService
             return null;
         }
 
-        // A folder holds the DATs of several MAME software lists
+        // A folder holds a lot of DATs, or the DATs of several MAME software lists
         if (!File.Exists(config.DatFile) && !Directory.Exists(config.DatFile))
         {
             throw new FileNotFoundException(_i18n.Tr("log.dat_file_not_found", ("path", config.DatFile)));
@@ -783,12 +846,19 @@ public sealed class SortProcessorService : ISortProcessorService
             Message: LocalizedMessage.Create("progress.loading_dat", ("name", Path.GetFileName(config.DatFile)))));
         try
         {
-            var datCatalog = await _datService.ParseDatFileAsync(config.DatFile, cancellationToken).ConfigureAwait(false);
+            var datCatalog = await _datService.ParseDatFileAsync(
+                config.DatFile,
+                new DatFolderOptions(config.DatRecursive, config.ExcludedDats),
+                cancellationToken).ConfigureAwait(false);
 
-            // A lot of DATs is read, but not sorted yet: a folder of DATs still only gathers MAME software lists
-            if (datCatalog.Dats is { Count: > 0 } dats)
+            if (datCatalog.Dats is { } dats)
             {
-                throw new DatFolderException(LocalizedMessage.Create("dat.folder_not_software_list", ("file", Path.GetFileName(dats[0].RelativePath))));
+                log(LogLevel.Ok, LocalizedMessage.Create(
+                    "log.dat_lot_loaded",
+                    ("count", dats.Count),
+                    ("roms", dats.Sum(dat => dat.Catalog.Entries.Count)),
+                    ("path", config.DatFile)));
+                return datCatalog;
             }
 
             var name = !string.IsNullOrEmpty(datCatalog.Header.Name)
@@ -860,6 +930,76 @@ public sealed class SortProcessorService : ISortProcessorService
         return missingRoms;
     }
 
+    /// <summary>
+    /// Statistics of a lot of DATs: the totals of its DATs, and what was found of each of them
+    /// (<see cref="ProcessStats.PerDat"/>), named in the log for the DATs with a game found. The missing ROMs of every
+    /// DAT, in the order of the lot.
+    /// </summary>
+    private static List<DatRomEntry> UpdateLotStatistics(ProcessStats stats, DatLotIdentifier lot, Action<LogLevel, LocalizedMessage> log)
+    {
+        var missingRoms = new List<DatRomEntry>();
+        var perDat = new List<DatLotStats>();
+        foreach (var (dat, classifier) in lot.Classifiers)
+        {
+            var matched = classifier.MatchedDatEntries;
+            var nameOnly = new HashSet<DatRomEntry>(classifier.NameMatchedDatEntries.Where(e => !matched.Contains(e)), ReferenceEqualityComparer.Instance);
+            var entries = dat.Catalog.Entries;
+            var missing = entries.Where(e => !matched.Contains(e) && !nameOnly.Contains(e)).ToList();
+            var gamesFound = matched.Concat(nameOnly)
+                .Select(e => e.GameName)
+                .OfType<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+            perDat.Add(new DatLotStats(
+                dat.Name,
+                classifier.DatConvention,
+                entries.Count,
+                matched.Count,
+                nameOnly.Count,
+                missing.Count,
+                gamesFound));
+            missingRoms.AddRange(missing);
+        }
+
+        stats.PerDat = perDat;
+        stats.DatTotalRoms = perDat.Sum(d => d.TotalRoms);
+        stats.DatMatchedCount = perDat.Sum(d => d.MatchedCount);
+        stats.DatNameMatchedCount = perDat.Sum(d => d.NameMatchedCount);
+        stats.DatMissingCount = perDat.Sum(d => d.MissingCount);
+        stats.DatCompletionPct = stats.DatTotalRoms > 0
+            ? (stats.DatMatchedCount + stats.DatNameMatchedCount) / (double)stats.DatTotalRoms * 100.0
+            : 0.0;
+
+        foreach (var dat in perDat.Where(d => d.GamesFound > 0))
+        {
+            log(LogLevel.Info, LocalizedMessage.Create(
+                "log.dat_lot_completion",
+                ("dat", dat.Name),
+                ("games", dat.GamesFound),
+                ("matched", dat.MatchedCount + dat.NameMatchedCount),
+                ("total", dat.TotalRoms),
+                ("pct", dat.CompletionPct.ToString("F1", CultureInfo.InvariantCulture))));
+        }
+
+        if (perDat.Count(d => d.GamesFound == 0) is var nothingFound and > 0)
+        {
+            log(LogLevel.Info, LocalizedMessage.Create("log.dat_lot_nothing_found", ("count", nothingFound)));
+        }
+
+        if (stats.DatNameMatchedCount > 0)
+        {
+            log(LogLevel.Warn, LocalizedMessage.Create("log.dat_name_matched_summary", ("count", stats.DatNameMatchedCount)));
+        }
+
+        log(LogLevel.Info, LocalizedMessage.Create(
+            "log.dat_completion_summary",
+            ("matched", stats.DatMatchedCount + stats.DatNameMatchedCount),
+            ("total", stats.DatTotalRoms),
+            ("pct", stats.DatCompletionPct.ToString("F1", CultureInfo.InvariantCulture)),
+            ("missing", stats.DatMissingCount)));
+        return missingRoms;
+    }
+
     public void RecalculateGameItems(
         IList<ProcessItem> gameItems,
         SortConfig config,
@@ -872,6 +1012,17 @@ public sealed class SortProcessorService : ISortProcessorService
         }
 
         config.Filters.NormalizeDefaults();
+
+        // A lot: each DAT is recalculated with its catalog, as the run selected its releases (a game is of one DAT)
+        if (datCatalog?.Dats is not null)
+        {
+            foreach (var (datItems, datName) in GroupByDat(gameItems))
+            {
+                RecalculateGameItems(datItems, config, datName is null ? null : datCatalog.DatFor(datName), allItems);
+            }
+
+            return;
+        }
 
         var gameMatchedRoms = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var it in gameItems)
@@ -934,7 +1085,8 @@ public sealed class SortProcessorService : ISortProcessorService
             DatMatchedCount = baseStats?.DatMatchedCount ?? 0,
             DatNameMatchedCount = baseStats?.DatNameMatchedCount ?? 0,
             DatMissingCount = baseStats?.DatMissingCount ?? 0,
-            DatCompletionPct = baseStats?.DatCompletionPct ?? 0.0
+            DatCompletionPct = baseStats?.DatCompletionPct ?? 0.0,
+            PerDat = baseStats?.PerDat
         };
 
         foreach (var it in items)

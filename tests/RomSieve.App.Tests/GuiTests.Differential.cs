@@ -206,6 +206,57 @@ public sealed partial class GuiTests
     }
 
     [Fact]
+    public async Task DifferentialSimulation_WithALotOfDats_ShouldOnlyMarkTheRowsOfTheDatThatChanged()
+    {
+        // A lot of two DATs: a TOSEC DAT and a No-Intro DAT, a file of each, and a crack the TOSEC filters exclude
+        var source = Path.Combine(_tempDir, "lot_src");
+        var dats = Path.Combine(_tempDir, "lot_dats");
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(dats);
+        var files = new Dictionary<string, (string Dat, string RomName)>
+        {
+            ["alpha.adf"] = ("tosec", Alpha),
+            ["beta.adf"] = ("tosec", Cracked),
+            ["tetris.gb"] = ("nointro", "Tetris (World).gb")
+        };
+        foreach (var (name, _) in files)
+        {
+            File.WriteAllText(Path.Combine(source, name), name);
+        }
+
+        foreach (var (dat, homepage) in new[] { ("tosec", "TOSEC"), ("nointro", "No-Intro") })
+        {
+            var games = string.Concat(files.Where(f => f.Value.Dat == dat).Select(f =>
+            {
+                var data = System.Text.Encoding.UTF8.GetBytes(f.Key);
+                var crc = System.IO.Hashing.Crc32.HashToUInt32(data).ToString("x8");
+                var game = Path.GetFileNameWithoutExtension(f.Value.RomName);
+                return $"<game name=\"{game}\"><description>{game}</description><rom name=\"{f.Value.RomName}\" size=\"{data.Length}\" crc=\"{crc}\"/></game>";
+            }));
+            File.WriteAllText(Path.Combine(dats, dat + ".dat"),
+                $"<?xml version=\"1.0\"?><datafile><header><name>{homepage} DAT</name><homepage>{homepage}</homepage></header>{games}</datafile>");
+        }
+
+        var vm = CreateViewModel();
+        vm.Directories.SourceDir = source;
+        vm.Directories.DestinationDir = Path.Combine(_tempDir, "lot_dst");
+        vm.Directories.DatFilePath = dats;
+        await vm.Execution.SimulateAsync();
+        var tetris = Row(vm, "tetris.gb");
+        tetris.Item.DatName.Should().Be("No-Intro DAT");
+        Row(vm, "beta.adf").Item.Status.Should().Be(FileStatus.Excluded);
+
+        vm.TosecFilters.ExcludeModifications = false;
+        await vm.Execution.SimulateAsync();
+
+        Row(vm, "tetris.gb").Should().BeSameAs(tetris);
+        Row(vm, "beta.adf").Item.Status.Should().Be(FileStatus.Valid);
+        Row(vm, "beta.adf").Change.Should().Be(PreviewRowChange.Modified);
+        Row(vm, "alpha.adf").Change.Should().Be(PreviewRowChange.None);
+        tetris.Change.Should().Be(PreviewRowChange.None, "the filters of TOSEC change nothing of the No-Intro DAT");
+    }
+
+    [Fact]
     public async Task OtherSource_ShouldStartFromAnEmptyTable()
     {
         var (vm, source, _) = CreateDifferentialSetup();
