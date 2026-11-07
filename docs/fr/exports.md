@@ -14,6 +14,9 @@ Enregistre le résultat de la dernière exécution :
   plus les statistiques ; adapté aux scripts et à l'archivage.
 * **CSV** (`.csv`) : le même tableau, à ouvrir dans un tableur.
 
+Avec un [lot de DAT](#lot-de-dat), chaque fichier nomme aussi son DAT (champ `dat`, dernière colonne du CSV), et le
+JSON détaille ce qui a été trouvé de chaque DAT.
+
 ## DAT de votre collection...
 
 Génère un fichier DAT des ROMs de votre source que la dernière exécution a **retenues**, pour que d'autres
@@ -83,8 +86,8 @@ Chaque jeu est écrit en entier, avec toutes ses ROMs (et les pistes d'un disque
 du DAT, à la manière d'un set non-merged : les sets dont il a besoin (devices dont il ne liste pas les ROMs) sont gardés
 avec lui. Une relation vers un jeu écarté (le parent d'un clone gardé, le BIOS d'un jeu gardé) est retirée, le jeu se
 suffisant alors à lui-même. L'en-tête du DAT garde son nom, suivi de « (RomSieve) », et sa version. Le format suit l'extension choisie : `.xml`
-pour Logiqx XML, `.dat` pour ClrMamePro (les DAT des listes de logiciels MAME s'écrivent dans un dossier : voir
-plus bas). Le pied de fenêtre montre l'étape en cours, et
+pour Logiqx XML, `.dat` pour ClrMamePro (les DAT d'un lot et ceux des listes de logiciels MAME s'écrivent dans un
+dossier : voir plus bas). Le pied de fenêtre montre l'étape en cours, et
 **Arrêter l'export** l'interrompt sans rien écrire ; quand les réglages ne gardent aucun jeu, aucun fichier n'est écrit.
 
 ## Listes de logiciels MAME
@@ -112,7 +115,27 @@ de ce nom.
   nommé `fixDat_<liste>.xml`, dans le dossier du fichier choisi. La Miss List nomme chaque logiciel avec sa liste
   (`gamegear/shinobi`).
 
+## Lot de DAT
+
+Avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), le DAT de votre collection, le DAT filtré du
+catalogue et le fixdat demandent un **dossier** : un DAT par DAT du lot s'écrit à sa racine, même quand le lot est lu
+avec ses sous-dossiers, nommé d'après son en-tête : `Nintendo - Game Boy (Filtered).xml` pour le DAT de votre
+collection, `Nintendo - Game Boy (RomSieve).xml` pour le DAT filtré du catalogue, `fixDat_Nintendo - Game Boy.xml` pour
+le fixdat. Chaque DAT garde le format de celui qu'il décrit (Logiqx XML ou ClrMamePro) ; le fixdat s'écrit toujours en
+Logiqx XML.
+
+* Le DAT de votre collection ne compte que les DAT dont un fichier a été retenu, le DAT filtré du catalogue ceux dont un
+  jeu est gardé.
+* La Miss List et le fixdat ne listent que les DAT où il manque des ROMs et où au moins un jeu a été trouvé : un DAT
+  complet n'a rien à lister, et la liste d'un DAT dont la source n'a aucun jeu serait le DAT entier. Le journal compte
+  les DAT ainsi laissés de côté. La Miss List texte a une section par DAT, la Miss List CSV une colonne `dat`.
+* RomSieve refuse d'écrire ces DAT dans le dossier du lot ou dans l'un de ses sous-dossiers : le tri suivant les
+  lirait comme des DAT du lot.
+* Le DAT filtré du catalogue lit, choisit et écrit les DAT du lot l'un après l'autre, sans les garder tous en mémoire ;
+  les fichiers ne prennent leur nom qu'à la fin, si bien qu'un export arrêté n'écrit rien.
+
 ## Depuis la ligne de commande
 
 `romsieve-cli run` produit les mêmes exports avec `--report`, `--miss-list` et `--fixdat`, et
-`romsieve-cli dat --output <fichier>` le DAT filtré du catalogue : voir [Ligne de commande](command-line.md).
+`romsieve-cli dat --output <fichier>` le DAT filtré du catalogue (un dossier pour un lot ou des listes de logiciels
+MAME) : voir [Ligne de commande](command-line.md).

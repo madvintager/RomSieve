@@ -2,7 +2,8 @@
 
 Everything on this page is set in the **Output** step, in four frames: **Destination** (the folder, and what to do
 when it is not empty), **Writing the files** (mode, conflicts, verification), **Multi-disk games** (subfolder, playlist)
-and **Directory tree** (pattern, articles, preview). The cross at the end of the destination field empties it.
+and **Directory tree** (pattern, articles, folders of the DATs of a lot, preview). The cross at the end of the
+destination field empties it.
 
 ![The Output step](../images/output_settings.png)
 
@@ -16,9 +17,10 @@ Type the pattern in the field, or use the two menus under it:
 
 * **Insert Variable** inserts a variable at the caret (at the end, as a new folder, if you have not clicked in the
   field). The variables of every convention come first; those of TOSEC names (publisher, year, chipset...) follow, then
-  those of the MAME categories (genre, category). All stay in the menu: those without a value with the current
-  convention are greyed out, and their tooltip says when they apply (the TOSEC variables when the convention is TOSEC or
-  not known yet, those of the categories with MAME).
+  those of the MAME categories (genre, category), then that of the DAT. All stay in the menu: those without a value with
+  the current convention are greyed out, and their tooltip says when they apply (the TOSEC variables when the convention
+  is TOSEC or not known yet, or a TOSEC DAT of a lot is checked, those of the categories with MAME, that of the DAT as
+  soon as a DAT is chosen).
 * **Presets** replaces the pattern with a ready-made one:
 
 | Preset | Pattern | Suits |
@@ -42,6 +44,8 @@ the DAT, the destination, the mode or the options below change.
   convention, captioned **Examples**.
 * With a DAT, the sort names a file identified by the DAT after the DAT entry: the preview, which reads no CRC, keeps
   the source name.
+* With a [lot of DATs](naming-conventions-and-dats.md#several-dats), the examples go into the folder of the first DAT
+  checked of their convention, as its files would.
 
 The preview warns about a pattern that would not do what it says: an unknown variable (the sort drops it), a brace
 without its pair (it would stay in the folder name), or a pattern that writes into `_unmatched`, the folder of the
@@ -64,6 +68,7 @@ non-conforming files.
 | `{dump_status}` | Dump status (TOSEC) | `Verified`, `Clean`, `Cracked`, `BadDump` |
 | `{genre}` | Genre of the machine, from the [category file](naming-conventions-and-dats.md#machine-categories) (MAME) | `Shooter` |
 | `{category}` | Genre and subgenre of the machine (MAME) | `Shooter - Flying Vertical` |
+| `{dat}` | Header name of the DAT of the file: the DAT chosen, or the DAT of the lot it is sorted with | `Nintendo - Game Boy` |
 
 An unknown value gives `Unknown` (empty for `{version}`). The names are cleaned of the characters forbidden by Windows
 or Linux, and very long paths are supported on Windows.
@@ -79,6 +84,22 @@ also applies to the subfolder of a multi-disk game. A multi-disk game still gets
 A software of a [MAME software list](naming-conventions-and-dats.md#mame-software-lists) always goes into the folder of
 its list, where MAME looks for it: with **All at the root**, `megadriv/sonic.zip` under the destination; with a
 pattern, its folders come above that of the list.
+
+### A folder per DAT
+
+With a [lot of DATs](naming-conventions-and-dats.md#several-dats), two boxes under **Restore leading articles** keep the
+files of each DAT apart:
+
+* **A folder per DAT** (checked by default): the files of each DAT go into a folder named after it, above the folders of
+  the pattern. With `{title}`, `Tetris (World).gb` goes into `Nintendo - Game Boy/Tetris/`. Unchecked, every DAT shares
+  the same folders: the `{dat}` variable then places the DAT elsewhere in the pattern, and two files of different DATs
+  that aim at the same target follow the [conflict](#conflicts) rule.
+* **Mirror the folders of the DATs**: the folder of each DAT goes under the folders of its path in the folder of DATs,
+  as in the pack (`TOSEC/Commodore/Amiga/Commodore Amiga - Games - [ADF]/...`). Only with a folder per DAT, and for the
+  DATs read in subfolders (`--dir-dat-mirror` on the command line).
+
+Both boxes are greyed out with a DAT file: a single DAT never gets a folder of its own, and its output does not change.
+The `_unmatched` folder of the non-conforming files stays at the root of the destination.
 
 ### Related options
 

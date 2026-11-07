@@ -22,7 +22,8 @@ The **Convention** list, in the *DAT catalogue* frame, offers:
   [MAME software lists](#mame-software-lists)).
 
 The effective convention also selects the filter settings shown in the **Filters** page (TOSEC, or No-Intro / Redump,
-also used for MAME and its software lists).
+also used for MAME and its software lists). With a [lot of DATs](#several-dats), each DAT keeps its own convention; the
+effective convention is that of most of the DATs checked.
 
 ## How names are read
 
@@ -213,7 +214,7 @@ publisher its software name. The convention can also be chosen in the list, but 
 To sort **one list**, choose its DAT and, as the source, the folder of the list (`Software List ROMs/megadriv`).
 
 To sort **several lists at once**, choose a **folder of DATs**: **Browse...** next to the DAT field, then **Folder of DATs
-(MAME software lists)…**, or `--dat <folder>` on the command line. The folder holds a DAT per list: the *Software List
+(lot of No-Intro, Redump, TOSEC DATs or MAME software lists)…**, or `--dat <folder>` on the command line. The folder holds a DAT per list: the *Software List
 ROMs* folder of the `DatRoot` of ROMVault, or the `hash` folder of MAME. An output of MAME that holds several lists
 (`mame -getsoftlist`, `mame -listsoftware`) works the same way. The source is then the folder that holds a folder per
 list (`Software List ROMs`), and **Scan subdirectories recursively** must be checked.
@@ -229,8 +230,9 @@ list (`Software List ROMs`), and **Scan subdirectories recursively** must be che
   the `DatRoot` of ROMVault), at the root of the folder chosen: `megadriv.xml`, `gamegear.xml`... Read from the `hash`
   folder of MAME, they are written as MAME software lists, which MAME reads
   ([Exports](exports.md#mame-software-lists)).
-* A folder of DATs only holds software lists: a DAT of another convention, or two DATs of the same list (the SabreTools
-  DAT and the hash file of `megadriv`, for instance), is refused, and the field says why.
+* A folder of software lists only holds lists: lists mixed with DATs of another convention, or two DATs of the same
+  list (the SabreTools DAT and the hash file of `megadriv`, for instance), are refused, and the field says why. A folder
+  of No-Intro, Redump or TOSEC DATs is a [lot](#several-dats).
 * The first analysis of a whole collection is long on a network share (about 131,000 archives for MAME 0.289); the
   following ones read the headers of the unchanged archives from the cache.
 
@@ -259,6 +261,56 @@ with its parent. With the hash file, RomSieve knows it: a kept split clone takes
 badge), as MAME needs it. A SabreTools DAT lists only the own ROMs of a clone and names no parent: the clone looks
 complete, and nothing tells that it needs its parent. In MAME 0.289, this concerns 868 of the 41,505 clones of the
 lists, most of them in `nes` (416) and `msx2_flop` (114); use the hash file for these lists.
+
+## Several DATs
+
+A No-Intro, Redump or TOSEC pack holds hundreds, even thousands of DATs, one per system. Rather than sorting the source
+once per DAT, choose the **folder** that holds them: **Browse...** next to the DAT field, then **Folder of DATs (lot of
+No-Intro, Redump, TOSEC DATs or MAME software lists)…** (`--dat <folder>` on the command line). This folder is a
+**lot**: the source is analysed once, each file is sorted with the DAT that knows it, and each DAT keeps its
+convention, its filters and its 1G1R.
+
+### Choosing the DATs of the lot
+
+Under the field, the information line sums the lot up: *Lot of 3111 DATs (2900 TOSEC, 150 No-Intro, 61 Redump), 3111
+checked*. Only the headers of the DATs are read to show it, in a fraction of a second. Below:
+
+* **Also read the subfolders of the folder of DATs** adds the DATs of its subfolders to the lot (a TOSEC pack sorted by
+  maker, the No-Intro and Redump folders of a pack; `--dat-recursive`). The box is greyed out for a DAT file.
+* The **list of the DATs** gives the name, the convention and the path of each. **Search a DAT** filters the list by
+  name, path or convention; **Check** and **Uncheck** apply to the DATs shown. A DAT unchecked is not read by the sort:
+  its files are non-conforming if no other DAT knows them. The DATs unchecked are saved in the settings and the
+  profiles; on the command line, `--dat-only <name>` chooses the DATs to use.
+
+A folder is refused, and the information line says why, when two of its DATs bear the same name (case ignored), when it
+holds a DAT of MAME machines (to choose alone), when it mixes MAME software lists with other DATs, or when all its DATs
+are unchecked.
+
+### Conventions of a lot
+
+Each DAT keeps the convention of its header: a lot may mix TOSEC, No-Intro and Redump DATs, each read with its names and
+filtered with its settings of the **Filters** page. The convention chosen in the **Convention** list only applies to the
+DATs no header tells; the log names the DATs whose detected convention wins over it. The badge and the **Filters** page
+follow the convention of most of the DATs checked; **Settings for:** shows the settings of the other family. The TOSEC
+variables of the pattern stay active as soon as a TOSEC DAT is checked.
+
+### Sorting with a lot
+
+* Each file is sorted with the **first DAT**, in the order of the paths, that knows it by its size and CRC32 (or, for a
+  CHD, by the SHA-1 of its disk). A descriptor and its tracks go together, with the DAT of their first file known.
+* The other DATs that know it are named in the log and in the detail panel of the
+  [simulation table](simulation-table.md): its ROMs count as present there, but it is written once, with its DAT.
+* A file no DAT knows is **non-conforming**, as with a single DAT.
+* The same title in two DATs makes two games: 1G1R keeps a release in each, a manual 1G1R choice only applies to its
+  DAT, and a multi-disk game is only complete with the disks sorted with its DAT.
+* Each DAT gets its own **folder** in the destination by default; see
+  [A folder per DAT](destination-and-transfers.md#a-folder-per-dat).
+* The **completion** of the banner gathers every DAT; its tooltip details each DAT with a game found. The Miss List and
+  the fixdat only list the DATs with ROMs missing and at least a game found ([Exports](exports.md#lot-of-dats)).
+
+Only the DATs that may know a file of the source are read whole, once the checksums are computed: sorting a small source
+with a whole TOSEC pack (3,000 DATs, more than a million ROMs) only keeps a few tens of MB in memory. A source that
+touches every DAT reads them all, twice (the lot, then each DAT): about 1.8 GB of memory for a whole pack.
 
 ## Archives
 

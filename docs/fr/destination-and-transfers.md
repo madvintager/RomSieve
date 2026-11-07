@@ -2,8 +2,8 @@
 
 Tout ce qui est décrit sur cette page se règle dans l'étape **Sortie**, en quatre cadres : **Destination** (le dossier,
 et que faire s'il n'est pas vide), **Écriture des fichiers** (mode, conflits, vérification), **Jeux multi-disques**
-(sous-dossier, playlist) et **Arborescence** (modèle, articles, aperçu). La croix au bout du champ de la destination le
-vide.
+(sous-dossier, playlist) et **Arborescence** (modèle, articles, dossiers des DAT d'un lot, aperçu). La croix au bout
+du champ de la destination le vide.
 
 ![L'étape Sortie](../images/fr/output_settings.png)
 
@@ -17,9 +17,10 @@ Saisissez le modèle dans le champ, ou utilisez les deux menus placés dessous :
 
 * **Insérer une variable** insère une variable à la position du curseur (à la fin, comme nouveau dossier, si vous
   n'avez pas cliqué dans le champ). Les variables de toutes les conventions viennent d'abord ; suivent celles des noms
-  TOSEC (éditeur, année, chipset...), puis celles des catégories MAME (genre, catégorie). Toutes restent dans le menu :
-  celles qui n'ont pas de valeur avec la convention actuelle sont grisées, et leur infobulle dit quand elles
-  s'appliquent (les variables TOSEC quand la convention est TOSEC ou pas encore connue, celles des catégories en MAME).
+  TOSEC (éditeur, année, chipset...), celles des catégories MAME (genre, catégorie), puis celle du DAT. Toutes restent
+  dans le menu : celles qui n'ont pas de valeur avec la convention actuelle sont grisées, et leur infobulle dit quand
+  elles s'appliquent (les variables TOSEC quand la convention est TOSEC ou pas encore connue, ou qu'un DAT TOSEC d'un
+  lot est coché, celles des catégories en MAME, celle du DAT dès qu'un DAT est choisi).
 * **Préréglages** remplace le modèle par un modèle tout prêt :
 
 | Préréglage | Modèle | Pour |
@@ -43,6 +44,8 @@ convention, le DAT, la destination, le mode ou les options ci-dessous.
   convention, sous le titre **Exemples**.
 * Avec un DAT, le tri nomme un fichier identifié par le DAT d'après l'entrée du DAT : l'aperçu, qui ne lit aucun CRC,
   garde le nom de la source.
+* Avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), les exemples vont dans le dossier du premier DAT
+  coché de leur convention, comme ses fichiers.
 
 L'aperçu signale un modèle qui ne ferait pas ce qu'il dit : une variable inconnue (le tri la supprime), une accolade
 sans paire (elle resterait dans le nom du dossier), ou un modèle qui écrit dans `_unmatched`, le dossier des fichiers
@@ -65,6 +68,7 @@ non conformes.
 | `{dump_status}` | Statut du dump (TOSEC) | `Verified`, `Clean`, `Cracked`, `BadDump` |
 | `{genre}` | Genre de la machine, d'après le [fichier de catégories](naming-conventions-and-dats.md#genre-des-machines) (MAME) | `Shooter` |
 | `{category}` | Genre et sous-genre de la machine (MAME) | `Shooter - Flying Vertical` |
+| `{dat}` | Nom d'en-tête du DAT du fichier : le DAT choisi, ou le DAT du lot avec lequel il est rangé | `Nintendo - Game Boy` |
 
 Une valeur inconnue donne `Unknown` (vide pour `{version}`). Les noms sont débarrassés des caractères interdits par
 Windows ou Linux, et les chemins très longs sont pris en charge sous Windows.
@@ -81,6 +85,22 @@ quand vous reviendrez aux dossiers ou choisirez un préréglage. Une phrase sous
 Un logiciel d'une [liste de logiciels MAME](naming-conventions-and-dats.md#listes-de-logiciels-mame) va toujours dans
 le dossier de sa liste, où MAME le cherche : avec **Tout à la racine**, `megadriv/sonic.zip` sous la destination ; avec
 un modèle, ses dossiers viennent au-dessus de celui de la liste.
+
+### Un dossier par DAT
+
+Avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), deux cases sous **Restaurer les articles initiaux**
+placent les fichiers de chaque DAT à part :
+
+* **Un dossier par DAT** (cochée par défaut) : les fichiers de chaque DAT vont dans un dossier à son nom, au-dessus des
+  dossiers du modèle. Avec `{title}`, `Tetris (World).gb` va dans `Nintendo - Game Boy/Tetris/`. Décochée, tous les
+  DAT partagent les mêmes dossiers : la variable `{dat}` permet alors de placer le DAT ailleurs dans le modèle, et deux
+  fichiers de DAT différents qui visent la même cible suivent la règle des [conflits](#conflits).
+* **Reproduire l'arborescence des DAT** : le dossier de chaque DAT va sous les dossiers de son chemin dans le dossier
+  de DAT, comme dans le pack (`TOSEC/Commodore/Amiga/Commodore Amiga - Games - [ADF]/...`). Seulement avec un dossier
+  par DAT, et pour les DAT lus dans des sous-dossiers (`--dir-dat-mirror` en ligne de commande).
+
+Les deux cases sont grisées avec un fichier DAT : un DAT seul n'a jamais de dossier à lui, et sa sortie ne change pas.
+Le dossier `_unmatched` des fichiers non conformes reste à la racine de la destination.
 
 ### Options associées
 

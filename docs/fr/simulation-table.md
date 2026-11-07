@@ -19,6 +19,7 @@ que l'on vérifie un résultat avant d'écrire quoi que ce soit.
 | **Langues**, **Pays/Région** | Langues et régions détectées |
 | **Chemin cible calculé** | Où le fichier est (ou serait) écrit, relativement à la destination |
 | **Statut** | Pastille Retenu, Exclu, Non conforme, Doublon ou Erreur |
+| **DAT** | DAT du [lot](naming-conventions-and-dats.md#plusieurs-dat) avec lequel le fichier est rangé, vide avec un DAT seul (masquée par défaut) |
 
 Cliquez sur un en-tête de colonne pour trier le tableau ; le tri par statut range aussi les lignes selon leur raison.
 Survolez une ligne pour afficher une info-bulle avec la taille, la somme de contrôle, la raison du statut, les pistes
@@ -54,6 +55,8 @@ on voit d'un coup d'œil quelle version l'a emporté sur quelles autres.
   flèche droite pour déplier, Espace pour basculer. Le clic droit sur un en-tête propose **Replier ce jeu** (ou
   **Déplier ce jeu**), **Replier tous les jeux** et **Déplier tous les jeux**.
 * Pendant une exécution, les lignes arrivent dans l'ordre du traitement ; les jeux sont regroupés à la fin.
+* Avec un lot de DAT, les jeux sont rangés par DAT, puis dans l'ordre du tri : le même titre dans deux DAT fait deux
+  jeux.
 
 Les jeux repliés le restent d'une simulation à l'autre de la même source. Le choix de la vue est conservé d'une session
 à l'autre.
@@ -73,7 +76,8 @@ ligne **Utilisé par** compte les machines qui prennent des ROM dans le set, d'a
 BIOS, les machines qui utilisent un *device*), celles qui sont dans la source et celles qui sont retenues, qu'elle
 nomme : *389 machine(s), dont 389 dans la source ; 120 retenue(s) : 1944, 19xx, armwar et 117 autres*. Sous **Fichiers associés**, il énumère les
 [fichiers transférés avec elle](#fichiers-associes), chacun avec sa taille, sa cible (avec son nouveau nom quand une
-collision l'a renommé) et, pour un CHD, sa version, son média et ses pistes. Tant que des jeux sont
+collision l'a renommé) et, pour un CHD, sa version, son média et ses pistes. Avec un lot de DAT, la ligne **DAT** nomme le DAT du
+fichier et, quand d'autres DAT le reconnaissent, ceux-ci, où ses ROMs comptent comme présentes. Tant que des jeux sont
 [décochés](#choisir-des-jeux), une ligne **Sélection** dit en plus si la ligne sera triée : *Cochée*, *Décochée*, ou
 *Triée avec le set …, qui en a besoin* pour un set MAME emporté par les jeux cochés ; l'info-bulle de la ligne la
 reprend. Le statut décrit toujours la simulation entière, la ligne **Sélection** le tri partiel. Les textes peuvent être
@@ -91,7 +95,9 @@ tri garderait, vous ne le triez simplement pas cette fois. Cliquez sur **Sélect
 trie la sélection (avec les sets MAME requis) ; elle se combine avec les pastilles de statut et la recherche. Une ligne
 décochée pendant ce filtre reste affichée, pour pouvoir la recocher, jusqu'au prochain changement de filtre.
 
-Avec un DAT, le bandeau affiche aussi la **Complétude** de votre collection (ROMs du DAT trouvées / total).
+Avec un DAT, le bandeau affiche aussi la **Complétude** de votre collection (ROMs du DAT trouvées / total). Avec un
+lot de DAT, elle réunit tous ses DAT, et son info-bulle détaille chaque DAT où un jeu a été trouvé, puis compte les
+autres.
 
 ## Volume
 
@@ -144,9 +150,12 @@ le remet en place ; voir [Destination et transferts](destination-and-transfers.m
 ## Recherche
 
 Tapez une partie d'un titre dans **Rechercher un titre** : le tableau est filtré au fil de la frappe, avec des
-suggestions. Le bouton ✕ efface la recherche. La recherche porte aussi sur le nom d'origine et, pour un set MAME, sur
-sa catégorie (`shooter`, `flying vertical`). Le panneau de détail donne la catégorie d'un set en tête de sa seconde
+suggestions. Le bouton ✕ efface la recherche. La recherche porte aussi sur le nom d'origine, le nom du DAT d'un lot
+et, pour un set MAME, sur sa catégorie (`shooter`, `flying vertical`). Le panneau de détail donne la catégorie d'un set en tête de sa seconde
 ligne.
+
+Avec un lot de DAT, la liste **Tous les DAT**, à droite de la recherche, ne montre que les fichiers rangés avec le DAT
+choisi ; elle est grisée avec un DAT seul.
 
 ## Forcer un gagnant 1G1R
 

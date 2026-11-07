@@ -19,6 +19,7 @@ a result before writing anything.
 | **Languages**, **Country/Region** | Detected languages and regions |
 | **Calculated Target Path** | Where the file is (or would be) written, relative to the destination |
 | **Status** | Badge Valid, Excluded, Unmatched, Duplicate or Error |
+| **DAT** | DAT of the [lot](naming-conventions-and-dats.md#several-dats) the file is sorted with, empty with a single DAT (hidden by default) |
 
 Click a column header to sort the table; sorting by status also orders the rows by their reason. Hover a row to see a
 tooltip with the size, the checksum, the reason for the status, the companion tracks of an optical set, or the details
@@ -53,6 +54,8 @@ release won over which others.
   arrow to unfold, Space to switch. Right-clicking a header offers **Fold this game** (or **Unfold this game**),
   **Fold all games** and **Unfold all games**.
 * During a run, the rows come in the order of processing; the games are grouped at the end.
+* With a lot of DATs, the games are ordered by DAT, then in the order of the sort: the same title in two DATs is two
+  games.
 
 Folded games stay folded from one simulation of the same source to the next. The view you choose is kept from one
 session to the next.
@@ -72,7 +75,8 @@ according to the DAT (its clones, the games of a BIOS, the machines that use a *
 kept, which it names: *389 machine(s), 389 of them in the source; 120 kept: 1944, 19xx, armwar and 117 others*. Under
 **Related files**, it lists the [files transferred with
 it](#related-files), each with its size, its target (with its new name when a collision renamed it) and, for a CHD, its
-version, media and tracks. While some games are [unchecked](#choosing-games), a **Selection**
+version, media and tracks. With a lot of DATs, the **DAT** line names the DAT of the file and, when other DATs know it,
+those, where its ROMs count as present. While some games are [unchecked](#choosing-games), a **Selection**
 line also tells whether the row will be sorted: *Checked*, *Unchecked*, or *Sorted with the set …, which needs it* for a
 MAME set taken along by the checked games; the tooltip of the row repeats it. The status always describes the whole
 simulation, the **Selection** line the partial sort. The texts can be selected and copied. The panel is folded by default;
@@ -89,7 +93,8 @@ you are just not sorting it this time. Click **Selection** to show only the rows
 required MAME sets); it combines with the status chips and the search. A row unchecked while this filter is on stays
 shown, so that you can check it again, until the next change of filter.
 
-With a DAT, the banner also shows the **Completion** of your collection (ROMs of the DAT found / total).
+With a DAT, the banner also shows the **Completion** of your collection (ROMs of the DAT found / total). With a lot of
+DATs, it gathers all its DATs, and its tooltip details each DAT with a game found, then counts the others.
 
 ## Volume
 
@@ -139,8 +144,11 @@ of the same run that lead to the same target are still plain duplicates.
 ## Searching
 
 Type part of a title in **Search title**: the table is filtered as you type, with suggestions. The ✕ button clears
-the search. The search also looks at the source name and, for a MAME set, at its category (`shooter`, `flying
-vertical`). The detail panel gives the category of a set at the start of its second line.
+the search. The search also looks at the source name, the name of the DAT of a lot and, for a MAME set, at its
+category (`shooter`, `flying vertical`). The detail panel gives the category of a set at the start of its second line.
+
+With a lot of DATs, the **Every DAT** list, to the right of the search, only shows the files sorted with the DAT
+chosen; it is greyed out with a single DAT.
 
 ## Choosing a 1G1R winner by hand
 

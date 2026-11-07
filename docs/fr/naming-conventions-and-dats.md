@@ -22,7 +22,8 @@ La liste **Convention**, dans le cadre *Catalogue DAT*, propose :
   liste (voir [Listes de logiciels MAME](#listes-de-logiciels-mame)).
 
 La convention effective choisit aussi les réglages affichés dans la page **Filtres** (TOSEC, ou No-Intro / Redump,
-également utilisés pour MAME et ses listes de logiciels).
+également utilisés pour MAME et ses listes de logiciels). Avec un [lot de DAT](#plusieurs-dat), chaque DAT garde sa
+propre convention ; la convention effective est celle de la plupart des DAT cochés.
 
 ## Lecture des noms
 
@@ -224,7 +225,8 @@ DAT de la liste.
 Pour trier **une liste**, choisissez son DAT et, comme source, le dossier de la liste (`Software List ROMs/megadriv`).
 
 Pour trier **plusieurs listes à la fois**, choisissez un **dossier de DAT** : **Parcourir...** à côté du champ du DAT,
-puis **Dossier de DAT (listes de logiciels MAME)…**, ou `--dat <dossier>` en ligne de commande. Le dossier contient un
+puis **Dossier de DAT (lot No-Intro, Redump, TOSEC ou listes de logiciels MAME)…**, ou `--dat <dossier>` en ligne de
+commande. Le dossier contient un
 DAT par liste : le dossier *Software List ROMs* du `DatRoot` de ROMVault, ou le dossier `hash` de MAME. Une sortie de
 MAME qui contient plusieurs listes (`mame -getsoftlist`, `mame -listsoftware`) fonctionne de même. La source est alors
 le dossier qui contient un dossier par liste (`Software List ROMs`), et **Scanner récursivement les sous-dossiers**
@@ -241,8 +243,9 @@ doit être coché.
   `DatRoot` de ROMVault), à la racine du dossier choisi : `megadriv.xml`, `gamegear.xml`... Lus dans le dossier `hash`
   de MAME, ils s'écrivent comme des listes de logiciels MAME, que MAME lit
   ([Exports](exports.md#listes-de-logiciels-mame)).
-* Un dossier de DAT ne réunit que des listes de logiciels : un DAT d'une autre convention, ou deux DAT de la même liste
-  (le DAT SabreTools et le fichier hash de `megadriv`, par exemple), est refusé, et le champ dit pourquoi.
+* Un dossier de listes de logiciels ne réunit que des listes : des listes mêlées à des DAT d'une autre convention, ou
+  deux DAT de la même liste (le DAT SabreTools et le fichier hash de `megadriv`, par exemple), sont refusés, et le
+  champ dit pourquoi. Un dossier de DAT No-Intro, Redump ou TOSEC est un [lot](#plusieurs-dat).
 * La première analyse d'une collection entière est longue sur un partage réseau (environ 131 000 archives pour
   MAME 0.289) ; les suivantes lisent dans le cache les en-têtes des archives inchangées.
 
@@ -273,6 +276,60 @@ partage pas avec son parent. Avec le fichier hash, RomSieve le sait : un clone s
 **Requis**), dont MAME a besoin. Un DAT SabreTools ne liste que les ROMs propres d'un clone et ne nomme pas son parent :
 le clone paraît complet, et rien ne dit qu'il a besoin de son parent. Dans MAME 0.289, cela concerne 868 des
 41 505 clones des listes, surtout dans `nes` (416) et `msx2_flop` (114) ; utilisez le fichier hash pour ces listes.
+
+## Plusieurs DAT
+
+Un pack No-Intro, Redump ou TOSEC compte des centaines, voire des milliers de DAT, un par système. Plutôt que de trier
+la source une fois par DAT, choisissez le **dossier** qui les contient : **Parcourir...** à côté du champ du DAT, puis
+**Dossier de DAT (lot No-Intro, Redump, TOSEC ou listes de logiciels MAME)…** (`--dat <dossier>` en ligne de commande).
+Ce dossier est un **lot** : la source est analysée une seule fois, chaque fichier est rangé avec le DAT qui le
+reconnaît, et chaque DAT garde sa convention, ses filtres et son 1G1R.
+
+### Choisir les DAT du lot
+
+Sous le champ, la ligne d'information résume le lot : *Lot de 3 111 DAT (2 900 TOSEC, 150 No-Intro, 61 Redump),
+3 111 cochés*. Seuls les en-têtes des DAT sont lus pour l'afficher, en une fraction de seconde. Dessous :
+
+* **Lire aussi les sous-dossiers du dossier de DAT** ajoute au lot les DAT de ses sous-dossiers (un pack TOSEC rangé
+  par constructeur, les dossiers No-Intro et Redump d'un même pack ; `--dat-recursive`). La case est grisée pour un
+  fichier DAT.
+* La **liste des DAT** donne le nom, la convention et le chemin de chacun. **Rechercher un DAT** filtre la liste par
+  nom, chemin ou convention ; **Cocher** et **Décocher** s'appliquent aux DAT affichés. Un DAT décoché n'est pas lu par
+  le tri : ses fichiers sont non conformes si aucun autre DAT ne les reconnaît. Les DAT décochés sont enregistrés dans
+  les réglages et les profils ; en ligne de commande, `--dat-only <nom>` choisit les DAT à utiliser.
+
+Un dossier est refusé, et la ligne d'information dit pourquoi, quand deux de ses DAT portent le même nom (sans tenir
+compte des majuscules), quand il contient un DAT de machines MAME (à choisir seul), quand il mêle des listes de
+logiciels MAME à d'autres DAT, ou quand tous ses DAT sont décochés.
+
+### Conventions d'un lot
+
+Chaque DAT garde la convention de son en-tête : un lot peut mêler des DAT TOSEC, No-Intro et Redump, chacun lu avec ses
+noms et filtré avec ses réglages de la page **Filtres**. La convention choisie dans la liste **Convention** ne vaut que
+pour les DAT qu'aucun en-tête ne reconnaît ; le journal nomme les DAT dont la convention détectée l'emporte sur elle.
+Le badge et la page **Filtres** suivent la convention de la plupart des DAT cochés ; **Réglages pour :** montre les
+réglages de l'autre famille. Les variables TOSEC du modèle restent actives dès qu'un DAT TOSEC est coché.
+
+### Tri avec un lot
+
+* Chaque fichier est rangé avec le **premier DAT**, dans l'ordre des chemins, qui le reconnaît par sa taille et son
+  CRC32 (ou, pour un CHD, par le SHA-1 de son disque). Un descripteur et ses pistes vont ensemble, avec le DAT de leur
+  premier fichier reconnu.
+* Les autres DAT qui le reconnaissent sont nommés au journal et dans le panneau de détail du
+  [tableau de simulation](simulation-table.md) : ses ROMs y comptent comme présentes, mais il n'est écrit qu'une fois,
+  avec son DAT.
+* Un fichier qu'aucun DAT ne reconnaît est **non conforme**, comme avec un DAT seul.
+* Le même titre dans deux DAT fait deux jeux : le 1G1R garde une version dans chacun, un choix 1G1R manuel ne vaut que
+  pour son DAT, et un jeu multi-disques n'est complet qu'avec les disques rangés avec son DAT.
+* Chaque DAT a par défaut son **dossier** dans la destination ; voir [Un dossier par DAT](destination-and-transfers.md#un-dossier-par-dat).
+* La **complétude** du bandeau réunit tous les DAT ; son info-bulle détaille chaque DAT où un jeu a été trouvé. La Miss
+  List et le fixdat ne listent que les DAT où il manque des ROMs et où au moins un jeu a été trouvé
+  ([Exports](exports.md#lot-de-dat)).
+
+Seuls les DAT qui peuvent reconnaître un fichier de la source sont lus en entier, une fois les sommes de contrôle
+calculées : trier une petite source avec un pack TOSEC complet (3 000 DAT, plus d'un million de ROMs) ne garde que
+quelques dizaines de Mo en mémoire. Une source qui touche tous les DAT les lit tous, deux fois (le lot, puis chaque
+DAT) : environ 1,8 Go de mémoire pour un pack complet.
 
 ## Archives
 
