@@ -87,6 +87,21 @@ public sealed partial class ExecutionViewModel : ViewModelBase
         _statusMessage = _rawStatusMessage;
         _countsText = localization.Tr("panel4.status_files", ("current", 0), ("total", 0));
         _etaText = localization.Tr("panel4.eta_unknown");
+
+        // A folder of DATs being read holds back the simulation and the sort, until its DATs are known
+        directories.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(DirectoriesViewModel.IsReadingDatFolder))
+            {
+                OnPropertyChanged(nameof(IsReadingDatFolder));
+                OnPropertyChanged(nameof(CanStartOperation));
+                OnPropertyChanged(nameof(CanRunPrimaryAction));
+                OnPropertyChanged(nameof(PrimaryActionTooltip));
+                PrimaryActionCommand.NotifyCanExecuteChanged();
+                SimulateCommand.NotifyCanExecuteChanged();
+                StartSortCommand.NotifyCanExecuteChanged();
+            }
+        };
     }
 
     /// <summary>Raised when a run starts, once the results of the previous one are cleared.</summary>
@@ -172,19 +187,28 @@ public sealed partial class ExecutionViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(UndoLastSortCommand))]
     private bool _hasUndoableSort;
 
-    public bool CanStartOperation => !IsRunning;
+    /// <summary>
+    /// Whether a simulation or a sort can start: nothing runs, and no folder of DATs is being read
+    /// (<see cref="DirectoriesViewModel.IsReadingDatFolder"/>), whose DATs to check are not known yet.
+    /// </summary>
+    public bool CanStartOperation => !IsRunning && !IsReadingDatFolder;
+    /// <summary>Whether a folder of DATs is being read (<see cref="DirectoriesViewModel.IsReadingDatFolder"/>).</summary>
+    public bool IsReadingDatFolder => _directories.IsReadingDatFolder;
+
     public bool CanStopOperation => IsRunning;
     public bool CanUndoLastSort => !IsRunning && HasUndoableSort;
 
     /// <summary>The main button simulates while nothing runs, and stops a running simulation or sort.</summary>
-    public bool CanRunPrimaryAction => IsPipelineRunning ? !IsStopRequested : !IsRunning;
+    public bool CanRunPrimaryAction => IsPipelineRunning ? !IsStopRequested : CanStartOperation;
 
     /// <summary>Label of the main button: simulate, or stop while a simulation or a sort runs.</summary>
     public string PrimaryActionText =>
         _localization.Tr(IsPipelineRunning ? "panel4.btn_stop" : "panel4.btn_simulate");
 
     public string PrimaryActionTooltip =>
-        _localization.Tr(IsPipelineRunning ? "panel4.tooltip_stop" : "panel4.tooltip_simulate");
+        _localization.Tr(IsPipelineRunning ? "panel4.tooltip_stop"
+            : IsReadingDatFolder ? "panel4.tooltip_wait_dat_folder"
+            : "panel4.tooltip_simulate");
 
     /// <summary>The progress bar, the counters and the remaining time are only shown while an operation runs.</summary>
     public bool IsProgressVisible => IsPipelineRunning;
@@ -529,6 +553,16 @@ public sealed partial class ExecutionViewModel : ViewModelBase
     public async Task ExecuteOperationAsync(bool isDryRun, PartialSortRequest? partial = null)
     {
         // A partial sort chooses among the rows of the last simulation: they must still be what the sort would do
+        // Started while a folder of DATs is read (the buttons are greyed then): the run waits for its DATs
+        if (_directories.IsReadingDatFolder)
+        {
+            await _directories.DatLoadTask;
+            if (_directories.IsReadingDatFolder)
+            {
+                return;
+            }
+        }
+
         if (IsRunning || (partial is not null && (isDryRun || !IsSimulationCurrent)))
         {
             return;

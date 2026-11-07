@@ -125,7 +125,8 @@ public sealed partial class PartialSortViewModel : ViewModelBase
     {
         _displayedRequest = null;
         _checkedRequest = null;
-        if (_execution.IsRunning)
+        // Nothing is sorted while a run goes on, or while a folder of DATs is read
+        if (!_execution.CanStartOperation)
         {
             CanSortDisplayed = false;
             CanSortChecked = false;
@@ -492,7 +493,10 @@ public sealed partial class PartialSortViewModel : ViewModelBase
     /// <summary>Label of the sort button: "Sort Selection" while some games are unchecked, "Start Sorting" otherwise.</summary>
     public string StartButtonText => _localization.Tr(IsPartialSelection ? "panel4.btn_sort_checked" : "panel4.btn_start");
 
-    public string StartButtonTooltip => _localization.Tr(IsPartialSelection ? "panel4.tooltip_start_checked" : "panel4.tooltip_start");
+    public string StartButtonTooltip => _localization.Tr(
+        _execution.IsReadingDatFolder ? "panel4.tooltip_wait_dat_folder"
+        : IsPartialSelection ? "panel4.tooltip_start_checked"
+        : "panel4.tooltip_start");
 
     /// <summary>Whether the sort button is put forward: after a simulation of the current options that it can sort.</summary>
     public bool IsStartPutForward => _execution.IsSimulationCurrent && (!IsPartialSelection || CanSortChecked);
@@ -511,7 +515,7 @@ public sealed partial class PartialSortViewModel : ViewModelBase
         ? $"{CheckedSummaryText}{Environment.NewLine}{_localization.Tr("panel4.tooltip_start_checked")}"
         : _execution.SortSummaryTooltip;
 
-    private bool CanStart() => IsPartialSelection ? CanSortChecked && !_execution.IsRunning : _execution.CanStartOperation;
+    private bool CanStart() => _execution.CanStartOperation && (!IsPartialSelection || CanSortChecked);
 
     /// <summary>
     /// Sort button of the footer: sorts the checked games while some are unchecked, otherwise the whole simulation

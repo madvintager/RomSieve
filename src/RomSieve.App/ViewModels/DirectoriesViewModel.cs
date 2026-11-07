@@ -157,7 +157,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// <summary>The DATs of a lot (a folder of No-Intro, Redump or TOSEC DATs), to check; empty for any other DAT.</summary>
     public DatLotViewModel DatLot { get; }
 
-    /// <summary>Header name of the DAT chosen (of its first DAT for a folder), the value of <c>{dat}</c>; empty without a DAT.</summary>
+    /// <summary>Header name of the DAT chosen (the name of the folder for a folder of DATs), the value of <c>{dat}</c>; empty without a DAT.</summary>
     [ObservableProperty]
     private string _datHeaderName = string.Empty;
 
@@ -291,6 +291,34 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// <summary>Theme tone of the DAT summary: <c>Neutral</c>, <c>Ok</c> or <c>Error</c>.</summary>
     [ObservableProperty]
     private string _datInfoTone = "Neutral";
+
+    /// <summary>
+    /// Whether a folder of DATs is being read for its DATs (<see cref="DatLot"/>): the simulation and the sort wait for
+    /// its end, since the DATs of the lot and their boxes are not known yet. The DAT can still be changed, which drops
+    /// the read; a single DAT, read for its summary only, never sets it.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isReadingDatFolder;
+
+    /// <summary>DATs of the folder read so far (<see cref="IsReadingDatFolder"/>).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DatFolderReadText))]
+    [NotifyPropertyChangedFor(nameof(IsDatFolderReadCountKnown))]
+    private int _datFolderReadCount;
+
+    /// <summary>DATs of the folder being read, 0 while the folder is listed.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DatFolderReadText))]
+    [NotifyPropertyChangedFor(nameof(IsDatFolderReadCountKnown))]
+    private int _datFolderReadTotal;
+
+    /// <summary>Whether the number of DATs of the folder is known: until then, the progress bar runs without a value.</summary>
+    public bool IsDatFolderReadCountKnown => DatFolderReadTotal > 0;
+
+    /// <summary>The DATs read out of the DATs of the folder, next to the progress bar; empty while the folder is listed.</summary>
+    public string DatFolderReadText => DatFolderReadTotal > 0
+        ? _localization.Tr("tab1.dat_folder_read_count", ("read", DatFolderReadCount), ("total", DatFolderReadTotal))
+        : string.Empty;
 
     [ObservableProperty]
     private string _sourceDir = string.Empty;
@@ -767,7 +795,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// <summary>
     /// Shows what the DAT is at once, from its header and its first games (<see cref="IDatService.ReadDatPreview"/>):
     /// the convention badge and the MAME frames appear as soon as it is chosen. The whole DAT, hundreds of megabytes
-    /// for MAME, is then read off the UI thread for its summary (<see cref="DatLoadTask"/>).
+    /// for MAME, is then read off the UI thread for its summary (<see cref="DatLoadTask"/>). A folder is read off the UI
+    /// thread from the start (<see cref="LoadDatFolderAsync"/>).
     /// </summary>
     private void UpdateDatStatusInfo(string pathStr)
     {
@@ -776,6 +805,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         _datLoadCts?.Dispose();
         _datLoadCts = null;
         DatLoadTask = Task.CompletedTask;
+        IsReadingDatFolder = false;
 
         var cleanPath = pathStr?.Trim() ?? string.Empty;
         DatHeaderName = string.Empty;
@@ -794,6 +824,23 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             return;
         }
 
+        DatLot.Clear();
+
+        // A folder, a lot or the DATs of MAME software lists, is listed and read off the UI thread: it may hold
+        // thousands of DATs, or be on the network. It is named after itself, whatever its first DAT says.
+        if (Directory.Exists(cleanPath))
+        {
+            var folderName = Path.GetFileName(Path.TrimEndingDirectorySeparator(cleanPath));
+            DatHeaderName = folderName;
+            ShowDatInfo(LocalizedMessage.Create("tab1.dat_info_reading", ("name", folderName)), "Neutral", null, DatCloneRelations.Unknown);
+            DatFolderReadCount = 0;
+            DatFolderReadTotal = 0;
+            IsReadingDatFolder = true;
+            _datLoadCts = new CancellationTokenSource();
+            DatLoadTask = LoadDatFolderAsync(cleanPath, DatRecursive, version, _datLoadCts.Token);
+            return;
+        }
+
         DatCatalog preview;
         try
         {
@@ -801,35 +848,24 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         }
         catch (Exception ex)
         {
-            DatLot.Clear();
             ShowDatInfo(DatErrorMessage(ex), "Error", null, DatCloneRelations.Unknown);
             return;
         }
 
         DatHeaderName = DatDisplayName(preview, cleanPath);
+        ShowDatSummaryReading(preview, cleanPath);
+        _datLoadCts = new CancellationTokenSource();
+        DatLoadTask = LoadDatSummaryAsync(cleanPath, version, _datLoadCts.Token);
+    }
 
-        // A lot: the headers of its DATs are enough to its summary and its list; its DATs are only read by a run
-        if (Directory.Exists(cleanPath) && preview.Header.Convention != NamingConvention.MameSoftwareList)
-        {
-            DatLot.Clear();
-            ShowDatInfo(LocalizedMessage.Create("tab1.dat_info_reading", ("name", DatDisplayName(preview, cleanPath))), "Neutral", null, DatCloneRelations.Unknown);
-            _datLoadCts = new CancellationTokenSource();
-            DatLoadTask = LoadDatLotAsync(cleanPath, DatRecursive, version, _datLoadCts.Token);
-            return;
-        }
-
-        DatLot.Clear();
-
+    // What the first games of a DAT read whole for its summary tell, until its end
+    private void ShowDatSummaryReading(DatCatalog preview, string path) =>
         ShowDatInfo(
-            LocalizedMessage.Create("tab1.dat_info_reading", ("name", DatDisplayName(preview, cleanPath))),
+            LocalizedMessage.Create("tab1.dat_info_reading", ("name", DatDisplayName(preview, path))),
             "Neutral",
             DetectConvention(preview),
             // The first games only prove that the DAT has clones: their absence waits for the whole DAT
             TiebreakApplicability.GetCloneRelations(preview) == DatCloneRelations.Present ? DatCloneRelations.Present : DatCloneRelations.Unknown);
-
-        _datLoadCts = new CancellationTokenSource();
-        DatLoadTask = LoadDatSummaryAsync(cleanPath, version, _datLoadCts.Token);
-    }
 
     private async Task LoadDatSummaryAsync(string path, int version, CancellationToken cancellationToken)
     {
@@ -886,20 +922,39 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     }
 
     /// <summary>
-    /// The DATs of a lot from their headers (<see cref="IDatService.ReadDatFolderPreview"/>), off the UI thread, refused as
-    /// a sort would refuse them (<see cref="Core.Services.DatService.CheckDatFolder"/>); then shown to check, with the summary of the lot.
+    /// A folder of DATs, off the UI thread: its first DAT tells whether it holds MAME software lists, read whole for their
+    /// summary (<see cref="LoadDatSummaryAsync"/>); otherwise it is a lot, whose DATs are read by their headers only
+    /// (<see cref="IDatService.ReadDatFolderPreview"/>, its progress shown), refused as a sort would refuse them
+    /// (<see cref="Core.Services.DatService.CheckDatFolder"/>), then shown to check with the summary of the lot.
     /// </summary>
-    private async Task LoadDatLotAsync(string path, bool recursive, int version, CancellationToken cancellationToken)
+    private async Task LoadDatFolderAsync(string path, bool recursive, int version, CancellationToken cancellationToken)
     {
+        // Created on the UI thread, which hears the reports; a report of an older read, or one late after the end, is dropped
+        var progress = new Progress<DatFolderReadProgress>(report =>
+        {
+            if (version == _datLoadVersion && IsReadingDatFolder)
+            {
+                DatFolderReadTotal = report.Total;
+                DatFolderReadCount = report.Read;
+            }
+        });
+
+        DatCatalog? preview = null;
         IReadOnlyList<DatFolderEntry>? entries = null;
         Exception? error = null;
         try
         {
-            entries = await Task.Run(() =>
+            (preview, entries) = await Task.Run(() =>
             {
-                var read = _datService.ReadDatFolderPreview(path, recursive);
+                var first = _datService.ReadDatPreview(path);
+                if (first.Header.Convention == NamingConvention.MameSoftwareList)
+                {
+                    return (first, (IReadOnlyList<DatFolderEntry>?)null);
+                }
+
+                var read = _datService.ReadDatFolderPreview(path, recursive, progress, cancellationToken);
                 Core.Services.DatService.CheckDatFolder(path, read);
-                return read;
+                return (first, read);
             }, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -916,9 +971,18 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             return;
         }
 
+        IsReadingDatFolder = false;
+        if (preview is null)
+        {
+            DatHeaderName = string.Empty;
+            ShowDatInfo(DatErrorMessage(error), "Error", null, DatCloneRelations.Unknown);
+            return;
+        }
+
         if (entries is null)
         {
-            ShowDatInfo(DatErrorMessage(error), "Error", null, DatCloneRelations.Unknown);
+            ShowDatSummaryReading(preview, path);
+            await LoadDatSummaryAsync(path, version, cancellationToken);
             return;
         }
 

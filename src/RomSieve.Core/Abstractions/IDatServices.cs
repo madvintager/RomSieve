@@ -126,9 +126,14 @@ public interface IDatService
     /// <summary>
     /// The DATs of a folder of DATs (path relative to the folder, header name, convention), from their headers only,
     /// in the order a lot takes them: the list of the DATs to check, the refusals told before the DATs are read
-    /// (<see cref="DatService.CheckDatFolder"/>).
+    /// (<see cref="DatService.CheckDatFolder"/>). <paramref name="progress"/> hears how many DATs are read, from none once
+    /// the folder is listed to all of them, about a hundred times whatever their number.
     /// </summary>
-    IReadOnlyList<DatFolderEntry> ReadDatFolderPreview(string folder, bool recursive = false);
+    IReadOnlyList<DatFolderEntry> ReadDatFolderPreview(
+        string folder,
+        bool recursive = false,
+        IProgress<DatFolderReadProgress>? progress = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Header and first games of a DAT, read in milliseconds whatever its size: enough to know its convention.</summary>
     DatCatalog ReadDatPreview(string path, int maxGames = DatService.PreviewGameCount);

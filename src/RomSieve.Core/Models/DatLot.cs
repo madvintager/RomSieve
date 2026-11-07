@@ -30,6 +30,12 @@ public sealed record DatFolderEntry(string RelativePath, string Name, NamingConv
 }
 
 /// <summary>
+/// How far the read of the headers of a folder of DATs is (<see cref="Abstractions.IDatService.ReadDatFolderPreview"/>):
+/// the DATs read so far, out of the DATs of the folder.
+/// </summary>
+public readonly record struct DatFolderReadProgress(int Read, int Total);
+
+/// <summary>
 /// What a lot keeps of one of its DATs without its games (<see cref="DatLotMember.Summary"/>): its header, its convention,
 /// the numbers of its games, of its ROMs (<see cref="DatCatalog.Entries"/>) and of its files
 /// (<see cref="DatCatalog.CountFiles"/>), and whether it has parent / clone relations. A run counts a DAT it never loads

@@ -39,6 +39,64 @@ public sealed partial class GuiTests
     }
 
     [Fact]
+    public async Task FolderOfDatsBeingRead_ShouldShowItsProgress_AndGreyOutTheSimulationAndTheSort()
+    {
+        await RunOnUiThreadAsync(async () =>
+        {
+            var vm = CreateViewModel();
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                vm.Directories.SourceDir = _tempDir;
+                vm.Directories.DatFilePath = WriteGuiLot();
+                await vm.Directories.DatLoadTask;
+                Settle(window);
+
+                var panel = window.FindControl<StackPanel>("PanelDatFolderRead")!;
+                var bar = window.FindControl<ProgressBar>("ProgressDatFolderRead")!;
+                var simulate = window.FindControl<Button>("BtnSimulate")!;
+                var start = window.FindControl<Button>("BtnStart")!;
+                panel.IsVisible.Should().BeFalse("the folder is read");
+                simulate.IsEffectivelyEnabled.Should().BeTrue();
+                ToolTip.GetShowOnDisabled(simulate).Should().BeTrue();
+                ToolTip.GetShowOnDisabled(start).Should().BeTrue();
+
+                // The state of a read under way (its course is tested by DatFolderReadingTests)
+                vm.Directories.IsReadingDatFolder = true;
+                vm.Directories.DatFolderReadTotal = 0;
+                Settle(window);
+                panel.IsVisible.Should().BeTrue();
+                bar.IsIndeterminate.Should().BeTrue("the number of DATs is not known while the folder is listed");
+                simulate.IsEffectivelyEnabled.Should().BeFalse();
+                start.IsEffectivelyEnabled.Should().BeFalse();
+                window.FindControl<DropDownButton>("BtnPartialSortMenu")!.IsEffectivelyEnabled.Should().BeFalse();
+                var wait = vm.I18n["panel4.tooltip_wait_dat_folder"];
+                ToolTip.GetTip(simulate).Should().Be(wait);
+                ToolTip.GetTip(start).Should().Be(wait);
+
+                vm.Directories.DatFolderReadTotal = 40;
+                vm.Directories.DatFolderReadCount = 10;
+                Settle(window);
+                bar.IsIndeterminate.Should().BeFalse();
+                (bar.Maximum, bar.Value).Should().Be((40, 10));
+                window.FindControl<TextBlock>("LblDatFolderRead")!.Text.Should().Be("10 / 40 DAT lus");
+
+                vm.Directories.IsReadingDatFolder = false;
+                Settle(window);
+                panel.IsVisible.Should().BeFalse();
+                simulate.IsEffectivelyEnabled.Should().BeTrue();
+                start.IsEffectivelyEnabled.Should().BeTrue();
+                ToolTip.GetTip(simulate).Should().Be(vm.I18n["panel4.tooltip_simulate"]);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
     public async Task DatLot_ShouldOpenItsDatsToCheck_WithTheFolderOptionsOfAFolderOfDats()
     {
         await RunOnUiThreadAsync(async () =>

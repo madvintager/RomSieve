@@ -287,7 +287,10 @@ reconnaît, et chaque DAT garde sa convention, ses filtres et son 1G1R.
 ### Choisir les DAT du lot
 
 Sous le champ, la ligne d'information résume le lot : *Lot de 3 111 DAT (2 900 TOSEC, 150 No-Intro, 61 Redump),
-3 111 cochés*. Seuls les en-têtes des DAT sont lus pour l'afficher, en une fraction de seconde. À droite, le bouton
+3 111 cochés*. Seuls les en-têtes des DAT sont lus pour l'afficher, en général en une fraction de seconde. Pendant
+cette lecture, une barre de progression compte les DAT lus (*1 200 / 3 111 DAT lus*), et **Simuler (Dry-Run)** et
+**Démarrer le tri** sont grisés : le tri attend de connaître les DAT du lot. Les autres réglages restent modifiables,
+et choisir un autre DAT ou vider le champ abandonne la lecture. À droite, le bouton
 **Choisir les DAT…** (grisé pour un fichier DAT) ouvre la fenêtre **DAT du lot** ; elle s'ouvre d'elle-même quand vous
 choisissez un nouveau dossier par **Parcourir...**, une fois ses DAT lus (pas au lancement, ni au chargement d'un
 profil). Elle s'ouvre toujours sur tous les DAT.

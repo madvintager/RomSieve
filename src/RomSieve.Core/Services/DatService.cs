@@ -1460,15 +1460,33 @@ public sealed partial class DatService : IDatService
     /// paths: what the list of the DATs to sort and a lot are made of, read in milliseconds per DAT. Empty for a folder
     /// without DAT; the refusals are left to <see cref="CheckDatFolder"/>.
     /// </summary>
-    public IReadOnlyList<DatFolderEntry> ReadDatFolderPreview(string folder, bool recursive = false)
+    public IReadOnlyList<DatFolderEntry> ReadDatFolderPreview(
+        string folder,
+        bool recursive = false,
+        IProgress<DatFolderReadProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         var files = GetDatFolderFiles(folder, recursive);
+        cancellationToken.ThrowIfCancellationRequested();
         var entries = new DatFolderEntry[files.Count];
+        progress?.Report(new DatFolderReadProgress(0, files.Count));
+
+        // About a hundred reports, whatever the number of DATs: each one updates the interface
+        var step = Math.Max(1, (files.Count + 99) / 100);
+        var read = 0;
         Parallel.For(
             0,
             files.Count,
-            new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism },
-            index => entries[index] = PreviewEntry(folder, files[index]));
+            new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism, CancellationToken = cancellationToken },
+            index =>
+            {
+                entries[index] = PreviewEntry(folder, files[index]);
+                var done = Interlocked.Increment(ref read);
+                if (progress is not null && (done % step == 0 || done == files.Count))
+                {
+                    progress.Report(new DatFolderReadProgress(done, files.Count));
+                }
+            });
         return entries;
     }
 

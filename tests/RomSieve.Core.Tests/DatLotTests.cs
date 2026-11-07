@@ -198,6 +198,68 @@ public sealed class DatLotTests : IDisposable
         _services.DatService.ReadDatFolderPreview(_dats).Select(e => e.Name).Should().Equal(Nes, "Sony - PlayStation");
     }
 
+    [Fact]
+    public void Preview_ShouldTellHowManyDatsAreRead_AndStopWhenCancelled()
+    {
+        WriteNes();
+        WriteGameBoy();
+        WriteAmiga("a.xml");
+        var progress = new RecordedProgress();
+
+        _services.DatService.ReadDatFolderPreview(_dats, progress: progress).Should().HaveCount(3);
+
+        var reports = progress.Reports;
+        reports[0].Should().Be(new DatFolderReadProgress(0, 3), "the folder is listed before its DATs are read");
+        reports.Should().Contain(new DatFolderReadProgress(3, 3));
+        reports.Should().OnlyContain(r => r.Total == 3 && r.Read <= 3);
+        reports.Should().HaveCount(4, "a small folder reports each of its DATs");
+
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        var read = () => _services.DatService.ReadDatFolderPreview(_dats, cancellationToken: cancelled.Token);
+        read.Should().Throw<OperationCanceledException>();
+    }
+
+    [Fact]
+    public void Preview_ShouldReportAboutAHundredTimes_WhateverTheNumberOfDats()
+    {
+        for (var i = 0; i < 250; i++)
+        {
+            WriteDat($"DAT {i:000}.dat", $"DAT {i:000}", "No-Intro", ("Tetris (World)", Rom("Tetris (World).gb", TetrisGameBoy)));
+        }
+
+        var progress = new RecordedProgress();
+        _services.DatService.ReadDatFolderPreview(_dats, progress: progress);
+
+        progress.Reports.Count.Should().BeLessThanOrEqualTo(102, "the listing, a report every 3 DATs, and the last one");
+        progress.Reports.Should().Contain(new DatFolderReadProgress(250, 250));
+    }
+
+    // Reports heard at once, from the threads that read the DATs
+    private sealed class RecordedProgress : IProgress<DatFolderReadProgress>
+    {
+        private readonly List<DatFolderReadProgress> _reports = [];
+
+        public List<DatFolderReadProgress> Reports
+        {
+            get
+            {
+                lock (_reports)
+                {
+                    return [.. _reports];
+                }
+            }
+        }
+
+        public void Report(DatFolderReadProgress value)
+        {
+            lock (_reports)
+            {
+                _reports.Add(value);
+            }
+        }
+    }
+
     // =========================================================================
     // DATs left out
     // =========================================================================

@@ -837,6 +837,7 @@
                     Classes.stop="{Binding Execution.IsPipelineRunning}"
                     Content="{Binding Execution.PrimaryActionText}"
                     ToolTip.Tip="{Binding Execution.PrimaryActionTooltip}"
+                    ToolTip.ShowOnDisabled="True"
                     FontSize="11"
                     Command="{Binding Execution.PrimaryActionCommand}" />
             <!-- The sort button and its menu of partial sorts form one split button -->
@@ -848,6 +849,7 @@
                       CornerRadius="3,0,0,3"
                       Content="{Binding PartialSort.StartButtonText}"
                       ToolTip.Tip="{Binding PartialSort.StartButtonTooltip}"
+                      ToolTip.ShowOnDisabled="True"
                       FontSize="11"
                       Command="{Binding PartialSort.StartCommand}" />
               <DropDownButton x:Name="BtnPartialSortMenu"
@@ -1142,6 +1144,27 @@
                             ToolTip.ShowOnDisabled="True"
                             IsEnabled="{Binding Directories.DatLot.IsLot}"
                             Command="{Binding Directories.ChooseLotDatsCommand}" />
+                    <!-- While a folder of DATs is read: the DATs read out of those of the folder (no value while it is listed) -->
+                    <StackPanel x:Name="PanelDatFolderRead"
+                                DockPanel.Dock="Right"
+                                Orientation="Horizontal"
+                                Spacing="6"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding Directories.IsReadingDatFolder}">
+                      <ProgressBar x:Name="ProgressDatFolderRead"
+                                   Width="100"
+                                   MinWidth="100"
+                                   VerticalAlignment="Center"
+                                   Minimum="0"
+                                   Maximum="{Binding Directories.DatFolderReadTotal}"
+                                   Value="{Binding Directories.DatFolderReadCount}"
+                                   IsIndeterminate="{Binding !Directories.IsDatFolderReadCountKnown}" />
+                      <TextBlock x:Name="LblDatFolderRead"
+                                 VerticalAlignment="Center"
+                                 FontSize="11"
+                                 Text="{Binding Directories.DatFolderReadText}" />
+                    </StackPanel>
                     <Panel>
                       <TextBlock x:Name="LblDatInfo"
                                  VerticalAlignment="Center"

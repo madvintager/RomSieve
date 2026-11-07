@@ -190,7 +190,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
             // The manual 1G1R choices name files of the table: they do not apply to the games of the catalog
             () => SortSettingsSerializer.ToSortConfig(CaptureSettings()),
-            () => !Execution.IsRunning && !string.IsNullOrWhiteSpace(Directories.DatFilePath),
+            () => !Execution.IsRunning && !Directories.IsReadingDatFolder && !string.IsNullOrWhiteSpace(Directories.DatFilePath),
 
             // While some games are unchecked, the DAT of the collection describes what the sort of the selection writes
             () => PartialSort.CheckedWrittenItems,
@@ -243,6 +243,12 @@ public sealed partial class MainViewModel : ViewModelBase
                 // A run or a recalculation changes the statuses of the rows without changing the rows themselves
                 PartialSort.MarkRowsChanged();
                 PartialSort.Refresh();
+            }
+            else if (e.PropertyName == nameof(ExecutionViewModel.IsReadingDatFolder))
+            {
+                // A folder of DATs being read holds back the sorts of the footer and the export of the catalog
+                PartialSort.Refresh();
+                NotifyExportCommandsCanExecuteChanged();
             }
         };
 

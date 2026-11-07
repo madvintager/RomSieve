@@ -273,7 +273,10 @@ convention, its filters and its 1G1R.
 ### Choosing the DATs of the lot
 
 Under the field, the information line sums the lot up: *Lot of 3111 DATs (2900 TOSEC, 150 No-Intro, 61 Redump), 3111
-checked*. Only the headers of the DATs are read to show it, in a fraction of a second. On its right, the **Choose
+checked*. Only the headers of the DATs are read to show it, usually in a fraction of a second. While they are read,
+a progress bar counts the DATs read (*1200 / 3111 DATs read*), and **Simulate (Dry-Run)** and **Start Sorting** are
+greyed out: the sort waits until the DATs of the lot are known. The other settings can still be changed, and choosing
+another DAT or clearing the field drops the read. On its right, the **Choose
 DATs…** button (greyed out for a DAT file) opens the **DATs of the lot** window; it opens by itself when you choose a
 new folder with **Browse...**, once its DATs are read (not at startup, nor when a profile is loaded). It always opens
 on every DAT.
