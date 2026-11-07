@@ -18,7 +18,9 @@ namespace RomSieve.Core.Services;
 /// </list>
 /// The DATs are only reached through <see cref="DatCatalog.FindMatchesByDat"/> (which DATs know a file) and
 /// <see cref="DatCatalog.DatFor"/> (the catalog of a DAT), except where every DAT is needed: the classifiers and the
-/// statistics (<see cref="Classifiers"/>).
+/// statistics (<see cref="Classifiers"/>). A DAT read on demand (<see cref="DatFolderOptions.LoadOnDemand"/>) is only read
+/// again when a file may be one of its ROMs, once the fingerprints are computed (<see cref="DatsNeeded"/>): the others
+/// keep their summary, and have no classifier.
 /// </summary>
 public sealed class DatLotIdentifier
 {
@@ -28,6 +30,10 @@ public sealed class DatLotIdentifier
     private readonly Action<LogLevel, LocalizedMessage> _log;
     private readonly EntryClassifier _lotClassifier;
     private readonly Dictionary<string, EntryClassifier> _classifiers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Func<DatCatalog, EntryClassifier> _createClassifier;
+
+    /// <summary>Highest number of DATs of the lot read at the same time.</summary>
+    private const int LoadParallelism = 8;
 
     public DatLotIdentifier(
         SortConfig config,
@@ -40,7 +46,7 @@ public sealed class DatLotIdentifier
         IOpticalCompanionService opticalService,
         Action<LogLevel, LocalizedMessage> log)
     {
-        if (lot.Dats is not { } dats)
+        if (lot.Dats is null)
         {
             throw new ArgumentException("The catalog is not a lot of DATs.", nameof(lot));
         }
@@ -52,19 +58,90 @@ public sealed class DatLotIdentifier
 
         // The catalog of the lot knows the sizes and checksums of every DAT, which is all the fingerprints need
         _lotClassifier = new EntryClassifier(config, lot, crcCache, checksumService, romParser, filterService, i18n, opticalService);
-        foreach (var dat in dats)
-        {
-            _classifiers[dat.Name] = new EntryClassifier(config, dat.Catalog, crcCache, checksumService, romParser, filterService, i18n, opticalService);
-        }
+        _createClassifier = catalog => new EntryClassifier(config, catalog, crcCache, checksumService, romParser, filterService, i18n, opticalService);
     }
 
-    /// <summary>The DATs of the lot, in its order, each with the classifier of its files (matched entries, games found).</summary>
+    /// <summary>
+    /// The DATs of the lot a file was compared with, in its order, each with its classifier (matched entries, games found);
+    /// a DAT no file may be one of the ROMs of is not there: its summary tells what it holds.
+    /// </summary>
     public IReadOnlyList<(DatLotMember Dat, EntryClassifier Classifier)> Classifiers =>
-        _lot.Dats!.Select(dat => (dat, _classifiers[dat.Name])).ToList();
+        _lot.Dats!.Where(dat => _classifiers.ContainsKey(dat.Name)).Select(dat => (dat, _classifiers[dat.Name])).ToList();
 
-    /// <summary>Classifier of the DAT named <paramref name="name"/>; <c>null</c> when the lot has no such DAT.</summary>
+    /// <summary>Classifier of the DAT named <paramref name="name"/>; <c>null</c> when no file was compared with it.</summary>
     public EntryClassifier? ClassifierFor(string? name) =>
         name is not null && _classifiers.TryGetValue(name.Trim(), out var classifier) ? classifier : null;
+
+    // The classifier of a DAT, made when a file is first compared with it
+    private EntryClassifier ClassifierOf(DatLotMember dat)
+    {
+        if (!_classifiers.TryGetValue(dat.Name, out var classifier))
+        {
+            classifier = _createClassifier(dat.Catalog);
+            _classifiers[dat.Name] = classifier;
+        }
+
+        return classifier;
+    }
+
+    /// <summary>
+    /// The DATs of the lot, by index, a file may be one of the ROMs of, from its fingerprints alone: those with its CRC32
+    /// (<see cref="DatCatalog.DatsWithCrc"/>), with the disk of the SHA-1 of a CHD (<see cref="DatCatalog.DatsWithDisk"/>);
+    /// every DAT when a CHD no checksum knows may be named after a game (<see cref="SortConfig.MatchChdByName"/>: a game
+    /// is only known by its name in its catalog).
+    /// </summary>
+    internal SortedSet<int> DatsNeeded(IReadOnlyList<ScanEntry> scanEntries, IReadOnlyList<EntryClassifier.EntryFingerprints> fingerprints)
+    {
+        var needed = new SortedSet<int>();
+        for (var index = 0; index < scanEntries.Count; index++)
+        {
+            var entry = scanEntries[index];
+            var files = new (ScanEntry Entry, EntryClassifier.Fingerprint Fingerprint)[entry.RelatedEntries.Count + 1];
+            files[0] = (entry, fingerprints[index].Main);
+            for (var i = 0; i < entry.RelatedEntries.Count; i++)
+            {
+                files[i + 1] = (entry.RelatedEntries[i], fingerprints[index].Related[i]);
+            }
+
+            foreach (var (_, fingerprint) in files)
+            {
+                var byCrc = _lot.DatsWithCrc(fingerprint.Crc);
+                needed.UnionWith(byCrc);
+                if (byCrc.Count == 0 && fingerprint.Chd is { } chd)
+                {
+                    var byDisk = _lot.DatsWithDisk(chd.Sha1);
+                    needed.UnionWith(byDisk);
+                    if (byDisk.Count == 0 && _config.MatchChdByName)
+                    {
+                        needed.UnionWith(Enumerable.Range(0, _lot.Dats!.Count));
+                        return needed;
+                    }
+                }
+            }
+        }
+
+        return needed;
+    }
+
+    /// <summary>Reads the catalogs of the DATs <paramref name="indices"/> of the lot not in memory, several at a time.</summary>
+    private async Task LoadDatsAsync(IReadOnlyCollection<int> indices, IProgress<SortProgress>? progress, CancellationToken cancellationToken)
+    {
+        var toLoad = indices.Select(index => _lot.Dats![index]).Where(dat => !dat.IsLoaded).ToList();
+        if (toLoad.Count == 0)
+        {
+            return;
+        }
+
+        progress?.Report(new SortProgress(0, 0, 0, 0, 0.0, LocalizedMessage.Create("progress.loading_lot_dats", ("count", toLoad.Count))));
+        await Parallel.ForEachAsync(
+            toLoad,
+            new ParallelOptions { MaxDegreeOfParallelism = LoadParallelism, CancellationToken = cancellationToken },
+            (dat, token) =>
+            {
+                dat.Load(token);
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false);
+    }
 
     /// <summary>Items of the scanned entries, in the order of the scan, each sorted with its DAT of the lot.</summary>
     public async Task<List<ProcessItem>> IdentifyAllAsync(
@@ -82,6 +159,9 @@ public sealed class DatLotIdentifier
 
         var degree = EntryClassifier.ResolveHashingParallelism(_config.HashingParallelism);
         var fingerprints = await _lotClassifier.ComputeFingerprintsAsync(scanEntries, degree, totalBytes, cancellationToken, progress).ConfigureAwait(false);
+
+        // Only the DATs a file may be one of the ROMs of are read (again, when they are read on demand)
+        await LoadDatsAsync(DatsNeeded(scanEntries, fingerprints), progress, cancellationToken).ConfigureAwait(false);
 
         var items = new List<ProcessItem>(scanEntries.Count);
         var itemsByDat = new Dictionary<string, List<ProcessItem>>(StringComparer.OrdinalIgnoreCase);
@@ -137,7 +217,7 @@ public sealed class DatLotIdentifier
         var dat = knownBy.Select(known => known.Verified.FirstOrDefault() ?? known.Unverified).FirstOrDefault(name => name is not null)
                   ?? files.Select(file => DatNamingChd(file.Entry, file.Fingerprint)).FirstOrDefault(name => name is not null);
 
-        var classifier = dat is null ? _lotClassifier : _classifiers[dat];
+        var classifier = dat is null ? _lotClassifier : ClassifierOf(_lot.DatMemberFor(dat)!);
         var item = classifier.Classify(entry, fingerprints.Main);
         for (var i = 0; i < entry.RelatedEntries.Count; i++)
         {
@@ -155,7 +235,7 @@ public sealed class DatLotIdentifier
         {
             foreach (var other in knownBy[i].Verified.Where(name => !string.Equals(name, dat, StringComparison.OrdinalIgnoreCase)))
             {
-                _classifiers[other].MarkPresent(files[i].Entry, files[i].Fingerprint);
+                ClassifierOf(_lot.DatMemberFor(other)!).MarkPresent(files[i].Entry, files[i].Fingerprint);
                 others.Add(other);
             }
         }
@@ -219,7 +299,7 @@ public sealed class DatLotIdentifier
 
         foreach (var (dat, _) in byDat)
         {
-            if (_classifiers[dat.Name].Knows(entry, fingerprint))
+            if (ClassifierOf(dat).Knows(entry, fingerprint))
             {
                 verified.Add(dat.Name);
             }
@@ -259,9 +339,9 @@ public sealed class DatLotIdentifier
             return;
         }
 
-        var overriding = Classifiers
-            .Where(pair => pair.Classifier.DatConvention is var detected && detected != NamingConvention.Auto && detected != chosen)
-            .Select(pair => pair.Dat.Name)
+        var overriding = _lot.Dats!
+            .Where(dat => dat.Summary.Convention is var detected && detected != NamingConvention.Auto && detected != chosen)
+            .Select(dat => dat.Name)
             .ToList();
         if (overriding.Count > 0)
         {

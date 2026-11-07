@@ -31,6 +31,12 @@ public sealed class SortProcessorService : ISortProcessorService
     /// <summary>Test hook replacing the room left on the volume of the destination (<see cref="DestinationSpace.GetAvailableBytes"/>).</summary>
     internal Func<string, long?>? AvailableBytesOf { get; set; }
 
+    /// <summary>
+    /// Test hook: whether the DATs of a lot are read on demand (<see cref="DatFolderOptions.LoadOnDemand"/>, the default)
+    /// or kept in memory as they are read, which must give the same results.
+    /// </summary>
+    internal bool LoadLotDatsOnDemand { get; set; } = true;
+
     public ICrcCacheService CrcCache => _crcCache;
 
     public SortProcessorService(
@@ -189,7 +195,7 @@ public sealed class SortProcessorService : ISortProcessorService
             var lot = new DatLotIdentifier(
                 config, datCatalog, _crcCache, _checksumService, _romParser, _filterService, _i18n, _opticalService, Log);
             itemsToProcess = await lot.IdentifyAllAsync(scanEntries, cancellationToken, progress, totalBytes).ConfigureAwait(false);
-            missingRoms = UpdateLotStatistics(stats, lot, Log);
+            missingRoms = UpdateLotStatistics(stats, datCatalog, lot, Log);
             gameMatchedRoms = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             lotIdentifier = lot;
         }
@@ -591,16 +597,21 @@ public sealed class SortProcessorService : ISortProcessorService
 
         void Log(LogLevel level, LocalizedMessage msg) => logProgress?.Report(new LogMessage(level, msg));
 
-        // The catalog is the only input: no source, no destination
-        if (string.IsNullOrWhiteSpace(config.DatFile))
-        {
-            throw new InvalidOperationException(_i18n.Tr("log.catalog_requires_dat"));
-        }
+        var datCatalog = await LoadCatalogOnlyAsync(config, Log, progress, cancellationToken).ConfigureAwait(false);
+        return SelectFromLoadedCatalog(config, datCatalog, progress, Log, cancellationToken);
+    }
 
-        Log(LogLevel.Info, LocalizedMessage.Create("log.catalog_selection_starting"));
-        var datCatalog = await LoadDatCatalogAsync(config, Log, progress, 0, 0, cancellationToken).ConfigureAwait(false)
-            ?? throw new InvalidOperationException(_i18n.Tr("log.catalog_requires_dat"));
-
+    /// <summary>
+    /// The selection on the catalog alone (<see cref="SelectFromCatalogAsync"/>) of a catalog read: every DAT of a lot is
+    /// read and its games kept in memory together.
+    /// </summary>
+    private CatalogSelectionResult SelectFromLoadedCatalog(
+        SortConfig config,
+        DatCatalog datCatalog,
+        IProgress<SortProgress>? progress,
+        Action<LogLevel, LocalizedMessage> log,
+        CancellationToken cancellationToken)
+    {
         ReportStep(progress, LocalizedMessage.Create("progress.reading_catalog_games"));
         List<ProcessItem> items;
         IReadOnlyDictionary<string, HashSet<string>> gameMatchedRoms;
@@ -617,16 +628,16 @@ public sealed class SortProcessorService : ISortProcessorService
         {
             // Several software lists: the software of each list, in its own catalog
             items = new SoftwareListIdentifier(
-                config, datCatalog, _checksumService, _mameParser, _filterService, _i18n, Log).IdentifyCatalog(cancellationToken);
+                config, datCatalog, _checksumService, _mameParser, _filterService, _i18n, log).IdentifyCatalog(cancellationToken);
             gameMatchedRoms = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         }
         else if (MameSetIdentifier.GetSetConvention(config, datCatalog).IsMameSets())
         {
             var isMameRun = MameSetIdentifier.IsMameRun(config, datCatalog);
             var identifier = new MameSetIdentifier(
-                config, datCatalog, _checksumService, _mameParser, _filterService, _i18n, Log,
-                categories: isMameRun ? LoadMameCategories(config.MameCategoryFile, Log) : null,
-                ratings: isMameRun ? LoadMameRatings(config.MameRatingFile, Log) : null);
+                config, datCatalog, _checksumService, _mameParser, _filterService, _i18n, log,
+                categories: isMameRun ? LoadMameCategories(config.MameCategoryFile, log) : null,
+                ratings: isMameRun ? LoadMameRatings(config.MameRatingFile, log) : null);
             items = identifier.IdentifyCatalog(cancellationToken);
             gameMatchedRoms = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         }
@@ -639,15 +650,33 @@ public sealed class SortProcessorService : ISortProcessorService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        SelectReleases(config, items, datCatalog, gameMatchedRoms, progress, Log, gameMatchedRomsOfDat);
+        SelectReleases(config, items, datCatalog, gameMatchedRoms, progress, log, gameMatchedRomsOfDat);
 
         var filteredDat = CreateFilteredDat(datCatalog, items.Where(it => it.Status == FileStatus.Valid).ToList());
         var result = new CatalogSelectionResult(datCatalog, items, filteredDat);
-        Log(LogLevel.Ok, LocalizedMessage.Create(
+        log(LogLevel.Ok, LocalizedMessage.Create(
             "log.catalog_selection_summary",
             ("kept", result.KeptCount),
             ("total", result.CandidateCount)));
         return result;
+    }
+
+    /// <summary>The catalog of a selection on the DAT alone, which needs a DAT and nothing else.</summary>
+    private async Task<DatCatalog> LoadCatalogOnlyAsync(
+        SortConfig config,
+        Action<LogLevel, LocalizedMessage> log,
+        IProgress<SortProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        // The catalog is the only input: no source, no destination
+        if (string.IsNullOrWhiteSpace(config.DatFile))
+        {
+            throw new InvalidOperationException(_i18n.Tr("log.catalog_requires_dat"));
+        }
+
+        log(LogLevel.Info, LocalizedMessage.Create("log.catalog_selection_starting"));
+        return await LoadDatCatalogAsync(config, log, progress, 0, 0, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException(_i18n.Tr("log.catalog_requires_dat"));
     }
 
     public async Task<CatalogSelectionResult> ExportCatalogDatAsync(
@@ -658,7 +687,132 @@ public sealed class SortProcessorService : ISortProcessorService
         IProgress<LogMessage>? logProgress = null,
         CancellationToken cancellationToken = default)
     {
+        // A lot: DAT by DAT, never all its DATs in memory at once
+        if (string.IsNullOrWhiteSpace(config.DatFile) || !Directory.Exists(config.DatFile))
+        {
+            return await ExportSingleCatalogDatAsync(config, outputPath, format, progress, logProgress, cancellationToken).ConfigureAwait(false);
+        }
+
+        config.Filters.NormalizeDefaults();
+        void Log(LogLevel level, LocalizedMessage msg) => logProgress?.Report(new LogMessage(level, msg));
+        var catalog = await LoadCatalogOnlyAsync(config, Log, progress, cancellationToken).ConfigureAwait(false);
+        return catalog.Dats is not null
+            ? await ExportLotCatalogDatAsync(config, catalog, outputPath, format, progress, Log, cancellationToken).ConfigureAwait(false)
+            : await WriteCatalogSelectionAsync(SelectFromLoadedCatalog(config, catalog, progress, Log, cancellationToken), outputPath, format, progress, logProgress, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Filtered DAT of the catalog of a lot, DAT by DAT: each DAT is read (when it is read on demand), its games chosen as
+    /// <see cref="SelectFromCatalogAsync"/> chooses them, its filtered DAT written to a temporary file, then the DAT and
+    /// its items are forgotten. The files take their names once every DAT is written: an export stopped or in error
+    /// writes nothing. The result names the DATs written, each read again from its file when asked.
+    /// </summary>
+    private async Task<CatalogSelectionResult> ExportLotCatalogDatAsync(
+        SortConfig config,
+        DatCatalog lot,
+        string outputFolder,
+        DatExportFormat format,
+        IProgress<SortProgress>? progress,
+        Action<LogLevel, LocalizedMessage> log,
+        CancellationToken cancellationToken)
+    {
+        RefuseLotFolder(outputFolder, lot);
+        ReportStep(progress, LocalizedMessage.Create("progress.reading_catalog_games"));
+        var dats = lot.Dats!;
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var written = new List<(string Temporary, string Target)>();
+        var outputs = new List<DatLotMember>();
+        var candidates = 0;
+        try
+        {
+            foreach (var dat in dats)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var wasLoaded = dat.IsLoaded;
+                var matched = new Dictionary<string, IReadOnlyDictionary<string, HashSet<string>>>(StringComparer.OrdinalIgnoreCase);
+                var items = ClassifyLotCatalog(config, [dat], matched, cancellationToken, tagsDats: dats.Count >= 2);
+                SelectReleases(config, items, lot, new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase), null, log, matched.GetValueOrDefault);
+                candidates += items.Count;
+
+                var kept = items.Where(it => it.Status == FileStatus.Valid).Select(it => it.DatGameName).OfType<string>().ToList();
+                if (kept.Count > 0)
+                {
+                    var filtered = dat.Catalog.CreateFilteredDat(kept);
+                    var (path, clrMamePro) = LotDatTarget(filtered, dat.Name, outputFolder, format, lot, names);
+                    Directory.CreateDirectory(outputFolder);
+                    var temporary = $"{path}.{Guid.NewGuid():N}.tmp";
+                    written.Add((temporary, path));
+                    ReportStep(progress, LocalizedMessage.Create("progress.writing_dat", ("name", Path.GetFileName(path))));
+                    await WriteDatFileAsync(filtered, temporary, clrMamePro, cancellationToken).ConfigureAwait(false);
+                    outputs.Add(new DatLotMember(
+                        dat.Name,
+                        dat.RelativePath,
+                        DatLotSummary.Of(filtered),
+                        DatLotKeys.Of(filtered),
+                        token => _datService.ParseDatFileAsync(path, token).GetAwaiter().GetResult()));
+                }
+
+                if (!wasLoaded)
+                {
+                    dat.Unload();
+                }
+            }
+
+            foreach (var (temporary, target) in written)
+            {
+                File.Move(temporary, target, overwrite: true);
+            }
+
+            written.Clear();
+        }
+        finally
+        {
+            foreach (var (temporary, _) in written)
+            {
+                try
+                {
+                    File.Delete(temporary);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // The error that stopped the export is the one reported
+                }
+            }
+        }
+
+        var result = new CatalogSelectionResult(lot, [], DatCatalog.GatherLot(outputs, lot.Header.Name + DatCatalog.FilteredDatSuffix))
+        {
+            CandidateCount = candidates
+        };
+        log(LogLevel.Ok, LocalizedMessage.Create("log.catalog_selection_summary", ("kept", result.KeptCount), ("total", result.CandidateCount)));
+        if (result.KeptCount == 0)
+        {
+            log(LogLevel.Warn, LocalizedMessage.Create("log.catalog_nothing_kept", ("path", outputFolder)));
+        }
+
+        return result;
+    }
+
+    private async Task<CatalogSelectionResult> ExportSingleCatalogDatAsync(
+        SortConfig config,
+        string outputPath,
+        DatExportFormat format,
+        IProgress<SortProgress>? progress,
+        IProgress<LogMessage>? logProgress,
+        CancellationToken cancellationToken)
+    {
         var result = await SelectFromCatalogAsync(config, progress, logProgress, cancellationToken).ConfigureAwait(false);
+        return await WriteCatalogSelectionAsync(result, outputPath, format, progress, logProgress, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<CatalogSelectionResult> WriteCatalogSelectionAsync(
+        CatalogSelectionResult result,
+        string outputPath,
+        DatExportFormat format,
+        IProgress<SortProgress>? progress,
+        IProgress<LogMessage>? logProgress,
+        CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
         // A DAT without games would only empty the profile of a ROM manager
@@ -682,7 +836,8 @@ public sealed class SortProcessorService : ISortProcessorService
         SortConfig config,
         IReadOnlyList<DatLotMember> dats,
         Dictionary<string, IReadOnlyDictionary<string, HashSet<string>>> matchedByDat,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool? tagsDats = null)
     {
         var items = new List<ProcessItem>();
         foreach (var dat in dats)
@@ -692,7 +847,7 @@ public sealed class SortProcessorService : ISortProcessorService
                 config, dat.Catalog, _crcCache, _checksumService, _romParser, _filterService, _i18n, _opticalService);
             foreach (var item in classifier.ClassifyCatalog(cancellationToken))
             {
-                DatLotIdentifier.AssignDat(item, dat.Name, [], tagsDats: dats.Count >= 2);
+                DatLotIdentifier.AssignDat(item, dat.Name, [], tagsDats: tagsDats ?? dats.Count >= 2);
                 items.Add(item);
             }
 
@@ -716,7 +871,7 @@ public sealed class SortProcessorService : ISortProcessorService
                 .ToDictionary(g => g.Key, g => g.Select(it => it.DatGameName!).ToList(), StringComparer.OrdinalIgnoreCase);
             return DatCatalog.GatherLot(
                 dats.Where(dat => keptByDat.ContainsKey(dat.Name))
-                    .Select(dat => dat with { Catalog = dat.Catalog.CreateFilteredDat(keptByDat[dat.Name]) })
+                    .Select(dat => new DatLotMember(dat.Name, dat.RelativePath, dat.Catalog.CreateFilteredDat(keptByDat[dat.Name])))
                     .ToList(),
                 catalog.Header.Name + DatCatalog.FilteredDatSuffix);
         }
@@ -836,24 +991,7 @@ public sealed class SortProcessorService : ISortProcessorService
         var targets = new List<(DatCatalog Dat, string Path, bool ClrMamePro)>(dats.Count);
         foreach (var dat in dats)
         {
-            var clrMamePro = format switch
-            {
-                DatExportFormat.ClrMamePro => true,
-                DatExportFormat.Auto => source.DatFor(dat.Name)?.Header.IsClrMameProSource == true,
-                _ => false
-            };
-            var extension = clrMamePro ? ".dat" : ".xml";
-            var name = _organizer.SanitizePathSegment(string.IsNullOrWhiteSpace(dat.Catalog.Header.Name) ? dat.Name : dat.Catalog.Header.Name);
-
-            // Two names the sanitization makes the same (a forbidden character, a case) get a number
-            var fileName = name + extension;
-            for (var copy = 2; !names.Add(fileName); copy++)
-            {
-                fileName = $"{name} ({copy}){extension}";
-            }
-
-            var path = Path.Combine(outputFolder, fileName);
-            RefuseSourceOverwrite(path, source);
+            var (path, clrMamePro) = LotDatTarget(dat.Catalog, dat.Name, outputFolder, format, source, names);
             targets.Add((dat.Catalog, path, clrMamePro));
         }
 
@@ -861,16 +999,47 @@ public sealed class SortProcessorService : ISortProcessorService
         foreach (var (dat, path, clrMamePro) in targets)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (clrMamePro)
-            {
-                await dat.WriteClrMameProAsync(path, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await dat.WriteLogiqxXmlAsync(path, cancellationToken).ConfigureAwait(false);
-            }
+            await WriteDatFileAsync(dat, path, clrMamePro, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    /// File of the DAT <paramref name="dat"/> exported from the DAT <paramref name="datName"/> of a lot: at the root of
+    /// <paramref name="outputFolder"/>, named after its header (a number when <paramref name="names"/> already has the
+    /// name), in the format asked or, for <see cref="DatExportFormat.Auto"/>, that of the DAT read; refused when it is a
+    /// file the lot was read from.
+    /// </summary>
+    private (string Path, bool ClrMamePro) LotDatTarget(
+        DatCatalog dat,
+        string datName,
+        string outputFolder,
+        DatExportFormat format,
+        DatCatalog source,
+        HashSet<string> names)
+    {
+        var clrMamePro = format switch
+        {
+            DatExportFormat.ClrMamePro => true,
+            DatExportFormat.Auto => source.DatMemberFor(datName)?.Header.IsClrMameProSource == true,
+            _ => false
+        };
+        var extension = clrMamePro ? ".dat" : ".xml";
+        var name = _organizer.SanitizePathSegment(string.IsNullOrWhiteSpace(dat.Header.Name) ? datName : dat.Header.Name);
+
+        // Two names the sanitization makes the same (a forbidden character, a case) get a number
+        var fileName = name + extension;
+        for (var copy = 2; !names.Add(fileName); copy++)
+        {
+            fileName = $"{name} ({copy}){extension}";
+        }
+
+        var path = Path.Combine(outputFolder, fileName);
+        RefuseSourceOverwrite(path, source);
+        return (path, clrMamePro);
+    }
+
+    private static Task WriteDatFileAsync(DatCatalog dat, string path, bool clrMamePro, CancellationToken cancellationToken) =>
+        clrMamePro ? dat.WriteClrMameProAsync(path, cancellationToken) : dat.WriteLogiqxXmlAsync(path, cancellationToken);
 
     /// <summary>
     /// Refuses to export DATs into the folder a lot was read from, or into one of its subfolders
@@ -894,14 +1063,14 @@ public sealed class SortProcessorService : ISortProcessorService
 
     /// <summary>
     /// The missing ROMs of each DAT of a lot, in the order of the lot: only the DATs with ROMs missing and a game found.
-    /// A DAT none of whose ROMs is present is left out, whatever the list given: its Miss List would be the whole DAT.
-    /// Every DAT of the lot is gone through (the DATs loaded, once they are loaded on demand).
+    /// A DAT none of whose ROMs is present is left out, whatever the list given: its Miss List would be the whole DAT. Only
+    /// the DATs in memory are gone through: a DAT no file needed was not read again, and has no game found.
     /// </summary>
     private static List<(DatLotMember Dat, List<DatRomEntry> Missing)> GroupMissingByDat(IReadOnlyList<DatLotMember> dats, IEnumerable<DatRomEntry> missingRoms)
     {
         var missing = new HashSet<DatRomEntry>(missingRoms, ReferenceEqualityComparer.Instance);
         var groups = new List<(DatLotMember Dat, List<DatRomEntry> Missing)>();
-        foreach (var dat in dats)
+        foreach (var dat in dats.Where(dat => dat.IsLoaded))
         {
             var datMissing = dat.Catalog.Entries.Where(missing.Contains).ToList();
             if (datMissing.Count > 0 && datMissing.Count < dat.Catalog.Entries.Count)
@@ -1006,7 +1175,7 @@ public sealed class SortProcessorService : ISortProcessorService
         {
             var datCatalog = await _datService.ParseDatFileAsync(
                 config.DatFile,
-                new DatFolderOptions(config.DatRecursive, config.ExcludedDats),
+                new DatFolderOptions(config.DatRecursive, config.ExcludedDats, LoadLotDatsOnDemand),
                 cancellationToken).ConfigureAwait(false);
 
             if (datCatalog.Dats is { } dats)
@@ -1014,7 +1183,7 @@ public sealed class SortProcessorService : ISortProcessorService
                 log(LogLevel.Ok, LocalizedMessage.Create(
                     "log.dat_lot_loaded",
                     ("count", dats.Count),
-                    ("roms", dats.Sum(dat => dat.Catalog.Entries.Count)),
+                    ("roms", dats.Sum(dat => dat.Summary.RomCount)),
                     ("path", config.DatFile)));
                 return datCatalog;
             }
@@ -1094,12 +1263,20 @@ public sealed class SortProcessorService : ISortProcessorService
     /// order of the lot, of the DATs with a game found only: a DAT none of whose games is in the source is only counted
     /// (its Miss List would be the whole DAT), and has no fixdat.
     /// </summary>
-    private static List<DatRomEntry> UpdateLotStatistics(ProcessStats stats, DatLotIdentifier lot, Action<LogLevel, LocalizedMessage> log)
+    private static List<DatRomEntry> UpdateLotStatistics(ProcessStats stats, DatCatalog catalog, DatLotIdentifier lot, Action<LogLevel, LocalizedMessage> log)
     {
         var missingRoms = new List<DatRomEntry>();
         var perDat = new List<DatLotStats>();
-        foreach (var (dat, classifier) in lot.Classifiers)
+        foreach (var dat in catalog.Dats!)
         {
+            // A DAT no file was compared with (not read again on demand): none of its ROMs is present
+            if (lot.ClassifierFor(dat.Name) is not { } classifier)
+            {
+                var summary = dat.Summary;
+                perDat.Add(new DatLotStats(dat.Name, summary.Convention, summary.RomCount, 0, 0, summary.RomCount, 0));
+                continue;
+            }
+
             var matched = classifier.MatchedDatEntries;
             var nameOnly = new HashSet<DatRomEntry>(classifier.NameMatchedDatEntries.Where(e => !matched.Contains(e)), ReferenceEqualityComparer.Instance);
             var entries = dat.Catalog.Entries;
@@ -1608,7 +1785,7 @@ public sealed class SortProcessorService : ISortProcessorService
         {
             // A fixdat per DAT of the lot with ROMs missing and a game found, into the folder outputPath
             fixDat = DatCatalog.GatherLot(
-                GroupMissingByDat(dats, missingRoms).Select(g => g.Dat with { Catalog = g.Dat.Catalog.CreateFixDat(g.Missing) }).ToList(),
+                GroupMissingByDat(dats, missingRoms).Select(g => new DatLotMember(g.Dat.Name, g.Dat.RelativePath, g.Dat.Catalog.CreateFixDat(g.Missing))).ToList(),
                 $"fixDat_{datCatalog.Header.Name}");
         }
         else
@@ -1787,7 +1964,7 @@ public sealed class SortProcessorService : ISortProcessorService
             done += datItems.Count;
             if (dat.Games.Count > 0)
             {
-                dats.Add(member is null ? new DatLotMember(dat.Header.Name, string.Empty, dat) : member with { Catalog = dat });
+                dats.Add(new DatLotMember(member?.Name ?? dat.Header.Name, member?.RelativePath ?? string.Empty, dat));
             }
         }
 

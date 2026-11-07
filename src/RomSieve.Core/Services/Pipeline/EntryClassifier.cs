@@ -478,8 +478,9 @@ public sealed class EntryClassifier
             return null;
         }
 
+        // A lot answers from its index, without reading a DAT
         var effectiveSize = headerOffset > 0 ? entry.FileSize - headerOffset : entry.FileSize;
-        if (!_datCatalog.FindAllMatches(effectiveSize, fileCrc).Any(m => !string.IsNullOrEmpty(m.Sha1)))
+        if (!_datCatalog.MayHaveSha1(effectiveSize, fileCrc))
         {
             return null;
         }

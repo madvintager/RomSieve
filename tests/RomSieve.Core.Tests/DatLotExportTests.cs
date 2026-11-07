@@ -223,7 +223,8 @@ public sealed class DatLotExportTests : IDisposable
         gameBoy.Games.Select(g => g.Name).Should().BeEquivalentTo("Tetris (Japan)", "[BIOS] Shared (World)");
         result.KeptCount.Should().Be(5, "a winner per DAT for Tetris, a BIOS per Game Boy DAT, Lemmings");
         result.CandidateCount.Should().Be(7);
-        result.Items.Should().OnlyContain(it => it.DatName != null);
+        result.Items.Should().BeEmpty("the items of each DAT are forgotten once its DAT is written");
+        Directory.EnumerateFiles(_out, "*.tmp").Should().BeEmpty();
     }
 
     [Fact]

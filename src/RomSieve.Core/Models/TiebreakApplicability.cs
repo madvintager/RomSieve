@@ -61,7 +61,7 @@ public static class TiebreakApplicability
     public static DatCloneRelations GetCloneRelations(DatCatalog catalog) =>
         catalog.CloneToParent.Count > 0
         || catalog.SoftwareLists?.Values.Any(list => list.CloneToParent.Count > 0) == true
-        || catalog.Dats?.Any(dat => dat.Catalog.CloneToParent.Count > 0) == true
+        || catalog.Dats?.Any(dat => dat.Summary.HasCloneRelations) == true
             ? DatCloneRelations.Present
             : DatCloneRelations.None;
 }

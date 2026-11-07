@@ -908,6 +908,7 @@
   "progress.listing_chd": "Recherche des CHD : {count} trouvés",
   "progress.scanning_file": "Lecture : {name}",
   "progress.loading_dat": "Chargement du DAT : {name}",
+  "progress.loading_lot_dats": "Lecture des {count} DAT du lot qui peuvent reconnaître un fichier…",
   "progress.analyzing_file": "Analyse : {name}",
   "progress.identifying_set": "Identification : {name}",
   "progress.checking_sets": "Vérification des sets...",

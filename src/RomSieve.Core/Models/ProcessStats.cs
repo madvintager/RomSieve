@@ -127,8 +127,11 @@ public sealed record CatalogSelectionResult(
     DatCatalog FilteredDat
 )
 {
-    /// <summary>Games of the catalog that a file of a collection could stand for (a game with ROMs or disks to dump).</summary>
-    public int CandidateCount => Items.Count;
+    /// <summary>
+    /// Games of the catalog that a file of a collection could stand for (a game with ROMs or disks to dump): the items, or
+    /// the games of every DAT of a lot exported DAT by DAT, whose items are not kept.
+    /// </summary>
+    public int CandidateCount { get; init; } = Items.Count;
 
     /// <summary>Games written in the filtered DAT, in all its DATs for a lot.</summary>
     public int KeptCount => FilteredDat.GameCount;

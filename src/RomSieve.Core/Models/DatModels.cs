@@ -297,11 +297,29 @@ public sealed partial class DatCatalog
 
     private Dictionary<string, DatLotMember>? _datByName;
 
-    // DATs of the lot that hold an entry of a size and CRC, and of a CRC: the index of the DAT in Dats when one DAT
-    // holds it (nearly always), or the complement of an index in _sharedDats when several do
-    private Dictionary<(long Size, string Crc), int>? _datsBySizeCrc;
-    private Dictionary<string, int>? _datsByCrc;
-    private List<List<int>>? _sharedDats;
+    // The sizes and CRC32 of the entries of every DAT of the lot, sorted by CRC32 (then size, then DAT): an index that
+    // keeps no string and no game, 16 bytes per key; and the DATs of each SHA-1 of a disk
+    private LotKey[]? _lotKeys;
+    private Dictionary<string, int[]>? _datsByDiskSha1;
+
+    private readonly record struct LotKey(uint Crc, int DatAndSha1, long Size) : IComparable<LotKey>
+    {
+        private const int HasSha1Flag = int.MinValue;
+
+        public LotKey(uint crc, long size, int dat, bool hasSha1)
+            : this(crc, dat | (hasSha1 ? HasSha1Flag : 0), size)
+        {
+        }
+
+        public int Dat => DatAndSha1 & int.MaxValue;
+
+        public bool HasSha1 => (DatAndSha1 & HasSha1Flag) != 0;
+
+        public int CompareTo(LotKey other) =>
+            Crc != other.Crc ? Crc.CompareTo(other.Crc)
+            : Size != other.Size ? Size.CompareTo(other.Size)
+            : Dat.CompareTo(other.Dat);
+    }
 
     /// <summary>
     /// Catalog of the DAT named <paramref name="name"/> (case ignored) when this catalog is a lot (<see cref="Dats"/>),
@@ -326,7 +344,8 @@ public sealed partial class DatCatalog
 
     /// <summary>
     /// Catalog of a lot of DATs (<see cref="Dats"/>), in the given order, under a header named
-    /// <paramref name="name"/>: the catalogs are kept as they are, only their sizes and checksums are indexed.
+    /// <paramref name="name"/>: the catalogs are kept as they are (or are read on demand), only their sizes and checksums
+    /// are indexed, from the keys of each DAT (<see cref="DatLotMember.Keys"/>), dropped once indexed.
     /// </summary>
     public static DatCatalog GatherLot(IReadOnlyList<DatLotMember> dats, string name)
     {
@@ -334,81 +353,127 @@ public sealed partial class DatCatalog
         {
             Header = new DatHeader { Name = name, Convention = NamingConvention.Auto },
             Dats = dats,
-            _datByName = new Dictionary<string, DatLotMember>(StringComparer.OrdinalIgnoreCase),
-            _datsBySizeCrc = [],
-            _datsByCrc = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
-            _sharedDats = []
+            _datByName = new Dictionary<string, DatLotMember>(StringComparer.OrdinalIgnoreCase)
         };
 
+        var keys = new List<LotKey>(dats.Sum(dat => dat.Keys?.Roms.Length ?? 0));
+        var disks = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < dats.Count; index++)
         {
-            var catalog = dats[index].Catalog;
-            if (!lot._datByName.TryAdd(dats[index].Name.Trim(), dats[index]))
+            var dat = dats[index];
+            if (!lot._datByName.TryAdd(dat.Name.Trim(), dat))
             {
-                throw new ArgumentException($"Two DATs of the lot are named {dats[index].Name}.", nameof(dats));
+                throw new ArgumentException($"Two DATs of the lot are named {dat.Name}.", nameof(dats));
             }
 
-            lot.KnownSizes.UnionWith(catalog.KnownSizes);
-            foreach (var key in catalog.BySizeCrc.Keys)
+            var datKeys = dat.Keys ?? throw new ArgumentException($"The DAT {dat.Name} is already in a lot.", nameof(dats));
+            lot.KnownSizes.UnionWith(datKeys.Sizes);
+            foreach (var rom in datKeys.Roms)
             {
-                lot.AddDat(lot._datsBySizeCrc, key, index);
+                keys.Add(new LotKey(rom.Crc, rom.Size, index, rom.HasSha1));
             }
 
-            foreach (var crc in catalog.ByCrc.Keys)
+            foreach (var sha1 in datKeys.DiskSha1s)
             {
-                lot.AddDat(lot._datsByCrc, crc, index);
+                if (!disks.TryGetValue(sha1, out var datsOfDisk))
+                {
+                    datsOfDisk = [];
+                    disks[sha1] = datsOfDisk;
+                }
+
+                datsOfDisk.Add(index);
             }
+
+            dat.Keys = null;
         }
 
+        var sorted = keys.ToArray();
+        Array.Sort(sorted);
+        lot._lotKeys = sorted;
+        lot._datsByDiskSha1 = disks.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray(), StringComparer.OrdinalIgnoreCase);
         return lot;
     }
 
-    // Adds a DAT to the DATs of a key; the DATs are added in order, so a DAT already there is the last one
-    private void AddDat<TKey>(Dictionary<TKey, int> index, TKey key, int dat)
-        where TKey : notnull
+    // Position of the first key of a CRC32 in the sorted keys of the lot
+    private int FirstKeyOf(uint crc)
     {
-        if (!index.TryGetValue(key, out var current))
+        int low = 0, high = _lotKeys!.Length;
+        while (low < high)
         {
-            index[key] = dat;
-        }
-        else if (current >= 0)
-        {
-            if (current != dat)
+            var middle = (low + high) >>> 1;
+            if (_lotKeys[middle].Crc < crc)
             {
-                _sharedDats!.Add([current, dat]);
-                index[key] = ~(_sharedDats.Count - 1);
-            }
-        }
-        else
-        {
-            var shared = _sharedDats![~current];
-            if (shared[^1] != dat)
-            {
-                shared.Add(dat);
-            }
-        }
-    }
-
-    private void AddDatsOf<TKey>(Dictionary<TKey, int> index, TKey key, SortedSet<int> dats)
-        where TKey : notnull
-    {
-        if (index.TryGetValue(key, out var value))
-        {
-            if (value >= 0)
-            {
-                dats.Add(value);
+                low = middle + 1;
             }
             else
             {
-                dats.UnionWith(_sharedDats![~value]);
+                high = middle;
             }
         }
+
+        return low;
+    }
+
+    /// <summary>
+    /// The DATs of a lot, by their index in <see cref="Dats"/>, that may know a file of this CRC32: those with an entry of
+    /// this CRC32, whatever its size (a DAT matches a file by its CRC32 alone when it has a single entry of it,
+    /// <see cref="FindAllMatches"/>), in the order of the lot; empty for a catalog of a single DAT. Their catalogs are not
+    /// needed: the DATs a run needs are known before any is read.
+    /// </summary>
+    public IReadOnlyList<int> DatsWithCrc(string? crc)
+    {
+        if (_lotKeys is null || !DatLotRomKey.TryParseCrc(crc, out var value))
+        {
+            return [];
+        }
+
+        var dats = new SortedSet<int>();
+        for (var position = FirstKeyOf(value); position < _lotKeys.Length && _lotKeys[position].Crc == value; position++)
+        {
+            dats.Add(_lotKeys[position].Dat);
+        }
+
+        return [.. dats];
+    }
+
+    /// <summary>The DATs of a lot, by their index in <see cref="Dats"/>, with a disk of this SHA-1, in the order of the lot.</summary>
+    public IReadOnlyList<int> DatsWithDisk(string? sha1) =>
+        _datsByDiskSha1 is not null && !string.IsNullOrEmpty(sha1) && _datsByDiskSha1.TryGetValue(sha1, out var dats) ? dats : [];
+
+    /// <summary>
+    /// Whether an entry this file may match has a SHA-1, which is then worth computing to verify the match
+    /// (<see cref="SortConfig.VerifySha1"/>): an entry of the size and CRC32 of the file; for a lot, any entry of its
+    /// CRC32, without reading a DAT.
+    /// </summary>
+    public bool MayHaveSha1(long fileSize, string crc)
+    {
+        if (Dats is null)
+        {
+            return FindAllMatches(fileSize, crc).Any(m => !string.IsNullOrEmpty(m.Sha1));
+        }
+
+        if (!DatLotRomKey.TryParseCrc(crc, out var value))
+        {
+            return false;
+        }
+
+        for (var position = FirstKeyOf(value); position < _lotKeys!.Length && _lotKeys[position].Crc == value; position++)
+        {
+            if (_lotKeys[position].HasSha1)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
     /// The DATs of a lot that know a file, in the order of the lot, each with its matches
-    /// (<see cref="FindAllMatches"/> of its catalog); empty for a catalog of a single DAT. Only the DATs that hold the
-    /// size and CRC, or the CRC, are queried, every DAT for a lookup by SHA-1 or MD5 (a CHD, a verified dump).
+    /// (<see cref="FindAllMatches"/> of its catalog); empty for a catalog of a single DAT. Only the DATs the index names are
+    /// queried (and read when they are read on demand): those with the CRC32 (<see cref="DatsWithCrc"/>), and, for a
+    /// lookup by SHA-1, those with a disk of it (<see cref="DatsWithDisk"/>: a SHA-1 only finds disks in a lot); every DAT
+    /// for a lookup by MD5 alone, which nothing in a run makes.
     /// </summary>
     public IReadOnlyList<(DatLotMember Dat, IReadOnlyList<DatRomEntry> Matches)> FindMatchesByDat(
         long fileSize,
@@ -422,21 +487,17 @@ public sealed partial class DatCatalog
         }
 
         IEnumerable<int> candidates;
-        if (!string.IsNullOrEmpty(sha1) || !string.IsNullOrEmpty(md5))
+        if (!string.IsNullOrEmpty(sha1))
+        {
+            candidates = DatsWithDisk(sha1).Union(DatsWithCrc(crc)).Order();
+        }
+        else if (!string.IsNullOrEmpty(md5))
         {
             candidates = Enumerable.Range(0, Dats.Count);
         }
-        else if (string.IsNullOrEmpty(crc))
-        {
-            return [];
-        }
         else
         {
-            var crcNorm = crc.ToLowerInvariant();
-            var dats = new SortedSet<int>();
-            AddDatsOf(_datsBySizeCrc!, (fileSize, crcNorm), dats);
-            AddDatsOf(_datsByCrc!, crcNorm, dats);
-            candidates = dats;
+            candidates = DatsWithCrc(crc);
         }
 
         var found = new List<(DatLotMember, IReadOnlyList<DatRomEntry>)>();
@@ -718,7 +779,7 @@ public sealed partial class DatCatalog
     public string? LotFolder { get; set; }
 
     /// <summary>Games of the catalog, or of all the DATs of a lot.</summary>
-    public int GameCount => Dats?.Sum(dat => dat.Catalog.Games.Count) ?? Games.Count;
+    public int GameCount => Dats?.Sum(dat => dat.Summary.GameCount) ?? Games.Count;
 
     /// <summary>
     /// Whether <paramref name="path"/> is a file this catalog, one of its software lists or a DAT of its lot, was read from
@@ -736,7 +797,7 @@ public sealed partial class DatCatalog
         var fullPath = Path.GetFullPath(path);
         IEnumerable<DatHeader> headers =
             SoftwareLists is { } lists ? [Header, .. lists.Values.Select(list => list.Header)]
-            : Dats is { } dats ? [Header, .. dats.Select(dat => dat.Catalog.Header)]
+            : Dats is { } dats ? [Header, .. dats.Select(dat => dat.Header)]
             : [Header];
         return headers
             .SelectMany(header => new[] { header.SourceFile, header.SoftwareListFile })
@@ -1037,7 +1098,7 @@ public sealed partial class DatCatalog
     /// its set. Never-dumped ROMs are not counted; disks are.
     /// </summary>
     public int CountFiles() =>
-        Dats is { } dats ? dats.Sum(dat => dat.Catalog.CountFiles()) :
+        Dats is { } dats ? dats.Sum(dat => dat.Summary.FileCount) :
         Games.Sum(game => game.Roms
             .Where(r => r.Status != DatRomStatus.NoDump)
             .Select(r => (r.IsDisk, Name: r.Name.ToLowerInvariant()))

@@ -328,8 +328,8 @@ public sealed class DatLotTests : IDisposable
         lot.FindMatchesByDat(TetrisNes.Length + 512, Crc(TetrisNes)).Select(found => found.Dat.Name).Should().Equal(Nes);
         lot.FindAllMatches(TetrisNes.Length, Crc(TetrisNes)).Should().BeSameAs(lot.DatFor(Nes)!.FindAllMatches(TetrisNes.Length, Crc(TetrisNes)));
 
-        // A SHA-1 is looked for in every DAT
-        lot.FindMatchesByDat(0, sha1: "0123456789ABCDEF0123456789ABCDEF01234567").Select(found => found.Dat.Name).Should().Equal(Amiga);
+        // A SHA-1 only finds the disks of a lot (a CHD): the index of the lot keeps no SHA-1 of a ROM
+        lot.FindMatchesByDat(0, sha1: "0123456789ABCDEF0123456789ABCDEF01234567").Should().BeEmpty();
 
         // Unknown, or without checksum
         lot.FindMatchesByDat(4, "deadbeef").Should().BeEmpty();

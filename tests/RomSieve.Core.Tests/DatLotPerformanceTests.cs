@@ -241,13 +241,19 @@ public sealed class DatLotPerformanceTests(ITestOutputHelper output) : IDisposab
         var preview = _services.DatService.ReadDatFolderPreview(folder, recursive: true);
         output.WriteLine($"  preview: {watch.ElapsedMilliseconds} ms for {preview.Count} headers");
 
-        // The lot, then the same DATs read one by one: the difference is the index of the lot
+        // The lot read on demand (its index and the summaries of its DATs), then kept whole, then the same DATs read one
+        // by one: the difference between the last two is the index of the lot
         var (lotMemory, lotTime, lot) = await RetainedAsync(() => _services.DatService.ParseDatFileAsync(folder, new DatFolderOptions(Recursive: true)));
-        var entries = lot.Dats!.Sum(d => d.Catalog.Entries.Count);
-        var games = lot.Dats!.Sum(d => d.Catalog.Games.Count);
-        output.WriteLine($"  lot: {lotTime} ms, {Mb(lotMemory)} retained, {lot.Dats!.Count} DATs, {games} games, {entries} entries, {lot.KnownSizes.Count} sizes");
+        var entries = lot.Dats!.Sum(d => d.Summary.RomCount);
+        var games = lot.Dats!.Sum(d => d.Summary.GameCount);
+        output.WriteLine($"  lot read on demand: {lotTime} ms, {Mb(lotMemory)} retained, {lot.Dats!.Count} DATs, {games} games, {entries} entries, {lot.KnownSizes.Count} sizes");
         GC.KeepAlive(lot);
         lot = null!;
+
+        var (wholeMemory, wholeTime, whole) = await RetainedAsync(() => _services.DatService.ParseDatFileAsync(folder, new DatFolderOptions(Recursive: true, LoadOnDemand: false)));
+        output.WriteLine($"  lot kept whole: {wholeTime} ms, {Mb(wholeMemory)} retained");
+        GC.KeepAlive(whole);
+        whole = null!;
 
         var (datsMemory, datsTime, dats) = await RetainedAsync(async () =>
         {
@@ -259,7 +265,7 @@ public sealed class DatLotPerformanceTests(ITestOutputHelper output) : IDisposab
 
             return read;
         });
-        output.WriteLine($"  DATs read one by one: {datsTime} ms, {Mb(datsMemory)} retained; index of the lot: {Mb(lotMemory - datsMemory)}");
+        output.WriteLine($"  DATs read one by one: {datsTime} ms, {Mb(datsMemory)} retained; index of the lot: {Mb(wholeMemory - datsMemory)}");
         GC.KeepAlive(dats);
         output.WriteLine($"  peak working set of the process: {Mb(Process.GetCurrentProcess().PeakWorkingSet64)}");
 

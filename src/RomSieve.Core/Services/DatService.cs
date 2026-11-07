@@ -1393,12 +1393,18 @@ public sealed partial class DatService : IDatService
             return await ParseDatFolderAsync(path, folderOptions, cancellationToken).ConfigureAwait(false);
         }
 
-        var catalog = await ParseDatFileContentAsync(path, cancellationToken).ConfigureAwait(false);
+        return ParseDatFile(path, cancellationToken);
+    }
+
+    /// <summary>A DAT file read whole, at once (<see cref="ParseDatFileAsync(string, CancellationToken)"/> of a file).</summary>
+    internal DatCatalog ParseDatFile(string path, CancellationToken cancellationToken)
+    {
+        var catalog = ParseDatFileContent(path, cancellationToken);
         catalog.Header.SourceFile = path;
         return catalog;
     }
 
-    private async Task<DatCatalog> ParseDatFileContentAsync(string path, CancellationToken cancellationToken)
+    private DatCatalog ParseDatFileContent(string path, CancellationToken cancellationToken)
     {
         // A file is read as UTF-8 (or as announced by its byte order mark, UTF-16 for a "mame -listxml > file" of
         // PowerShell), and as Latin-1 when it is not valid UTF-8
@@ -1416,14 +1422,15 @@ public sealed partial class DatService : IDatService
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         string content;
         try
         {
-            content = await File.ReadAllTextAsync(path, utf8Strict, cancellationToken).ConfigureAwait(false);
+            content = File.ReadAllText(path, utf8Strict);
         }
         catch (DecoderFallbackException)
         {
-            content = await File.ReadAllTextAsync(path, Encoding.Latin1, cancellationToken).ConfigureAwait(false);
+            content = File.ReadAllText(path, Encoding.Latin1);
         }
 
         var clrMamePro = ParseClrMameProText(content);
@@ -1526,7 +1533,9 @@ public sealed partial class DatService : IDatService
     /// sorted (<see cref="CheckDatFolder"/>). A folder of MAME software lists is read as it always was
     /// (<see cref="ParseSoftwareListFolderAsync"/>). Any other folder is a lot (<see cref="DatCatalog.Dats"/>): each DAT
     /// that is not left out (<see cref="DatFolderOptions.ExcludedDats"/>) is read into its own catalog, named after its
-    /// header, or its file without a name; refused when every DAT is left out.
+    /// header, or its file without a name; refused when every DAT is left out. Read on demand
+    /// (<see cref="DatFolderOptions.LoadOnDemand"/>), a DAT only keeps its summary and the keys of its checksums: its
+    /// catalog is read again, alone, when a run needs it.
     /// </summary>
     private async Task<DatCatalog> ParseDatFolderAsync(string folder, DatFolderOptions options, CancellationToken cancellationToken)
     {
@@ -1563,20 +1572,24 @@ public sealed partial class DatService : IDatService
             0,
             included.Count,
             new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism, CancellationToken = cancellationToken },
-            async (position, token) =>
+            (position, token) =>
             {
                 var entry = entries[included[position]];
-                var catalog = await ParseDatFileAsync(files[included[position]], token).ConfigureAwait(false);
-                if (string.IsNullOrWhiteSpace(catalog.Header.Name))
-                {
-                    catalog.Header.Name = entry.Name;
-                }
-
-                members[position] = new DatLotMember(entry.Name, entry.RelativePath, catalog);
+                var file = files[included[position]];
+                var catalog = ReadLotDat(file, entry.Name, token);
+                members[position] = options.LoadOnDemand
+                    ? new DatLotMember(
+                        entry.Name,
+                        entry.RelativePath,
+                        DatLotSummary.Of(catalog),
+                        DatLotKeys.Of(catalog),
+                        cancellation => ReadLotDat(file, entry.Name, cancellation))
+                    : new DatLotMember(entry.Name, entry.RelativePath, catalog);
+                return ValueTask.CompletedTask;
             }).ConfigureAwait(false);
 
         // The first games of a DAT may not have shown that it is a DAT of MAME: the whole DAT has the last word
-        if (members.FirstOrDefault(m => m.Catalog.Header.Convention is NamingConvention.Mame or NamingConvention.MameSoftwareList) is { } mame)
+        if (members.FirstOrDefault(m => m.Header.Convention is NamingConvention.Mame or NamingConvention.MameSoftwareList) is { } mame)
         {
             throw new DatFolderException(LocalizedMessage.Create("dat.folder_mame_machines", ("file", mame.RelativePath)));
         }
@@ -1584,6 +1597,18 @@ public sealed partial class DatService : IDatService
         var lot = DatCatalog.GatherLot(members, folderName);
         lot.LotFolder = Path.GetFullPath(folder);
         return lot;
+    }
+
+    // A DAT of a lot read whole, named after its file when its header has no name
+    private DatCatalog ReadLotDat(string file, string name, CancellationToken cancellationToken)
+    {
+        var catalog = ParseDatFile(file, cancellationToken);
+        if (string.IsNullOrWhiteSpace(catalog.Header.Name))
+        {
+            catalog.Header.Name = name;
+        }
+
+        return catalog;
     }
 
     /// <summary>
