@@ -1813,7 +1813,7 @@ public sealed partial class GuiTests : IDisposable
         vm.Execution.ReportProgress(1994, 3988, 50000, 100000, 12.5, LocalizedMessage.Verbatim(longMsg));
         vm.Execution.ProgressPercentage.Should().Be(50);
         vm.Execution.RawStatusMessage.Should().Be(longMsg);
-        vm.Execution.StatusMessage.Length.Should().BeLessThan(longMsg.Length);
+        vm.Execution.StatusMessage.Should().Be(longMsg, "the label of fixed width trims it, the bar keeps its place");
 
         // Final item at 100% (3988 / 3988)
         vm.Execution.ReportProgress(3988, 3988, 100000, 100000, 0.0, LocalizedMessage.Verbatim("Traitement : Zoop (USA).sfc"));

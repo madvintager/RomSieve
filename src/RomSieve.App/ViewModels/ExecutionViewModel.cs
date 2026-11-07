@@ -1015,15 +1015,10 @@ public sealed partial class ExecutionViewModel : ViewModelBase
     {
         _statusSource = message;
         RawStatusMessage = _localization.Format(message);
-        const int maxChars = 42;
-        if (RawStatusMessage.Length > maxChars)
-        {
-            StatusMessage = $"{RawStatusMessage[..(maxChars - 1)]}…";
-        }
-        else
-        {
-            StatusMessage = RawStatusMessage;
-        }
+        // Never cut here: the label trims what its width cannot hold (a long file name), with the whole message in its
+        // tooltip, and every message fits it with its counts (GuiTests.ProgressRow_StatusMessages_ShouldFitTheirLabel);
+        // a count of characters cut messages the label held
+        StatusMessage = RawStatusMessage;
     }
 
     /// <summary>Test hook: finishes a run with <paramref name="result"/>, as a completed simulation does.</summary>

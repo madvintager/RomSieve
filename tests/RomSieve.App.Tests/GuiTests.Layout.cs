@@ -287,6 +287,49 @@ public sealed partial class GuiTests
         });
     }
 
+    /// <summary>
+    /// Every message of the progress row fits its label of fixed width, in every language, with five-digit counts (and
+    /// a short file name: a long one is trimmed, whole in the tooltip): a message of the lot of DATs was cut, and the
+    /// label tells the step of the run.
+    /// </summary>
+    [Fact]
+    public async Task ProgressRow_StatusMessages_ShouldFitTheirLabel()
+    {
+        if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") != "1")
+        {
+            return;
+        }
+
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                Settle(window);
+                var label = window.FindControl<TextBlock>("LblStatusMsg")!;
+                foreach (var (locale, catalog) in LocalizationService.Translations)
+                {
+                    foreach (var (key, text) in catalog.Where(e => e.Key.StartsWith("progress.", StringComparison.Ordinal)
+                                                                   || e.Key.StartsWith("panel4.status_", StringComparison.Ordinal)))
+                    {
+                        var message = System.Text.RegularExpressions.Regex.Replace(text, @"\{\w+\}", "99999");
+                        var probe = new TextBlock { Text = message, FontSize = label.FontSize, FontFamily = label.FontFamily, FontWeight = label.FontWeight };
+                        probe.Measure(Size.Infinity);
+                        probe.DesiredSize.Width.Should().BeLessThanOrEqualTo(label.Width, $"\"{message}\" ({locale}, {key}) is not cut");
+                    }
+                }
+            }
+            finally
+            {
+                window.Close();
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
     private static void AssertNotTrimmed(Control control, string because)
     {
         // The desired size includes the margin, which the bounds leave out

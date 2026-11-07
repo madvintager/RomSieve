@@ -918,7 +918,7 @@
   "progress.listing_chd": "Looking for CHDs: {count} found",
   "progress.scanning_file": "Reading: {name}",
   "progress.loading_dat": "Loading the DAT: {name}",
-  "progress.loading_lot_dats": "Reading the {count} DATs of the lot that may know a file…",
+  "progress.loading_lot_dats": "Reading the {count} useful DATs of the lot…",
   "progress.analyzing_file": "Analyzing: {name}",
   "progress.identifying_set": "Identifying: {name}",
   "progress.checking_sets": "Checking the sets...",
