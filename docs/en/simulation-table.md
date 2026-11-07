@@ -156,7 +156,7 @@ The search is read word by word, case and accents ignored:
 * double quotes look for an exact phrase: `"Super Mario"`. **Isolate all versions of "…"** (context menu) thus puts
   the title of the game between double quotes, so as not to show the other games that hold its words.
 
-With a lot of DATs, the **Every DAT** list, to the right of the search, only shows the files sorted with the DAT
+With a lot of DATs, the **Every DAT** list, just before **Group by game**, only shows the files sorted with the DAT
 chosen; it is greyed out with a single DAT.
 
 ## Choosing a 1G1R winner by hand

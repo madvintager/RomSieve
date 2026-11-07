@@ -163,7 +163,7 @@ La recherche se lit mot par mot, sans tenir compte des majuscules ni des accents
 * des guillemets cherchent une expression exacte : `"Super Mario"`. **Isoler toutes les versions de « … »** (menu
   contextuel) met ainsi le titre du jeu entre guillemets, pour ne pas montrer les autres jeux qui contiennent ses mots.
 
-Avec un lot de DAT, la liste **Tous les DAT**, à droite de la recherche, ne montre que les fichiers rangés avec le DAT
+Avec un lot de DAT, la liste **Tous les DAT**, juste avant **Grouper par jeu**, ne montre que les fichiers rangés avec le DAT
 choisi ; elle est grisée avec un DAT seul.
 
 ## Forcer un gagnant 1G1R

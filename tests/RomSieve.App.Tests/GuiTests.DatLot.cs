@@ -186,4 +186,53 @@ public sealed partial class GuiTests
             return Task.CompletedTask;
         });
     }
+
+    // Sized to the DAT shown, or pushed by the counter of the checked games, the list moved at each choice
+    // (measured with ROMSIEVE_HEADLESS_SKIA=1)
+    [Fact]
+    public async Task DatFilterOfTheTable_ChoosingADat_ShouldNotMoveTheBar()
+    {
+        if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") != "1")
+        {
+            return;
+        }
+
+        await RunOnUiThreadAsync(() =>
+        {
+            var items = CreateLargeItemSet().Take(4).ToList();
+            items[0].DatName = "GB";
+            items[1].DatName = "Commodore C64 - Games - Collections - [D64] - Very Long Name Of A DAT Of A Lot";
+            items[2].DatName = items[3].DatName = "GBC";
+            var (vm, window) = ShowFinishedRun(items, streamRows: false);
+            try
+            {
+                var filter = window.FindControl<ComboBox>("ComboDatFilter")!;
+                filter.IsEnabled.Should().BeTrue();
+                string[] steady = ["ComboDatFilter", "BtnGroupByGame", "BtnColumns"];
+                var bounds = steady.ToDictionary(name => name, name => BoundsIn(window, window.FindControl<Control>(name)!));
+
+                // The counter of the checked games grows with the games the DAT hides: left of the list, it only takes
+                // room from the search box, and the list does not move
+                foreach (var option in vm.PreviewTable.DatFilterOptions.ToList())
+                {
+                    vm.PreviewTable.SelectedDatFilter = option;
+                    Settle(window);
+                    foreach (var name in steady)
+                    {
+                        BoundsIn(window, window.FindControl<Control>(name)!).Should().Be(bounds[name], $"choosing {option.Label} should not move {name}");
+                    }
+                }
+
+                window.FindControl<TextBlock>("LblCheckedCount")!.Text.Should().Contain("masqué", "the last DAT hides the other games");
+
+                vm.PreviewTable.SelectedDatFilter = vm.PreviewTable.DatFilterOptions[0];
+            }
+            finally
+            {
+                window.Close();
+            }
+
+            return Task.CompletedTask;
+        });
+    }
 }
