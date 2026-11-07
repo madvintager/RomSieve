@@ -20,11 +20,12 @@ public sealed class UpdateCheckerViewModelTests
     {
         public int CallCount { get; private set; }
         public UpdateCheckResult ResultToReturn { get; set; } = UpdateCheckResult.UpToDate("1.0.0");
+        public Exception? ExceptionToThrow { get; set; }
 
         public Task<UpdateCheckResult> CheckForUpdatesAsync(string? currentVersion = null, CancellationToken cancellationToken = default)
         {
             CallCount++;
-            return Task.FromResult(ResultToReturn);
+            return ExceptionToThrow is null ? Task.FromResult(ResultToReturn) : Task.FromException<UpdateCheckResult>(ExceptionToThrow);
         }
     }
 
@@ -68,9 +69,9 @@ public sealed class UpdateCheckerViewModelTests
     [Theory]
     [InlineData(null, true)]
     [InlineData("not a date", true)]
-    [InlineData(-2.0, false)]
-    [InlineData(-25.0, true)]
-    public void ShouldCheckAtStartup_ShouldRunAtMostOnceADay(object? lastCheck, bool expected)
+    [InlineData(-5.0, false)]
+    [InlineData(-7.0, true)]
+    public void ShouldCheckAtStartup_ShouldRunAtMostOnceEverySixHours(object? lastCheck, bool expected)
     {
         var now = new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero);
         var harness = new Harness();
@@ -104,6 +105,8 @@ public sealed class UpdateCheckerViewModelTests
         harness.ViewModel.LastCheckUtc.Should().NotBeNull();
         harness.SaveCount.Should().Be(1);
         harness.Dialogs.ShownMessages.Should().BeEmpty();
+        harness.ViewModel.AvailableUpdateTag.Should().Be("v1.2.0");
+        harness.ViewModel.AvailableUpdateUrl.Should().Be(ReleaseUrl);
     }
 
     [Theory]
@@ -308,5 +311,230 @@ public sealed class UpdateCheckerViewModelTests
         await vm.Updates.IgnoreVersionAsync();
 
         File.ReadAllText(configPath).Should().Contain("\"ignored_update_version\"").And.Contain("1.2.0");
+    }
+
+    private static readonly DateTimeOffset Now = new(2026, 11, 7, 9, 0, 0, TimeSpan.Zero);
+
+    /// <summary>A checker that kept <paramref name="tag"/> from a successful check made an hour ago (interval not elapsed).</summary>
+    private static Harness WithKeptRelease(string currentVersion = "1.0.0", string tag = "v1.2.0", string url = ReleaseUrl)
+    {
+        var harness = new Harness(currentVersion);
+        harness.ViewModel.LastCheckUtc = Now.AddHours(-1).ToString("O");
+        harness.ViewModel.AvailableUpdateTag = tag;
+        harness.ViewModel.AvailableUpdateUrl = url;
+        return harness;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StartupCheck_WhenFailed_ShouldNotRecordTheCheckAndTryAgainAtTheNextStartup(bool throws)
+    {
+        var harness = new Harness();
+        var previousCheck = Now.AddHours(-30).ToString("O");
+        harness.ViewModel.LastCheckUtc = previousCheck;
+        harness.ViewModel.AvailableUpdateTag = "v1.1.0";
+        if (throws)
+        {
+            harness.Service.ExceptionToThrow = new HttpRequestException("offline");
+        }
+        else
+        {
+            harness.Service.ResultToReturn = UpdateCheckResult.Failed("1.0.0", LocalizedMessage.Create("update.error_timeout"));
+        }
+
+        await harness.ViewModel.RunStartupAsync(Now);
+
+        harness.Service.CallCount.Should().Be(1);
+        harness.ViewModel.LastCheckUtc.Should().Be(previousCheck);
+        harness.ViewModel.AvailableUpdateTag.Should().Be("v1.1.0", "a failed check keeps the release found earlier");
+        harness.SaveCount.Should().Be(0);
+        harness.Dialogs.ShownMessages.Should().BeEmpty();
+
+        var nextStartup = Now.AddMinutes(1);
+        harness.ViewModel.ShouldCheckAtStartup(nextStartup).Should().BeTrue();
+        await harness.ViewModel.RunStartupAsync(nextStartup);
+        harness.Service.CallCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ManualCheck_WhenFailed_ShouldNotRecordTheCheck()
+    {
+        var harness = WithKeptRelease();
+        var previousCheck = harness.ViewModel.LastCheckUtc;
+        harness.Service.ResultToReturn = UpdateCheckResult.Failed("1.0.0", LocalizedMessage.Create("update.error_http", ("status", 404)));
+
+        await harness.ViewModel.CheckForUpdatesAsync();
+
+        harness.Dialogs.ShownMessages.Should().ContainSingle(m => m.Level == "WARN");
+        harness.ViewModel.LastCheckUtc.Should().Be(previousCheck);
+        harness.ViewModel.AvailableUpdateTag.Should().Be("v1.2.0");
+        harness.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task FoundRelease_ShouldBeSavedAndShownAgainAtTheNextStartupWithoutAnotherCheck()
+    {
+        using var tmp = new TempDirectoryFixture();
+        var configPath = tmp.WriteText("config.json", "{}");
+        var fake = new FakeUpdateCheckService { ResultToReturn = UpdateCheckResult.Available("1.0.0", Release120) };
+        var vm = TestMainViewModel.Create(new HeadlessDialogService(), configPath, fake);
+
+        await vm.Updates.RunStartupCheckAsync();
+
+        var saved = await new ConfigurationService().LoadConfigFromFileAsync(configPath);
+        saved.Should().NotBeNull();
+        var next = new Harness("1.0.0");
+        next.ViewModel.ReadFrom(saved!);
+        next.ViewModel.AvailableUpdateTag.Should().Be("v1.2.0");
+        next.ViewModel.AvailableUpdateUrl.Should().Be(ReleaseUrl);
+
+        await next.ViewModel.RunStartupAsync(DateTimeOffset.UtcNow);
+
+        next.Service.CallCount.Should().Be(0, "the interval since the check has not elapsed");
+        next.ViewModel.IsNotificationVisible.Should().BeTrue();
+        next.ViewModel.NotificationMessage.Should().Contain("v1.2.0");
+        await next.ViewModel.OpenReleasePageAsync();
+        next.Dialogs.OpenedUrls.Should().Equal(ReleaseUrl);
+    }
+
+    [Theory]
+    [InlineData("1.2.0")]
+    [InlineData("v1.2.0")]
+    public async Task KeptRelease_WhenIgnored_ShouldNotShowTheBanner(string ignored)
+    {
+        var harness = WithKeptRelease();
+        harness.ViewModel.IgnoredVersion = ignored;
+
+        await harness.ViewModel.RunStartupAsync(Now);
+
+        harness.ViewModel.IsNotificationVisible.Should().BeFalse();
+        harness.ViewModel.AvailableUpdateTag.Should().Be("v1.2.0");
+        harness.Service.CallCount.Should().Be(0);
+        harness.SaveCount.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("1.2.0")]
+    [InlineData("1.3.0")]
+    public async Task KeptRelease_WhenNoLongerNewer_ShouldBeForgottenAndSaved(string currentVersion)
+    {
+        var harness = WithKeptRelease(currentVersion);
+
+        await harness.ViewModel.RunStartupAsync(Now);
+
+        harness.ViewModel.IsNotificationVisible.Should().BeFalse();
+        harness.ViewModel.AvailableUpdateTag.Should().BeNull();
+        harness.ViewModel.AvailableUpdateUrl.Should().BeNull();
+        harness.Service.CallCount.Should().Be(0);
+        harness.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task KeptRelease_InDevelopmentBuild_ShouldNotShowTheBannerNorBeForgotten()
+    {
+        var harness = WithKeptRelease("0.0.0-dev");
+
+        await harness.ViewModel.RunStartupAsync(Now);
+
+        harness.ViewModel.IsNotificationVisible.Should().BeFalse();
+        harness.ViewModel.AvailableUpdateTag.Should().Be("v1.2.0");
+        harness.Service.CallCount.Should().Be(0);
+        harness.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task KeptRelease_InDevelopmentBuild_ShouldBeWrittenBackToTheSharedConfiguration()
+    {
+        using var tmp = new TempDirectoryFixture();
+        var configPath = tmp.WriteText("config.json", $$"""
+            {
+              "last_update_check_utc": "{{DateTimeOffset.UtcNow:O}}",
+              "available_update_tag": "v9.9.9",
+              "available_update_url": "https://github.com/madvintager/romsieve/releases/tag/v9.9.9"
+            }
+            """);
+        var fake = new FakeUpdateCheckService();
+        var vm = TestMainViewModel.Create(new HeadlessDialogService(), configPath, fake);
+
+        await vm.Updates.RunStartupAsync(DateTimeOffset.UtcNow);
+        await vm.SaveConfigurationAsync();
+
+        vm.Updates.IsNotificationVisible.Should().BeFalse();
+        fake.CallCount.Should().Be(0);
+        File.ReadAllText(configPath).Should().Contain("\"available_update_tag\": \"v9.9.9\"")
+            .And.Contain("\"available_update_url\": \"https://github.com/madvintager/romsieve/releases/tag/v9.9.9\"");
+    }
+
+    [Fact]
+    public async Task StartupCheck_WhenUpToDate_ShouldForgetTheKeptReleaseAndHideItsBanner()
+    {
+        var harness = WithKeptRelease();
+        harness.ViewModel.LastCheckUtc = null;
+
+        await harness.ViewModel.RunStartupAsync(Now);
+
+        harness.Service.CallCount.Should().Be(1);
+        harness.ViewModel.IsNotificationVisible.Should().BeFalse();
+        harness.ViewModel.AvailableUpdateTag.Should().BeNull();
+        harness.ViewModel.AvailableUpdateUrl.Should().BeNull();
+        harness.ViewModel.LastCheckUtc.Should().NotBeNull();
+        harness.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ManualCheck_WhenUpToDate_ShouldForgetTheKeptRelease()
+    {
+        var harness = WithKeptRelease();
+
+        await harness.ViewModel.CheckForUpdatesAsync();
+
+        harness.ViewModel.AvailableUpdateTag.Should().BeNull();
+        harness.ViewModel.AvailableUpdateUrl.Should().BeNull();
+        harness.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Dismiss_ShouldHideTheBannerForThisSessionOnly()
+    {
+        var harness = WithKeptRelease();
+        await harness.ViewModel.RunStartupAsync(Now);
+        harness.ViewModel.IsNotificationVisible.Should().BeTrue();
+
+        harness.ViewModel.DismissNotification();
+
+        harness.ViewModel.IsNotificationVisible.Should().BeFalse();
+        harness.ViewModel.AvailableUpdateTag.Should().Be("v1.2.0");
+        harness.ViewModel.IgnoredVersion.Should().BeNull();
+
+        // The automatic check of the same session does not show the release again
+        harness.Service.ResultToReturn = UpdateCheckResult.Available("1.0.0", Release120);
+        await harness.ViewModel.RunStartupCheckAsync();
+        harness.ViewModel.IsNotificationVisible.Should().BeFalse();
+
+        // The next startup does
+        var data = new Dictionary<string, object?>();
+        harness.ViewModel.WriteTo(data);
+        var next = new Harness();
+        next.ViewModel.ReadFrom(data);
+        await next.ViewModel.RunStartupAsync(DateTimeOffset.UtcNow);
+        next.ViewModel.IsNotificationVisible.Should().BeTrue();
+        next.Service.CallCount.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("https://evil.example/setup.exe")]
+    [InlineData("http://github.com/madvintager/romsieve/releases/tag/v1.2.0")]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("")]
+    public async Task KeptRelease_WhenItsUrlIsNotTrusted_ShouldOpenTheReleasesPage(string url)
+    {
+        var harness = WithKeptRelease(url: url);
+        await harness.ViewModel.RunStartupAsync(Now);
+        harness.ViewModel.IsNotificationVisible.Should().BeTrue();
+
+        await harness.ViewModel.OpenReleasePageAsync();
+
+        harness.Dialogs.OpenedUrls.Should().Equal("https://github.com/madvintager/romsieve/releases");
     }
 }

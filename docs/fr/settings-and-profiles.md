@@ -84,16 +84,18 @@ RomSieve peut vous signaler la publication d'une nouvelle version sur GitHub :
 
 * **Vérifier maintenant**, dans la fenêtre des préférences, vérifie aussitôt, et vous indique si vous avez déjà la
   dernière version.
-* **Vérifier les mises à jour au démarrage** (activé par défaut) vérifie au plus une fois par jour au lancement de
-  RomSieve, en arrière-plan. Rien ne s'affiche si aucune nouvelle version n'est disponible, ni si GitHub est
-  injoignable.
+* **Vérifier les mises à jour au démarrage** (activé par défaut) vérifie au lancement de RomSieve, en arrière-plan,
+  si la dernière vérification date de plus de 6 heures. Rien ne s'affiche si aucune nouvelle version n'est
+  disponible, ni si GitHub est injoignable : une vérification qui échoue est retentée au lancement suivant.
 
-Quand une nouvelle version est disponible, un bandeau apparaît en haut de la fenêtre :
+Quand une nouvelle version est disponible, un bandeau apparaît en haut de la fenêtre. RomSieve se souvient de cette
+version : le bandeau revient à chaque lancement, sans nouvelle vérification, tant que la version n'est ni installée ni
+ignorée.
 
 * **Voir la version** ouvre la page de la version dans votre navigateur, avec ses notes et ses téléchargements.
 * **Ignorer** masque le bandeau et n'annonce plus cette version au démarrage ; la suivante sera annoncée.
   **Vérifier maintenant** l'affiche toujours.
-* La croix masque le bandeau jusqu'à la prochaine vérification.
+* La croix masque le bandeau jusqu'au prochain lancement.
 
 RomSieve ne télécharge et n'installe jamais rien de lui-même. Une vérification demande seulement à l'API de GitHub la
 dernière version publiée ; la requête transmet la version de RomSieve et aucune information sur votre collection. Les

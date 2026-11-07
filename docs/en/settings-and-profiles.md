@@ -78,15 +78,17 @@ reserved Windows names (`CON`, `NUL`...).
 RomSieve can tell you when a new version is published on GitHub:
 
 * **Check Now**, in the preferences window, checks at once, and tells you whether you already have the latest version.
-* **Check for updates on startup** (enabled by default) checks at most once a day when RomSieve starts, in the
-  background. Nothing is shown unless a new version is available, nor if GitHub cannot be reached.
+* **Check for updates on startup** (enabled by default) checks when RomSieve starts, in the background, if the last
+  check is more than 6 hours old. Nothing is shown unless a new version is available, nor if GitHub cannot be reached:
+  a check that fails is tried again at the next startup.
 
-When a new version is available, a banner appears at the top of the window:
+When a new version is available, a banner appears at the top of the window. RomSieve remembers that version: the
+banner comes back at each startup, without a new check, until the version is installed or ignored.
 
 * **View release** opens the page of the release in your browser, with its notes and its downloads.
 * **Ignore** hides the banner and no longer announces this version at startup; the next one will be announced.
   **Check Now** still shows it.
-* The cross hides the banner until the next check.
+* The cross hides the banner until the next startup.
 
 RomSieve never downloads or installs anything by itself. A check only asks the GitHub API for the latest published
 release; the request carries the version of RomSieve and no information about your collection. Pre-releases are not
