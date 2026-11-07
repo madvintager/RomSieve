@@ -162,7 +162,7 @@ public sealed partial class GuiTests : IDisposable
             window.FindControl<Button>("BtnUndo").Should().NotBeNull();
 
             var table = window.FindControl<DataGrid>("TablePreview")!;
-            table.Columns.Count.Should().Be(11);
+            table.Columns.Count.Should().Be(12);
             foreach (var col in table.Columns)
             {
                 col.CanUserResize.Should().BeTrue();
@@ -216,11 +216,11 @@ public sealed partial class GuiTests : IDisposable
         var vm = CreateViewModel();
         var variables = vm.Directories.PatternVariables;
 
-        // Variables of every convention first, then those of TOSEC names, then the MAME categories
+        // Variables of every convention first, then those of TOSEC names, then the MAME categories, then the DAT
         variables.Select(v => v.Tag).Should().Equal(
             "{title}", "{letter}", "{country}", "{language}", "{version}",
             "{publisher}", "{year}", "{system}", "{chipset}", "{video}", "{dump_status}",
-            "{genre}", "{category}");
+            "{genre}", "{category}", "{dat}");
         variables.Take(5).Should().OnlyContain(v => !v.IsTosecOnly);
         variables.Skip(5).Take(6).Should().OnlyContain(v => v.IsTosecOnly);
         variables.Skip(11).Should().OnlyContain(v => !v.IsTosecOnly);
@@ -1317,7 +1317,7 @@ public sealed partial class GuiTests : IDisposable
             var win = new MainWindow { DataContext = vm };
             var table = win.FindControl<DataGrid>("TablePreview")!;
 
-            table.Columns.Count.Should().Be(11);
+            table.Columns.Count.Should().Be(12);
             foreach (var col in table.Columns)
             {
                 col.CanUserResize.Should().BeTrue();
@@ -1329,11 +1329,11 @@ public sealed partial class GuiTests : IDisposable
     public void TestTablePreviewSortableColumns()
     {
         var vm = CreateViewModel();
-        vm.PreviewColumnHeaders.Count.Should().Be(11);
-        MainViewModel.SortablePreviewColumns.Should().BeEquivalentTo([0, 2, 3, 4, 5, 6, 7, 9, 10]);
+        vm.PreviewColumnHeaders.Count.Should().Be(12);
+        MainViewModel.SortablePreviewColumns.Should().BeEquivalentTo([0, 2, 3, 4, 5, 6, 7, 9, 10, 11]);
 
         // Check sort hint tooltips on sortable columns
-        foreach (var col in new[] { 0, 2, 3, 4, 5, 6, 7, 9, 10 })
+        foreach (var col in new[] { 0, 2, 3, 4, 5, 6, 7, 9, 10, 11 })
         {
             var tooltip = vm.PreviewColumnTooltips[col].ToLowerInvariant();
             (tooltip.Contains("trier") || tooltip.Contains("sort")).Should().BeTrue();

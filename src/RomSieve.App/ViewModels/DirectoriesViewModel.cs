@@ -45,6 +45,12 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         ("{category}", "var.category", "var.tooltip_category")
     ];
 
+    // The DAT of a file: last, so that the menu keeps the index of the other variables
+    private static readonly (string Tag, string LabelKey, string TipKey)[] DatPatternVariableSpecs =
+    [
+        ("{dat}", "var.dat", "var.tooltip_dat")
+    ];
+
     private readonly ILocalizationService _localization;
     private readonly IDialogService _dialogService;
     private readonly IDatService _datService;
@@ -65,6 +71,21 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         _datService = datService;
         _noIntroParser = noIntroParser;
         _datInfoText = string.Empty;
+        DatLot = new DatLotViewModel(localization);
+        DatLot.ExcludedChanged += (_, _) =>
+        {
+            _syncingLot = true;
+            try
+            {
+                ExcludedDats = DatLot.ExcludedNames;
+            }
+            finally
+            {
+                _syncingLot = false;
+            }
+
+            ShowLotInfo();
+        };
 
         NamingConventionOptions = new LocalizedOptionList<NamingConvention>(
             localization,
@@ -96,7 +117,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         [
             .. CommonPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.All)),
             .. TosecPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Tosec)),
-            .. MamePatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Mame))
+            .. MamePatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Mame)),
+            .. DatPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Dat))
         ];
         UpdatePatternVariables();
         TransferModeOptions =
@@ -131,6 +153,39 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// playlists stays next to the option that enables it.
     /// </summary>
     public AdvancedOptionsViewModel Advanced { get; }
+
+    /// <summary>The DATs of a lot (a folder of No-Intro, Redump or TOSEC DATs), to check; empty for any other DAT.</summary>
+    public DatLotViewModel DatLot { get; }
+
+    /// <summary>Header name of the DAT chosen (of its first DAT for a folder), the value of <c>{dat}</c>; empty without a DAT.</summary>
+    [ObservableProperty]
+    private string _datHeaderName = string.Empty;
+
+    /// <summary>
+    /// The DAT the examples of the preview of the pattern are sorted with: for a lot, its first DAT checked of the
+    /// convention of the examples (with its folder, mirrored or not); the DAT chosen otherwise; none without a DAT.
+    /// </summary>
+    internal DatPlacement? PreviewDatPlacement(NamingConvention convention)
+    {
+        if (DatLot.IsLot)
+        {
+            var entry = DatLot.Entries.Where(e => e.IsIncluded).OrderBy(e => e.Convention == convention ? 0 : 1).FirstOrDefault();
+            return entry is null
+                ? null
+                : new DatPlacement(entry.Name, Path.GetDirectoryName(entry.RelativePath.Replace('/', Path.DirectorySeparatorChar)), IsLotMember: true);
+        }
+
+        return string.IsNullOrWhiteSpace(DatHeaderName) ? null : new DatPlacement(DatHeaderName);
+    }
+
+    // The DATs checked are being written to ExcludedDats, which must not check them again
+    private bool _syncingLot;
+
+    /// <summary>
+    /// Whether the DAT chosen is a folder: its subfolders may then be read (<see cref="DatRecursive"/>), and the folder
+    /// options of the output step apply to a lot.
+    /// </summary>
+    public bool IsDatFolder => !string.IsNullOrWhiteSpace(DatFilePath) && Directory.Exists(DatFilePath.Trim());
 
     /// <summary>Raised when the user changes the source directory (not while a configuration is being loaded).</summary>
     public event EventHandler? SourceDirChangedByUser;
@@ -193,7 +248,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// Whether the variables of TOSEC names have a value: the effective convention is TOSEC or not known yet. They have
     /// none in No-Intro and Redump names, nor for MAME.
     /// </summary>
-    public bool AreTosecVariablesApplicable => EffectiveConvention is NamingConvention.Auto or NamingConvention.Tosec;
+    public bool AreTosecVariablesApplicable =>
+        EffectiveConvention is NamingConvention.Auto or NamingConvention.Tosec || DatLot.Includes(NamingConvention.Tosec);
 
     /// <summary>What the selected transfer mode does, shown under the modes.</summary>
     [ObservableProperty]
@@ -396,7 +452,38 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
     partial void OnSelectedNamingConventionChanged(NamingConvention value) => UpdateEffectiveConvention();
 
-    partial void OnDatFilePathChanged(string value) => UpdateDatStatusInfo(value);
+    partial void OnDatFilePathChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsDatFolder));
+        OnPropertyChanged(nameof(IsDatFolderMirrorEnabled));
+        UpdateDatStatusInfo(value);
+        UpdatePatternVariables();
+    }
+
+    // The mirror only acts with a folder per DAT
+    partial void OnFolderPerDatChanged(bool value) => OnPropertyChanged(nameof(IsDatFolderMirrorEnabled));
+
+    /// <summary>Whether the folders of the DATs may be mirrored: a folder of DATs, each with a folder of its own.</summary>
+    public bool IsDatFolderMirrorEnabled => IsDatFolder && FolderPerDat;
+
+    // The subfolders change the DATs of the lot
+    partial void OnDatRecursiveChanged(bool value)
+    {
+        if (IsDatFolder)
+        {
+            UpdateDatStatusInfo(DatFilePath);
+        }
+    }
+
+    // A configuration or a profile loaded checks the DATs it names
+    partial void OnExcludedDatsChanged(IReadOnlyList<string> value)
+    {
+        if (!_syncingLot && DatLot.IsLot)
+        {
+            DatLot.ApplyExcluded(value);
+            ShowLotInfo();
+        }
+    }
 
     partial void OnSourceDirChanged(string value)
     {
@@ -659,8 +746,10 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         DatLoadTask = Task.CompletedTask;
 
         var cleanPath = pathStr?.Trim() ?? string.Empty;
+        DatHeaderName = string.Empty;
         if (string.IsNullOrEmpty(cleanPath))
         {
+            DatLot.Clear();
             ShowDatInfo(null, "Neutral", null, DatCloneRelations.NoDat);
             return;
         }
@@ -668,6 +757,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         // A folder holds the DATs of several MAME software lists
         if (!File.Exists(cleanPath) && !Directory.Exists(cleanPath))
         {
+            DatLot.Clear();
             ShowDatInfo(LocalizedMessage.Create("tab1.dat_info_error"), "Error", null, DatCloneRelations.Unknown);
             return;
         }
@@ -679,9 +769,24 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         }
         catch (Exception ex)
         {
+            DatLot.Clear();
             ShowDatInfo(DatErrorMessage(ex), "Error", null, DatCloneRelations.Unknown);
             return;
         }
+
+        DatHeaderName = DatDisplayName(preview, cleanPath);
+
+        // A lot: the headers of its DATs are enough to its summary and its list; its DATs are only read by a run
+        if (Directory.Exists(cleanPath) && preview.Header.Convention != NamingConvention.MameSoftwareList)
+        {
+            DatLot.Clear();
+            ShowDatInfo(LocalizedMessage.Create("tab1.dat_info_reading", ("name", DatDisplayName(preview, cleanPath))), "Neutral", null, DatCloneRelations.Unknown);
+            _datLoadCts = new CancellationTokenSource();
+            DatLoadTask = LoadDatLotAsync(cleanPath, DatRecursive, version, _datLoadCts.Token);
+            return;
+        }
+
+        DatLot.Clear();
 
         ShowDatInfo(
             LocalizedMessage.Create("tab1.dat_info_reading", ("name", DatDisplayName(preview, cleanPath))),
@@ -748,6 +853,70 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             mameSummary);
     }
 
+    /// <summary>
+    /// The DATs of a lot from their headers (<see cref="IDatService.ReadDatFolderPreview"/>), off the UI thread, refused as
+    /// a sort would refuse them (<see cref="Core.Services.DatService.CheckDatFolder"/>); then shown to check, with the summary of the lot.
+    /// </summary>
+    private async Task LoadDatLotAsync(string path, bool recursive, int version, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<DatFolderEntry>? entries = null;
+        Exception? error = null;
+        try
+        {
+            entries = await Task.Run(() =>
+            {
+                var read = _datService.ReadDatFolderPreview(path, recursive);
+                Core.Services.DatService.CheckDatFolder(path, read);
+                return read;
+            }, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            error = ex;
+        }
+
+        if (version != _datLoadVersion)
+        {
+            return;
+        }
+
+        if (entries is null)
+        {
+            ShowDatInfo(DatErrorMessage(error), "Error", null, DatCloneRelations.Unknown);
+            return;
+        }
+
+        DatLot.Show(entries, ExcludedDats);
+        ShowLotInfo();
+    }
+
+    // Summary of the lot and convention of most of its DATs checked, again after a DAT is checked or unchecked
+    private void ShowLotInfo()
+    {
+        if (!DatLot.IsLot)
+        {
+            return;
+        }
+
+        var main = DatLot.MainConvention;
+        ShowDatInfo(
+            LocalizedMessage.Verbatim(DatLot.Summary()),
+            DatLot.IncludedCount == 0 ? "Error" : "Ok",
+            main == NamingConvention.Auto ? null : main,
+            DatCloneRelations.Unknown);
+        _datInfoIsLot = true;
+        OnPropertyChanged(nameof(DatLot));
+        OnPropertyChanged(nameof(AreTosecVariablesApplicable));
+        UpdatePatternVariables();
+    }
+
+    // The summary of a lot is rebuilt at a change of language, the names of its conventions with it
+    private bool _datInfoIsLot;
+
     // Why a DAT cannot be read: the reason of a folder of DATs, translated, or the message of the error
     private static LocalizedMessage DatErrorMessage(Exception? error) =>
         error is DatFolderException folderError
@@ -776,6 +945,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         MameDatSummary? mameSummary = null)
     {
         _datInfoMessage = message;
+        _datInfoIsLot = false;
         DatCloneRelations = cloneRelations;
         DatMameSummary = mameSummary;
         DatInfoText = message is null ? string.Empty : _localization.Format(message);
@@ -876,6 +1046,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             {
                 PatternVariableScope.Tosec => (AreTosecVariablesApplicable, "var.hint_tosec_only"),
                 PatternVariableScope.Mame => (AreMameVariablesApplicable, "var.hint_mame_only"),
+                PatternVariableScope.Dat => (!string.IsNullOrWhiteSpace(DatFilePath), "var.hint_dat_only"),
                 _ => (true, null)
             };
             variable.IsApplicable = isApplicable;
@@ -989,7 +1160,16 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         }
 
         TransferModeHint = TransferModeHintFor(SelectedTransferMode);
-        DatInfoText = _datInfoMessage is null ? string.Empty : _localization.Format(_datInfoMessage);
+        DatLot.RefreshTranslations();
+        if (_datInfoIsLot)
+        {
+            ShowLotInfo();
+        }
+        else
+        {
+            DatInfoText = _datInfoMessage is null ? string.Empty : _localization.Format(_datInfoMessage);
+        }
+
         Preview.Refresh();
     }
 }

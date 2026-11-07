@@ -122,6 +122,7 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
 
         _volumeText = FormatVolume(0);
         _volumeTooltip = _localization.Tr("panel4.tooltip_volume");
+        _datStatsTooltip = _localization.Tr("panel4.tooltip_dat_stats");
     }
 
     /// <summary>
@@ -246,6 +247,13 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _datStatsText = string.Empty;
+
+    /// <summary>Tooltip of the DAT completion; for a lot, what was found of each DAT with a game found, and how many have none.</summary>
+    [ObservableProperty]
+    private string _datStatsTooltip = string.Empty;
+
+    /// <summary>DATs of a lot named in the tooltip of the completion; the others are only counted.</summary>
+    internal const int TooltipDatCount = 15;
 
     [ObservableProperty]
     private bool _isDatStatsVisible;
@@ -506,11 +514,44 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
                     ("total", _lastStats.DatTotalRoms));
 
             IsDatStatsVisible = true;
+            DatStatsTooltip = DescribeDats(_lastStats.PerDat);
         }
         else
         {
             DatStatsText = string.Empty;
+            DatStatsTooltip = DescribeDats(null);
             IsDatStatsVisible = false;
         }
+    }
+
+    // What the completion means, then, for a lot, a line per DAT with a game found and the number of the others
+    private string DescribeDats(IReadOnlyList<DatLotStats>? perDat)
+    {
+        var tooltip = _localization.Tr("panel4.tooltip_dat_stats");
+        if (perDat is null)
+        {
+            return tooltip;
+        }
+
+        var lines = new List<string> { tooltip, string.Empty };
+        var found = perDat.Where(d => d.GamesFound > 0).ToList();
+        lines.AddRange(found.Take(TooltipDatCount).Select(d => _localization.Tr(
+            "stats.tooltip_dat_lot_line",
+            ("dat", d.Name),
+            ("pct", d.CompletionPct.ToString("F1", CultureInfo.InvariantCulture)),
+            ("matched", d.MatchedCount + d.NameMatchedCount),
+            ("total", d.TotalRoms),
+            ("games", d.GamesFound))));
+        if (found.Count > TooltipDatCount)
+        {
+            lines.Add(_localization.Tr("stats.tooltip_dat_lot_more", ("count", found.Count - TooltipDatCount)));
+        }
+
+        if (perDat.Count(d => d.GamesFound == 0) is var nothing and > 0)
+        {
+            lines.Add(_localization.Tr("stats.tooltip_dat_lot_nothing", ("count", nothing)));
+        }
+
+        return string.Join(Environment.NewLine, lines);
     }
 }

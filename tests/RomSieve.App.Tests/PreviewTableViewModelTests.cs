@@ -196,8 +196,8 @@ public sealed class PreviewTableViewModelTests : IDisposable
         var vm = CreateViewModel(() => false, () => new HashSet<string>());
 
         vm.Columns.Select(c => c.Id).Should().Equal(PreviewTableViewModel.ColumnIds);
-        vm.Columns.Where(c => !c.IsVisible).Select(c => c.Id).Should().BeEquivalentTo("crc32", "disk", "publisher", "related");
-        vm.HiddenColumnIds.Should().Equal("crc32", "disk", "publisher", "related");
+        vm.Columns.Where(c => !c.IsVisible).Select(c => c.Id).Should().BeEquivalentTo("crc32", "disk", "publisher", "related", "dat");
+        vm.HiddenColumnIds.Should().Equal("crc32", "disk", "publisher", "related", "dat");
         vm.HideableColumns.Select(c => c.Id).Should().NotContain(["source", "status"], "a row must stay identifiable");
         vm.Columns.Select(c => c.Header).Should().Equal(vm.PreviewColumnHeaders);
         vm.Columns[8].Header.Should().Be("Chemin cible calculé");

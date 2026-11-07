@@ -125,6 +125,7 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
     private string? _searchTitle;
     private string? _searchSource;
     private string? _searchCategory;
+    private string? _searchDat;
     private (ParsedRomName Parsed, string Key)? _canonicalGameKey;
 
     /// <summary>Title normalized for the search (lower case, without accents), computed once per refresh.</summary>
@@ -135,6 +136,16 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
 
     /// <summary>Category of a MAME machine, normalized for the search (<c>shooter / flying vertical</c>); empty otherwise.</summary>
     public string SearchCategory => _searchCategory ??= PreviewTableViewModel.NormalizeSearchText(Item.Parsed.Machine?.Category?.Name ?? string.Empty);
+
+    /// <summary>DAT of a lot the file is sorted with, normalized for the search; empty for a sort with a single DAT.</summary>
+    public string SearchDat => _searchDat ??= PreviewTableViewModel.NormalizeSearchText(Item.DatName ?? string.Empty);
+
+    /// <summary>
+    /// The DAT of a lot the file is sorted with, and the other DATs that know it, whose ROMs it makes present, for the
+    /// detail panel; empty for a sort with a single DAT.
+    /// </summary>
+    [ObservableProperty]
+    private string _detailDatText = string.Empty;
 
     /// <summary>
     /// Canonical game key of the row, computed once for each parse result of the item
@@ -223,7 +234,7 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
     public string StatusValue => Item.Status.ToValueString();
 
     /// <summary>
-    /// Indexed access to the 11 columns of the row (0..10).
+    /// Indexed access to the 12 columns of the row (0..11).
     /// </summary>
     [System.Runtime.CompilerServices.IndexerName("ColumnValue")]
     public string this[int columnIndex] => columnIndex switch
@@ -239,6 +250,7 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
         8 => TargetPathDisplay,
         9 => StatusDisplay,
         10 => RelatedCountText,
+        11 => DatDisplay,
         _ => string.Empty
     };
 
@@ -256,6 +268,7 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
         _searchTitle = null;
         _searchSource = null;
         _searchCategory = null;
+        _searchDat = null;
 
         SourceName = !string.IsNullOrEmpty(Item.ArchiveMember)
             ? Item.ArchiveMember
@@ -283,6 +296,12 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
         TargetPathDisplay = FormatTarget(Item.FinalTargetPath ?? Item.TargetPath);
 
         RelatedCountText = Item.RelatedItems.Count > 0 ? Item.RelatedItems.Count.ToString(CultureInfo.InvariantCulture) : string.Empty;
+        DatDisplay = Item.DatName ?? string.Empty;
+        DetailDatText = Item.DatName is not { } datName
+            ? string.Empty
+            : Item.OtherDats.Count == 0
+                ? datName
+                : _localization.Tr("panel4.detail_dat_others", ("dat", datName), ("others", string.Join(", ", Item.OtherDats)));
         RelatedFilesBadge = FormatRelatedFilesBadge(Item, _localization);
         _relatedFiles = null;
         OnPropertyChanged(nameof(RelatedFiles));

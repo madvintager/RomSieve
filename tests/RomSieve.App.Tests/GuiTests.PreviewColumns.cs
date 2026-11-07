@@ -25,7 +25,7 @@ public sealed partial class GuiTests
             try
             {
                 var grid = window.FindControl<DataGrid>("TablePreview")!;
-                grid.Columns.Select(c => c.IsVisible).Should().Equal(true, false, true, false, false, true, true, true, true, true, false);
+                grid.Columns.Select(c => c.IsVisible).Should().Equal(true, false, true, false, false, true, true, true, true, true, false, false);
 
                 var menuButton = window.FindControl<DropDownButton>("BtnColumns")!;
                 ToolTip.GetTip(menuButton).Should().Be(vm.Localization.Tr("panel4.tooltip_columns"));
@@ -45,13 +45,13 @@ public sealed partial class GuiTests
                 crc.IsChecked = true;
                 target.IsChecked = false;
                 Settle(window);
-                vm.PreviewTable.HiddenColumnIds.Should().Equal("disk", "publisher", "target", "related");
+                vm.PreviewTable.HiddenColumnIds.Should().Equal("disk", "publisher", "target", "related", "dat");
                 grid.Columns[1].IsVisible.Should().BeTrue();
                 grid.Columns[8].IsVisible.Should().BeFalse();
 
                 window.FindControl<MenuItem>("MenuColumnsReset")!.Command!.Execute(null);
                 Settle(window);
-                grid.Columns.Select(c => c.IsVisible).Should().Equal(true, false, true, false, false, true, true, true, true, true, false);
+                grid.Columns.Select(c => c.IsVisible).Should().Equal(true, false, true, false, false, true, true, true, true, true, false, false);
                 crc.IsChecked.Should().BeFalse();
                 menuButton.Flyout.Hide();
 
@@ -330,7 +330,7 @@ public sealed partial class GuiTests
                 // The default columns, then every column (the hidden ones too, once shown, in a window wide enough
                 // for all of them: narrower, the table scrolls horizontally)
                 var cases =
-                    from columns in new[] { ((IEnumerable<string>?)null, 7, 1280.0), ([], 11, 1700.0) }
+                    from columns in new[] { ((IEnumerable<string>?)null, 7, 1280.0), ([], 12, 1860.0) }
                     from locale in vm.Localization.GetAvailableLocales().Select(l => l.Code)
                     select (Hidden: columns.Item1, Count: columns.Item2, Width: columns.Item3, Locale: locale);
                 foreach (var (hidden, count, width, locale) in cases)

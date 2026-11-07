@@ -76,7 +76,11 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
         nameof(DirectoriesViewModel.SubfolderMultidisk),
         nameof(DirectoriesViewModel.GenerateM3u),
         nameof(DirectoriesViewModel.SelectedM3uPlacement),
-        nameof(DirectoriesViewModel.SelectedTransferMode)
+        nameof(DirectoriesViewModel.SelectedTransferMode),
+        nameof(DirectoriesViewModel.DatHeaderName),
+        nameof(DirectoriesViewModel.DatLot),
+        nameof(DirectoriesViewModel.FolderPerDat),
+        nameof(DirectoriesViewModel.DatFolderMirror)
     };
 
     private readonly ILocalizationService _localization;
@@ -199,9 +203,12 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
         var writesInUnmatched = false;
         var writesInSubfolders = false;
         var writesAboveList = false;
+
+        // The examples of a lot go into the folder of one of its DATs, as its files would
+        var dat = _directories.PreviewDatPlacement(convention);
         Examples.ReplaceAll(examples.Select(example =>
         {
-            var target = _organizer.BuildTargetPath(example.Parsed, example.Name, config);
+            var target = _organizer.BuildTargetPath(example.Parsed, example.Name, config, dat: dat);
             var relativeParts = Path.GetRelativePath(config.DestinationDir, target)
                 .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             writesInUnmatched |= string.Equals(relativeParts[0], PathOrganizerService.UnmatchedFolderName, StringComparison.OrdinalIgnoreCase);

@@ -1082,7 +1082,7 @@
                 <TextBlock Classes="card-title">
                   <Run Text="{Binding I18n[tab1.card_dat]}" /> <Run Classes="optional" Text="{Binding I18n[tab1.optional]}" />
                 </TextBlock>
-                <Grid RowDefinitions="Auto,2,Auto,8,Auto">
+                <Grid RowDefinitions="Auto,2,Auto,6,Auto,6,Auto,8,Auto">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="CollectionLabel" />
                     <ColumnDefinition Width="12" />
@@ -1107,7 +1107,8 @@
                               Command="{Binding Directories.ClearDatCommand}" />
                     </TextBox.InnerRightContent>
                   </TextBox>
-                  <!-- A DAT file, or a folder of DATs: the DATs of several MAME software lists -->
+                  <!-- A DAT file, or a folder of DATs: a lot of No-Intro, Redump or TOSEC DATs, or the DATs of several MAME
+                       software lists -->
                   <Button x:Name="BtnBrowseDat"
                           Grid.Row="0"
                           Grid.Column="4"
@@ -1153,9 +1154,89 @@
                              Text="{Binding I18n[tab1.hint_no_dat]}"
                              IsVisible="{Binding Directories.DatFilePath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
+                  <!-- The subfolders of a folder of DATs, greyed for a DAT file -->
+                  <CheckBox x:Name="ChkDatRecursive"
+                            Grid.Row="4"
+                            Grid.Column="2"
+                            Grid.ColumnSpan="3"
+                            FontSize="11"
+                            Content="{Binding I18n[tab1.chk_dat_recursive]}"
+                            ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_recursive]}"
+                            ToolTip.ShowOnDisabled="True"
+                            IsEnabled="{Binding Directories.IsDatFolder}"
+                            IsChecked="{Binding Directories.DatRecursive, Mode=TwoWay}" />
+
+                  <!-- The DATs of a lot, to check: shown for a lot only, the information of a lot that exists -->
+                  <Border x:Name="PanelDatLot"
+                          Grid.Row="6"
+                          Grid.Column="2"
+                          Grid.ColumnSpan="3"
+                          BorderThickness="1"
+                          BorderBrush="{DynamicResource ControlBorderBrush}"
+                          CornerRadius="4"
+                          Padding="6"
+                          IsVisible="{Binding Directories.DatLot.IsLot}">
+                    <StackPanel Spacing="6">
+                      <Grid ColumnDefinitions="*,8,Auto,8,Auto,6,Auto">
+                        <TextBox x:Name="EditDatLotSearch"
+                                 FontSize="11"
+                                 Watermark="{Binding I18n[tab1.dat_lot_search]}"
+                                 ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_search]}"
+                                 Text="{Binding Directories.DatLot.SearchText, Mode=TwoWay}" />
+                        <TextBlock x:Name="LblDatLotCount"
+                                   Grid.Column="2"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding Directories.DatLot.CountText}" />
+                        <Button x:Name="BtnDatLotCheckShown"
+                                Grid.Column="4"
+                                FontSize="11"
+                                Content="{Binding I18n[tab1.dat_lot_check_shown]}"
+                                ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_check_shown]}"
+                                Command="{Binding Directories.DatLot.IncludeShownCommand}" />
+                        <Button x:Name="BtnDatLotUncheckShown"
+                                Grid.Column="6"
+                                FontSize="11"
+                                Content="{Binding I18n[tab1.dat_lot_uncheck_shown]}"
+                                ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_uncheck_shown]}"
+                                Command="{Binding Directories.DatLot.ExcludeShownCommand}" />
+                      </Grid>
+                      <!-- Compact rows: a pack holds thousands of DATs -->
+                      <ListBox x:Name="ListDatLot"
+                               MaxHeight="220"
+                               Background="Transparent"
+                               ItemsSource="{Binding Directories.DatLot.FilteredEntries}">
+                        <ListBox.Styles>
+                          <Style Selector="ListBox#ListDatLot ListBoxItem">
+                            <Setter Property="Padding" Value="4,0" />
+                            <Setter Property="MinHeight" Value="0" />
+                          </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                          <DataTemplate x:DataType="vm:DatLotEntryViewModel">
+                            <CheckBox Padding="4,0" MinHeight="24" IsChecked="{Binding IsIncluded, Mode=TwoWay}">
+                              <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock FontSize="11" Text="{Binding Name}" />
+                                <TextBlock FontSize="11" FontWeight="Bold" Text="{Binding ConventionLabel}">
+                                  <TextBlock.Foreground>
+                                    <MultiBinding Converter="{StaticResource ThemeResource}" ConverterParameter="Badge*ForegroundBrush">
+                                      <Binding Path="ConventionTone" />
+                                      <Binding Path="$self.ActualThemeVariant" />
+                                    </MultiBinding>
+                                  </TextBlock.Foreground>
+                                </TextBlock>
+                                <TextBlock Classes="form-hint" FontSize="11" Text="{Binding RelativePath}" />
+                              </StackPanel>
+                            </CheckBox>
+                          </DataTemplate>
+                        </ListBox.ItemTemplate>
+                      </ListBox>
+                    </StackPanel>
+                  </Border>
+
                   <!-- Convention, and the one detected from the DAT or the names -->
-                  <TextBlock Grid.Row="4" Classes="form-label" Text="{Binding I18n[tab1.lbl_convention]}" />
-                  <StackPanel Grid.Row="4"
+                  <TextBlock Grid.Row="8" Classes="form-label" Text="{Binding I18n[tab1.lbl_convention]}" />
+                  <StackPanel Grid.Row="8"
                               Grid.Column="2"
                               Grid.ColumnSpan="3"
                               Orientation="Horizontal"
@@ -2783,7 +2864,7 @@
             <Border x:Name="CardPattern" Classes="settings-card">
               <StackPanel Spacing="8">
                 <TextBlock Classes="card-title" Text="{Binding I18n[tab1.grp_pattern]}" />
-                <Grid RowDefinitions="Auto,0,Auto,8,Auto,6,Auto,8,Auto">
+                <Grid RowDefinitions="Auto,0,Auto,8,Auto,6,Auto,0,Auto,8,Auto">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="OutputLabel" />
                     <ColumnDefinition Width="12" />
@@ -2858,6 +2939,9 @@
                           <Separator />
                           <MenuItem x:Name="MenuVariableGenre" IsEnabled="{Binding Directories.PatternVariables[11].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatternVariables[11].Label}" ToolTip.Tip="{Binding Directories.PatternVariables[11].Tooltip}" Command="{Binding Directories.PatternVariables[11].InsertCommand}" />
                           <MenuItem x:Name="MenuVariableCategory" IsEnabled="{Binding Directories.PatternVariables[12].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatternVariables[12].Label}" ToolTip.Tip="{Binding Directories.PatternVariables[12].Tooltip}" Command="{Binding Directories.PatternVariables[12].InsertCommand}" />
+                          <!-- The DAT of each file: greyed out without a DAT -->
+                          <Separator />
+                          <MenuItem x:Name="MenuVariableDat" IsEnabled="{Binding Directories.PatternVariables[13].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatternVariables[13].Label}" ToolTip.Tip="{Binding Directories.PatternVariables[13].Tooltip}" Command="{Binding Directories.PatternVariables[13].InsertCommand}" />
                         </MenuFlyout>
                       </DropDownButton.Flyout>
                     </DropDownButton>
@@ -2899,8 +2983,31 @@
                             ToolTip.Tip="{Binding I18n[tab1.tooltip_restore_articles]}"
                             Content="{Binding I18n[tab1.chk_restore_articles]}"
                             IsChecked="{Binding Directories.RestoreArticles, Mode=TwoWay}" />
+                  <!-- A lot of DATs: a folder per DAT above the pattern, under the folders of its path when mirrored;
+                       greyed out for a single DAT, their tooltip saying when they apply -->
+                  <WrapPanel x:Name="PanelDatFolders"
+                             Grid.Row="8"
+                             Grid.Column="2"
+                             Grid.ColumnSpan="3"
+                             Orientation="Horizontal">
+                    <CheckBox x:Name="ChkFolderPerDat"
+                              Margin="0,0,20,0"
+                              FontSize="11"
+                              Content="{Binding I18n[tab1.chk_folder_per_dat]}"
+                              ToolTip.Tip="{Binding I18n[tab1.tooltip_folder_per_dat]}"
+                              ToolTip.ShowOnDisabled="True"
+                              IsEnabled="{Binding Directories.IsDatFolder}"
+                              IsChecked="{Binding Directories.FolderPerDat, Mode=TwoWay}" />
+                    <CheckBox x:Name="ChkDatFolderMirror"
+                              FontSize="11"
+                              Content="{Binding I18n[tab1.chk_dat_folder_mirror]}"
+                              ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_folder_mirror]}"
+                              ToolTip.ShowOnDisabled="True"
+                              IsEnabled="{Binding Directories.IsDatFolderMirrorEnabled}"
+                              IsChecked="{Binding Directories.DatFolderMirror, Mode=TwoWay}" />
+                  </WrapPanel>
                   <!-- Live preview: paths computed by the code of the sort for a few files -->
-                  <Border Grid.Row="8"
+                  <Border Grid.Row="10"
                           Grid.ColumnSpan="5"
                           Padding="10,6"
                           CornerRadius="4"
@@ -3017,7 +3124,7 @@
                 <TextBlock x:Name="LblDatStats"
                            Text="{Binding StatsBanner.DatStatsText}"
                            IsVisible="{Binding StatsBanner.IsDatStatsVisible}"
-                           ToolTip.Tip="{Binding I18n[panel4.tooltip_dat_stats]}"
+                           ToolTip.Tip="{Binding StatsBanner.DatStatsTooltip}"
                            Foreground="{DynamicResource DatStatsForegroundBrush}"
                            FontSize="11"
                            FontWeight="Bold"
@@ -3061,7 +3168,7 @@
             <DockPanel Margin="0,2,0,0">
 
               <!-- Search bar by game title with autocomplete -->
-              <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,4,*,4,Auto,8,Auto,6,Auto,6,Auto,4,Auto" Margin="2,0,2,3" VerticalAlignment="Center">
+              <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,4,*,4,Auto,8,Auto,8,Auto,6,Auto,6,Auto,4,Auto" Margin="2,0,2,3" VerticalAlignment="Center">
                 <TextBlock x:Name="LblSearchPreview"
                            Grid.Column="0"
                            Text="{Binding I18n[panel4.lbl_search_title]}"
@@ -3101,9 +3208,24 @@
                         VerticalContentAlignment="Center"
                         Command="{Binding ClearPreviewSearchCommand}" />
 
+                <!-- The files of one DAT of a lot; greyed out for a run with a single DAT, which has none to choose -->
+                <ComboBox x:Name="ComboDatFilter"
+                          Grid.Column="6"
+                          MinWidth="150"
+                          MaxWidth="260"
+                          FontSize="11"
+                          MinHeight="24"
+                          VerticalAlignment="Center"
+                          ToolTip.Tip="{Binding I18n[panel4.tooltip_dat_filter]}"
+                          ToolTip.ShowOnDisabled="True"
+                          IsEnabled="{Binding PreviewTable.HasDatFilter}"
+                          ItemsSource="{Binding PreviewTable.DatFilterOptions}"
+                          DisplayMemberBinding="{Binding Label}"
+                          SelectedItem="{Binding PreviewTable.SelectedDatFilter, Mode=TwoWay}" />
+
                 <!-- Checks or unchecks every game of the rows shown; partly checked when only some are -->
                 <CheckBox x:Name="ChkCheckAllShown"
-                          Grid.Column="6"
+                          Grid.Column="8"
                           FontSize="11"
                           MinHeight="24"
                           VerticalAlignment="Center"
@@ -3115,7 +3237,7 @@
 
                 <!-- Number of games checked for the sort (all of them after a simulation), and of those the filters hide -->
                 <TextBlock x:Name="LblCheckedCount"
-                           Grid.Column="8"
+                           Grid.Column="10"
                            FontSize="11"
                            FontWeight="SemiBold"
                            VerticalAlignment="Center"
@@ -3126,7 +3248,7 @@
 
                 <!-- View grouped by game: a header row per game of several files, the 1G1R winner first -->
                 <ToggleButton x:Name="BtnGroupByGame"
-                              Grid.Column="10"
+                              Grid.Column="12"
                               Content="{Binding I18n[panel4.btn_group_by_game]}"
                               ToolTip.Tip="{Binding I18n[panel4.tooltip_group_by_game]}"
                               IsChecked="{Binding PreviewTable.IsGroupedByGame, Mode=TwoWay}"
@@ -3139,7 +3261,7 @@
 
                 <!-- Shown columns: all but the source name and the status can be hidden -->
                 <DropDownButton x:Name="BtnColumns"
-                                Grid.Column="12"
+                                Grid.Column="14"
                                 Content="{Binding I18n[panel4.btn_columns]}"
                                 ToolTip.Tip="{Binding I18n[panel4.tooltip_columns]}"
                                 FontSize="11"
@@ -3158,6 +3280,7 @@
                       <MenuItem x:Name="MenuColumnLanguages" Header="{Binding PreviewTable.Columns[6].Header}" ToggleType="CheckBox" StaysOpenOnClick="True" IsChecked="{Binding PreviewTable.Columns[6].IsVisible, Mode=TwoWay}" />
                       <MenuItem x:Name="MenuColumnCountry" Header="{Binding PreviewTable.Columns[7].Header}" ToggleType="CheckBox" StaysOpenOnClick="True" IsChecked="{Binding PreviewTable.Columns[7].IsVisible, Mode=TwoWay}" />
                       <MenuItem x:Name="MenuColumnTarget" Header="{Binding PreviewTable.Columns[8].Header}" ToggleType="CheckBox" StaysOpenOnClick="True" IsChecked="{Binding PreviewTable.Columns[8].IsVisible, Mode=TwoWay}" />
+                      <MenuItem x:Name="MenuColumnDat" Header="{Binding PreviewTable.Columns[11].Header}" ToggleType="CheckBox" StaysOpenOnClick="True" IsChecked="{Binding PreviewTable.Columns[11].IsVisible, Mode=TwoWay}" />
                       <Separator />
                       <MenuItem x:Name="MenuColumnsReset"
                                 Header="{Binding I18n[panel4.menu_columns_reset]}"
@@ -3227,7 +3350,7 @@
                   <Grid x:Name="GridDetail"
                         IsVisible="{Binding PreviewTable.SelectedPreviewItem, Converter={x:Static ObjectConverters.IsNotNull}}"
                         ColumnDefinitions="Auto,8,*,16,Auto,8,Auto"
-                        RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                        RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                     <!-- The same gap under every line, carried by its texts rather than by spacer rows: a hidden line (no
                          CHD, no MAME set...) then leaves no gap of its own, and the lines stay evenly spaced -->
                     <Grid.Styles>
@@ -3273,6 +3396,13 @@
                       </Border>
                       <SelectableTextBlock x:Name="LblDetailReason" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Top" Text="{Binding PreviewTable.SelectedPreviewItem.StatusReasonText}" />
                     </DockPanel>
+                    <!-- The DAT of a lot the file is sorted with, and the other DATs that know it -->
+                    <TextBlock Grid.Row="9" Grid.Column="0" FontSize="11" FontWeight="SemiBold"
+                               Text="{Binding I18n[panel4.detail_dat]}"
+                               IsVisible="{Binding PreviewTable.SelectedPreviewItem.DetailDatText, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}" />
+                    <SelectableTextBlock x:Name="LblDetailDat" Grid.Row="9" Grid.Column="2" Grid.ColumnSpan="5" FontSize="11" TextWrapping="Wrap"
+                                         Text="{Binding PreviewTable.SelectedPreviewItem.DetailDatText}"
+                                         IsVisible="{Binding PreviewTable.SelectedPreviewItem.DetailDatText, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}" />
                     <!-- What the MAME set holds compared with its machine -->
                     <TextBlock Grid.Row="4" Grid.Column="0" FontSize="11" FontWeight="SemiBold"
                                Text="{Binding I18n[panel4.detail_mame_set]}"
@@ -3566,6 +3696,8 @@
                   <!-- Number of related files: declared last, so that the indexes of the other columns did not change, and
                        shown after the disk column (MainWindow sets its display index) -->
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[10]}" Binding="{Binding RelatedCountText}" Width="100" IsVisible="{Binding PreviewTable.Columns[10].IsVisible}" />
+                  <!-- DAT of a lot each file is sorted with: declared and shown last -->
+                  <DataGridTextColumn Header="{Binding PreviewColumnHeaders[11]}" Binding="{Binding DatDisplay}" Width="160" IsVisible="{Binding PreviewTable.Columns[11].IsVisible}" />
                 </DataGrid.Columns>
               </DataGrid>
             </DockPanel>

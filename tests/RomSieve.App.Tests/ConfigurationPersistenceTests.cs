@@ -252,14 +252,14 @@ public sealed class ConfigurationPersistenceTests
         var path = tmp.WriteText("config.json", """{ "ui_locale": "fr" }""");
 
         var vm = TestMainViewModel.Create(new HeadlessDialogService(), path);
-        vm.PreviewTable.HiddenColumnIds.Should().Equal("crc32", "disk", "publisher", "related");
+        vm.PreviewTable.HiddenColumnIds.Should().Equal("crc32", "disk", "publisher", "related", "dat");
         vm.PreviewTable.IsDetailPanelExpanded.Should().BeFalse();
         vm.PreviewTable.IsGroupedByGame.Should().BeFalse("the flat view is the default");
 
         await vm.SaveConfigurationAsync();
         using var saved = JsonDocument.Parse(await File.ReadAllTextAsync(path));
         saved.RootElement.GetProperty("preview_hidden_columns").EnumerateArray().Select(e => e.GetString())
-            .Should().Equal("crc32", "disk", "publisher", "related");
+            .Should().Equal("crc32", "disk", "publisher", "related", "dat");
         saved.RootElement.GetProperty("preview_columns").EnumerateArray().Select(e => e.GetString())
             .Should().Equal(PreviewTableViewModel.ColumnIds);
         saved.RootElement.GetProperty("preview_detail_expanded").GetBoolean().Should().BeFalse();
@@ -281,7 +281,7 @@ public sealed class ConfigurationPersistenceTests
         await vm.SaveConfigurationAsync();
 
         var reloaded = TestMainViewModel.Create(new HeadlessDialogService(), path);
-        reloaded.PreviewTable.HiddenColumnIds.Should().Equal("disk", "publisher", "date");
+        reloaded.PreviewTable.HiddenColumnIds.Should().Equal("disk", "publisher", "date", "dat");
         reloaded.PreviewTable.Columns[PreviewTableViewModel.RelatedColumnIndex].IsVisible.Should().BeTrue(
             "the column of related files, shown by the user, is in the list of known columns");
         reloaded.PreviewTable.IsDetailPanelExpanded.Should().BeTrue();
@@ -304,7 +304,22 @@ public sealed class ConfigurationPersistenceTests
 
         var vm = TestMainViewModel.Create(new HeadlessDialogService(), path);
 
-        vm.PreviewTable.HiddenColumnIds.Should().Equal("crc32", "disk", "publisher", "related");
+        vm.PreviewTable.HiddenColumnIds.Should().Equal("crc32", "disk", "publisher", "related", "dat");
+    }
+
+    [Fact]
+    public void ColumnOfTheDat_UnknownToTheVersionThatSavedTheColumns_ShouldBeHidden()
+    {
+        // The columns of a version before the lots of DATs: the column of the DAT takes its default visibility
+        using var tmp = new TempDirectoryFixture();
+        var path = tmp.WriteText("config.json", """
+            { "preview_hidden_columns": ["crc32"],
+              "preview_columns": ["source", "crc32", "title", "disk", "publisher", "date", "languages", "country", "target", "status", "related"] }
+            """);
+
+        var vm = TestMainViewModel.Create(new HeadlessDialogService(), path);
+
+        vm.PreviewTable.HiddenColumnIds.Should().Equal("crc32", "dat");
     }
 
     [Fact]

@@ -13,7 +13,10 @@ public enum PatternVariableScope
     Tosec,
 
     /// <summary>MAME machines only, from the category file.</summary>
-    Mame
+    Mame,
+
+    /// <summary>A sort with a DAT: the name of its DAT, or of the DAT of a lot each file is sorted with.</summary>
+    Dat
 }
 
 /// <summary>

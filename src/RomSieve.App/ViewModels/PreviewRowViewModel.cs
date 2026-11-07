@@ -56,6 +56,10 @@ public abstract partial class PreviewRowViewModel : ViewModelBase
     [ObservableProperty]
     private string _relatedCountText = string.Empty;
 
+    /// <summary>Column 11: the DAT of a lot the file is sorted with; empty for a sort with a single DAT, and for a header.</summary>
+    [ObservableProperty]
+    private string _datDisplay = string.Empty;
+
     /// <summary>
     /// Badge of the files transferred with the file of the row, next to its name (<c>+ 3 tracks</c>, <c>+ 1 CHD</c>);
     /// empty without any, and for a header.

@@ -49,26 +49,29 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
     /// <summary>Group of the files without an identified game, always shown last.</summary>
     public const string UnidentifiedGroupKey = "\u0000unidentified";
 
-    public static readonly IReadOnlySet<int> SortablePreviewColumns = new HashSet<int> { 0, 2, 3, 4, 5, 6, 7, 9, 10 };
+    public static readonly IReadOnlySet<int> SortablePreviewColumns = new HashSet<int> { 0, 2, 3, 4, 5, 6, 7, 9, 10, 11 };
 
     /// <summary>
-    /// Names of the 11 columns in <c>config.json</c>, by index. The column of related files came last so that the
-    /// indexes of the others did not change; the view shows it after the disk column.
+    /// Names of the 12 columns in <c>config.json</c>, by index. The columns of related files, then of the DAT, came last
+    /// so that the indexes of the others did not change; the view shows the first after the disk column.
     /// </summary>
     public static readonly IReadOnlyList<string> ColumnIds =
-        ["source", "crc32", "title", "disk", "publisher", "date", "languages", "country", "target", "status", "related"];
+        ["source", "crc32", "title", "disk", "publisher", "date", "languages", "country", "target", "status", "related", "dat"];
 
     /// <summary>Index of the column of related files (tracks, CHDs).</summary>
     public const int RelatedColumnIndex = 10;
+
+    /// <summary>Index of the column of the DAT of a lot each file is sorted with.</summary>
+    public const int DatColumnIndex = 11;
 
     /// <summary>Columns that cannot be hidden: without them, a row cannot be identified.</summary>
     private static readonly IReadOnlySet<string> AlwaysVisibleColumnIds = new HashSet<string> { "source", "status" };
 
     /// <summary>
-    /// Columns hidden by default, rarely useful to decide: CRC32, publisher and disk; and the number of related files,
-    /// which the badge next to the source name already shows.
+    /// Columns hidden by default, rarely useful to decide: CRC32, publisher and disk; the number of related files,
+    /// which the badge next to the source name already shows; and the DAT, empty unless a lot is sorted.
     /// </summary>
-    public static readonly IReadOnlyList<string> DefaultHiddenColumnIds = ["crc32", "disk", "publisher", "related"];
+    public static readonly IReadOnlyList<string> DefaultHiddenColumnIds = ["crc32", "disk", "publisher", "related", "dat"];
 
     public PreviewTableViewModel(
         ILocalizationService localization,
@@ -112,7 +115,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
     // Columns shown, detail panel
     // =========================================================================
 
-    /// <summary>The 11 columns of the table, by index, with their header and visibility.</summary>
+    /// <summary>The 12 columns of the table, by index, with their header and visibility.</summary>
     public IReadOnlyList<PreviewColumnViewModel> Columns { get; }
 
     /// <summary>Columns offered in the columns menu (all but the source name and the status).</summary>
@@ -745,6 +748,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
         AllPreviewItems.ReplaceAll(rows);
         ApplyPreviewSorting();
         HasComparison = true;
+        UpdateDatFilterOptions();
         RefreshFilteredPreviewItems();
     }
 
@@ -763,6 +767,9 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
         IsSortAscending = true;
         SelectedRow = null;
         CriterionFilter = null;
+        DatFilterOptions.ReplaceAll([]);
+        SelectedDatFilter = null;
+        OnPropertyChanged(nameof(HasDatFilter));
     }
 
     public void AddPreviewItem(ProcessItem item, string? destRoot)
@@ -804,6 +811,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
         AllPreviewItems.ReplaceAll(rows);
         PreviewKnownTitles.ReplaceAll(_knownGameTitlesSet.Order(StringComparer.OrdinalIgnoreCase).ToList());
 
+        UpdateDatFilterOptions();
         RefreshFilteredPreviewItems();
     }
 
@@ -895,6 +903,9 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
             RelatedColumnIndex => IsSortAscending
                 ? AllPreviewItems.OrderBy(r => r.RelatedCount)
                 : AllPreviewItems.OrderByDescending(r => r.RelatedCount),
+            DatColumnIndex => IsSortAscending
+                ? AllPreviewItems.OrderBy(r => r.DatDisplay, StringComparer.OrdinalIgnoreCase)
+                : AllPreviewItems.OrderByDescending(r => r.DatDisplay, StringComparer.OrdinalIgnoreCase),
             _ => AllPreviewItems
         };
 
@@ -1030,8 +1041,10 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
             group.Rows.Add(row);
         }
 
+        // The games of a lot by DAT, then in the current sort; the same title in two DATs is two games
         orderedGroups = orderedGroups
             .OrderBy(g => g.Key == UnidentifiedGroupKey)
+            .ThenBy(g => g.Rows[0].Item.DatName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ThenBy(g => g.SortIndex)
             .ToList();
 
@@ -1266,8 +1279,10 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
         var query = NormalizeSearchText(PreviewSearchText);
         var criterionGames = _criterionGames;
         var criterion = CriterionFilter;
+        var dat = SelectedDatFilter?.Name;
         return row =>
             (statusCount == 0 || activeFilters.Contains(row.StatusValue))
+            && (dat is null || string.Equals(row.Item.DatName, dat, StringComparison.OrdinalIgnoreCase))
             && (criterionGames is null
                 || ((row.Item.Is1G1RWinner || row.Item.EliminatedBy == criterion)
                     && row.Item.Parsed.IsConform
@@ -1277,7 +1292,34 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
             && (string.IsNullOrEmpty(query)
                 || row.SearchTitle.Contains(query, StringComparison.Ordinal)
                 || row.SearchSource.Contains(query, StringComparison.Ordinal)
-                || row.SearchCategory.Contains(query, StringComparison.Ordinal));
+                || row.SearchCategory.Contains(query, StringComparison.Ordinal)
+                || row.SearchDat.Contains(query, StringComparison.Ordinal));
+    }
+
+    // =========================================================================
+    // Filter by DAT
+    // =========================================================================
+
+    /// <summary>The DATs of a lot the files of the run are sorted with, after "every DAT"; that one alone otherwise.</summary>
+    public BulkObservableCollection<DatFilterOption> DatFilterOptions { get; } = [];
+
+    /// <summary>DAT whose files alone are shown; "every DAT" (<see cref="DatFilterOption.Name"/> <c>null</c>) by default.</summary>
+    [ObservableProperty]
+    private DatFilterOption? _selectedDatFilter;
+
+    /// <summary>Whether the run sorted a lot: the filter by DAT then has DATs to offer.</summary>
+    public bool HasDatFilter => DatFilterOptions.Count > 1;
+
+    partial void OnSelectedDatFilterChanged(DatFilterOption? value) => RefreshFilteredPreviewItems();
+
+    /// <summary>The DATs of the rows, in name order; the DAT chosen stays chosen while the run still has it.</summary>
+    private void UpdateDatFilterOptions()
+    {
+        var chosen = SelectedDatFilter?.Name;
+        var names = AllPreviewItems.Select(r => r.Item.DatName).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase);
+        DatFilterOptions.ReplaceAll([new DatFilterOption(null, _localization.Tr("panel4.dat_filter_all")), .. names.Select(name => new DatFilterOption(name, name))]);
+        SelectedDatFilter = DatFilterOptions.FirstOrDefault(o => string.Equals(o.Name, chosen, StringComparison.OrdinalIgnoreCase)) ?? DatFilterOptions[0];
+        OnPropertyChanged(nameof(HasDatFilter));
     }
 
     public void RebuildColumnHeaders()
@@ -1294,7 +1336,8 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
             "panel4.table_header_country",
             "panel4.table_header_target",
             "panel4.table_header_status",
-            "panel4.table_header_related"
+            "panel4.table_header_related",
+            "panel4.table_header_dat"
         ];
 
         var sortHint = _localization.Tr("panel4.table_header_sort_hint");
@@ -1313,6 +1356,11 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
     public void RefreshTranslations()
     {
         RebuildColumnHeaders();
+        if (DatFilterOptions.Count > 0)
+        {
+            UpdateDatFilterOptions();
+        }
+
         OnPropertyChanged(nameof(ClearAll1G1ROverridesMenuText));
         OnPropertyChanged(nameof(IsolateGameMenuText));
         OnPropertyChanged(nameof(CriterionFilterText));
@@ -1396,4 +1444,10 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
 
         PreviewKnownTitles.Insert(low, title);
     }
+}
+
+/// <summary>An entry of the filter by DAT of the table: a DAT of a lot, or every DAT (<see cref="Name"/> <c>null</c>).</summary>
+public sealed record DatFilterOption(string? Name, string Label)
+{
+    public override string ToString() => Label;
 }

@@ -176,7 +176,7 @@ public sealed partial class GuiTests
                     ("MenuVariableYear", "{year}"), ("MenuVariableSystem", "{system}"),
                     ("MenuVariableChipset", "{chipset}"), ("MenuVariableVideo", "{video}"),
                     ("MenuVariableDumpStatus", "{dump_status}"), ("MenuVariableGenre", "{genre}"),
-                    ("MenuVariableCategory", "{category}")
+                    ("MenuVariableCategory", "{category}"), ("MenuVariableDat", "{dat}")
                 };
                 entries.Select(e => e.Tag).Should().BeEquivalentTo(vm.Directories.PatternVariables.Select(v => v.Tag));
                 foreach (var (name, tag) in entries)
