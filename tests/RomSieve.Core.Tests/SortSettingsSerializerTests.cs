@@ -17,6 +17,27 @@ public sealed class SortSettingsSerializerTests
     }
 
     [Fact]
+    public void Clone_ShouldCopyEveryList()
+    {
+        // A list shared with the copy would change the original settings when the copy is edited
+        var settings = new SortSettings { MameExcludedGenres = ["Casino"] };
+        var copy = settings.Clone();
+
+        var lists = typeof(SortSettings).GetProperties()
+            .Where(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
+            .ToList();
+        lists.Should().NotBeEmpty();
+        foreach (var list in lists)
+        {
+            list.GetValue(copy).Should().NotBeSameAs(list.GetValue(settings), list.Name);
+            list.GetValue(copy).Should().BeEquivalentTo(list.GetValue(settings), list.Name);
+        }
+
+        copy.MameExcludedGenres.Add("Quiz");
+        settings.MameExcludedGenres.Should().Equal("Casino");
+    }
+
+    [Fact]
     public void EmptyConfiguration_ShouldGiveTheDefaults()
     {
         var settings = SortSettingsSerializer.Read(new Dictionary<string, object?>());

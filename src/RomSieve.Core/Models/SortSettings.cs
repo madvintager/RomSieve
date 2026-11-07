@@ -142,6 +142,7 @@ public sealed class SortSettings
     public SortSettings Clone()
     {
         var copy = (SortSettings)MemberwiseClone();
+        copy.MameExcludedGenres = [.. MameExcludedGenres];
         copy.PriorityLanguages = [.. PriorityLanguages];
         copy.PriorityCountries = [.. PriorityCountries];
         copy.TosecTiebreakOrder = [.. TosecTiebreakOrder];

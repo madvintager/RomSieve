@@ -144,6 +144,52 @@ public sealed partial class GuiTests
     }
 
     [Fact]
+    public async Task VariableMenu_ShouldHaveAnEntryPerVariable_ThatInsertsIt()
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                vm.Navigation.CurrentStep = WorkflowStep.Output;
+                Settle(window);
+                var insert = window.FindControl<DropDownButton>("BtnInsertVariable")!;
+                insert.Flyout!.ShowAt(insert);
+                Settle(window);
+
+                // An entry bound to the wrong index would insert another variable than the one it names
+                var entries = new (string Name, string Tag)[]
+                {
+                    ("MenuVariableTitle", "{title}"), ("MenuVariableLetter", "{letter}"),
+                    ("MenuVariableCountry", "{country}"), ("MenuVariableLanguage", "{language}"),
+                    ("MenuVariableVersion", "{version}"), ("MenuVariablePublisher", "{publisher}"),
+                    ("MenuVariableYear", "{year}"), ("MenuVariableSystem", "{system}"),
+                    ("MenuVariableChipset", "{chipset}"), ("MenuVariableVideo", "{video}"),
+                    ("MenuVariableDumpStatus", "{dump_status}"), ("MenuVariableGenre", "{genre}"),
+                    ("MenuVariableCategory", "{category}")
+                };
+                entries.Select(e => e.Tag).Should().BeEquivalentTo(vm.Directories.PatternVariables.Select(v => v.Tag));
+                foreach (var (name, tag) in entries)
+                {
+                    var variable = vm.Directories.PatternVariables.Single(v => v.Tag == tag);
+                    var entry = window.FindControl<MenuItem>(name);
+                    entry.Should().NotBeNull(name);
+                    entry!.Header.Should().Be(variable.Label, name);
+                    entry.Command.Should().BeSameAs(variable.InsertCommand, name);
+                }
+
+                insert.Flyout.Hide();
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
     public async Task TransferModes_ShouldBeAListThatSaysWhatEachModeDoes()
     {
         await RunOnUiThreadAsync(() =>
