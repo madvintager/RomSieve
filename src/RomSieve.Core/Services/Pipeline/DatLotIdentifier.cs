@@ -161,16 +161,7 @@ public sealed class DatLotIdentifier
         }
 
         var otherDats = _lot.Dats!.Select(d => d.Name).Where(others.Contains).ToList();
-        foreach (var it in item.RelatedItems.Prepend(item))
-        {
-            it.DatName = dat;
-            it.OtherDats = otherDats;
-            if (tagsDats && it.Parsed.IsConform)
-            {
-                // The same title in two DATs makes two games (GameKeyService)
-                it.Parsed = it.Parsed with { DatKey = dat };
-            }
-        }
+        AssignDat(item, dat, otherDats, tagsDats);
 
         if (otherDats.Count > 0)
         {
@@ -182,6 +173,24 @@ public sealed class DatLotIdentifier
         }
 
         return item;
+    }
+
+    /// <summary>
+    /// Sorts an item and its companion files with the DAT <paramref name="dat"/> of a lot: its name, the other DATs that
+    /// know it, and, when the lot has several DATs (<paramref name="tagsDats"/>), the DAT in its game key, the same title
+    /// in two DATs making two games (<see cref="ParsedRomName.DatKey"/>).
+    /// </summary>
+    internal static void AssignDat(ProcessItem item, string dat, IReadOnlyList<string> otherDats, bool tagsDats)
+    {
+        foreach (var it in item.RelatedItems.Prepend(item))
+        {
+            it.DatName = dat;
+            it.OtherDats = otherDats;
+            if (tagsDats && it.Parsed.IsConform)
+            {
+                it.Parsed = it.Parsed with { DatKey = dat };
+            }
+        }
     }
 
     /// <summary>

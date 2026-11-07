@@ -469,7 +469,8 @@ public sealed class ExportViewModelTests : IDisposable
         Func<SortConfig> buildConfig,
         Func<bool> canExportCatalogDat,
         Lock logLock,
-        bool softwareLists = false) =>
+        bool softwareLists = false,
+        bool lot = false) =>
         new(
             _services.Processor,
             _dialogService,
@@ -491,7 +492,8 @@ public sealed class ExportViewModelTests : IDisposable
             },
             buildConfig,
             canExportCatalogDat,
-            isSoftwareListDat: () => softwareLists);
+            isFolderDat: () => softwareLists || lot,
+            isDatLot: () => lot);
 
     [Fact]
     public void CanExportCatalogDat_ShouldNeedADatButNoRun()
@@ -767,6 +769,96 @@ public sealed class ExportViewModelTests : IDisposable
 
         vm.CancelExportCommand.Execute(null);
         await export.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    // A lot of two DATs: a Logiqx XML one and a CLRMAMEPRO one, each written back in its format
+    private string WriteLotFolder()
+    {
+        var folder = _temp.CreateSubdirectory("lot");
+        File.WriteAllText(Path.Combine(folder, "gb.dat"), """
+            <?xml version="1.0"?>
+            <datafile>
+            	<header><name>Nintendo - Game Boy</name><homepage>No-Intro</homepage></header>
+            	<game name="Tetris (World)"><description>Tetris (World)</description><rom name="Tetris (World).gb" size="9" crc="5bac4a9e"/></game>
+            	<game name="Alleyway (World)"><description>Alleyway (World)</description><rom name="Alleyway (World).gb" size="11" crc="12345678"/></game>
+            </datafile>
+            """);
+        File.WriteAllText(Path.Combine(folder, "gbc.dat"), """
+            clrmamepro ( name "Nintendo - Game Boy Color" homepage "No-Intro" )
+            game ( name "Tetris DX (World)" description "Tetris DX (World)" rom ( name "Tetris DX (World).gbc" size 12 crc 87654321 ) )
+            """);
+        return folder;
+    }
+
+    [Fact]
+    public async Task ExportCatalogDatAsync_OfALot_ShouldWriteADatPerDatInItsFormatAtTheRootOfTheFolderChosen()
+    {
+        var lot = WriteLotFolder();
+        var folder = _temp.CreateSubdirectory("romvault_lot");
+        _dialogService.NextPickedFolder = folder;
+        var vm = CreateCatalogExportViewModel(
+            () => new SortConfig { SourceDir = string.Empty, DestinationDir = string.Empty, DatFile = lot },
+            () => true,
+            new Lock(),
+            lot: true);
+
+        await vm.ExportCatalogDatAsync();
+
+        _dialogService.PickedFolderTitles.Should().Equal(_services.I18n.Tr("dialog.export_dat_folder_title"));
+        Directory.GetFiles(folder).Select(Path.GetFileName).Should().BeEquivalentTo(
+            "Nintendo - Game Boy (RomSieve).xml", "Nintendo - Game Boy Color (RomSieve).dat");
+        _dialogService.InfoDialogs.Should().ContainSingle().Which.Message.Should().Contain(folder);
+    }
+
+    [Fact]
+    public async Task ExportCatalogDatAsync_IntoTheFolderOfTheLot_ShouldBeRefused()
+    {
+        var lot = WriteLotFolder();
+        _dialogService.NextPickedFolder = lot;
+        var vm = CreateCatalogExportViewModel(
+            () => new SortConfig { SourceDir = string.Empty, DestinationDir = string.Empty, DatFile = lot },
+            () => true,
+            new Lock(),
+            lot: true);
+
+        await vm.ExportCatalogDatAsync();
+
+        Directory.GetFiles(lot).Select(Path.GetFileName).Should().BeEquivalentTo("gb.dat", "gbc.dat");
+        _dialogService.ErrorDialogs.Should().ContainSingle().Which.Message.Should().Contain(lot);
+    }
+
+    [Fact]
+    public async Task ExportMissListAsync_OfALotAsAFixDat_ShouldWriteAFixDatPerDatIntoTheFolderOfTheFileChosen()
+    {
+        var lot = WriteLotFolder();
+        var source = _temp.CreateSubdirectory("lot_source");
+        File.WriteAllText(Path.Combine(source, "tetris.gb"), "TETRIS GB");
+        var crc = System.IO.Hashing.Crc32.HashToUInt32(System.Text.Encoding.UTF8.GetBytes("TETRIS GB")).ToString("x8");
+        File.WriteAllText(Path.Combine(lot, "gb.dat"), File.ReadAllText(Path.Combine(lot, "gb.dat")).Replace("5bac4a9e", crc, StringComparison.Ordinal));
+        var result = await _services.Processor.ExecuteAsync(
+            new SortConfig { SourceDir = source, DestinationDir = _temp.GetFilePath("lot_dst"), DatFile = lot },
+            isDryRun: true);
+        var output = _temp.CreateSubdirectory("fixdats");
+        _dialogService.PickSaveFileHandler = (_, _, _, _) => Path.Combine(output, "miss_list.xml");
+        var vm = new ExportViewModel(
+            _services.Processor,
+            _dialogService,
+            _services.I18n,
+            () => result.Items,
+            () => result.Stats,
+            () => result.DatCatalog,
+            () => result.MissingRoms,
+            () => true,
+            () => true,
+            () => true,
+            (lvl, msg) => _logs.Add((lvl, msg)));
+
+        await vm.ExportMissListAsync();
+
+        // The Game Boy Color DAT has no game found: no fixdat, said in the log
+        Directory.GetFiles(output).Select(Path.GetFileName).Should().Equal("fixDat_Nintendo - Game Boy.xml");
+        _logs.Should().Contain((LogLevel.Info, LocalizedMessage.Create("log.dat_lot_export_scope", ("complete", 0), ("nothing", 1))));
+        _dialogService.InfoDialogs.Should().ContainSingle().Which.Message.Should().Contain(output);
     }
 
     private sealed class TestDialogService : IDialogService

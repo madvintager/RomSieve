@@ -193,6 +193,12 @@ public sealed class DatHeader
     /// <c>null</c> for a DAT built in memory.
     /// </summary>
     public string? SourceFile { get; set; }
+
+    /// <summary>
+    /// Whether the DAT was read from a CLRMAMEPRO file rather than a Logiqx XML one: the exports of a lot in the format of
+    /// each DAT (<see cref="DatExportFormat.Auto"/>) write it in that format.
+    /// </summary>
+    public bool IsClrMameProSource { get; set; }
 }
 
 /// <summary>
@@ -700,6 +706,21 @@ public sealed partial class DatCatalog
     public bool IsSoftwareListCatalog => SoftwareLists is not null || Header.Convention == NamingConvention.MameSoftwareList;
 
     /// <summary>
+    /// Whether the DATs exported from this catalog are written into a folder, a DAT per file at its root: the catalog
+    /// holds MAME software lists (<see cref="IsSoftwareListCatalog"/>), or is a lot of DATs (<see cref="Dats"/>).
+    /// </summary>
+    public bool IsFolderCatalog => IsSoftwareListCatalog || Dats is not null;
+
+    /// <summary>
+    /// Folder the lot of DATs was read from (<see cref="Abstractions.IDatService.ParseDatFileAsync(string, DatFolderOptions, CancellationToken)"/>),
+    /// where no DAT is exported: the next sort would read it as a DAT of the lot; <c>null</c> for any other catalog.
+    /// </summary>
+    public string? LotFolder { get; set; }
+
+    /// <summary>Games of the catalog, or of all the DATs of a lot.</summary>
+    public int GameCount => Dats?.Sum(dat => dat.Catalog.Games.Count) ?? Games.Count;
+
+    /// <summary>
     /// Whether <paramref name="path"/> is a file this catalog, one of its software lists or a DAT of its lot, was read from
     /// (<see cref="DatHeader.SourceFile"/>, <see cref="DatHeader.SoftwareListFile"/>): an export written there would
     /// replace the DAT by a part of it.
@@ -1016,6 +1037,7 @@ public sealed partial class DatCatalog
     /// its set. Never-dumped ROMs are not counted; disks are.
     /// </summary>
     public int CountFiles() =>
+        Dats is { } dats ? dats.Sum(dat => dat.Catalog.CountFiles()) :
         Games.Sum(game => game.Roms
             .Where(r => r.Status != DatRomStatus.NoDump)
             .Select(r => (r.IsDisk, Name: r.Name.ToLowerInvariant()))

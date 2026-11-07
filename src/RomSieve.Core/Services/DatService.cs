@@ -1426,7 +1426,9 @@ public sealed partial class DatService : IDatService
             content = await File.ReadAllTextAsync(path, Encoding.Latin1, cancellationToken).ConfigureAwait(false);
         }
 
-        return ParseClrMameProText(content);
+        var clrMamePro = ParseClrMameProText(content);
+        clrMamePro.Header.IsClrMameProSource = true;
+        return clrMamePro;
     }
 
     // DATs of a folder read at the same time
@@ -1579,7 +1581,9 @@ public sealed partial class DatService : IDatService
             throw new DatFolderException(LocalizedMessage.Create("dat.folder_mame_machines", ("file", mame.RelativePath)));
         }
 
-        return DatCatalog.GatherLot(members, folderName);
+        var lot = DatCatalog.GatherLot(members, folderName);
+        lot.LotFolder = Path.GetFullPath(folder);
+        return lot;
     }
 
     /// <summary>

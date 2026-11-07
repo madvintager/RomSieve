@@ -34,7 +34,8 @@ public sealed partial class ExportViewModel : ViewModelBase
     private readonly Func<SortConfig>? _buildConfig;
     private readonly Func<bool> _canExportCatalogDat;
     private readonly Func<IReadOnlyCollection<ProcessItem>?> _getCheckedItems;
-    private readonly Func<bool> _isSoftwareListDat;
+    private readonly Func<bool> _isFolderDat;
+    private readonly Func<bool> _isDatLot;
     private CancellationTokenSource? _exportCancellation;
     private LocalizedMessage? _exportStep;
     private int _exportCurrent;
@@ -55,9 +56,11 @@ public sealed partial class ExportViewModel : ViewModelBase
         Func<SortConfig>? buildConfig = null,
         Func<bool>? canExportCatalogDat = null,
         Func<IReadOnlyCollection<ProcessItem>?>? getCheckedItems = null,
-        Func<bool>? isSoftwareListDat = null)
+        Func<bool>? isFolderDat = null,
+        Func<bool>? isDatLot = null)
     {
-        _isSoftwareListDat = isSoftwareListDat ?? (() => false);
+        _isFolderDat = isFolderDat ?? (() => false);
+        _isDatLot = isDatLot ?? (() => false);
         _buildConfig = buildConfig;
         _canExportCatalogDat = canExportCatalogDat ?? (() => false);
         _getCheckedItems = getCheckedItems ?? (() => null);
@@ -262,17 +265,19 @@ public sealed partial class ExportViewModel : ViewModelBase
             return;
         }
 
-        // The DATs of MAME software lists go into a folder, a DAT per list at its root, in the format of their source
-        var softwareLists = datCatalog?.IsSoftwareListCatalog == true;
-        var (path, fmt) = softwareLists
-            ? (await PickSoftwareListFolderAsync(), DatExportFormat.LogiqxXml)
+        // The DATs of MAME software lists and of a lot go into a folder, a DAT per list or per DAT at its root, in the
+        // format of their source
+        var inFolder = datCatalog?.IsFolderCatalog == true;
+        var isLot = datCatalog?.Dats is not null;
+        var (path, fmt) = inFolder
+            ? (await PickDatFolderAsync(isLot), isLot ? DatExportFormat.Auto : DatExportFormat.LogiqxXml)
             : await PickDatFileAsync(_localization.Tr("dialog.export_dat_title"), "collection_filtree.xml");
         if (path is null)
         {
             return;
         }
 
-        var existingDats = softwareLists ? DatService.GetDatFiles(path) : null;
+        var existingDats = inFolder ? DatService.GetDatFiles(path) : null;
 
         using var cancellation = new CancellationTokenSource();
         _exportCancellation = cancellation;
@@ -295,7 +300,7 @@ public sealed partial class ExportViewModel : ViewModelBase
                 cancellationToken: cancellation.Token));
 
             EndExport();
-            ReportUntouchedDats(path, existingDats);
+            ReportUntouchedDats(path, existingDats, isLot);
             _log(LogLevel.Ok, LocalizedMessage.Create("dialog.export_dat_success",
                 ("count", exportedCatalog.CountFiles()),
                 ("path", path)));
@@ -339,20 +344,22 @@ public sealed partial class ExportViewModel : ViewModelBase
         // The options of the moment: a change made while the export runs is for the next one
         var config = _buildConfig();
 
-        // The DATs of MAME software lists go into a folder, a DAT per list at its root, in the format of their source
-        var softwareLists = _isSoftwareListDat();
+        // The DATs of MAME software lists and of a lot go into a folder, a DAT per list or per DAT at its root, in the
+        // format of their source
+        var inFolder = _isFolderDat();
+        var isLot = inFolder && _isDatLot();
         var suggestedName = string.IsNullOrWhiteSpace(config.DatFile)
             ? "catalog.xml"
             : Path.GetFileNameWithoutExtension(config.DatFile) + DatCatalog.FilteredDatSuffix + ".xml";
-        var (path, fmt) = softwareLists
-            ? (await PickSoftwareListFolderAsync(), DatExportFormat.LogiqxXml)
+        var (path, fmt) = inFolder
+            ? (await PickDatFolderAsync(isLot), isLot ? DatExportFormat.Auto : DatExportFormat.LogiqxXml)
             : await PickDatFileAsync(_localization.Tr("dialog.export_catalog_dat_title"), suggestedName);
         if (path is null)
         {
             return;
         }
 
-        var existingDats = softwareLists ? DatService.GetDatFiles(path) : null;
+        var existingDats = inFolder ? DatService.GetDatFiles(path) : null;
 
         using var cancellation = new CancellationTokenSource();
         _exportCancellation = cancellation;
@@ -383,7 +390,7 @@ public sealed partial class ExportViewModel : ViewModelBase
                 return;
             }
 
-            ReportUntouchedDats(path, existingDats);
+            ReportUntouchedDats(path, existingDats, isLot);
             _log(LogLevel.Ok, LocalizedMessage.Create("log.catalog_dat_exported",
                 ("kept", result.KeptCount),
                 ("total", result.CandidateCount),
@@ -439,12 +446,13 @@ public sealed partial class ExportViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// The folder where the DATs of MAME software lists are written, a DAT per list at its root, where MAME and a ROM
-    /// manager look for them; a folder that already holds DATs is confirmed first. Null when cancelled.
+    /// The folder where the DATs of MAME software lists, or of a lot (<paramref name="isLot"/>), are written, a DAT per
+    /// list or per DAT at its root, where MAME and a ROM manager look for them; a folder that already holds DATs is
+    /// confirmed first. Null when cancelled.
     /// </summary>
-    private async Task<string?> PickSoftwareListFolderAsync()
+    private async Task<string?> PickDatFolderAsync(bool isLot)
     {
-        var folder = await _dialogService.PickFolderAsync(_localization.Tr("dialog.export_softlist_dat_title"));
+        var folder = await _dialogService.PickFolderAsync(_localization.Tr(isLot ? "dialog.export_dat_folder_title" : "dialog.export_softlist_dat_title"));
         if (string.IsNullOrWhiteSpace(folder))
         {
             return null;
@@ -463,7 +471,7 @@ public sealed partial class ExportViewModel : ViewModelBase
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localization.Tr("dialog.export_softlist_existing_title"),
             _localization.Tr(
-                "dialog.export_softlist_existing",
+                isLot ? "dialog.export_dat_folder_existing" : "dialog.export_softlist_existing",
                 ("path", folder),
                 ("count", existing.Count),
                 ("names", _localization.Format(MameSetDependencies.FormatNames(existing)))));
@@ -471,7 +479,7 @@ public sealed partial class ExportViewModel : ViewModelBase
     }
 
     // The DATs of the folder that the export did not replace stay there, and a ROM manager reads them too
-    private void ReportUntouchedDats(string folder, IReadOnlyDictionary<string, DateTime>? before)
+    private void ReportUntouchedDats(string folder, IReadOnlyDictionary<string, DateTime>? before, bool isLot)
     {
         if (before is null || DatService.GetUntouchedDatFiles(before) is not { Count: > 0 } untouched)
         {
@@ -479,10 +487,19 @@ public sealed partial class ExportViewModel : ViewModelBase
         }
 
         _log(LogLevel.Warn, LocalizedMessage.Create(
-            "log.export_softlist_untouched",
+            isLot ? "log.export_dat_folder_untouched" : "log.export_softlist_untouched",
             ("count", untouched.Count),
             ("path", folder),
             ("names", MameSetDependencies.FormatNames(untouched))));
+    }
+
+    // The DATs of a lot the Miss List and the fixdat leave out: complete, or without any game found
+    private void ReportLotExportScope()
+    {
+        if (_getStats()?.DescribeLotExportScope() is { } scope)
+        {
+            _log(LogLevel.Info, scope);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanExportMissList))]
@@ -516,18 +533,19 @@ public sealed partial class ExportViewModel : ViewModelBase
         {
             if (path.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
             {
-                // Fixdat: a standard DAT of the missing ROMs, for other ROM managers; those of MAME software lists go
-                // into the folder of the file chosen, a fixdat per list
-                var writtenPath = datCatalog.IsSoftwareListCatalog ? Path.GetDirectoryName(path) ?? path : path;
+                // Fixdat: a standard DAT of the missing ROMs, for other ROM managers; those of MAME software lists and
+                // of a lot go into the folder of the file chosen, a fixdat per list or per DAT
+                var writtenPath = datCatalog.IsFolderCatalog ? Path.GetDirectoryName(path) ?? path : path;
                 var fixDat = await _processorService.ExportFixDatAsync(missingRoms, datCatalog, writtenPath);
+                ReportLotExportScope();
                 _log(LogLevel.Ok, LocalizedMessage.Create("dialog.export_fixdat_success",
-                    ("games", fixDat.Games.Count),
+                    ("games", fixDat.GameCount),
                     ("count", fixDat.CountFiles()),
                     ("path", writtenPath)));
                 await _dialogService.ShowInfoAsync(
                     _localization.Tr("dialog.export_success_title"),
                     _localization.Tr("dialog.export_fixdat_success",
-                        ("games", fixDat.Games.Count),
+                        ("games", fixDat.GameCount),
                         ("count", fixDat.CountFiles()),
                         ("path", writtenPath)));
                 return;
@@ -547,6 +565,7 @@ public sealed partial class ExportViewModel : ViewModelBase
                 await _processorService.ExportMissListToTxtAsync(missingRoms, datCatalog, path);
             }
 
+            ReportLotExportScope();
             _log(LogLevel.Ok, LocalizedMessage.Create("dialog.export_miss_list_success",
                 ("count", missingRoms.Count),
                 ("path", path)));

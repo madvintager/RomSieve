@@ -195,8 +195,9 @@ public sealed partial class MainViewModel : ViewModelBase
             // While some games are unchecked, the DAT of the collection describes what the sort of the selection writes
             () => PartialSort.CheckedWrittenItems,
 
-            // Only software lists come as a folder of DATs
-            () => Directories.EffectiveConvention == NamingConvention.MameSoftwareList || Directory.Exists(Directories.DatFilePath));
+            // MAME software lists and a lot of DATs export a folder of DATs; a folder of DATs that are not software lists is a lot
+            () => Directories.EffectiveConvention == NamingConvention.MameSoftwareList || Directory.Exists(Directories.DatFilePath),
+            () => Directories.EffectiveConvention != NamingConvention.MameSoftwareList && Directory.Exists(Directories.DatFilePath));
 
         Profiles = new ProfilesViewModel(
             _configService,

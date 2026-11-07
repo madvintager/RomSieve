@@ -62,6 +62,24 @@ public sealed class ProcessStats
     /// for a sort with a single DAT or none.
     /// </summary>
     public IReadOnlyList<DatLotStats>? PerDat { get; set; }
+
+    /// <summary>
+    /// What the Miss List and the fixdat of a lot leave out: the DATs complete, and those without any game found, whose
+    /// ROMs all are missing; <c>null</c> for a sort with a single DAT, or when the lot leaves nothing out.
+    /// </summary>
+    public LocalizedMessage? DescribeLotExportScope()
+    {
+        if (PerDat is not { } dats)
+        {
+            return null;
+        }
+
+        var complete = dats.Count(d => d.GamesFound > 0 && d.MissingCount == 0);
+        var nothingFound = dats.Count(d => d.GamesFound == 0);
+        return complete + nothingFound == 0
+            ? null
+            : LocalizedMessage.Create("log.dat_lot_export_scope", ("complete", complete), ("nothing", nothingFound));
+    }
 }
 
 /// <summary>
@@ -112,6 +130,6 @@ public sealed record CatalogSelectionResult(
     /// <summary>Games of the catalog that a file of a collection could stand for (a game with ROMs or disks to dump).</summary>
     public int CandidateCount => Items.Count;
 
-    /// <summary>Games written in the filtered DAT.</summary>
-    public int KeptCount => FilteredDat.Games.Count;
+    /// <summary>Games written in the filtered DAT, in all its DATs for a lot.</summary>
+    public int KeptCount => FilteredDat.GameCount;
 }

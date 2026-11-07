@@ -216,7 +216,9 @@ public sealed class SortProcessorService : ISortProcessorService
             gameMatchedRoms = classifier.GameMatchedRoms;
         }
 
-        SelectReleases(config, itemsToProcess, datCatalog, gameMatchedRoms, progress, Log, lotIdentifier);
+        SelectReleases(config, itemsToProcess, datCatalog, gameMatchedRoms, progress, Log, lotIdentifier is null
+            ? null
+            : name => lotIdentifier.ClassifierFor(name)?.GameMatchedRoms);
 
         // The selection of a partial sort only filters the transfers: the releases are chosen on the whole collection
         if (selection is not null)
@@ -500,19 +502,20 @@ public sealed class SortProcessorService : ISortProcessorService
         IReadOnlyDictionary<string, HashSet<string>> gameMatchedRoms,
         IProgress<SortProgress>? progress,
         Action<LogLevel, LocalizedMessage> log,
-        DatLotIdentifier? lot = null)
+        Func<string, IReadOnlyDictionary<string, HashSet<string>>?>? gameMatchedRomsOfDat = null)
     {
         ReportStep(progress, LocalizedMessage.Create("progress.selecting_releases"));
         var releaseSelector = new ReleaseSelector(config, _filterService, _i18n);
-        if (lot is not null)
+        if (datCatalog?.Dats is not null)
         {
             // A lot: the releases of each DAT are selected with its catalog and its files, never with another DAT's
             foreach (var (datItems, datName) in GroupByDat(items))
             {
                 releaseSelector.Select(
                     datItems,
-                    datCatalog?.DatFor(datName),
-                    lot.ClassifierFor(datName)?.GameMatchedRoms ?? new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase));
+                    datName is null ? null : datCatalog.DatFor(datName),
+                    (datName is null ? null : gameMatchedRomsOfDat?.Invoke(datName))
+                    ?? new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase));
             }
         }
         else
@@ -601,7 +604,16 @@ public sealed class SortProcessorService : ISortProcessorService
         ReportStep(progress, LocalizedMessage.Create("progress.reading_catalog_games"));
         List<ProcessItem> items;
         IReadOnlyDictionary<string, HashSet<string>> gameMatchedRoms;
-        if (datCatalog.SoftwareLists is not null)
+        Func<string, IReadOnlyDictionary<string, HashSet<string>>?>? gameMatchedRomsOfDat = null;
+        if (datCatalog.Dats is { } dats)
+        {
+            // A lot: the games of each DAT, as the classification of a complete collection named after it gives them
+            var matchedByDat = new Dictionary<string, IReadOnlyDictionary<string, HashSet<string>>>(StringComparer.OrdinalIgnoreCase);
+            items = ClassifyLotCatalog(config, dats, matchedByDat, cancellationToken);
+            gameMatchedRoms = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            gameMatchedRomsOfDat = matchedByDat.GetValueOrDefault;
+        }
+        else if (datCatalog.SoftwareLists is not null)
         {
             // Several software lists: the software of each list, in its own catalog
             items = new SoftwareListIdentifier(
@@ -627,7 +639,7 @@ public sealed class SortProcessorService : ISortProcessorService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        SelectReleases(config, items, datCatalog, gameMatchedRoms, progress, Log);
+        SelectReleases(config, items, datCatalog, gameMatchedRoms, progress, Log, gameMatchedRomsOfDat);
 
         var filteredDat = CreateFilteredDat(datCatalog, items.Where(it => it.Status == FileStatus.Valid).ToList());
         var result = new CatalogSelectionResult(datCatalog, items, filteredDat);
@@ -662,11 +674,53 @@ public sealed class SortProcessorService : ISortProcessorService
     }
 
     /// <summary>
+    /// Items of the games of every DAT of a lot (<see cref="EntryClassifier.ClassifyCatalog"/>), each with its DAT as a
+    /// sort gives it; the found ROMs of the games of each DAT go to <paramref name="matchedByDat"/>. Every DAT is read: the
+    /// catalog is the only input.
+    /// </summary>
+    private List<ProcessItem> ClassifyLotCatalog(
+        SortConfig config,
+        IReadOnlyList<DatLotMember> dats,
+        Dictionary<string, IReadOnlyDictionary<string, HashSet<string>>> matchedByDat,
+        CancellationToken cancellationToken)
+    {
+        var items = new List<ProcessItem>();
+        foreach (var dat in dats)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var classifier = new EntryClassifier(
+                config, dat.Catalog, _crcCache, _checksumService, _romParser, _filterService, _i18n, _opticalService);
+            foreach (var item in classifier.ClassifyCatalog(cancellationToken))
+            {
+                DatLotIdentifier.AssignDat(item, dat.Name, [], tagsDats: dats.Count >= 2);
+                items.Add(item);
+            }
+
+            matchedByDat[dat.Name] = classifier.GameMatchedRoms;
+        }
+
+        return items;
+    }
+
+    /// <summary>
     /// Filtered DAT of the games of <paramref name="kept"/>: of each software list, when the catalog gathers several
-    /// (a software is only named in its list), gathered as the catalog.
+    /// (a software is only named in its list), gathered as the catalog; of each DAT of a lot with a game kept, as a lot.
     /// </summary>
     private static DatCatalog CreateFilteredDat(DatCatalog catalog, IReadOnlyCollection<ProcessItem> kept)
     {
+        if (catalog.Dats is { } dats)
+        {
+            var keptByDat = kept
+                .Where(it => it.DatName is not null && it.DatGameName is not null)
+                .GroupBy(it => it.DatName!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Select(it => it.DatGameName!).ToList(), StringComparer.OrdinalIgnoreCase);
+            return DatCatalog.GatherLot(
+                dats.Where(dat => keptByDat.ContainsKey(dat.Name))
+                    .Select(dat => dat with { Catalog = dat.Catalog.CreateFilteredDat(keptByDat[dat.Name]) })
+                    .ToList(),
+                catalog.Header.Name + DatCatalog.FilteredDatSuffix);
+        }
+
         if (catalog.SoftwareLists is not { } lists)
         {
             var dat = catalog.CreateFilteredDat(kept.Select(it => it.DatGameName).OfType<string>());
@@ -701,7 +755,9 @@ public sealed class SortProcessorService : ISortProcessorService
     /// folder <paramref name="outputPath"/>, a DAT per list at its root (<c>megadriv.xml</c>, or
     /// <c>fixDat_megadriv.xml</c> for a <paramref name="fixDat"/>), as MAME and a ROM manager look for them; a list read
     /// from a file of MAME (<see cref="DatHeader.SoftwareListFile"/>) in MAME's own format, any other in Logiqx XML,
-    /// whatever <paramref name="format"/>. No DAT is ever written over a file the catalog was read from.
+    /// whatever <paramref name="format"/>. The DATs of a lot (<see cref="DatCatalog.Dats"/> of <paramref name="dat"/>) are
+    /// written into the folder <paramref name="outputPath"/> too (<see cref="WriteLotDatsAsync"/>). No DAT is ever written
+    /// over a file the catalog was read from.
     /// </summary>
     private async Task WriteDatAsync(
         DatCatalog dat,
@@ -712,6 +768,12 @@ public sealed class SortProcessorService : ISortProcessorService
         bool fixDat = false)
     {
         var catalog = source ?? dat;
+        if (dat.Dats is { } lotDats)
+        {
+            await WriteLotDatsAsync(lotDats, outputPath, format, catalog, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (!catalog.IsSoftwareListCatalog)
         {
             RefuseSourceOverwrite(outputPath, catalog);
@@ -753,6 +815,102 @@ public sealed class SortProcessorService : ISortProcessorService
                 await list.WriteLogiqxXmlAsync(path, cancellationToken).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>
+    /// Writes the DATs of a lot into the folder <paramref name="outputFolder"/>, a file per DAT at its root (flat, whatever
+    /// the folders of the lot), named after its header: in Logiqx XML (<c>.xml</c>) or CLRMAMEPRO (<c>.dat</c>) as
+    /// <paramref name="format"/> says, <see cref="DatExportFormat.Auto"/> taking the format of the DAT of the lot it comes
+    /// from (<see cref="DatHeader.IsClrMameProSource"/>). Every path is checked before the first DAT is written; the folder
+    /// of the lot read is refused, since the next sort would read the DATs exported there.
+    /// </summary>
+    private async Task WriteLotDatsAsync(
+        IReadOnlyList<DatLotMember> dats,
+        string outputFolder,
+        DatExportFormat format,
+        DatCatalog source,
+        CancellationToken cancellationToken)
+    {
+        RefuseLotFolder(outputFolder, source);
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var targets = new List<(DatCatalog Dat, string Path, bool ClrMamePro)>(dats.Count);
+        foreach (var dat in dats)
+        {
+            var clrMamePro = format switch
+            {
+                DatExportFormat.ClrMamePro => true,
+                DatExportFormat.Auto => source.DatFor(dat.Name)?.Header.IsClrMameProSource == true,
+                _ => false
+            };
+            var extension = clrMamePro ? ".dat" : ".xml";
+            var name = _organizer.SanitizePathSegment(string.IsNullOrWhiteSpace(dat.Catalog.Header.Name) ? dat.Name : dat.Catalog.Header.Name);
+
+            // Two names the sanitization makes the same (a forbidden character, a case) get a number
+            var fileName = name + extension;
+            for (var copy = 2; !names.Add(fileName); copy++)
+            {
+                fileName = $"{name} ({copy}){extension}";
+            }
+
+            var path = Path.Combine(outputFolder, fileName);
+            RefuseSourceOverwrite(path, source);
+            targets.Add((dat.Catalog, path, clrMamePro));
+        }
+
+        Directory.CreateDirectory(outputFolder);
+        foreach (var (dat, path, clrMamePro) in targets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (clrMamePro)
+            {
+                await dat.WriteClrMameProAsync(path, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await dat.WriteLogiqxXmlAsync(path, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Refuses to export DATs into the folder a lot was read from, or into one of its subfolders
+    /// (<see cref="DatCatalog.LotFolder"/>): the next sort would read them as DATs of the lot.
+    /// </summary>
+    private void RefuseLotFolder(string outputFolder, DatCatalog? catalog)
+    {
+        if (catalog?.LotFolder is not { } lotFolder)
+        {
+            return;
+        }
+
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var output = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputFolder));
+        var folder = Path.TrimEndingDirectorySeparator(lotFolder);
+        if (string.Equals(output, folder, comparison) || PathOrganizerService.IsInsideDirectory(output, folder))
+        {
+            throw new InvalidOperationException(_i18n.Tr("export.inside_dat_folder", ("path", outputFolder), ("folder", lotFolder)));
+        }
+    }
+
+    /// <summary>
+    /// The missing ROMs of each DAT of a lot, in the order of the lot: only the DATs with ROMs missing and a game found.
+    /// A DAT none of whose ROMs is present is left out, whatever the list given: its Miss List would be the whole DAT.
+    /// Every DAT of the lot is gone through (the DATs loaded, once they are loaded on demand).
+    /// </summary>
+    private static List<(DatLotMember Dat, List<DatRomEntry> Missing)> GroupMissingByDat(IReadOnlyList<DatLotMember> dats, IEnumerable<DatRomEntry> missingRoms)
+    {
+        var missing = new HashSet<DatRomEntry>(missingRoms, ReferenceEqualityComparer.Instance);
+        var groups = new List<(DatLotMember Dat, List<DatRomEntry> Missing)>();
+        foreach (var dat in dats)
+        {
+            var datMissing = dat.Catalog.Entries.Where(missing.Contains).ToList();
+            if (datMissing.Count > 0 && datMissing.Count < dat.Catalog.Entries.Count)
+            {
+                groups.Add((dat, datMissing));
+            }
+        }
+
+        return groups;
     }
 
     /// <summary>
@@ -931,9 +1089,10 @@ public sealed class SortProcessorService : ISortProcessorService
     }
 
     /// <summary>
-    /// Statistics of a lot of DATs: the totals of its DATs, and what was found of each of them
-    /// (<see cref="ProcessStats.PerDat"/>), named in the log for the DATs with a game found. The missing ROMs of every
-    /// DAT, in the order of the lot.
+    /// Statistics of a lot of DATs: the totals of all its DATs, and what was found of each of them
+    /// (<see cref="ProcessStats.PerDat"/>), named in the log for the DATs with a game found. The missing ROMs, in the
+    /// order of the lot, of the DATs with a game found only: a DAT none of whose games is in the source is only counted
+    /// (its Miss List would be the whole DAT), and has no fixdat.
     /// </summary>
     private static List<DatRomEntry> UpdateLotStatistics(ProcessStats stats, DatLotIdentifier lot, Action<LogLevel, LocalizedMessage> log)
     {
@@ -958,7 +1117,10 @@ public sealed class SortProcessorService : ISortProcessorService
                 nameOnly.Count,
                 missing.Count,
                 gamesFound));
-            missingRoms.AddRange(missing);
+            if (gamesFound > 0)
+            {
+                missingRoms.AddRange(missing);
+            }
         }
 
         stats.PerDat = perDat;
@@ -1173,6 +1335,25 @@ public sealed class SortProcessorService : ISortProcessorService
                 json.WriteEndObject();
             }
 
+            // A lot: what was found of each of its DATs
+            if (stats.PerDat is { } perDat)
+            {
+                json.WriteStartArray("dats");
+                foreach (var dat in perDat)
+                {
+                    json.WriteStartObject();
+                    json.WriteString("name", dat.Name);
+                    json.WriteString("convention", dat.Convention.ToConfigString());
+                    json.WriteNumber("total_roms", dat.TotalRoms);
+                    json.WriteNumber("matched_count", dat.MatchedCount + dat.NameMatchedCount);
+                    json.WriteNumber("missing_count", dat.MissingCount);
+                    json.WriteNumber("games_found", dat.GamesFound);
+                    json.WriteEndObject();
+                }
+
+                json.WriteEndArray();
+            }
+
             json.WriteEndObject();
             json.WriteStartArray("files");
             foreach (var item in items)
@@ -1200,6 +1381,11 @@ public sealed class SortProcessorService : ISortProcessorService
                 json.WriteString("winner_reference", item.WinnerReference ?? string.Empty);
                 json.WriteString("target_path", item.FinalTargetPath ?? item.TargetPath ?? string.Empty);
                 json.WriteString("error_message", item.ErrorMessage ?? string.Empty);
+                if (stats.PerDat is not null)
+                {
+                    json.WriteString("dat", item.DatName ?? string.Empty);
+                }
+
                 json.WriteEndObject();
                 if (json.BytesPending > ExportFlushThreshold)
                 {
@@ -1219,18 +1405,21 @@ public sealed class SortProcessorService : ISortProcessorService
         CancellationToken cancellationToken = default) =>
         WriteStreamedExportAsync(outputPath, async stream =>
         {
+            // The files of a lot name their DAT, in a last column
+            var list = items as IReadOnlyCollection<ProcessItem> ?? [.. items];
+            var namesDats = list.Any(it => it.DatName is not null);
             string[] headers =
             [
                 "source_file", "archive_member", "source_path", "crc32", "size_bytes",
                 "is_tosec_conform", "title", "version", "publisher", "date",
                 "system", "video", "country", "language", "dump_status",
                 "status", "status_reason", "is_1g1r_winner", "winner_reference",
-                "target_path", "error_message"
+                "target_path", "error_message", .. namesDats ? new[] { "dat" } : []
             ];
 
             await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), ExportFlushThreshold);
             await writer.WriteLineAsync(string.Join(";", headers)).ConfigureAwait(false);
-            foreach (var item in items)
+            foreach (var item in list)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 string[] row =
@@ -1255,7 +1444,8 @@ public sealed class SortProcessorService : ISortProcessorService
                     item.Is1G1RWinner.ToString(),
                     EscapeCsv(item.WinnerReference ?? string.Empty),
                     EscapeCsv(item.FinalTargetPath ?? item.TargetPath ?? string.Empty),
-                    EscapeCsv(item.ErrorMessage ?? string.Empty)
+                    EscapeCsv(item.ErrorMessage ?? string.Empty),
+                    .. namesDats ? new[] { EscapeCsv(item.DatName ?? string.Empty) } : []
                 ];
                 await writer.WriteLineAsync(string.Join(";", row).AsMemory(), cancellationToken).ConfigureAwait(false);
             }
@@ -1301,23 +1491,41 @@ public sealed class SortProcessorService : ISortProcessorService
     {
         RefuseSourceOverwrite(outputPath, datCatalog);
         var sb = new StringBuilder();
-        sb.AppendLine("game;rom_name;size;crc;md5;sha1");
-        foreach (var r in missingRoms)
+
+        // A lot names the DAT of each ROM, in a first column
+        if (datCatalog.Dats is { } dats)
         {
-            string[] row =
-            [
-                EscapeCsv(MissingGameName(datCatalog, r)),
-                EscapeCsv(r.Name),
-                r.Size.ToString(CultureInfo.InvariantCulture),
-                EscapeCsv(r.Crc),
-                EscapeCsv(r.Md5 ?? string.Empty),
-                EscapeCsv(r.Sha1 ?? string.Empty)
-            ];
-            sb.AppendLine(string.Join(";", row));
+            sb.AppendLine("dat;game;rom_name;size;crc;md5;sha1");
+            foreach (var (dat, missing) in GroupMissingByDat(dats, missingRoms))
+            {
+                foreach (var r in missing)
+                {
+                    sb.AppendLine(string.Join(";", [EscapeCsv(dat.Name), .. MissingRomRow(datCatalog, r)]));
+                }
+            }
+        }
+        else
+        {
+            sb.AppendLine("game;rom_name;size;crc;md5;sha1");
+            foreach (var r in missingRoms)
+            {
+                sb.AppendLine(string.Join(";", MissingRomRow(datCatalog, r)));
+            }
         }
 
         await File.WriteAllTextAsync(outputPath, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), cancellationToken).ConfigureAwait(false);
     }
+
+    // Columns of a missing ROM in the CSV Miss List: its game, its name, its size and checksums
+    private static string[] MissingRomRow(DatCatalog datCatalog, DatRomEntry r) =>
+    [
+        EscapeCsv(MissingGameName(datCatalog, r)),
+        EscapeCsv(r.Name),
+        r.Size.ToString(CultureInfo.InvariantCulture),
+        EscapeCsv(r.Crc),
+        EscapeCsv(r.Md5 ?? string.Empty),
+        EscapeCsv(r.Sha1 ?? string.Empty)
+    ];
 
     // Game of a missing ROM, preceded by its software list when the catalog gathers several
     private static string MissingGameName(DatCatalog catalog, DatRomEntry rom) =>
@@ -1330,6 +1538,12 @@ public sealed class SortProcessorService : ISortProcessorService
         CancellationToken cancellationToken = default)
     {
         RefuseSourceOverwrite(outputPath, datCatalog);
+        if (datCatalog.Dats is { } dats)
+        {
+            await File.WriteAllTextAsync(outputPath, LotMissListText(datCatalog, GroupMissingByDat(dats, missingRoms)), new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         var missingList = missingRoms.ToList();
         var headerName = !string.IsNullOrEmpty(datCatalog.Header.Name) ? datCatalog.Header.Name : "Collection";
         var version = !string.IsNullOrEmpty(datCatalog.Header.Version) ? datCatalog.Header.Version : "Unknown";
@@ -1349,6 +1563,30 @@ public sealed class SortProcessorService : ISortProcessorService
         await File.WriteAllTextAsync(outputPath, sb.ToString(), new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Text Miss List of a lot: a section per DAT with ROMs missing and a game found, in the order of the lot, its ROMs
+    /// under it.
+    /// </summary>
+    private static string LotMissListText(DatCatalog lot, List<(DatLotMember Dat, List<DatRomEntry> Missing)> groups)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"# Miss List: {(string.IsNullOrEmpty(lot.Header.Name) ? "Collection" : lot.Header.Name)}");
+        sb.AppendLine($"# DATs: {groups.Count}");
+        sb.AppendLine($"# Total cataloged ROMs: {groups.Sum(g => g.Dat.Catalog.Entries.Count)}");
+        sb.AppendLine($"# Missing ROMs: {groups.Sum(g => g.Missing.Count)}");
+        foreach (var (dat, missing) in groups)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"## {dat.Name} ({missing.Count}/{dat.Catalog.Entries.Count})");
+            foreach (var r in missing)
+            {
+                sb.AppendLine(r.Name);
+            }
+        }
+
+        return sb.ToString();
+    }
+
     public async Task<DatCatalog> ExportFixDatAsync(
         IEnumerable<DatRomEntry> missingRoms,
         DatCatalog datCatalog,
@@ -1365,6 +1603,13 @@ public sealed class SortProcessorService : ISortProcessorService
                 .Where(list => list.Games.Count > 0)
                 .ToList();
             fixDat = DatCatalog.GatherSoftwareLists(fixDats, $"fixDat_{datCatalog.Header.Name}");
+        }
+        else if (datCatalog.Dats is { } dats)
+        {
+            // A fixdat per DAT of the lot with ROMs missing and a game found, into the folder outputPath
+            fixDat = DatCatalog.GatherLot(
+                GroupMissingByDat(dats, missingRoms).Select(g => g.Dat with { Catalog = g.Dat.Catalog.CreateFixDat(g.Missing) }).ToList(),
+                $"fixDat_{datCatalog.Header.Name}");
         }
         else
         {
@@ -1439,6 +1684,11 @@ public sealed class SortProcessorService : ISortProcessorService
         CancellationToken cancellationToken = default)
     {
         RefuseSourceOverwrite(outputPath, datCatalog);
+        if (datCatalog?.Dats is not null && headerOverride is null)
+        {
+            return await ExportLotDatsAsync(items, outputPath, format, datCatalog, validOnly, computeMissingHashes, progress, cancellationToken).ConfigureAwait(false);
+        }
+
         return datCatalog is null || headerOverride is not null || !datCatalog.IsSoftwareListCatalog
             ? await _datService.ExportDatFileAsync(
                 items,
@@ -1500,6 +1750,56 @@ public sealed class SortProcessorService : ISortProcessorService
         var gathered = DatCatalog.GatherSoftwareLists(dats, datCatalog.Header.Name);
         await WriteDatAsync(gathered, outputFolder, format, cancellationToken, datCatalog).ConfigureAwait(false);
         return gathered;
+    }
+
+    /// <summary>
+    /// DAT of the collection sorted with a lot, written into the folder <paramref name="outputFolder"/>: a DAT per DAT of
+    /// the lot that holds a file of <paramref name="items"/>, described with its catalog, and, without
+    /// <paramref name="validOnly"/>, a DAT of the files no DAT knows.
+    /// </summary>
+    private async Task<DatCatalog> ExportLotDatsAsync(
+        IEnumerable<ProcessItem> items,
+        string outputFolder,
+        DatExportFormat format,
+        DatCatalog lot,
+        bool validOnly,
+        bool computeMissingHashes,
+        IProgress<(int Current, int Total, string Filename)>? progress,
+        CancellationToken cancellationToken)
+    {
+        RefuseLotFolder(outputFolder, lot);
+        var groups = GroupByDat(items.Where(it => !validOnly || it.Status == FileStatus.Valid));
+
+        // The progress counts the files of every DAT
+        var total = groups.Sum(g => g.Items.Count);
+        var done = 0;
+        var dats = new List<DatLotMember>();
+        foreach (var (datItems, datName) in groups)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var member = lot.DatMemberFor(datName);
+            var offset = done;
+            var datProgress = progress is null
+                ? null
+                : new SynchronousProgress<(int Current, int Total, string Filename)>(p => progress.Report((offset + p.Current, total, p.Filename)));
+            var dat = await _datService.CreateDatFromProcessItemsAsync(
+                datItems, null, validOnly, computeMissingHashes, member?.Catalog, datProgress, cancellationToken).ConfigureAwait(false);
+            done += datItems.Count;
+            if (dat.Games.Count > 0)
+            {
+                dats.Add(member is null ? new DatLotMember(dat.Header.Name, string.Empty, dat) : member with { Catalog = dat });
+            }
+        }
+
+        var gathered = DatCatalog.GatherLot(dats, lot.Header.Name);
+        await WriteDatAsync(gathered, outputFolder, format, cancellationToken, lot).ConfigureAwait(false);
+        return gathered;
+    }
+
+    // Reports a progress at once, on the thread of the export
+    private sealed class SynchronousProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 
     public Task<DatCatalog> ExportDatToXmlAsync(
