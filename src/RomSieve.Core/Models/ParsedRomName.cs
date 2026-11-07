@@ -115,6 +115,15 @@ public sealed partial record ParsedRomName
     public string? GameGroup { get; init; }
 
     /// <summary>
+    /// DAT of a lot the release was identified with, set by the pipeline only when the lot has at least two DATs (the
+    /// header name of the DAT). It takes part in the canonical game key and in the edition key, so that the same title
+    /// in two DATs (Tetris on the NES and on the Game Boy) gives two games, never compared by the 1G1R, and that two
+    /// DATs never share a multi-disk set. Null for a sort with one DAT, whose keys stay byte for byte what they were;
+    /// the software lists keep it null too (their list is already in the system part of the key).
+    /// </summary>
+    public string? DatKey { get; init; }
+
+    /// <summary>
     /// Set by the pipeline for a collection sorted for the AGA Amigas (<see cref="FilterConfig.AmigaTarget"/>): the
     /// chipset mark of the system field (<c>(AGA)</c>, <c>(OCS-AGA)</c>...) leaves the canonical game key, so that the AGA
     /// and OCS versions of a game are one game for the 1G1R, which prefers the AGA one.

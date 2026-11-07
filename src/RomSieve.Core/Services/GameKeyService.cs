@@ -155,8 +155,21 @@ public sealed partial class GameKeyService(IReleaseScoringService scoring) : IGa
             systemNorm = $"{systemNorm}@{parsed.GameGroup.Trim().ToLowerInvariant()}";
         }
 
+        // The DAT of a lot of several DATs separates the games of its DAT from those of the others; without it (one DAT),
+        // the key stays what it was
+        if (!string.IsNullOrEmpty(parsed.DatKey))
+        {
+            systemNorm = $"{systemNorm}{DatKeySeparator}{parsed.DatKey.Trim().ToLowerInvariant()}";
+        }
+
         return (titleNorm, systemNorm);
     }
+
+    /// <summary>
+    /// Separator of the DAT segment of the keys (<see cref="ParsedRomName.DatKey"/>): a control character, absent from
+    /// file names and DAT names, and already the separator of the edition and release keys.
+    /// </summary>
+    private const char DatKeySeparator = '\u001F';
 
     public string SerializeCanonicalGameKey(ParsedRomName parsed)
     {
@@ -224,7 +237,7 @@ public sealed partial class GameKeyService(IReleaseScoringService scoring) : IGa
             .ToList();
 
     /// <summary>
-    /// Returns the first 11 edition components
+    /// Returns the first 11 edition components (and the DAT of a lot of several DATs, <see cref="ParsedRomName.DatKey"/>)
     /// for smart matching of clean data disks in <c>smart_multidisk_grouping</c>.
     /// </summary>
     public string GetEditionKey(ParsedRomName parsed, bool smartMultidisk = false)
@@ -237,7 +250,7 @@ public sealed partial class GameKeyService(IReleaseScoringService scoring) : IGa
         var countries = string.Join(",", parsed.CountryCodes.Select(c => c.ToUpperInvariant()).OrderBy(c => c, StringComparer.Ordinal));
         var langs = string.Join(",", parsed.LanguageCodes.Select(l => l.ToLowerInvariant()).OrderBy(l => l, StringComparer.Ordinal));
 
-        return string.Join("\u001F",
+        var editionKey = string.Join("\u001F",
             mediaTot.ToString(CultureInfo.InvariantCulture),
             parsed.Title.Trim().ToLowerInvariant(),
             GetEffectiveVersion(parsed).Trim().ToLowerInvariant(),
@@ -249,6 +262,12 @@ public sealed partial class GameKeyService(IReleaseScoringService scoring) : IGa
             revStr,
             countries,
             langs);
+
+        // The DAT of a lot of several DATs (see GetCanonicalGameKey): the release key starts with the edition key, so
+        // that neither an edition nor a release ever gathers the files of two DATs (multi-disk sets, borrowed disks)
+        return string.IsNullOrEmpty(parsed.DatKey)
+            ? editionKey
+            : $"{editionKey}{DatKeySeparator}{parsed.DatKey.Trim().ToLowerInvariant()}";
     }
 
     public string GetReleaseKey(ParsedRomName parsed, bool smartMultidisk = false)
