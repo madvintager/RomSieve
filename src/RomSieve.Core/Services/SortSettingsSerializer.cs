@@ -26,6 +26,13 @@ public static class SortSettingsSerializer
         return s;
     }
 
+    /// <summary>
+    /// Header names of DATs of a lot, trimmed, without empty names and duplicates (case ignored), in the order given: the
+    /// DATs left out of a sort (<c>excluded_dats</c>).
+    /// </summary>
+    public static List<string> NormalizeDatNames(IEnumerable<string> names) =>
+        names.Select(name => name.Trim()).Where(name => name.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
     /// <summary>Writes the options under their <c>config.json</c> keys.</summary>
     public static void Write(SortSettings s, IDictionary<string, object?> data)
     {
@@ -35,6 +42,10 @@ public static class SortSettingsSerializer
         data["source_dir"] = s.SourceDir.Trim();
         data["destination_dir"] = s.DestinationDir.Trim();
         data["dat_file"] = s.DatFile.Trim();
+        data["dat_recursive"] = s.DatRecursive;
+        data["excluded_dats"] = NormalizeDatNames(s.ExcludedDats);
+        data["folder_per_dat"] = s.FolderPerDat;
+        data["dat_folder_mirror"] = s.DatFolderMirror;
         data["chd_dir"] = s.ChdDir.Trim();
         data["mame_category_file"] = s.MameCategoryFile.Trim();
         data["mame_rating_file"] = s.MameRatingFile.Trim();
@@ -153,6 +164,10 @@ public static class SortSettingsSerializer
             M3uPlacement = s.M3uPlacement,
             AppendToDestination = s.AppendToDestination,
             DatFile = string.IsNullOrWhiteSpace(s.DatFile) ? null : s.DatFile.Trim(),
+            DatRecursive = s.DatRecursive,
+            ExcludedDats = NormalizeDatNames(s.ExcludedDats),
+            FolderPerDat = s.FolderPerDat,
+            DatFolderMirror = s.DatFolderMirror,
             ChdDir = string.IsNullOrWhiteSpace(s.ChdDir) ? null : s.ChdDir.Trim(),
             MameCategoryFile = string.IsNullOrWhiteSpace(s.MameCategoryFile) ? null : s.MameCategoryFile.Trim(),
             MameRatingFile = string.IsNullOrWhiteSpace(s.MameRatingFile) ? null : s.MameRatingFile.Trim(),
@@ -240,6 +255,10 @@ public static class SortSettingsSerializer
         if (TryGetString(data, "source_dir", out var src)) s.SourceDir = src;
         if (TryGetString(data, "destination_dir", out var dst)) s.DestinationDir = dst;
         if (TryGetString(data, "dat_file", out var dat)) s.DatFile = dat;
+        if (TryGetBool(data, "dat_recursive", out var datRecursive)) s.DatRecursive = datRecursive;
+        if (TryGetStringList(data, "excluded_dats", out var excludedDats)) s.ExcludedDats = NormalizeDatNames(excludedDats);
+        if (TryGetBool(data, "folder_per_dat", out var folderPerDat)) s.FolderPerDat = folderPerDat;
+        if (TryGetBool(data, "dat_folder_mirror", out var datFolderMirror)) s.DatFolderMirror = datFolderMirror;
         if (TryGetString(data, "chd_dir", out var chdDir)) s.ChdDir = chdDir;
         if (TryGetString(data, "mame_category_file", out var categoryFile)) s.MameCategoryFile = categoryFile;
         if (TryGetString(data, "mame_rating_file", out var ratingFile)) s.MameRatingFile = ratingFile;

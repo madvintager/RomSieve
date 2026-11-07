@@ -138,6 +138,37 @@ public sealed class ConfigurationPersistenceTests
     }
 
     [Fact]
+    public async Task LotOptions_ShouldHaveTheirDefaultsAndBePersisted()
+    {
+        using var tmp = new TempDirectoryFixture();
+        var path = tmp.WriteText("config.json", "{}");
+
+        var vm = TestMainViewModel.Create(new HeadlessDialogService(), path);
+        var defaults = vm.BuildConfigUnchecked();
+        defaults.DatRecursive.Should().BeFalse();
+        defaults.ExcludedDats.Should().BeEmpty();
+        defaults.FolderPerDat.Should().BeTrue();
+        defaults.DatFolderMirror.Should().BeFalse();
+
+        vm.Directories.DatRecursive = true;
+        vm.Directories.ExcludedDats = ["Nintendo - Game Boy", "Sega - Mega Drive"];
+        vm.Directories.FolderPerDat = false;
+        vm.Directories.DatFolderMirror = true;
+        var config = vm.BuildConfigUnchecked();
+        config.ExcludedDats.Should().Equal("Nintendo - Game Boy", "Sega - Mega Drive");
+        config.FolderPerDat.Should().BeFalse();
+        await vm.SaveConfigurationAsync();
+
+        var saved = File.ReadAllText(path);
+        saved.Should().Contain("\"dat_recursive\": true").And.Contain("\"folder_per_dat\": false").And.Contain("\"dat_folder_mirror\": true");
+        var reloaded = TestMainViewModel.Create(new HeadlessDialogService(), path).Directories;
+        reloaded.DatRecursive.Should().BeTrue();
+        reloaded.ExcludedDats.Should().Equal("Nintendo - Game Boy", "Sega - Mega Drive");
+        reloaded.FolderPerDat.Should().BeFalse();
+        reloaded.DatFolderMirror.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task VerifyArchiveContents_ShouldBeOffByDefaultAndPersisted()
     {
         using var tmp = new TempDirectoryFixture();

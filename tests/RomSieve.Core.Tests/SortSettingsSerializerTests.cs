@@ -38,6 +38,48 @@ public sealed class SortSettingsSerializerTests
     }
 
     [Fact]
+    public void LotOptions_ShouldHaveTheirDefaults_AndBeWrittenAndReadBack()
+    {
+        var defaults = SortSettingsSerializer.Read(new Dictionary<string, object?>());
+        defaults.DatRecursive.Should().BeFalse();
+        defaults.ExcludedDats.Should().BeEmpty();
+        defaults.FolderPerDat.Should().BeTrue("each DAT of a lot has its folder unless asked otherwise");
+        defaults.DatFolderMirror.Should().BeFalse();
+
+        var settings = new SortSettings
+        {
+            DatRecursive = true,
+            ExcludedDats = [" Nintendo - Game Boy ", "nintendo - game boy", "", "Sega - Mega Drive"],
+            FolderPerDat = false,
+            DatFolderMirror = true
+        };
+        var data = new Dictionary<string, object?>(StringComparer.Ordinal);
+        SortSettingsSerializer.Write(settings, data);
+
+        data["dat_recursive"].Should().Be(true);
+        data["excluded_dats"].Should().BeEquivalentTo(new[] { "Nintendo - Game Boy", "Sega - Mega Drive" }, o => o.WithStrictOrdering());
+        data["folder_per_dat"].Should().Be(false);
+        data["dat_folder_mirror"].Should().Be(true);
+
+        var read = SortSettingsSerializer.Read(Parse(JsonSerializer.Serialize(data)));
+        read.ExcludedDats.Should().Equal("Nintendo - Game Boy", "Sega - Mega Drive");
+        var config = SortSettingsSerializer.ToSortConfig(read);
+        config.DatRecursive.Should().BeTrue();
+        config.ExcludedDats.Should().Equal("Nintendo - Game Boy", "Sega - Mega Drive");
+        config.FolderPerDat.Should().BeFalse();
+        config.DatFolderMirror.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ExcludedDats_ShouldBeReadWithoutEmptyNamesNorDuplicates()
+    {
+        var settings = SortSettingsSerializer.Read(Parse("""{ "excluded_dats": ["b", " a ", "B", "", "  "] }"""));
+
+        settings.ExcludedDats.Should().Equal("b", "a");
+        SortSettingsSerializer.ToSortConfig(new SortSettings { ExcludedDats = ["x", "X "] }).ExcludedDats.Should().Equal("x");
+    }
+
+    [Fact]
     public void EmptyConfiguration_ShouldGiveTheDefaults()
     {
         var settings = SortSettingsSerializer.Read(new Dictionary<string, object?>());

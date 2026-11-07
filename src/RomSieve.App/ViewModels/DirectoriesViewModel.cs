@@ -267,6 +267,22 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     [ObservableProperty]
     private bool _matchChdByName;
 
+    /// <summary>Whether a folder of DATs is read with its subfolders.</summary>
+    [ObservableProperty]
+    private bool _datRecursive;
+
+    /// <summary>Header names of the DATs of a lot left out of the sort; replaced as a whole on each change.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _excludedDats = [];
+
+    /// <summary>Whether each DAT of a lot gets a folder of its own in the destination.</summary>
+    [ObservableProperty]
+    private bool _folderPerDat = true;
+
+    /// <summary>Whether the folder of each DAT of a lot is placed under the folders of its path.</summary>
+    [ObservableProperty]
+    private bool _datFolderMirror;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsTransferCopy))]
     [NotifyPropertyChangedFor(nameof(IsTransferMove))]
@@ -880,6 +896,10 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         settings.SourceDir = SourceDir;
         settings.DestinationDir = DestinationDir;
         settings.DatFile = DatFilePath;
+        settings.DatRecursive = DatRecursive;
+        settings.ExcludedDats = ExcludedDats.ToList();
+        settings.FolderPerDat = FolderPerDat;
+        settings.DatFolderMirror = DatFolderMirror;
         settings.ChdDir = ChdDir;
         settings.MameCategoryFile = MameCategoryFile;
         settings.MameRatingFile = MameRatingFile;
@@ -905,6 +925,9 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
     public override void ReadFrom(SortSettings settings)
     {
+        // How a folder of DATs is read, before the DAT whose summary depends on it
+        DatRecursive = settings.DatRecursive;
+
         // Loading a configuration is not a user change of the source directory
         _suppressSourceDirChangeReset = true;
         try
@@ -918,6 +941,9 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             _suppressSourceDirChangeReset = false;
         }
 
+        ExcludedDats = settings.ExcludedDats.ToList();
+        FolderPerDat = settings.FolderPerDat;
+        DatFolderMirror = settings.DatFolderMirror;
         ChdDir = settings.ChdDir;
         MameCategoryFile = settings.MameCategoryFile;
         MameRatingFile = settings.MameRatingFile;

@@ -18,6 +18,21 @@ public sealed class SortSettings
     public string DestinationDir { get; set; } = string.Empty;
     public string DatFile { get; set; } = string.Empty;
 
+    /// <summary>Whether a folder of DATs is read with its subfolders (<see cref="SortConfig.DatRecursive"/>).</summary>
+    public bool DatRecursive { get; set; }
+
+    /// <summary>
+    /// Header names of the DATs of a lot left out of the sort (<see cref="SortConfig.ExcludedDats"/>), without duplicates
+    /// (case ignored); empty: every DAT.
+    /// </summary>
+    public List<string> ExcludedDats { get; set; } = [];
+
+    /// <summary>Whether each DAT of a lot gets a folder of its own in the destination (<see cref="SortConfig.FolderPerDat"/>).</summary>
+    public bool FolderPerDat { get; set; } = true;
+
+    /// <summary>Whether the folder of each DAT is placed under the folders of its path (<see cref="SortConfig.DatFolderMirror"/>).</summary>
+    public bool DatFolderMirror { get; set; }
+
     /// <summary>Folder of the CHDs of a MAME collection, read in addition to the source (MAME runs only); empty: none.</summary>
     public string ChdDir { get; set; } = string.Empty;
 
@@ -143,6 +158,7 @@ public sealed class SortSettings
     {
         var copy = (SortSettings)MemberwiseClone();
         copy.MameExcludedGenres = [.. MameExcludedGenres];
+        copy.ExcludedDats = [.. ExcludedDats];
         copy.PriorityLanguages = [.. PriorityLanguages];
         copy.PriorityCountries = [.. PriorityCountries];
         copy.TosecTiebreakOrder = [.. TosecTiebreakOrder];
