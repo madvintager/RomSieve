@@ -117,6 +117,19 @@ public interface IDatService
     DatCatalog ParseLogiqxXml(string text);
     Task<DatCatalog> ParseDatFileAsync(string path, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Reads a DAT, or a folder of DATs as <paramref name="folderOptions"/> says: with its subfolders or not, without
+    /// the DATs left out. A folder of No-Intro, Redump or TOSEC DATs gives a lot (<see cref="DatCatalog.Dats"/>).
+    /// </summary>
+    Task<DatCatalog> ParseDatFileAsync(string path, DatFolderOptions folderOptions, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The DATs of a folder of DATs (path relative to the folder, header name, convention), from their headers only,
+    /// in the order a lot takes them: the list of the DATs to check, the refusals told before the DATs are read
+    /// (<see cref="DatService.CheckDatFolder"/>).
+    /// </summary>
+    IReadOnlyList<DatFolderEntry> ReadDatFolderPreview(string folder, bool recursive = false);
+
     /// <summary>Header and first games of a DAT, read in milliseconds whatever its size: enough to know its convention.</summary>
     DatCatalog ReadDatPreview(string path, int maxGames = DatService.PreviewGameCount);
     Task<DatCatalog> CreateDatFromProcessItemsAsync(

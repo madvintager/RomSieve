@@ -149,7 +149,8 @@ public sealed class SoftwareListFolderTests : IDisposable
             """);
         var other = await FluentActions.Invoking(() => _services.DatService.ParseDatFileAsync(_dats))
             .Should().ThrowAsync<DatFolderException>();
-        other.Which.Reason.Key.Should().Be("dat.folder_not_software_list");
+        other.Which.Reason.Key.Should().Be("dat.folder_mixed_mame");
+        _services.I18n.Format(other.Which.Reason).Should().Contain("a2600.xml").And.Contain("snes.xml");
 
         // A run says why, in the language of the interface
         Zip(Path.Combine("megadriv", "sonic.zip"), ("mpr-13913.ic1", MegadrivSonic));

@@ -1378,16 +1378,19 @@ public sealed partial class DatService : IDatService
 
             if (!string.IsNullOrEmpty(parentName) && !string.IsNullOrEmpty(g.Name))
             {
-                catalog.CloneToParent[g.Name.ToLowerInvariant()] = parentName;
+                catalog.CloneToParent[g.Name] = parentName;
             }
         }
     }
 
-    public async Task<DatCatalog> ParseDatFileAsync(string path, CancellationToken cancellationToken = default)
+    public Task<DatCatalog> ParseDatFileAsync(string path, CancellationToken cancellationToken = default) =>
+        ParseDatFileAsync(path, DatFolderOptions.Default, cancellationToken);
+
+    public async Task<DatCatalog> ParseDatFileAsync(string path, DatFolderOptions folderOptions, CancellationToken cancellationToken = default)
     {
         if (Directory.Exists(path))
         {
-            return await ParseDatFolderAsync(path, cancellationToken).ConfigureAwait(false);
+            return await ParseDatFolderAsync(path, folderOptions, cancellationToken).ConfigureAwait(false);
         }
 
         var catalog = await ParseDatFileContentAsync(path, cancellationToken).ConfigureAwait(false);
@@ -1429,27 +1432,164 @@ public sealed partial class DatService : IDatService
     // DATs of a folder read at the same time
     private const int DatFolderParallelism = 8;
 
-    /// <summary>DATs of a folder of DATs: its <c>.xml</c> and <c>.dat</c> files, not its subfolders, in name order.</summary>
-    public static IReadOnlyList<string> GetDatFolderFiles(string folder) =>
-        Directory.EnumerateFiles(folder)
+    /// <summary>
+    /// DATs of a folder of DATs: its <c>.xml</c> and <c>.dat</c> files, with those of its subfolders when
+    /// <paramref name="recursive"/> (read by <see cref="FileTree"/>: folders of the system, unreadable folders and links
+    /// skipped), in the order of their paths relative to the folder, whatever the separator of the system.
+    /// </summary>
+    public static IReadOnlyList<string> GetDatFolderFiles(string folder, bool recursive = false) =>
+        FileTree.EnumerateFiles(folder, recursive, new FileTreeSkips())
             .Where(f => Path.GetExtension(f).ToLowerInvariant() is ".xml" or ".dat")
-            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(f => (Path: f, Key: Path.GetRelativePath(folder, f).Replace('\\', '/')))
+            .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(f => f.Key, StringComparer.Ordinal)
+            .Select(f => f.Path)
             .ToList();
 
     /// <summary>
-    /// Reads a folder of DATs of MAME software lists (the <c>Software List ROMs</c> DATs of a ROM manager, the hash
-    /// folder of MAME): one catalog per list, gathered (<see cref="DatCatalog.SoftwareLists"/>), each list named by its
-    /// DAT, or by its file without a name. Refused (<see cref="DatFolderException"/>) when it holds no DAT, a DAT of
-    /// another convention, or two DATs of the same list.
+    /// The DATs of a folder of DATs as their headers tell them (<see cref="DatFolderEntry"/>), in the order of their
+    /// paths: what the list of the DATs to sort and a lot are made of, read in milliseconds per DAT. Empty for a folder
+    /// without DAT; the refusals are left to <see cref="CheckDatFolder"/>.
     /// </summary>
-    private async Task<DatCatalog> ParseDatFolderAsync(string folder, CancellationToken cancellationToken)
+    public IReadOnlyList<DatFolderEntry> ReadDatFolderPreview(string folder, bool recursive = false)
     {
-        var files = GetDatFolderFiles(folder);
-        if (files.Count == 0)
+        var files = GetDatFolderFiles(folder, recursive);
+        var entries = new DatFolderEntry[files.Count];
+        Parallel.For(
+            0,
+            files.Count,
+            new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism },
+            index => entries[index] = PreviewEntry(folder, files[index]));
+        return entries;
+    }
+
+    private DatFolderEntry PreviewEntry(string folder, string file)
+    {
+        var preview = ReadDatPreview(file);
+        var name = string.IsNullOrWhiteSpace(preview.Header.Name) ? Path.GetFileNameWithoutExtension(file) : preview.Header.Name.Trim();
+        return new DatFolderEntry(Path.GetRelativePath(folder, file), name, preview.DetectConvention());
+    }
+
+    /// <summary>
+    /// Refuses (<see cref="DatFolderException"/>) a folder of DATs that cannot be sorted: without DAT, with a DAT of
+    /// MAME machines, or mixing the DATs of MAME software lists with other DATs. A folder of software lists only, which
+    /// keeps its own checks, is accepted, and so is a lot of No-Intro, Redump and TOSEC DATs whose names are unique
+    /// (case ignored).
+    /// </summary>
+    public static void CheckDatFolder(string folder, IReadOnlyList<DatFolderEntry> entries)
+    {
+        if (entries.Count == 0)
         {
             throw new DatFolderException(LocalizedMessage.Create("dat.folder_empty", ("path", folder)));
         }
 
+        if (entries.FirstOrDefault(e => e.Convention == NamingConvention.Mame) is { } machines)
+        {
+            throw new DatFolderException(LocalizedMessage.Create("dat.folder_mame_machines", ("file", machines.RelativePath)));
+        }
+
+        var softwareList = entries.FirstOrDefault(e => e.Convention == NamingConvention.MameSoftwareList);
+        if (softwareList is null)
+        {
+            CheckUniqueNames(entries);
+        }
+        else if (entries.FirstOrDefault(e => e.Convention != NamingConvention.MameSoftwareList) is { } other)
+        {
+            throw new DatFolderException(LocalizedMessage.Create(
+                "dat.folder_mixed_mame",
+                ("mame", softwareList.RelativePath),
+                ("other", other.RelativePath)));
+        }
+    }
+
+    // The DATs of a lot are designated by their names: two DATs of the same name (case ignored) are refused
+    private static void CheckUniqueNames(IReadOnlyList<DatFolderEntry> entries)
+    {
+        var fileOfName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in entries)
+        {
+            if (!fileOfName.TryAdd(entry.Name, entry.RelativePath))
+            {
+                throw new DatFolderException(LocalizedMessage.Create(
+                    "dat.folder_duplicate_dat",
+                    ("dat", entry.Name),
+                    ("first", fileOfName[entry.Name]),
+                    ("second", entry.RelativePath)));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads a folder of DATs. The headers of its DATs are read first, and the folder is refused when it cannot be
+    /// sorted (<see cref="CheckDatFolder"/>). A folder of MAME software lists is read as it always was
+    /// (<see cref="ParseSoftwareListFolderAsync"/>). Any other folder is a lot (<see cref="DatCatalog.Dats"/>): each DAT
+    /// that is not left out (<see cref="DatFolderOptions.ExcludedDats"/>) is read into its own catalog, named after its
+    /// header, or its file without a name; refused when every DAT is left out.
+    /// </summary>
+    private async Task<DatCatalog> ParseDatFolderAsync(string folder, DatFolderOptions options, CancellationToken cancellationToken)
+    {
+        var files = GetDatFolderFiles(folder, options.Recursive);
+        var entries = new DatFolderEntry[files.Count];
+        await Parallel.ForAsync(
+            0,
+            files.Count,
+            new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism, CancellationToken = cancellationToken },
+            (index, _) =>
+            {
+                entries[index] = PreviewEntry(folder, files[index]);
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false);
+        CheckDatFolder(folder, entries);
+
+        var folderName = Path.GetFileName(Path.TrimEndingDirectorySeparator(folder));
+        if (entries[0].Convention == NamingConvention.MameSoftwareList)
+        {
+            return await ParseSoftwareListFolderAsync(files, folderName, cancellationToken).ConfigureAwait(false);
+        }
+
+        var excluded = options.ExcludedNames();
+        var included = Enumerable.Range(0, files.Count).Where(index => !excluded.Contains(entries[index].Name)).ToList();
+        if (included.Count == 0)
+        {
+            throw new DatFolderException(LocalizedMessage.Create("dat.folder_all_excluded", ("path", folder)));
+        }
+
+        // Opening a file costs more than reading it (thousands of DATs, an antivirus that checks each one): the DATs
+        // are read in parallel, then taken in the order of their paths
+        var members = new DatLotMember[included.Count];
+        await Parallel.ForAsync(
+            0,
+            included.Count,
+            new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism, CancellationToken = cancellationToken },
+            async (position, token) =>
+            {
+                var entry = entries[included[position]];
+                var catalog = await ParseDatFileAsync(files[included[position]], token).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(catalog.Header.Name))
+                {
+                    catalog.Header.Name = entry.Name;
+                }
+
+                members[position] = new DatLotMember(entry.Name, entry.RelativePath, catalog);
+            }).ConfigureAwait(false);
+
+        // The first games of a DAT may not have shown that it is a DAT of MAME: the whole DAT has the last word
+        if (members.FirstOrDefault(m => m.Catalog.Header.Convention is NamingConvention.Mame or NamingConvention.MameSoftwareList) is { } mame)
+        {
+            throw new DatFolderException(LocalizedMessage.Create("dat.folder_mame_machines", ("file", mame.RelativePath)));
+        }
+
+        return DatCatalog.GatherLot(members, folderName);
+    }
+
+    /// <summary>
+    /// Reads a folder of DATs of MAME software lists (the <c>Software List ROMs</c> DATs of a ROM manager, the hash
+    /// folder of MAME): one catalog per list, gathered (<see cref="DatCatalog.SoftwareLists"/>), each list named by its
+    /// DAT, or by its file without a name. Refused (<see cref="DatFolderException"/>) when a DAT turns out to be of
+    /// another convention once read, or when two DATs describe the same list.
+    /// </summary>
+    private async Task<DatCatalog> ParseSoftwareListFolderAsync(IReadOnlyList<string> files, string folderName, CancellationToken cancellationToken)
+    {
         // Opening a file costs more than reading it (hundreds of DATs, an antivirus that checks each one): the DATs are
         // read in parallel, then taken in name order
         var catalogs = new DatCatalog[files.Count];
@@ -1490,7 +1630,7 @@ public sealed partial class DatService : IDatService
             }
         }
 
-        return DatCatalog.GatherSoftwareLists(lists, Path.GetFileName(Path.TrimEndingDirectorySeparator(folder)));
+        return DatCatalog.GatherSoftwareLists(lists, folderName);
     }
 
     /// <summary>Games read by <see cref="ReadDatPreview"/>: enough to recognize a MAME DAT by its machines.</summary>

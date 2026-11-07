@@ -61,6 +61,36 @@ public sealed class DatParserTests
 
     private readonly CoreTestServices _services = new();
 
+    /// <summary>
+    /// The indices by name ignore the case without keeping a lowercase copy of each name (even for the letters whose
+    /// lowercase form has another uppercase, such as the dotted capital I), and a description that repeats the name
+    /// shares its string with the name.
+    /// </summary>
+    [Fact]
+    public void Indices_ShouldFindTheNamesWhateverTheCaseAndShareTheDescriptionWithTheName()
+    {
+        var catalog = _services.DatService.ParseLogiqxXml("""
+            <?xml version="1.0"?>
+            <datafile><header><name>Test</name></header>
+            <game name="İstanbul Express (1991)(Ocean)"><description>İstanbul Express (1991)(Ocean)</description>
+            <rom name="İstanbul Express (1991)(Ocean).adf" size="4" crc="12345678"/></game>
+            <game name="Other (1990)(Ocean)"><description>Other game</description><rom name="Other (1990)(Ocean).adf" size="5" crc="9abcdef0"/></game>
+            <game name="Clone (1991)(Ocean)" cloneof="İstanbul Express (1991)(Ocean)"><description>Clone</description>
+            <rom name="Clone (1991)(Ocean).adf" size="6" crc="11111111"/></game></datafile>
+            """);
+
+        var game = catalog.GameByName["İSTANBUL EXPRESS (1991)(OCEAN)"];
+        catalog.GameByName["İstanbul Express (1991)(Ocean)"].Should().BeSameAs(game);
+        catalog.GetGamesForRom("İSTANBUL EXPRESS (1991)(OCEAN).ADF").Should().Equal(game);
+        catalog.ByName["İstanbul express (1991)(ocean).adf"].Should().Equal(game.Roms);
+        catalog.GameByName.Keys.Should().Contain(key => ReferenceEquals(key, game.Name));
+        catalog.CloneToParent["CLONE (1991)(OCEAN)"].Should().Be(game.Name);
+
+        game.Description.Should().BeSameAs(game.Name);
+        game.Roms.Single().Description.Should().BeSameAs(game.Name);
+        catalog.GameByName["other (1990)(ocean)"].Description.Should().Be("Other game");
+    }
+
     [Fact]
     public void ParseClrMameProHeaderAndGames_ShouldExtractHeaderAndAllRomEntries()
     {

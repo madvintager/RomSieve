@@ -784,6 +784,13 @@ public sealed class SortProcessorService : ISortProcessorService
         try
         {
             var datCatalog = await _datService.ParseDatFileAsync(config.DatFile, cancellationToken).ConfigureAwait(false);
+
+            // A lot of DATs is read, but not sorted yet: a folder of DATs still only gathers MAME software lists
+            if (datCatalog.Dats is { Count: > 0 } dats)
+            {
+                throw new DatFolderException(LocalizedMessage.Create("dat.folder_not_software_list", ("file", Path.GetFileName(dats[0].RelativePath))));
+            }
+
             var name = !string.IsNullOrEmpty(datCatalog.Header.Name)
                 ? datCatalog.Header.Name
                 : Path.GetFileName(config.DatFile);

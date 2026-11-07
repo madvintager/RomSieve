@@ -134,7 +134,7 @@ public sealed class SoftwareListViewModelTests : IDisposable
         await directories.DatLoadTask;
 
         directories.DatInfoTone.Should().Be("Error");
-        directories.DatInfoText.Should().Be(_services.I18n.Tr("dat.folder_not_software_list", ("file", "snes.xml")));
+        directories.DatInfoText.Should().Be(_services.I18n.Tr("dat.folder_mixed_mame", ("mame", "gamegear.xml"), ("other", "snes.xml")));
     }
 
     [Fact]

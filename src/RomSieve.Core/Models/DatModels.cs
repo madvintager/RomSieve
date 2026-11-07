@@ -280,6 +280,165 @@ public sealed partial class DatCatalog
         return gathered;
     }
 
+    /// <summary>
+    /// DATs of a lot (a folder of No-Intro, Redump or TOSEC DATs), in the order of their paths in the folder; <c>null</c>
+    /// for a catalog of a single DAT. Each DAT keeps its own catalog, never merged with the others: the catalog of the
+    /// lot holds no game and no entry, only the sizes of all the DATs (<see cref="KnownSizes"/>) and a light index of
+    /// their checksums, which tells which DATs know a file (<see cref="FindMatchesByDat"/>). A lookup by name, a game,
+    /// a parent are only meaningful in the catalog of a DAT (<see cref="DatFor"/>).
+    /// </summary>
+    public IReadOnlyList<DatLotMember>? Dats { get; private set; }
+
+    private Dictionary<string, DatLotMember>? _datByName;
+
+    // DATs of the lot that hold an entry of a size and CRC, and of a CRC: the index of the DAT in Dats when one DAT
+    // holds it (nearly always), or the complement of an index in _sharedDats when several do
+    private Dictionary<(long Size, string Crc), int>? _datsBySizeCrc;
+    private Dictionary<string, int>? _datsByCrc;
+    private List<List<int>>? _sharedDats;
+
+    /// <summary>
+    /// Catalog of the DAT named <paramref name="name"/> (case ignored) when this catalog is a lot (<see cref="Dats"/>),
+    /// <c>null</c> when the lot has no such DAT; this catalog itself when it is the catalog of a single DAT.
+    /// </summary>
+    public DatCatalog? DatFor(string? name)
+    {
+        if (Dats is null)
+        {
+            return this;
+        }
+
+        return name is not null && _datByName!.TryGetValue(name.Trim(), out var member) ? member.Catalog : null;
+    }
+
+    /// <summary>
+    /// Catalog of a lot of DATs (<see cref="Dats"/>), in the given order, under a header named
+    /// <paramref name="name"/>: the catalogs are kept as they are, only their sizes and checksums are indexed.
+    /// </summary>
+    public static DatCatalog GatherLot(IReadOnlyList<DatLotMember> dats, string name)
+    {
+        var lot = new DatCatalog
+        {
+            Header = new DatHeader { Name = name, Convention = NamingConvention.Auto },
+            Dats = dats,
+            _datByName = new Dictionary<string, DatLotMember>(StringComparer.OrdinalIgnoreCase),
+            _datsBySizeCrc = [],
+            _datsByCrc = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            _sharedDats = []
+        };
+
+        for (var index = 0; index < dats.Count; index++)
+        {
+            var catalog = dats[index].Catalog;
+            if (!lot._datByName.TryAdd(dats[index].Name.Trim(), dats[index]))
+            {
+                throw new ArgumentException($"Two DATs of the lot are named {dats[index].Name}.", nameof(dats));
+            }
+
+            lot.KnownSizes.UnionWith(catalog.KnownSizes);
+            foreach (var key in catalog.BySizeCrc.Keys)
+            {
+                lot.AddDat(lot._datsBySizeCrc, key, index);
+            }
+
+            foreach (var crc in catalog.ByCrc.Keys)
+            {
+                lot.AddDat(lot._datsByCrc, crc, index);
+            }
+        }
+
+        return lot;
+    }
+
+    // Adds a DAT to the DATs of a key; the DATs are added in order, so a DAT already there is the last one
+    private void AddDat<TKey>(Dictionary<TKey, int> index, TKey key, int dat)
+        where TKey : notnull
+    {
+        if (!index.TryGetValue(key, out var current))
+        {
+            index[key] = dat;
+        }
+        else if (current >= 0)
+        {
+            if (current != dat)
+            {
+                _sharedDats!.Add([current, dat]);
+                index[key] = ~(_sharedDats.Count - 1);
+            }
+        }
+        else
+        {
+            var shared = _sharedDats![~current];
+            if (shared[^1] != dat)
+            {
+                shared.Add(dat);
+            }
+        }
+    }
+
+    private void AddDatsOf<TKey>(Dictionary<TKey, int> index, TKey key, SortedSet<int> dats)
+        where TKey : notnull
+    {
+        if (index.TryGetValue(key, out var value))
+        {
+            if (value >= 0)
+            {
+                dats.Add(value);
+            }
+            else
+            {
+                dats.UnionWith(_sharedDats![~value]);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The DATs of a lot that know a file, in the order of the lot, each with its matches
+    /// (<see cref="FindAllMatches"/> of its catalog); empty for a catalog of a single DAT. Only the DATs that hold the
+    /// size and CRC, or the CRC, are queried, every DAT for a lookup by SHA-1 or MD5 (a CHD, a verified dump).
+    /// </summary>
+    public IReadOnlyList<(DatLotMember Dat, IReadOnlyList<DatRomEntry> Matches)> FindMatchesByDat(
+        long fileSize,
+        string? crc = null,
+        string? md5 = null,
+        string? sha1 = null)
+    {
+        if (Dats is null)
+        {
+            return [];
+        }
+
+        IEnumerable<int> candidates;
+        if (!string.IsNullOrEmpty(sha1) || !string.IsNullOrEmpty(md5))
+        {
+            candidates = Enumerable.Range(0, Dats.Count);
+        }
+        else if (string.IsNullOrEmpty(crc))
+        {
+            return [];
+        }
+        else
+        {
+            var crcNorm = crc.ToLowerInvariant();
+            var dats = new SortedSet<int>();
+            AddDatsOf(_datsBySizeCrc!, (fileSize, crcNorm), dats);
+            AddDatsOf(_datsByCrc!, crcNorm, dats);
+            candidates = dats;
+        }
+
+        var found = new List<(DatLotMember, IReadOnlyList<DatRomEntry>)>();
+        foreach (var index in candidates)
+        {
+            var matches = Dats[index].Catalog.FindAllMatches(fileSize, crc, md5, sha1);
+            if (matches.Count > 0)
+            {
+                found.Add((Dats[index], matches));
+            }
+        }
+
+        return found;
+    }
+
     public List<DatRomEntry> Entries { get; } = [];
     public List<DatGame> Games { get; } = [];
     public Dictionary<string, DatGame> GameByName { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -289,7 +448,9 @@ public sealed partial class DatCatalog
 
     // Hash and name indices are multi-valued because the same ROM (same size and checksums, possibly
     // the same name) frequently belongs to several games of a DAT (compilations, shared BIOS, identical alternates).
-    // Each list keeps the DAT order, which is the last tie-breaker of the deterministic selection rule.
+    // Each list keeps the DAT order, which is the last tie-breaker of the deterministic selection rule. The indices by
+    // name ignore the case: their keys are the names themselves, never a lowercase copy (a lot of thousands of DATs
+    // holds millions of names).
     public Dictionary<(long Size, string Crc), List<DatRomEntry>> BySizeCrc { get; } = [];
     public Dictionary<string, List<DatRomEntry>> ByCrc { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, List<DatRomEntry>> BySha1 { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -302,7 +463,8 @@ public sealed partial class DatCatalog
     {
         if (!index.TryGetValue(key, out var list))
         {
-            list = [];
+            // Nearly every key has a single value
+            list = new List<TValue>(1);
             index[key] = list;
         }
         list.Add(value);
@@ -335,16 +497,17 @@ public sealed partial class DatCatalog
 
         if (!string.IsNullOrEmpty(entry.Name))
         {
-            AddToIndex(ByName, entry.Name.ToLowerInvariant(), entry);
+            AddToIndex(ByName, entry.Name, entry);
         }
     }
 
     public void AddGame(DatGame game)
     {
         Games.Add(game);
+        ShareDescriptionWithName(game);
         if (!string.IsNullOrEmpty(game.Name))
         {
-            GameByName[game.Name.ToLowerInvariant()] = game;
+            GameByName[game.Name] = game;
         }
 
         if (!string.IsNullOrEmpty(game.Id))
@@ -366,8 +529,27 @@ public sealed partial class DatCatalog
                 var games = RomToGame.TryGetValue(r.Name, out var existing) ? existing : null;
                 if (games is null || !games.Contains(game))
                 {
-                    AddToIndex(RomToGame, r.Name.ToLowerInvariant(), game);
+                    AddToIndex(RomToGame, r.Name, game);
                 }
+            }
+        }
+    }
+
+    // The description of most games is their name, read twice from the DAT: one string serves both, and the ROMs
+    private static void ShareDescriptionWithName(DatGame game)
+    {
+        var description = game.Description;
+        if (ReferenceEquals(description, game.Name) || !string.Equals(description, game.Name, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        game.Description = game.Name;
+        foreach (var rom in game.Roms)
+        {
+            if (ReferenceEquals(rom.Description, description))
+            {
+                rom.Description = game.Name;
             }
         }
     }
@@ -511,7 +693,7 @@ public sealed partial class DatCatalog
     public bool IsSoftwareListCatalog => SoftwareLists is not null || Header.Convention == NamingConvention.MameSoftwareList;
 
     /// <summary>
-    /// Whether <paramref name="path"/> is a file this catalog, or one of its software lists, was read from
+    /// Whether <paramref name="path"/> is a file this catalog, one of its software lists or a DAT of its lot, was read from
     /// (<see cref="DatHeader.SourceFile"/>, <see cref="DatHeader.SoftwareListFile"/>): an export written there would
     /// replace the DAT by a part of it.
     /// </summary>
@@ -524,7 +706,10 @@ public sealed partial class DatCatalog
 
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         var fullPath = Path.GetFullPath(path);
-        IEnumerable<DatHeader> headers = SoftwareLists is { } lists ? [Header, .. lists.Values.Select(list => list.Header)] : [Header];
+        IEnumerable<DatHeader> headers =
+            SoftwareLists is { } lists ? [Header, .. lists.Values.Select(list => list.Header)]
+            : Dats is { } dats ? [Header, .. dats.Select(dat => dat.Catalog.Header)]
+            : [Header];
         return headers
             .SelectMany(header => new[] { header.SourceFile, header.SoftwareListFile })
             .OfType<string>()
@@ -536,7 +721,8 @@ public sealed partial class DatCatalog
 
     public NamingConvention DetectConvention()
     {
-        if (Header.Convention != NamingConvention.Auto)
+        // A lot has no convention of its own: each of its DATs has its own
+        if (Header.Convention != NamingConvention.Auto || Dats is not null)
         {
             return Header.Convention;
         }
@@ -645,7 +831,8 @@ public sealed partial class DatCatalog
 
     /// <summary>
     /// All DAT entries matching a file, in DAT order: entries with the same size and CRC, then, failing that,
-    /// entries with the same SHA-1 or MD5, then the entries of a CRC that is unique in the DAT whatever the size.
+    /// entries with the same SHA-1 or MD5, then the entries of a CRC that is unique in the DAT whatever the size. For a
+    /// lot (<see cref="Dats"/>), the matches of each DAT that knows the file, in the order of the lot.
     /// </summary>
     public IReadOnlyList<DatRomEntry> FindAllMatches(
         long fileSize,
@@ -653,6 +840,12 @@ public sealed partial class DatCatalog
         string? md5 = null,
         string? sha1 = null)
     {
+        if (Dats is not null)
+        {
+            var byDat = FindMatchesByDat(fileSize, crc, md5, sha1);
+            return byDat.Count == 1 ? byDat[0].Matches : [.. byDat.SelectMany(found => found.Matches)];
+        }
+
         var crcNorm = crc?.ToLowerInvariant() ?? string.Empty;
 
         if (!string.IsNullOrEmpty(crcNorm) && BySizeCrc.TryGetValue((fileSize, crcNorm), out var sizeCrcMatches))

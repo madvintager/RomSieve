@@ -165,6 +165,18 @@ public sealed class MameConventionViewModelTests : IDisposable
             return await inner.ParseDatFileAsync(path, cancellationToken);
         }
 
+        public async Task<DatCatalog> ParseDatFileAsync(string path, DatFolderOptions folderOptions, CancellationToken cancellationToken = default)
+        {
+            WholeReads++;
+            if (_gates.TryGetValue(path, out var gate))
+            {
+                await gate.Task.WaitAsync(cancellationToken);
+            }
+
+            return await inner.ParseDatFileAsync(path, folderOptions, cancellationToken);
+        }
+
+        public IReadOnlyList<DatFolderEntry> ReadDatFolderPreview(string folder, bool recursive = false) => inner.ReadDatFolderPreview(folder, recursive);
         public DatCatalog ReadDatPreview(string path, int maxGames = DatService.PreviewGameCount) => inner.ReadDatPreview(path, maxGames);
         public DatCatalog ParseClrMameProText(string text) => inner.ParseClrMameProText(text);
         public DatCatalog ParseLogiqxXml(string text) => inner.ParseLogiqxXml(text);
