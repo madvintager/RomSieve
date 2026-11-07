@@ -29,7 +29,7 @@ public sealed partial class GuiTests
                 Settle(window);
 
                 window.FindControl<RadioButton>("RadioFiltersNoIntro")!.IsChecked.Should().BeTrue();
-                ContentText(window.FindControl<RadioButton>("RadioFiltersNoIntro")!).Should().Be(vm.Localization.Tr("filters.convention_nointro_mame"));
+                ContentText(window.FindControl<RadioButton>("RadioFiltersNoIntro")!).Should().Be(vm.Localization.Tr("filters.convention_nointro"));
 
                 // The MAME card stays in sight, reduced to its title and a sentence that says it is for the machines
                 window.FindControl<Border>("GrpFilterMame")!.IsEffectivelyVisible.Should().BeTrue();

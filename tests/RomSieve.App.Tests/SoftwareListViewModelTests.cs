@@ -163,7 +163,6 @@ public sealed class SoftwareListViewModelTests : IDisposable
         filters.ShowConvention(NamingConvention.MameSoftwareList);
 
         filters.ShownConventionIndex.Should().Be(FiltersViewModel.NoIntroConventionIndex);
-        filters.NoIntroConventionLabel.Should().Be(_services.I18n.Tr("filters.convention_nointro_mame"));
         filters.AreSoftwareListOptionsShown.Should().BeTrue();
         filters.AreMameOptionsShown.Should().BeFalse("the options of the machines do not apply to a software");
         filters.IsMameCardShown.Should().BeTrue("the card stays in sight, reduced to its title");
@@ -181,7 +180,6 @@ public sealed class SoftwareListViewModelTests : IDisposable
         filters.ShowConvention(NamingConvention.NoIntro);
         filters.AreSoftwareListOptionsShown.Should().BeFalse();
         filters.IsDumpQualityApplicable.Should().BeTrue();
-        filters.NoIntroConventionLabel.Should().Be(_services.I18n.Tr("filters.convention_nointro"));
         filters.MameCardHint.Should().Be(_services.I18n.Tr("filters.mame_card_inactive_hint"));
     }
 

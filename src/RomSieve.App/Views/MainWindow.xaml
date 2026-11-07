@@ -1369,7 +1369,7 @@
                            GroupName="FilterConvention"
                            FontSize="11"
                            ToolTip.Tip="{Binding I18n[filters.tooltip_convention]}"
-                           Content="{Binding Filters.NoIntroConventionLabel}"
+                           Content="{Binding I18n[filters.convention_nointro]}"
                            IsChecked="{Binding Filters.IsNoIntroShown, Mode=TwoWay}" />
             </StackPanel>
 

@@ -119,20 +119,12 @@ public sealed class FiltersViewModel : ViewModelBase
             _isSoftwareListConvention = convention == NamingConvention.MameSoftwareList;
             OnPropertyChanged(nameof(AreMameOptionsShown));
             OnPropertyChanged(nameof(IsMultidiskGroupShown));
-            OnPropertyChanged(nameof(NoIntroConventionLabel));
             NotifyShownOptionsChanged();
         }
     }
 
     private bool _isMameConvention;
     private bool _isSoftwareListConvention;
-
-    /// <summary>
-    /// Label of the No-Intro / Redump choice, which also names MAME when its sets, or the software of its lists, use
-    /// these options.
-    /// </summary>
-    public string NoIntroConventionLabel =>
-        _localization.Tr(_isMameConvention || _isSoftwareListConvention ? "filters.convention_nointro_mame" : "filters.convention_nointro");
 
     /// <summary>
     /// Whether the software of a MAME software list follow the shown options: No-Intro / Redump options shown with the
@@ -506,7 +498,6 @@ public sealed class FiltersViewModel : ViewModelBase
 
     public void RefreshTranslations()
     {
-        OnPropertyChanged(nameof(NoIntroConventionLabel));
         NotifyShownOptionsChanged();
         OnPropertyChanged(nameof(EmulationWarningText));
         OnPropertyChanged(nameof(EmulationWarningTooltip));

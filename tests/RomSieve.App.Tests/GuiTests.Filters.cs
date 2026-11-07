@@ -176,11 +176,11 @@ public sealed partial class GuiTests
                 window.FindControl<TextBlock>("LblFilterMame")!.Inlines!.OfType<Run>().Last().Text
                     .Should().Be(vm.Localization.Tr("filters.mame_card_inactive_hint"));
                 multidisk.IsEffectivelyVisible.Should().BeTrue();
-                noIntro.Content.Should().Be("No-Intro / Redump");
+                noIntro.Content.Should().Be("No-Intro / Redump / MAME", "the selector says the MAME sets use these options");
                 vm.Directories.SelectedNamingConvention = NamingConvention.Mame;
                 Settle(window);
                 noIntro.IsChecked.Should().BeTrue();
-                noIntro.Content.Should().Be("No-Intro / Redump / MAME", "the selector says the MAME sets use these options");
+                noIntro.Content.Should().Be("No-Intro / Redump / MAME");
                 mameGroup.IsEffectivelyVisible.Should().BeTrue();
                 mameBody.IsEffectivelyVisible.Should().BeTrue();
                 mameGroup.Classes.Should().Contain("mame");
@@ -289,7 +289,7 @@ public sealed partial class GuiTests
                 translations.IsChecked.Should().BeFalse();
                 mameGroup.IsEffectivelyVisible.Should().BeFalse();
                 multidisk.IsEffectivelyVisible.Should().BeTrue();
-                noIntro.Content.Should().Be("No-Intro / Redump");
+                noIntro.Content.Should().Be("No-Intro / Redump / MAME", "the label does not depend on the convention");
                 dumps.IsEffectivelyVisible.Should().BeTrue();
                 Grid.GetColumn(contentColumn).Should().Be(2);
 

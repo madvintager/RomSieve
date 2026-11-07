@@ -5,20 +5,19 @@ the source, and the table shows why it was excluded.
 
 ![The Filters page](../images/filters.png)
 
-## Settings for TOSEC or No-Intro / Redump
+## Settings for TOSEC or No-Intro / Redump / MAME
 
 TOSEC names and No-Intro / Redump names do not carry the same information, so each convention has its own filter
 settings, all of them saved (in `config.json` and in profiles). The **Filters** page of the *Selection* step shows one set at a time, chosen with
-**Settings for:** **TOSEC** or **No-Intro / Redump**.
+**Settings for:** **TOSEC** or **No-Intro / Redump / MAME**.
 
 * The choice follows the effective convention (chosen or detected in the *Collection* step): a No-Intro DAT
-  shows the No-Intro / Redump settings.
+  shows the No-Intro / Redump / MAME settings.
 * MAME sets use the No-Intro / Redump settings (see [MAME DATs](naming-conventions-and-dats.md#mame-dats)): with the
-  MAME convention, the choice is called **No-Intro / Redump / MAME**, and the [MAME machines](#mame-machines) frame, at
-  the top of the page, shows its settings. Without the MAME convention, this frame comes down to its title and a
-  sentence that says when it applies.
+  MAME convention, the [MAME machines](#mame-machines) frame, at the top of the page, shows its settings. Without the
+  MAME convention, this frame comes down to its title and a sentence that says when it applies.
 * The software of a [MAME software list](naming-conventions-and-dats.md#mame-software-lists) use the No-Intro / Redump
-  settings too, and the choice is also called **No-Intro / Redump / MAME**. The *MAME machines* frame comes down to its
+  settings too. The *MAME machines* frame comes down to its
   title and a sentence that says it only applies to the machines of a MAME DAT; the dump quality and the categories a
   software never carries are greyed (see below).
 * While the convention is unknown (*Automatic* convention without a DAT), the last choice is kept.

@@ -5,21 +5,19 @@ Les filtres excluent les fichiers que vous ne voulez pas dans votre collection t
 
 ![La page Filtres](../images/fr/filters.png)
 
-## Reglages pour TOSEC ou No-Intro / Redump
+## Reglages pour TOSEC ou No-Intro / Redump / MAME
 
 Les noms TOSEC et les noms No-Intro / Redump ne portent pas les mêmes informations : chaque convention a donc ses propres
 réglages de filtres, tous enregistrés (dans `config.json` et dans les profils). La page **Filtres** de l'étape *Sélection* en montre un jeu à
-la fois, choisi par **Réglages pour :** **TOSEC** ou **No-Intro / Redump**.
+la fois, choisi par **Réglages pour :** **TOSEC** ou **No-Intro / Redump / MAME**.
 
 * Le choix suit la convention effective (choisie ou détectée dans l'étape *Collection*) : un DAT
-  No-Intro affiche les réglages No-Intro / Redump.
+  No-Intro affiche les réglages No-Intro / Redump / MAME.
 * Les sets MAME utilisent les réglages No-Intro / Redump (voir [DAT MAME](naming-conventions-and-dats.md#dat-mame)) :
-  avec la convention MAME, le choix s'appelle **No-Intro / Redump / MAME**, et le cadre
-  [Machines MAME](#machines-mame), en tête de la page, montre ses réglages. Sans la convention MAME, ce cadre se réduit
-  à son titre et à une phrase qui dit quand il s'applique.
+  avec la convention MAME, le cadre [Machines MAME](#machines-mame), en tête de la page, montre ses réglages. Sans la
+  convention MAME, ce cadre se réduit à son titre et à une phrase qui dit quand il s'applique.
 * Les logiciels d'une [liste de logiciels MAME](naming-conventions-and-dats.md#listes-de-logiciels-mame) utilisent
-  aussi les réglages No-Intro / Redump, et le choix s'appelle aussi **No-Intro / Redump / MAME**. Le cadre *Machines
-  MAME* se réduit à son titre et à une phrase qui dit qu'il ne vaut que pour les machines d'un DAT MAME ; la qualité
+  aussi les réglages No-Intro / Redump. Le cadre *Machines MAME* se réduit à son titre et à une phrase qui dit qu'il ne vaut que pour les machines d'un DAT MAME ; la qualité
   des dumps et les catégories dont un logiciel ne relève jamais sont grisées (voir plus bas).
 * Tant que la convention n'est pas connue (convention *Automatique* sans DAT), le dernier choix est conservé.
 * Vous pouvez afficher l'autre convention pour la régler aussi : une collection mixte applique à chaque fichier les
