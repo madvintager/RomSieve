@@ -35,6 +35,9 @@ public sealed class CliApplication
     private readonly Option<string?> _sourceOption = new("--source", "-s");
     private readonly Option<string?> _destinationOption = new("--destination", "-d");
     private readonly Option<string?> _datOption = new("--dat");
+    private readonly Option<bool> _datRecursiveOption = new("--dat-recursive");
+    private readonly Option<bool> _datMirrorOption = new("--dir-dat-mirror");
+    private readonly Option<string[]> _datOnlyOption = new("--dat-only") { AllowMultipleArgumentsPerToken = false };
     private readonly Option<string?> _chdOption = new("--chd");
     private readonly Option<string?> _categoriesOption = new("--categories");
     private readonly Option<string?> _ratingsOption = new("--ratings");
@@ -142,6 +145,10 @@ public sealed class CliApplication
         _destinationOption.HelpName = Tr("cli.help_directory");
         _datOption.Description = Tr("cli.option_dat");
         _datOption.HelpName = Tr("cli.help_file");
+        _datRecursiveOption.Description = Tr("cli.option_dat_recursive");
+        _datMirrorOption.Description = Tr("cli.option_dir_dat_mirror");
+        _datOnlyOption.Description = Tr("cli.option_dat_only");
+        _datOnlyOption.HelpName = Tr("cli.help_name");
         _chdOption.Description = Tr("cli.option_chd");
         _chdOption.HelpName = Tr("cli.help_directory");
         _categoriesOption.Description = Tr("cli.option_categories");
@@ -167,8 +174,9 @@ public sealed class CliApplication
 
         var run = new Command("run", Tr("cli.command_run"))
         {
-            _profileOption, _sourceOption, _destinationOption, _datOption, _chdOption, _categoriesOption, _ratingsOption, _modeOption,
-            _executeOption, _appendOption, _purgeOption, _yesOption, _forceForeignPurgeOption, _reportOption, _missListOption, _fixDatOption
+            _profileOption, _sourceOption, _destinationOption, _datOption, _datRecursiveOption, _datOnlyOption, _datMirrorOption,
+            _chdOption, _categoriesOption, _ratingsOption, _modeOption, _executeOption, _appendOption, _purgeOption, _yesOption,
+            _forceForeignPurgeOption, _reportOption, _missListOption, _fixDatOption
         };
         run.SetAction((parseResult, cancellationToken) => RunSortAsync(parseResult, cancellationToken));
 
@@ -177,7 +185,7 @@ public sealed class CliApplication
 
         var dat = new Command("dat", Tr("cli.command_dat"))
         {
-            _profileOption, _datOption, _categoriesOption, _ratingsOption, _outputOption
+            _profileOption, _datOption, _datRecursiveOption, _datOnlyOption, _categoriesOption, _ratingsOption, _outputOption
         };
         dat.SetAction((parseResult, cancellationToken) => ExportCatalogDatAsync(parseResult, cancellationToken));
 
@@ -245,6 +253,17 @@ public sealed class CliApplication
 
         ApplyOverrides(parseResult, settings);
 
+        // The folders of the DATs are mirrored under the folder of each DAT: without it, there is nothing to mirror
+        if (parseResult.GetValue(_datMirrorOption))
+        {
+            if (!settings.FolderPerDat)
+            {
+                return Fail(ExitCodes.InvalidArguments, Tr("cli.mirror_requires_folder_per_dat"));
+            }
+
+            settings.DatFolderMirror = true;
+        }
+
         if (string.IsNullOrWhiteSpace(settings.SourceDir))
         {
             return Fail(ExitCodes.InvalidConfiguration, Tr("cli.no_source"));
@@ -266,13 +285,20 @@ public sealed class CliApplication
             return Fail(ExitCodes.InvalidConfiguration, Tr("log.source_dir_not_found", ("path", config.SourceDir)));
         }
 
-        // A folder holds the DATs of several MAME software lists
+        // A folder holds a lot of DATs, or the DATs of several MAME software lists
         if (config.DatFile is not null && !File.Exists(config.DatFile) && !Directory.Exists(config.DatFile))
         {
             return Fail(ExitCodes.InvalidConfiguration, Tr("log.dat_file_not_found", ("path", config.DatFile)));
         }
 
         using var services = BuildServices(configPath);
+        if (ChooseLotDats(parseResult, settings, services.GetRequiredService<IDatService>(), out _) is { } lotError)
+        {
+            return lotError;
+        }
+
+        // The DATs chosen by --dat-only
+        config = SortSettingsSerializer.ToSortConfig(settings);
         var overlapKey = SortConfigValidator.GetErrorKey(config, IsMameRun(config, services.GetRequiredService<IDatService>()));
         if (overlapKey is not null)
         {
@@ -318,6 +344,11 @@ public sealed class CliApplication
 
         var result = await processor.ExecuteAsync(config, isDryRun: !execute, logProgress: log, cancellationToken: cancellationToken);
         WriteSummary(result.Stats, result.DatCatalog is not null);
+        if ((missListPath is not null || fixDatPath is not null) && result.Stats.DescribeLotExportScope() is { } scope)
+        {
+            WriteLine($"[{LogLevel.Info.ToTag()}] {_localization.Format(scope)}");
+        }
+
         WriteLine(execute ? Tr("cli.sort_done") : Tr("cli.dry_run_done"));
         if (result.JournalPath is not null && !quiet)
         {
@@ -356,15 +387,23 @@ public sealed class CliApplication
             return Fail(ExitCodes.InvalidConfiguration, Tr("log.dat_file_not_found", ("path", config.DatFile)));
         }
 
-        // The DATs of MAME software lists are written into a folder, a DAT per list at its root; any other into a file
+        // The DATs of MAME software lists and of a lot are written into a folder, a DAT per list or per DAT at its root;
+        // any other into a file
         using var services = BuildServices(configPath);
-        var softwareLists = IsSoftwareListDat(config, services.GetRequiredService<IDatService>());
-        if (softwareLists && (File.Exists(outputPath) || HasExtension(outputPath, ".xml", ".dat")))
+        if (ChooseLotDats(parseResult, settings, services.GetRequiredService<IDatService>(), out var lot) is { } lotError)
         {
-            return Fail(ExitCodes.InvalidArguments, Tr("cli.output_softlist_folder", ("path", outputPath)));
+            return lotError;
         }
 
-        if (!softwareLists && !HasExtension(outputPath, ".xml", ".dat"))
+        config = SortSettingsSerializer.ToSortConfig(settings);
+        var softwareLists = lot is null && IsSoftwareListDat(config, services.GetRequiredService<IDatService>());
+        var inFolder = softwareLists || lot is not null;
+        if (inFolder && (File.Exists(outputPath) || HasExtension(outputPath, ".xml", ".dat")))
+        {
+            return Fail(ExitCodes.InvalidArguments, Tr(lot is null ? "cli.output_softlist_folder" : "cli.output_lot_folder", ("path", outputPath)));
+        }
+
+        if (!inFolder && !HasExtension(outputPath, ".xml", ".dat"))
         {
             return Fail(ExitCodes.InvalidArguments, Tr("cli.output_dat_extension", ("path", outputPath)));
         }
@@ -378,7 +417,7 @@ public sealed class CliApplication
         });
 
         var processor = services.GetRequiredService<ISortProcessorService>();
-        var existingDats = softwareLists ? DatService.GetDatFiles(outputPath) : null;
+        var existingDats = inFolder ? DatService.GetDatFiles(outputPath) : null;
         CatalogSelectionResult result;
         try
         {
@@ -400,7 +439,7 @@ public sealed class CliApplication
             return Fail(ExitCodes.CompletedWithErrors, Tr("cli.catalog_dat_empty"));
         }
 
-        ReportUntouchedDats(outputPath, existingDats);
+        ReportUntouchedDats(outputPath, existingDats, lot is not null);
         WriteLine(Tr("cli.catalog_dat_written", ("kept", result.KeptCount), ("total", result.CandidateCount), ("path", outputPath)));
         return ExitCodes.Success;
     }
@@ -613,11 +652,68 @@ public sealed class CliApplication
         if (parseResult.GetValue(_sourceOption) is { } source) settings.SourceDir = source;
         if (parseResult.GetValue(_destinationOption) is { } destination) settings.DestinationDir = destination;
         if (parseResult.GetValue(_datOption) is { } dat) settings.DatFile = dat;
+        if (parseResult.GetValue(_datRecursiveOption)) settings.DatRecursive = true;
         if (parseResult.GetValue(_chdOption) is { } chd) settings.ChdDir = chd;
         if (parseResult.GetValue(_categoriesOption) is { } categories) settings.MameCategoryFile = categories;
         if (parseResult.GetValue(_ratingsOption) is { } ratings) settings.MameRatingFile = ratings;
         if (parseResult.GetValue(_modeOption) is { } mode) settings.TransferMode = EnumExtensions.ParseTransferMode(mode);
         if (parseResult.GetValue(_appendOption)) settings.AppendToDestination = true;
+    }
+
+    /// <summary>
+    /// The DATs of a lot (a folder of No-Intro, Redump or TOSEC DATs), from their headers alone, as the sort reads them:
+    /// a folder the sort would refuse is refused before anything is done (<c>dat.folder_*</c>, code 3); with
+    /// <c>--dat-only</c>, the DATs named alone are sorted (case ignored), in place of those <c>excluded_dats</c> leaves
+    /// out, and a name no DAT of the lot has is refused with the names of the lot (code 2), as is the option without a
+    /// lot. <paramref name="lot"/> is <c>null</c> for a DAT file, a folder of MAME software lists, or no DAT.
+    /// </summary>
+    /// <returns>The exit code of a refusal, or <c>null</c>.</returns>
+    private int? ChooseLotDats(ParseResult parseResult, SortSettings settings, IDatService datService, out IReadOnlyList<DatFolderEntry>? lot)
+    {
+        lot = null;
+        var only = parseResult.GetValue(_datOnlyOption) ?? [];
+        var path = settings.DatFile.Trim();
+        if (path.Length > 0 && Directory.Exists(path))
+        {
+            IReadOnlyList<DatFolderEntry> entries;
+            try
+            {
+                entries = datService.ReadDatFolderPreview(path, settings.DatRecursive);
+                DatService.CheckDatFolder(path, entries);
+            }
+            catch (DatFolderException ex)
+            {
+                return Fail(ExitCodes.InvalidConfiguration, Tr("log.dat_load_error", ("error", _localization.Format(ex.Reason))));
+            }
+
+            if (entries[0].Convention != NamingConvention.MameSoftwareList)
+            {
+                lot = entries;
+            }
+        }
+
+        if (only.Length == 0)
+        {
+            return null;
+        }
+
+        if (lot is null)
+        {
+            return Fail(ExitCodes.InvalidArguments, Tr("cli.dat_only_requires_lot"));
+        }
+
+        var names = lot.Select(e => e.Name).ToList();
+        if (only.FirstOrDefault(name => !names.Contains(name.Trim(), StringComparer.OrdinalIgnoreCase)) is { } unknown)
+        {
+            return Fail(ExitCodes.InvalidArguments, Tr(
+                "cli.dat_only_unknown",
+                ("name", unknown),
+                ("names", _localization.Format(MameSetDependencies.FormatNames(names)))));
+        }
+
+        var kept = new HashSet<string>(only.Select(name => name.Trim()), StringComparer.OrdinalIgnoreCase);
+        settings.ExcludedDats = names.Where(name => !kept.Contains(name)).ToList();
+        return null;
     }
 
     /// <summary>
@@ -642,7 +738,7 @@ public sealed class CliApplication
     }
 
     // The DATs of the folder that an export did not replace stay there, and a ROM manager reads them too
-    private void ReportUntouchedDats(string folder, IReadOnlyDictionary<string, DateTime>? before)
+    private void ReportUntouchedDats(string folder, IReadOnlyDictionary<string, DateTime>? before, bool isLot)
     {
         if (before is null || DatService.GetUntouchedDatFiles(before) is not { Count: > 0 } untouched)
         {
@@ -650,7 +746,7 @@ public sealed class CliApplication
         }
 
         WriteLine($"[{LogLevel.Warn.ToTag()}] {_localization.Format(LocalizedMessage.Create(
-            "log.export_softlist_untouched",
+            isLot ? "log.export_dat_folder_untouched" : "log.export_softlist_untouched",
             ("count", untouched.Count),
             ("path", folder),
             ("names", MameSetDependencies.FormatNames(untouched))))}");
@@ -663,6 +759,12 @@ public sealed class CliApplication
     private static bool IsMameRun(SortConfig config, IDatService datService)
     {
         if (string.IsNullOrWhiteSpace(config.DatFile))
+        {
+            return false;
+        }
+
+        // A folder of DATs is a lot or MAME software lists, never MAME machines, which a lot refuses
+        if (Directory.Exists(config.DatFile))
         {
             return false;
         }
@@ -783,6 +885,26 @@ public sealed class CliApplication
                 ("total", stats.DatTotalRoms),
                 ("pct", stats.DatCompletionPct.ToString("0.0", _culture)),
                 ("missing", stats.DatMissingCount)));
+        }
+
+        // A lot: each DAT with a game found, then the number of the others
+        if (stats.PerDat is { } perDat)
+        {
+            foreach (var dat in perDat.Where(d => d.GamesFound > 0))
+            {
+                WriteLine(Tr(
+                    "cli.summary_dat_lot_line",
+                    ("dat", dat.Name),
+                    ("games", dat.GamesFound),
+                    ("matched", dat.MatchedCount + dat.NameMatchedCount),
+                    ("total", dat.TotalRoms),
+                    ("pct", dat.CompletionPct.ToString("0.0", _culture))));
+            }
+
+            if (perDat.Count(d => d.GamesFound == 0) is var nothing and > 0)
+            {
+                WriteLine(Tr("cli.summary_dat_lot_nothing", ("count", nothing)));
+            }
         }
     }
 
