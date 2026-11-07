@@ -930,5 +930,8 @@ public sealed class ExportViewModelTests : IDisposable
 
         public Task ShowPreferencesAsync(PreferencesViewModel preferences) =>
             Task.CompletedTask;
+
+        public Task<bool> ShowDatLotAsync(DatLotViewModel lot) =>
+            Task.FromResult(false);
     }
 }

@@ -8,7 +8,8 @@ namespace RomSieve.App.Tests;
 
 /// <summary>
 /// A lot of DATs in the interface: a folder of No-Intro, Redump or TOSEC DATs is read from the headers of its DATs, shown
-/// as a list to check (with a search) bound to <c>excluded_dats</c>, its summary counting its DATs by convention; the
+/// in a window of its own as a list to check (with a search, OK and Cancel) bound to <c>excluded_dats</c>, opened when the
+/// user browses to a new folder, its summary counting its DATs by convention; the
 /// subfolders on demand; the convention of most DATs checked rules the settings steps; the output step offers a folder
 /// per DAT and the mirror, the pattern its <c>{dat}</c> and a preview in the folder of a DAT; the table names the DAT
 /// of each file (column, filter, search, grouped view, detail panel), the banner the completion of each DAT.
@@ -48,9 +49,9 @@ public sealed class DatLotViewModelTests : IDisposable
             </datafile>
             """);
 
-    private async Task<MainViewModel> CreateWithLotAsync(bool recursive = false, string config = "{}")
+    private async Task<MainViewModel> CreateWithLotAsync(bool recursive = false, string config = "{}", HeadlessDialogService? dialogs = null)
     {
-        var vm = TestMainViewModel.Create(new HeadlessDialogService(), _tmp.WriteText("config.json", config));
+        var vm = TestMainViewModel.Create(dialogs ?? new HeadlessDialogService(), _tmp.WriteText("config.json", config));
         vm.Directories.DatRecursive = recursive;
         vm.Directories.DatFilePath = _dats;
         await vm.Directories.DatLoadTask;
@@ -78,6 +79,120 @@ public sealed class DatLotViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task BrowsedFolder_ShouldOpenItsDatsToCheck_OnceRead_ButNotTheSameFolderAgain()
+    {
+        var dialogs = new HeadlessDialogService();
+        var vm = TestMainViewModel.Create(dialogs, _tmp.WriteText("config.json", "{}"));
+        var shownCount = 0;
+        dialogs.OnShowDatLot = lot =>
+        {
+            shownCount = lot.FilteredEntries.Count;
+            return Task.FromResult(true);
+        };
+        dialogs.NextPickedFolder = _dats;
+
+        await vm.Directories.BrowseDatFolderAsync();
+
+        dialogs.ShownDatLots.Should().ContainSingle().Which.Should().BeSameAs(vm.Directories.DatLot);
+        shownCount.Should().Be(2, "the window opens once the lot is read");
+
+        await vm.Directories.BrowseDatFolderAsync();
+        vm.Directories.DatRecursive = true;
+        await vm.Directories.DatLoadTask;
+        dialogs.ShownDatLots.Should().ContainSingle("the same folder, or the subfolders read again, keep the boxes as they are");
+    }
+
+    [Fact]
+    public async Task LotOfAConfiguration_ShouldNotOpenItsDats_AndADatFileHasNoneToChoose()
+    {
+        var dialogs = new HeadlessDialogService();
+        var vm = await CreateWithLotAsync(dialogs: dialogs);
+
+        dialogs.ShownDatLots.Should().BeEmpty("only a folder the user browses to opens its DATs");
+
+        vm.Directories.DatFilePath = Path.Combine(_dats, "Nintendo - Game Boy (20230414).dat");
+        await vm.Directories.DatLoadTask;
+        await vm.Directories.ChooseLotDatsAsync();
+        dialogs.ShownDatLots.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ChosenDats_ShouldBeKeptByOk_AndPutBackByCancel()
+    {
+        var dialogs = new HeadlessDialogService();
+        var vm = await CreateWithLotAsync(config: """{"excluded_dats": ["Somewhere else"]}""", dialogs: dialogs);
+        var lot = vm.Directories.DatLot;
+        lot.SearchText = "color";
+        lot.Shown = DatLotShown.Unchecked;
+        dialogs.OnShowDatLot = shown =>
+        {
+            shown.SearchText.Should().BeEmpty("the window opens on every DAT");
+            shown.Shown.Should().Be(DatLotShown.All);
+            shown.SearchText = "color";
+            shown.ExcludeShownCommand.Execute(null);
+            return Task.FromResult(false);
+        };
+
+        await vm.Directories.ChooseLotDatsAsync();
+
+        vm.Directories.ExcludedDats.Should().Equal("Somewhere else");
+        lot.Entries.Should().OnlyContain(e => e.IsIncluded);
+        vm.Directories.DatInfoText.Should().Be("Lot de 2 DAT (2 No-Intro), 2 cochés");
+
+        dialogs.OnShowDatLot = shown =>
+        {
+            shown.Entries.Single(e => e.Name == GameBoy).IsIncluded = false;
+            return Task.FromResult(true);
+        };
+        await vm.Directories.ChooseLotDatsAsync();
+
+        vm.Directories.ExcludedDats.Should().Equal(GameBoy);
+        vm.Directories.DatInfoText.Should().Be("Lot de 2 DAT (2 No-Intro), 1 cochés");
+    }
+
+    [Fact]
+    public async Task Shown_ShouldListTheDatsCheckedOrUnchecked_AndKeepAChangedLineUntilTheNextChoice()
+    {
+        var vm = await CreateWithLotAsync(recursive: true);
+        var lot = vm.Directories.DatLot;
+        lot.Entries.Single(e => e.Name == GameBoyColor).IsIncluded = false;
+
+        lot.Shown = DatLotShown.Checked;
+        lot.FilteredEntries.Select(e => e.Name).Should().Equal(GameBoy, Amiga);
+        (lot.CheckShownLabel, lot.UncheckShownLabel).Should().Be(("Cocher les affichés", "Décocher les affichés"));
+        lot.SearchText = "amiga";
+        lot.FilteredEntries.Select(e => e.Name).Should().Equal(Amiga);
+
+        lot.SearchText = string.Empty;
+        lot.Entries.Single(e => e.Name == GameBoy).IsIncluded = false;
+        lot.FilteredEntries.Select(e => e.Name).Should().Equal([GameBoy, Amiga], "an unchecked line stays, to be checked again");
+
+        lot.Shown = DatLotShown.Unchecked;
+        lot.FilteredEntries.Select(e => e.Name).Should().Equal(GameBoy, GameBoyColor);
+        lot.IncludeShownCommand.Execute(null);
+        vm.Directories.ExcludedDats.Should().BeEmpty();
+        lot.FilteredEntries.Should().HaveCount(2, "the lines checked stay until the next choice");
+
+        lot.Shown = DatLotShown.All;
+        lot.FilteredEntries.Should().HaveCount(3);
+        lot.CheckShownLabel.Should().Be("Tout cocher");
+        lot.ShownOptions.Select(o => o.Label).Should().Equal("Tous les DAT", "DAT cochés", "DAT décochés");
+    }
+
+    [Fact]
+    public async Task CheckButtons_ShouldNameEveryDat_UnlessASearchHidesSome()
+    {
+        var vm = await CreateWithLotAsync();
+        var lot = vm.Directories.DatLot;
+
+        (lot.CheckShownLabel, lot.UncheckShownLabel).Should().Be(("Tout cocher", "Tout décocher"));
+        lot.SearchText = "color";
+        (lot.CheckShownLabel, lot.UncheckShownLabel).Should().Be(("Cocher les affichés", "Décocher les affichés"));
+        lot.SearchText = "  ";
+        lot.CheckShownLabel.Should().Be("Tout cocher", "blanks search nothing");
+    }
+
+    [Fact]
     public async Task Subfolders_ShouldAddTheirDatsToTheLot()
     {
         var vm = await CreateWithLotAsync();
@@ -87,6 +202,7 @@ public sealed class DatLotViewModelTests : IDisposable
 
         vm.Directories.DatLot.Entries.Select(e => e.Name).Should().Equal(GameBoy, GameBoyColor, Amiga);
         vm.Directories.DatLot.Entries[2].RelativePath.Should().Be("TOSEC/Commodore Amiga - Games - [ADF] (TOSEC-v2025).dat");
+        vm.Directories.DatLot.Entries.Select(e => e.Folder).Should().Equal("", "", "TOSEC");
         vm.Directories.DatInfoText.Should().Be("Lot de 3 DAT (2 No-Intro, 1 TOSEC), 3 cochés");
         vm.BuildConfigUnchecked().DatRecursive.Should().BeTrue();
     }
@@ -127,6 +243,13 @@ public sealed class DatLotViewModelTests : IDisposable
 
         lot.IncludeShownCommand.Execute(null);
         vm.Directories.ExcludedDats.Should().BeEmpty();
+
+        lot.SearchText = "game nintendo";
+        lot.FilteredEntries.Should().HaveCount(2, "every term, in any order");
+        lot.SearchText = "nintendo boy -color";
+        lot.FilteredEntries.Select(e => e.Name).Should().Equal(GameBoy);
+        lot.SearchText = "amiga adf tosec 2025";
+        lot.FilteredEntries.Select(e => e.Name).Should().Equal(Amiga);
     }
 
     [Fact]

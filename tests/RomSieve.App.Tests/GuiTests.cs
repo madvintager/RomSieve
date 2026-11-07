@@ -128,6 +128,8 @@ public sealed partial class GuiTests : IDisposable
         public Task<bool> OpenFileAsync(string path) => Task.FromResult(false);
 
         public Task ShowPreferencesAsync(PreferencesViewModel preferences) => Task.CompletedTask;
+
+        public Task<bool> ShowDatLotAsync(DatLotViewModel lot) => Task.FromResult(false);
     }
 
     // =========================================================================
@@ -2018,7 +2020,7 @@ public sealed partial class GuiTests : IDisposable
         actionsByName["act_filter_this_game"].Trigger();
         vm.StatsBanner.ActiveFilters.Should().BeEmpty();
         vm.StatsBanner.TotalChip.IsChecked.Should().BeTrue();
-        vm.PreviewSearchText.Should().Be("Another World");
+        vm.PreviewSearchText.Should().Be("\"Another World\"", "the title as it is, its words not found apart");
         vm.IsPreviewRowHidden(0).Should().BeFalse();
         vm.IsPreviewRowHidden(1).Should().BeFalse();
         vm.IsPreviewRowHidden(2).Should().BeTrue(); // Zool is hidden
@@ -2131,7 +2133,7 @@ public sealed partial class GuiTests : IDisposable
         // 4. Activate search filter by isolating game
         vm.IsolateGameInPreview(vm.SelectedPreviewItem);
         vm.HasPreviewSearchFilter.Should().BeTrue();
-        vm.PreviewSearchText.Should().Be("Another World");
+        vm.PreviewSearchText.Should().Be("\"Another World\"", "the title as it is, its words not found apart");
 
         // 5. Clear search filter
         vm.ClearPreviewSearch();

@@ -154,6 +154,15 @@ suggestions. Le bouton ✕ efface la recherche. La recherche porte aussi sur le 
 et, pour un set MAME, sur sa catégorie (`shooter`, `flying vertical`). Le panneau de détail donne la catégorie d'un set en tête de sa seconde
 ligne.
 
+La recherche se lit mot par mot, sans tenir compte des majuscules ni des accents :
+
+* chaque mot doit se trouver, dans n'importe quel ordre, dans l'un de ces champs : `mario 1993 europe` trouve
+  *Super Mario All-Stars (1993)(Nintendo)(Europe)* ; un mot peut n'être qu'une partie d'un mot (`d64` trouve `[D64]`) ;
+* un mot précédé d'un tiret écarte les lignes qui le contiennent : `mario -(beta)` ; un tiret seul, comme dans
+  `Commodore C64 - Games`, est ignoré ;
+* des guillemets cherchent une expression exacte : `"Super Mario"`. **Isoler toutes les versions de « … »** (menu
+  contextuel) met ainsi le titre du jeu entre guillemets, pour ne pas montrer les autres jeux qui contiennent ses mots.
+
 Avec un lot de DAT, la liste **Tous les DAT**, à droite de la recherche, ne montre que les fichiers rangés avec le DAT
 choisi ; elle est grisée avec un DAT seul.
 

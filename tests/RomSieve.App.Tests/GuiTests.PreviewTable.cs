@@ -136,7 +136,7 @@ public sealed partial class GuiTests
                 .Should().Equal(NotifyCollectionChangedAction.Reset);
             vm.FilteredPreviewItems.Should().HaveCount(LargeRowCount);
 
-            CaptureRowNotifications(vm, () => vm.PreviewSearchText = "game 0123")
+            CaptureRowNotifications(vm, () => vm.PreviewSearchText = "\"game 0123\"")
                 .Should().Equal(NotifyCollectionChangedAction.Reset);
             vm.FilteredPreviewItems.Select(r => r.SourceName[..10]).Should().Equal(
                 Enumerable.Range(1230, 10).Select(i => $"Game {i:00000}"));
@@ -193,8 +193,9 @@ public sealed partial class GuiTests
 
             vm.PreviewSearchText.Should().Be("game 0012");
             searchBox.IsDropDownOpen.Should().BeTrue();
+            // Two terms: "0012" is also in Game 00012
             vm.FilteredPreviewItems.Select(r => r.SourceName[..10]).Should().Equal(
-                Enumerable.Range(120, 10).Select(i => $"Game {i:00000}"));
+                Enumerable.Range(120, 10).Select(i => $"Game {i:00000}").Prepend("Game 00012"));
             window.Close();
         });
     }

@@ -469,7 +469,8 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
         if (!string.IsNullOrEmpty(title))
         {
             _onResetStatusFilters();
-            PreviewSearchText = title;
+            // The title as it is: its words found apart would show other games too
+            PreviewSearchText = SearchQuery.Exact(title);
         }
     }
 
@@ -1276,7 +1277,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
         var changedOnly = activeFilters.Contains(StatsBannerViewModel.ChangedFilterKey);
         var checkedOnly = activeFilters.Contains(StatsBannerViewModel.SelectionFilterKey);
         var statusCount = activeFilters.Count(StatsBannerViewModel.IsStatusFilterKey);
-        var query = NormalizeSearchText(PreviewSearchText);
+        var query = SearchQuery.Parse(PreviewSearchText);
         var criterionGames = _criterionGames;
         var criterion = CriterionFilter;
         var dat = SelectedDatFilter?.Name;
@@ -1289,11 +1290,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
                     && criterionGames.Contains(row.CanonicalGameKey)))
             && (!changedOnly || row.IsChangedSinceLastRun)
             && (!checkedOnly || row.IsSortChecked)
-            && (string.IsNullOrEmpty(query)
-                || row.SearchTitle.Contains(query, StringComparison.Ordinal)
-                || row.SearchSource.Contains(query, StringComparison.Ordinal)
-                || row.SearchCategory.Contains(query, StringComparison.Ordinal)
-                || row.SearchDat.Contains(query, StringComparison.Ordinal));
+            && (query.IsEmpty || query.Matches(row.SearchTitle, row.SearchSource, row.SearchCategory, row.SearchDat));
     }
 
     // =========================================================================
@@ -1405,25 +1402,8 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
     public Task<IEnumerable<object>> PopulateTitleSuggestionsAsync(string? text, CancellationToken cancellationToken) =>
         Task.FromResult<IEnumerable<object>>(PreviewKnownTitles.ToList());
 
-    public static string NormalizeSearchText(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return string.Empty;
-        }
-
-        var decomposed = text.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
-        var sb = new StringBuilder(decomposed.Length);
-        foreach (var ch in decomposed)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
-            {
-                sb.Append(ch);
-            }
-        }
-
-        return sb.ToString().Normalize(NormalizationForm.FormC);
-    }
+    /// <summary>Text in lower case and without accents, as the search compares it (<see cref="SearchQuery.Normalize"/>).</summary>
+    public static string NormalizeSearchText(string? text) => SearchQuery.Normalize(text);
 
     private void InsertKnownTitleSorted(string title)
     {

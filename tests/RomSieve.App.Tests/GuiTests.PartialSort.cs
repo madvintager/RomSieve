@@ -68,7 +68,7 @@ public sealed partial class GuiTests
                 menuButton.Flyout.Hide();
 
                 vm.Execution.PlayRunForTests(config, isDryRun: true, simulation);
-                vm.PreviewTable.PreviewSearchText = "Game B";
+                vm.PreviewTable.PreviewSearchText = "\"Game B\"";
                 Settle(window);
                 menuButton.Classes.Should().Contain("primary", "the menu is put forward with the sort button");
                 menuButton.Flyout.ShowAt(menuButton);
@@ -111,7 +111,7 @@ public sealed partial class GuiTests
             try
             {
                 vm.Execution.PlayRunForTests(config, isDryRun: true, simulation);
-                vm.PreviewTable.PreviewSearchText = "Game B";
+                vm.PreviewTable.PreviewSearchText = "\"Game B\"";
                 var menuButton = window.FindControl<DropDownButton>("BtnPartialSortMenu")!;
                 foreach (var locale in vm.Localization.GetAvailableLocales().Select(l => l.Code))
                 {
@@ -368,7 +368,7 @@ public sealed partial class GuiTests
             try
             {
                 vm.PartialSort.SetChecked(vm.PreviewTable.AllPreviewItems.Take(3), false);
-                vm.PreviewTable.PreviewSearchText = "Game 00001";
+                vm.PreviewTable.PreviewSearchText = "\"Game 00001\"";
                 foreach (var locale in vm.Localization.GetAvailableLocales().Select(l => l.Code))
                 {
                     vm.UiLocale = locale;

@@ -59,7 +59,7 @@ public sealed class PartialSortViewModelTests : IDisposable
         PartialSort.DisplayedUnitCount.Should().Be(3);
         PartialSort.DisplayedSummaryText.Should().Be($"Copy 3 games (3 files) (12 B) to {_destination}");
 
-        _vm.PreviewTable.PreviewSearchText = "Game A";
+        _vm.PreviewTable.PreviewSearchText = "\"Game A\"";
         PartialSort.CanSortDisplayed.Should().BeTrue();
         PartialSort.SortDisplayedCommand.CanExecute(null).Should().BeTrue();
         PartialSort.DisplayedUnitCount.Should().Be(1);
@@ -97,7 +97,7 @@ public sealed class PartialSortViewModelTests : IDisposable
         PartialSort.DisplayedSummaryText.Should().Be($"Copy 1 game (1 file) (6 B) to {_destination}, a part of the simulation");
 
         // A filter that hides the checked game leaves nothing to sort
-        _vm.PreviewTable.PreviewSearchText = "Game C";
+        _vm.PreviewTable.PreviewSearchText = "\"Game C\"";
         PartialSort.CanSortDisplayed.Should().BeFalse();
 
         _vm.PreviewTable.PreviewSearchText = string.Empty;
@@ -124,7 +124,7 @@ public sealed class PartialSortViewModelTests : IDisposable
         await _vm.Execution.SimulateAsync();
         _vm.PreviewTable.PreviewSearchText = "Game";
         _vm.StatsBanner.ToggleChip("valid");
-        _vm.PreviewTable.PreviewSearchText = "Game B";
+        _vm.PreviewTable.PreviewSearchText = "\"Game B\"";
 
         await PartialSort.SortDisplayedCommand.ExecuteAsync(null);
 
@@ -141,7 +141,7 @@ public sealed class PartialSortViewModelTests : IDisposable
     public async Task SortDisplayed_DeclinedConfirmation_ShouldWriteNothing()
     {
         await _vm.Execution.SimulateAsync();
-        _vm.PreviewTable.PreviewSearchText = "Game C";
+        _vm.PreviewTable.PreviewSearchText = "\"Game C\"";
         _dialogs.NextConfirmationResult = false;
 
         await PartialSort.SortDisplayedCommand.ExecuteAsync(null);
@@ -157,7 +157,7 @@ public sealed class PartialSortViewModelTests : IDisposable
         var existing = _temp.WriteText(Path.Combine("dst", "existing.adf"), "kept");
         _vm.Directories.AppendToDestination = false;
         await _vm.Execution.SimulateAsync();
-        _vm.PreviewTable.PreviewSearchText = "Game C";
+        _vm.PreviewTable.PreviewSearchText = "\"Game C\"";
 
         await PartialSort.SortDisplayedCommand.ExecuteAsync(null);
 
@@ -173,7 +173,7 @@ public sealed class PartialSortViewModelTests : IDisposable
     public async Task DisplayedSelection_ShouldSurviveADifferentialSimulation()
     {
         await _vm.Execution.SimulateAsync();
-        _vm.PreviewTable.PreviewSearchText = "Game B";
+        _vm.PreviewTable.PreviewSearchText = "\"Game B\"";
         var before = PartialSort.DisplayedSelection!.Units.Select(u => u.Key).ToList();
 
         await _vm.Execution.SimulateAsync();
@@ -193,7 +193,7 @@ public sealed class PartialSortViewModelTests : IDisposable
         _dialogs.NextPickedSaveFile = profileBefore;
         await _vm.Profiles.SaveProfileCommand.ExecuteAsync(null);
 
-        _vm.PreviewTable.PreviewSearchText = "Game A";
+        _vm.PreviewTable.PreviewSearchText = "\"Game A\"";
         PartialSort.CanSortDisplayed.Should().BeTrue();
         _vm.Execution.IsSimulationCurrent.Should().BeTrue("choosing rows is not an option");
 
@@ -528,7 +528,7 @@ public sealed class PartialSortViewModelTests : IDisposable
         PartialSort.AreShownRowsChecked.Should().BeTrue();
         PartialSort.CanCheckShownRows.Should().BeTrue();
 
-        _vm.PreviewTable.PreviewSearchText = "Game A";
+        _vm.PreviewTable.PreviewSearchText = "\"Game A\"";
         PartialSort.AreShownRowsChecked = false;
         PartialSort.CheckedCountText.Should().Be("2 games selected, 2 of them hidden");
         PartialSort.AreShownRowsChecked.Should().BeFalse();
@@ -597,14 +597,14 @@ public sealed class PartialSortViewModelTests : IDisposable
         await _vm.Execution.SimulateAsync();
         PartialSort.CheckedCountText.Should().Be("3 games selected");
 
-        _vm.PreviewTable.PreviewSearchText = "Game B";
+        _vm.PreviewTable.PreviewSearchText = "\"Game B\"";
         PartialSort.CheckedCountText.Should().Be("3 games selected, 2 of them hidden");
 
         // "Check All" only acts on the rows shown: the hidden games stay checked
         PartialSort.AreShownRowsChecked = false;
         PartialSort.CheckedCountText.Should().Be("2 games selected, 2 of them hidden");
 
-        _vm.PreviewTable.PreviewSearchText = "Game A";
+        _vm.PreviewTable.PreviewSearchText = "\"Game A\"";
         PartialSort.CheckedCountText.Should().Be("2 games selected, 1 of them hidden");
         _vm.UiLocale = "fr";
         PartialSort.CheckedCountText.Should().Be("2 jeux sélectionnés, dont 1 masqué");

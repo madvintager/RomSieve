@@ -33,6 +33,12 @@ public sealed class HeadlessDialogService : IDialogService
     /// <summary>What the user does in the next preferences windows, before closing them.</summary>
     public Func<PreferencesViewModel, Task>? OnShowPreferences { get; set; }
 
+    /// <summary>Windows of the DATs of a lot shown, in order.</summary>
+    public List<DatLotViewModel> ShownDatLots { get; } = [];
+
+    /// <summary>What the user does in the next windows of the DATs of a lot: true for OK, false for Cancel (OK by default).</summary>
+    public Func<DatLotViewModel, Task<bool>>? OnShowDatLot { get; set; }
+
     public Task<string?> PickFolderAsync(string title, string? initialDirectory = null) =>
         Task.FromResult(NextPickedFolder);
 
@@ -92,5 +98,11 @@ public sealed class HeadlessDialogService : IDialogService
         {
             await OnShowPreferences(preferences);
         }
+    }
+
+    public async Task<bool> ShowDatLotAsync(DatLotViewModel lot)
+    {
+        ShownDatLots.Add(lot);
+        return OnShowDatLot is null || await OnShowDatLot(lot);
     }
 }

@@ -72,6 +72,31 @@ public sealed class PreviewTableViewModelTests : IDisposable
     }
 
     [Fact]
+    public void SearchText_ShouldFindEveryTerm_InAnyOrderAndField_AndLeaveOutTheDashedOnes()
+    {
+        var activeFilters = new HashSet<string>();
+        var vm = CreateViewModel(() => false, () => activeFilters);
+        foreach (var (file, title) in new[]
+                 {
+                     ("Astérix (1993)(Infogrames)(FR).nes", "Astérix"),
+                     ("Astérix (1993)(Infogrames)(US).nes", "Astérix"),
+                     ("Zelda (1986)(Nintendo)(US).nes", "Zelda")
+                 })
+        {
+            vm.AddPreviewItem(CreateProcessItem(_temp.WriteBytes(file, [1]), file, title, FileStatus.Valid), _temp.Path);
+        }
+
+        vm.PreviewSearchText = "infogrames asterix";
+        vm.FilteredPreviewItems.Should().HaveCount(2, "the title and the source name hold one term each");
+
+        vm.PreviewSearchText = "asterix -(FR)";
+        vm.FilteredPreviewItems.Select(r => r.SourceName).Should().Equal("Astérix (1993)(Infogrames)(US).nes");
+
+        vm.PreviewSearchText = "\"nintendo asterix\"";
+        vm.FilteredPreviewItems.Should().BeEmpty();
+    }
+
+    [Fact]
     public void ActiveStatusFilters_ShouldFilterPreviewRows()
     {
         var activeFilters = new HashSet<string>();

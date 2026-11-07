@@ -6,8 +6,8 @@ using RomSieve.Core.Models;
 namespace RomSieve.App.ViewModels;
 
 /// <summary>
-/// A DAT of a lot in the list to check of the collection step: its name, its convention, its path in the folder of DATs,
-/// and whether the sort uses it.
+/// A DAT of a lot in the list to check of the window of the lot: its name, its convention, its path in the folder of DATs
+/// (its subfolder shown, its file name in the tooltip), and whether the sort uses it.
 /// </summary>
 public sealed partial class DatLotEntryViewModel : ObservableObject
 {
@@ -19,6 +19,10 @@ public sealed partial class DatLotEntryViewModel : ObservableObject
         RelativePath = entry.RelativePath.Replace('\\', '/');
         Convention = entry.Convention;
         _conventionLabel = conventionLabel;
+        var slash = RelativePath.LastIndexOf('/');
+        Folder = slash < 0 ? string.Empty : RelativePath[..slash];
+        SearchName = SearchQuery.Normalize(Name);
+        SearchPath = SearchQuery.Normalize(RelativePath);
         _isIncluded = isIncluded;
         _changed = changed;
     }
@@ -28,7 +32,19 @@ public sealed partial class DatLotEntryViewModel : ObservableObject
     /// <summary>Path of the DAT in the folder of DATs, with <c>/</c> for separator.</summary>
     public string RelativePath { get; }
 
+    /// <summary>
+    /// Subfolder of the DAT in the folder of DATs, with <c>/</c> for separator; empty at its root, where the file name
+    /// would only repeat the name of the DAT.
+    /// </summary>
+    public string Folder { get; }
+
     public NamingConvention Convention { get; }
+
+    /// <summary>Name normalized for the search, once.</summary>
+    internal string SearchName { get; }
+
+    /// <summary>Path normalized for the search, once.</summary>
+    internal string SearchPath { get; }
 
     /// <summary>Tone of the convention, as the convention badge names it (<c>Badge*ForegroundBrush</c>).</summary>
     public string ConventionTone => DatLotViewModel.ToneOf(Convention);
@@ -43,11 +59,19 @@ public sealed partial class DatLotEntryViewModel : ObservableObject
     partial void OnIsIncludedChanged(bool value) => _changed(this);
 }
 
+/// <summary>Which DATs of a lot its window shows, besides the search.</summary>
+public enum DatLotShown
+{
+    All,
+    Checked,
+    Unchecked
+}
+
 /// <summary>
 /// The DATs of a lot (a folder of No-Intro, Redump or TOSEC DATs), read from their headers alone
-/// (<see cref="IDatService.ReadDatFolderPreview"/>), as a list to check with a search: the DATs unchecked are those
-/// <c>excluded_dats</c> names. Tells the summary of the lot (number of DATs, conventions, DATs checked) and the convention
-/// most of the DATs checked follow.
+/// (<see cref="IDatService.ReadDatFolderPreview"/>), as a list to check with a search, shown in a window of its own
+/// (<c>DatLotWindow</c>): the DATs unchecked are those <c>excluded_dats</c> names. Tells the summary of the lot (number of
+/// DATs, conventions, DATs checked) and the convention most of the DATs checked follow.
 /// </summary>
 public sealed partial class DatLotViewModel : ViewModelBase
 {
@@ -58,7 +82,26 @@ public sealed partial class DatLotViewModel : ViewModelBase
     public DatLotViewModel(ILocalizationService localization)
     {
         _localization = localization;
+        I18n = new UiStringsIndexer(localization);
+        ShownOptions = new LocalizedOptionList<DatLotShown>(
+            localization,
+            (DatLotShown.All, "tab1.dat_lot_shown_all"),
+            (DatLotShown.Checked, "tab1.dat_lot_shown_checked"),
+            (DatLotShown.Unchecked, "tab1.dat_lot_shown_unchecked"));
     }
+
+    /// <summary>Choices of the DATs shown: all of them, those checked, those unchecked.</summary>
+    public LocalizedOptionList<DatLotShown> ShownOptions { get; }
+
+    /// <summary>
+    /// DATs shown besides the search: those checked or unchecked when the list is refiltered, so that a box changed keeps
+    /// its line until the next change of the search or of this choice, to be changed back.
+    /// </summary>
+    [ObservableProperty]
+    private DatLotShown _shown = DatLotShown.All;
+
+    /// <summary>Texts of the window of the lot, retranslated at a change of language.</summary>
+    public UiStringsIndexer I18n { get; }
 
     /// <summary>Raised when the user checks or unchecks DATs: <see cref="ExcludedNames"/> tells which are left out.</summary>
     public event EventHandler? ExcludedChanged;
@@ -80,7 +123,32 @@ public sealed partial class DatLotViewModel : ViewModelBase
     [ObservableProperty]
     private string _countText = string.Empty;
 
-    partial void OnSearchTextChanged(string value) => Refilter();
+    partial void OnSearchTextChanged(string value) => OnFilterChanged();
+
+    partial void OnShownChanged(DatLotShown value) => OnFilterChanged();
+
+    private void OnFilterChanged()
+    {
+        Refilter();
+        OnPropertyChanged(nameof(CheckShownLabel));
+        OnPropertyChanged(nameof(UncheckShownLabel));
+    }
+
+    // Without a search nor a choice of the DATs shown, the buttons act on every DAT, and say so
+    private bool IsFiltered => Shown != DatLotShown.All || !SearchQuery.Parse(SearchText).IsEmpty;
+
+    /// <summary>Label of the button that checks the DATs shown: every DAT when none is hidden.</summary>
+    public string CheckShownLabel => _localization.Tr(IsFiltered ? "tab1.dat_lot_check_shown" : "tab1.dat_lot_check_all");
+
+    /// <summary>Label of the button that unchecks the DATs shown: every DAT when none is hidden.</summary>
+    public string UncheckShownLabel => _localization.Tr(IsFiltered ? "tab1.dat_lot_uncheck_shown" : "tab1.dat_lot_uncheck_all");
+
+    /// <summary>Opens the list on every DAT: no search, every DAT shown.</summary>
+    public void ShowEverything()
+    {
+        SearchText = string.Empty;
+        Shown = DatLotShown.All;
+    }
 
     /// <summary>Names of the DATs unchecked, in the order of the lot.</summary>
     public IReadOnlyList<string> ExcludedNames => _entries.Where(e => !e.IsIncluded).Select(e => e.Name).ToList();
@@ -128,6 +196,10 @@ public sealed partial class DatLotViewModel : ViewModelBase
         UpdateCount();
     }
 
+    /// <summary>Empties the search: every DAT shown again.</summary>
+    [RelayCommand]
+    private void ClearSearch() => SearchText = string.Empty;
+
     /// <summary>Checks every DAT the search shows.</summary>
     [RelayCommand]
     private void IncludeShown() => SetShown(true);
@@ -168,13 +240,13 @@ public sealed partial class DatLotViewModel : ViewModelBase
 
     private void Refilter()
     {
-        var search = SearchText.Trim();
-        FilteredEntries.ReplaceAll(search.Length == 0
+        var query = SearchQuery.Parse(SearchText);
+        var shown = Shown;
+        FilteredEntries.ReplaceAll(query.IsEmpty && shown == DatLotShown.All
             ? _entries
             : _entries.Where(e =>
-                e.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || e.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || e.ConventionLabel.Contains(search, StringComparison.OrdinalIgnoreCase)));
+                (shown == DatLotShown.All || e.IsIncluded == (shown == DatLotShown.Checked))
+                && (query.IsEmpty || query.Matches(e.SearchName, e.SearchPath, SearchQuery.Normalize(e.ConventionLabel)))));
     }
 
     private void UpdateCount() =>
@@ -219,6 +291,10 @@ public sealed partial class DatLotViewModel : ViewModelBase
         }
 
         UpdateCount();
+        ShownOptions.RefreshTranslations();
+        I18n.NotifyUpdated();
+        OnPropertyChanged(nameof(CheckShownLabel));
+        OnPropertyChanged(nameof(UncheckShownLabel));
     }
 
     private string ConventionLabel(NamingConvention convention) => _localization.Tr(convention switch

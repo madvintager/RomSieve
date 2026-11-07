@@ -1082,7 +1082,7 @@
                 <TextBlock Classes="card-title">
                   <Run Text="{Binding I18n[tab1.card_dat]}" /> <Run Classes="optional" Text="{Binding I18n[tab1.optional]}" />
                 </TextBlock>
-                <Grid RowDefinitions="Auto,2,Auto,6,Auto,6,Auto,8,Auto">
+                <Grid RowDefinitions="Auto,2,Auto,6,Auto,8,Auto">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="CollectionLabel" />
                     <ColumnDefinition Width="12" />
@@ -1128,31 +1128,43 @@
                     </Button.Flyout>
                   </Button>
 
-                  <!-- What the DAT holds, or, without a DAT, what that changes -->
-                  <TextBlock x:Name="LblDatInfo"
-                             Grid.Row="2"
+                  <!-- What the DAT holds, or, without a DAT, what that changes; the button that opens the DATs of a lot to
+                       check (DatLotWindow), greyed without a lot -->
+                  <DockPanel Grid.Row="2"
                              Grid.Column="2"
-                             Grid.ColumnSpan="3"
-                             Text="{Binding Directories.DatInfoText}"
-                             ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_info]}"
-                             FontStyle="Italic"
-                             FontSize="11"
-                             TextTrimming="CharacterEllipsis"
-                             IsVisible="{Binding Directories.DatInfoText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                    <TextBlock.Foreground>
-                      <MultiBinding Converter="{StaticResource ThemeResource}" ConverterParameter="DatInfo*ForegroundBrush">
-                        <Binding Path="Directories.DatInfoTone" />
-                        <Binding Path="$self.ActualThemeVariant" />
-                      </MultiBinding>
-                    </TextBlock.Foreground>
-                  </TextBlock>
-                  <TextBlock x:Name="LblNoDatHint"
-                             Grid.Row="2"
-                             Grid.Column="2"
-                             Grid.ColumnSpan="3"
-                             Classes="form-hint"
-                             Text="{Binding I18n[tab1.hint_no_dat]}"
-                             IsVisible="{Binding Directories.DatFilePath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                             Grid.ColumnSpan="3">
+                    <Button x:Name="BtnChooseLotDats"
+                            DockPanel.Dock="Right"
+                            Margin="8,0,0,0"
+                            FontSize="11"
+                            Content="{Binding I18n[tab1.btn_choose_lot_dats]}"
+                            ToolTip.Tip="{Binding I18n[tab1.tooltip_choose_lot_dats]}"
+                            ToolTip.ShowOnDisabled="True"
+                            IsEnabled="{Binding Directories.DatLot.IsLot}"
+                            Command="{Binding Directories.ChooseLotDatsCommand}" />
+                    <Panel>
+                      <TextBlock x:Name="LblDatInfo"
+                                 VerticalAlignment="Center"
+                                 Text="{Binding Directories.DatInfoText}"
+                                 ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_info]}"
+                                 FontStyle="Italic"
+                                 FontSize="11"
+                                 TextTrimming="CharacterEllipsis"
+                                 IsVisible="{Binding Directories.DatInfoText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock.Foreground>
+                          <MultiBinding Converter="{StaticResource ThemeResource}" ConverterParameter="DatInfo*ForegroundBrush">
+                            <Binding Path="Directories.DatInfoTone" />
+                            <Binding Path="$self.ActualThemeVariant" />
+                          </MultiBinding>
+                        </TextBlock.Foreground>
+                      </TextBlock>
+                      <TextBlock x:Name="LblNoDatHint"
+                                 VerticalAlignment="Center"
+                                 Classes="form-hint"
+                                 Text="{Binding I18n[tab1.hint_no_dat]}"
+                                 IsVisible="{Binding Directories.DatFilePath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                    </Panel>
+                  </DockPanel>
 
                   <!-- The subfolders of a folder of DATs, greyed for a DAT file -->
                   <CheckBox x:Name="ChkDatRecursive"
@@ -1166,77 +1178,9 @@
                             IsEnabled="{Binding Directories.IsDatFolder}"
                             IsChecked="{Binding Directories.DatRecursive, Mode=TwoWay}" />
 
-                  <!-- The DATs of a lot, to check: shown for a lot only, the information of a lot that exists -->
-                  <Border x:Name="PanelDatLot"
-                          Grid.Row="6"
-                          Grid.Column="2"
-                          Grid.ColumnSpan="3"
-                          BorderThickness="1"
-                          BorderBrush="{DynamicResource ControlBorderBrush}"
-                          CornerRadius="4"
-                          Padding="6"
-                          IsVisible="{Binding Directories.DatLot.IsLot}">
-                    <StackPanel Spacing="6">
-                      <Grid ColumnDefinitions="*,8,Auto,8,Auto,6,Auto">
-                        <TextBox x:Name="EditDatLotSearch"
-                                 FontSize="11"
-                                 Watermark="{Binding I18n[tab1.dat_lot_search]}"
-                                 ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_search]}"
-                                 Text="{Binding Directories.DatLot.SearchText, Mode=TwoWay}" />
-                        <TextBlock x:Name="LblDatLotCount"
-                                   Grid.Column="2"
-                                   FontSize="11"
-                                   VerticalAlignment="Center"
-                                   Text="{Binding Directories.DatLot.CountText}" />
-                        <Button x:Name="BtnDatLotCheckShown"
-                                Grid.Column="4"
-                                FontSize="11"
-                                Content="{Binding I18n[tab1.dat_lot_check_shown]}"
-                                ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_check_shown]}"
-                                Command="{Binding Directories.DatLot.IncludeShownCommand}" />
-                        <Button x:Name="BtnDatLotUncheckShown"
-                                Grid.Column="6"
-                                FontSize="11"
-                                Content="{Binding I18n[tab1.dat_lot_uncheck_shown]}"
-                                ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_uncheck_shown]}"
-                                Command="{Binding Directories.DatLot.ExcludeShownCommand}" />
-                      </Grid>
-                      <!-- Compact rows: a pack holds thousands of DATs -->
-                      <ListBox x:Name="ListDatLot"
-                               MaxHeight="220"
-                               Background="Transparent"
-                               ItemsSource="{Binding Directories.DatLot.FilteredEntries}">
-                        <ListBox.Styles>
-                          <Style Selector="ListBox#ListDatLot ListBoxItem">
-                            <Setter Property="Padding" Value="4,0" />
-                            <Setter Property="MinHeight" Value="0" />
-                          </Style>
-                        </ListBox.Styles>
-                        <ListBox.ItemTemplate>
-                          <DataTemplate x:DataType="vm:DatLotEntryViewModel">
-                            <CheckBox Padding="4,0" MinHeight="24" IsChecked="{Binding IsIncluded, Mode=TwoWay}">
-                              <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock FontSize="11" Text="{Binding Name}" />
-                                <TextBlock FontSize="11" FontWeight="Bold" Text="{Binding ConventionLabel}">
-                                  <TextBlock.Foreground>
-                                    <MultiBinding Converter="{StaticResource ThemeResource}" ConverterParameter="Badge*ForegroundBrush">
-                                      <Binding Path="ConventionTone" />
-                                      <Binding Path="$self.ActualThemeVariant" />
-                                    </MultiBinding>
-                                  </TextBlock.Foreground>
-                                </TextBlock>
-                                <TextBlock Classes="form-hint" FontSize="11" Text="{Binding RelativePath}" />
-                              </StackPanel>
-                            </CheckBox>
-                          </DataTemplate>
-                        </ListBox.ItemTemplate>
-                      </ListBox>
-                    </StackPanel>
-                  </Border>
-
                   <!-- Convention, and the one detected from the DAT or the names -->
-                  <TextBlock Grid.Row="8" Classes="form-label" Text="{Binding I18n[tab1.lbl_convention]}" />
-                  <StackPanel Grid.Row="8"
+                  <TextBlock Grid.Row="6" Classes="form-label" Text="{Binding I18n[tab1.lbl_convention]}" />
+                  <StackPanel Grid.Row="6"
                               Grid.Column="2"
                               Grid.ColumnSpan="3"
                               Orientation="Horizontal"

@@ -273,14 +273,27 @@ convention, its filters and its 1G1R.
 ### Choosing the DATs of the lot
 
 Under the field, the information line sums the lot up: *Lot of 3111 DATs (2900 TOSEC, 150 No-Intro, 61 Redump), 3111
-checked*. Only the headers of the DATs are read to show it, in a fraction of a second. Below:
+checked*. Only the headers of the DATs are read to show it, in a fraction of a second. On its right, the **Choose
+DATs…** button (greyed out for a DAT file) opens the **DATs of the lot** window; it opens by itself when you choose a
+new folder with **Browse...**, once its DATs are read (not at startup, nor when a profile is loaded). It always opens
+on every DAT.
 
-* **Also read the subfolders of the folder of DATs** adds the DATs of its subfolders to the lot (a TOSEC pack sorted by
-  maker, the No-Intro and Redump folders of a pack; `--dat-recursive`). The box is greyed out for a DAT file.
-* The **list of the DATs** gives the name, the convention and the path of each. **Search a DAT** filters the list by
-  name, path or convention; **Check** and **Uncheck** apply to the DATs shown. A DAT unchecked is not read by the sort:
-  its files are non-conforming if no other DAT knows them. The DATs unchecked are saved in the settings and the
-  profiles; on the command line, `--dat-only <name>` chooses the DATs to use.
+* The window gives the name and the convention of each DAT, with a box to check, and its subfolder when it is not at
+  the root of the folder chosen; the tooltip of a line names its file.
+* **Search a DAT** filters the list by name, path (file included) or convention, word by word like the
+  [search of the table](simulation-table.md#searching): `C64 Games D64` shows the DATs that hold the three words,
+  `-Demos` leaves out those that hold *Demos*; the cross at the end of the field clears the search.
+* The list next to the search shows **Every DAT**, only the **DATs checked** (to find at once those you chose) or only
+  the **DATs unchecked**, together with the search. A box changed keeps its line until the next change of this list or
+  of the search, so that it can be changed back.
+* **Check all** and **Uncheck all** apply to every DAT; when the search or the list hide some, they become **Check
+  shown** and **Uncheck shown**, and only touch the DATs shown.
+* **OK** keeps your choices; **Cancel** (or Escape) puts the boxes back as they were when the window opened.
+* A DAT unchecked is not read by the sort: its files are non-conforming if no other DAT knows them. The DATs unchecked
+  are saved in the settings and the profiles; on the command line, `--dat-only <name>` chooses the DATs to use.
+* **Also read the subfolders of the folder of DATs**, under the information line, adds the DATs of its subfolders to
+  the lot (a TOSEC pack sorted by maker, the No-Intro and Redump folders of a pack; `--dat-recursive`). The box is
+  greyed out for a DAT file.
 
 A folder is refused, and the information line says why, when two of its DATs bear the same name (case ignored), when it
 holds a DAT of MAME machines (to choose alone), when it mixes MAME software lists with other DATs, or when all its DATs

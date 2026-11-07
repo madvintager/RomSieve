@@ -287,15 +287,29 @@ reconnaît, et chaque DAT garde sa convention, ses filtres et son 1G1R.
 ### Choisir les DAT du lot
 
 Sous le champ, la ligne d'information résume le lot : *Lot de 3 111 DAT (2 900 TOSEC, 150 No-Intro, 61 Redump),
-3 111 cochés*. Seuls les en-têtes des DAT sont lus pour l'afficher, en une fraction de seconde. Dessous :
+3 111 cochés*. Seuls les en-têtes des DAT sont lus pour l'afficher, en une fraction de seconde. À droite, le bouton
+**Choisir les DAT…** (grisé pour un fichier DAT) ouvre la fenêtre **DAT du lot** ; elle s'ouvre d'elle-même quand vous
+choisissez un nouveau dossier par **Parcourir...**, une fois ses DAT lus (pas au lancement, ni au chargement d'un
+profil). Elle s'ouvre toujours sur tous les DAT.
 
-* **Lire aussi les sous-dossiers du dossier de DAT** ajoute au lot les DAT de ses sous-dossiers (un pack TOSEC rangé
-  par constructeur, les dossiers No-Intro et Redump d'un même pack ; `--dat-recursive`). La case est grisée pour un
-  fichier DAT.
-* La **liste des DAT** donne le nom, la convention et le chemin de chacun. **Rechercher un DAT** filtre la liste par
-  nom, chemin ou convention ; **Cocher** et **Décocher** s'appliquent aux DAT affichés. Un DAT décoché n'est pas lu par
-  le tri : ses fichiers sont non conformes si aucun autre DAT ne les reconnaît. Les DAT décochés sont enregistrés dans
-  les réglages et les profils ; en ligne de commande, `--dat-only <nom>` choisit les DAT à utiliser.
+* La fenêtre donne le nom et la convention de chaque DAT, avec une case à cocher, et son sous-dossier quand il n'est
+  pas à la racine du dossier choisi ; l'infobulle d'une ligne nomme son fichier.
+* **Rechercher un DAT** filtre la liste par nom, chemin (fichier compris) ou convention, mot par mot comme la
+  [recherche de la table](simulation-table.md#recherche) : `C64 Games D64` montre les DAT qui contiennent les trois
+  mots, `-Demos` écarte ceux qui contiennent *Demos* ; la croix au bout du champ efface la recherche.
+* La liste à côté de la recherche montre **Tous les DAT**, les seuls **DAT cochés** (pour retrouver d'un coup ceux
+  que vous avez choisis) ou les seuls **DAT décochés**, avec la recherche. Une case changée garde sa ligne jusqu'au
+  prochain changement de cette liste ou de la recherche, pour pouvoir revenir dessus.
+* **Tout cocher** et **Tout décocher** s'appliquent à tous les DAT ; quand la recherche ou la liste en masquent, ils
+  deviennent **Cocher les affichés** et **Décocher les affichés**, et ne touchent qu'aux DAT affichés.
+* **OK** garde vos choix ; **Annuler** (ou Échap) rétablit les cases telles qu'elles étaient à l'ouverture de la
+  fenêtre.
+* Un DAT décoché n'est pas lu par le tri : ses fichiers sont non conformes si aucun autre DAT ne les reconnaît. Les DAT
+  décochés sont enregistrés dans les réglages et les profils ; en ligne de commande, `--dat-only <nom>` choisit les DAT
+  à utiliser.
+* **Lire aussi les sous-dossiers du dossier de DAT**, sous la ligne d'information, ajoute au lot les DAT de ses
+  sous-dossiers (un pack TOSEC rangé par constructeur, les dossiers No-Intro et Redump d'un même pack ;
+  `--dat-recursive`). La case est grisée pour un fichier DAT.
 
 Un dossier est refusé, et la ligne d'information dit pourquoi, quand deux de ses DAT portent le même nom (sans tenir
 compte des majuscules), quand il contient un DAT de machines MAME (à choisir seul), quand il mêle des listes de

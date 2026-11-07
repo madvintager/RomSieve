@@ -147,6 +147,15 @@ Type part of a title in **Search title**: the table is filtered as you type, wit
 the search. The search also looks at the source name, the name of the DAT of a lot and, for a MAME set, at its
 category (`shooter`, `flying vertical`). The detail panel gives the category of a set at the start of its second line.
 
+The search is read word by word, case and accents ignored:
+
+* each word must be found, in any order, in one of these fields: `mario 1993 europe` finds *Super Mario All-Stars
+  (1993)(Nintendo)(Europe)*; a word may be only part of a word (`d64` finds `[D64]`);
+* a word led by a dash leaves out the rows that hold it: `mario -(beta)`; a lone dash, as in `Commodore C64 - Games`,
+  is ignored;
+* double quotes look for an exact phrase: `"Super Mario"`. **Isolate all versions of "…"** (context menu) thus puts
+  the title of the game between double quotes, so as not to show the other games that hold its words.
+
 With a lot of DATs, the **Every DAT** list, to the right of the search, only shows the files sorted with the DAT
 chosen; it is greyed out with a single DAT.
 

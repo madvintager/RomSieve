@@ -1,0 +1,185 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RomSieve.App.ViewModels"
+        x:Class="RomSieve.App.Views.DatLotWindow"
+        x:DataType="vm:DatLotViewModel"
+        Title="{Binding I18n[tab1.dat_lot_window_title]}"
+        Width="900"
+        Height="580"
+        MinWidth="560"
+        MinHeight="320"
+        ShowInTaskbar="False"
+        Icon="avares://RomSieve.App/Assets/icon.png"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        FontSize="11"
+        WindowStartupLocation="CenterOwner">
+
+  <Window.Styles>
+    <!-- Same compact controls as the main window -->
+    <Style Selector="TextBlock.hint">
+      <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+    </Style>
+    <Style Selector="Button">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Padding" Value="10,2" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="3" />
+    </Style>
+    <!-- Cross at the end of the search, as in the fields of the main window -->
+    <Style Selector="Button.field-clear">
+      <Setter Property="Width" Value="20" />
+      <Setter Property="Height" Value="20" />
+      <Setter Property="MinHeight" Value="20" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,0,4,0" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="Content" Value="✕" />
+      <Setter Property="IsTabStop" Value="False" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
+    </Style>
+    <!-- Compact rows: a pack holds thousands of DATs -->
+    <Style Selector="ListBox#ListDatLot ListBoxItem">
+      <Setter Property="Padding" Value="4,0" />
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel Margin="16,14">
+    <!-- OK keeps the boxes; Cancel, Escape or the close button put them back as they were at the opening -->
+    <StackPanel DockPanel.Dock="Bottom"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="8"
+                Margin="0,12,0,0">
+      <Button x:Name="BtnDatLotOk"
+              MinWidth="85"
+              HorizontalContentAlignment="Center"
+              Content="{Binding I18n[dialog.btn_ok]}"
+              Click="OnOkClick" />
+      <Button x:Name="BtnDatLotCancel"
+              MinWidth="85"
+              HorizontalContentAlignment="Center"
+              IsCancel="True"
+              Content="{Binding I18n[dialog.btn_cancel]}"
+              Click="OnCancelClick" />
+    </StackPanel>
+
+    <TextBlock x:Name="LblDatLotHint"
+               DockPanel.Dock="Top"
+               Classes="hint"
+               Margin="0,0,0,8"
+               Text="{Binding I18n[tab1.dat_lot_hint]}" />
+
+    <!-- The search and the choice of the DATs shown, then the count and the buttons, on two lines: in Spanish, they
+         would not fit on one at the minimum width of the window -->
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+      <!-- Every DAT, those checked or those unchecked, besides the search -->
+      <ComboBox x:Name="ComboDatLotShown"
+                DockPanel.Dock="Right"
+                Margin="8,0,0,0"
+                MinWidth="120"
+                ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_shown]}"
+                ItemsSource="{Binding ShownOptions}"
+                SelectedValueBinding="{Binding Value}"
+                DisplayMemberBinding="{Binding Label}"
+                SelectedValue="{Binding Shown, Mode=TwoWay}" />
+      <TextBox x:Name="EditDatLotSearch"
+               Watermark="{Binding I18n[tab1.dat_lot_search]}"
+               ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_search]}"
+               Text="{Binding SearchText, Mode=TwoWay}">
+        <TextBox.InnerRightContent>
+          <Button x:Name="BtnClearDatLotSearch"
+                  Classes="field-clear"
+                  ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_clear_search]}"
+                  AutomationProperties.Name="{Binding I18n[tab1.tooltip_dat_lot_clear_search]}"
+                  IsVisible="{Binding SearchText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                  Command="{Binding ClearSearchCommand}" />
+        </TextBox.InnerRightContent>
+      </TextBox>
+    </DockPanel>
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+        <Button x:Name="BtnDatLotCheckShown"
+                Content="{Binding CheckShownLabel}"
+                ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_check_shown]}"
+                Command="{Binding IncludeShownCommand}" />
+        <Button x:Name="BtnDatLotUncheckShown"
+                Content="{Binding UncheckShownLabel}"
+                ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_lot_uncheck_shown]}"
+                Command="{Binding ExcludeShownCommand}" />
+      </StackPanel>
+      <TextBlock x:Name="LblDatLotCount"
+                 VerticalAlignment="Center"
+                 Text="{Binding CountText}" />
+    </DockPanel>
+
+    <Border BorderThickness="1"
+            BorderBrush="{DynamicResource ControlBorderBrush}"
+            CornerRadius="4"
+            Padding="2">
+      <ListBox x:Name="ListDatLot"
+               Background="Transparent"
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+               ItemsSource="{Binding FilteredEntries}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:DatLotEntryViewModel">
+            <!-- One line per DAT: its name and its convention, its subfolder outside the root of the folder of DATs; the
+                 file in the tooltip. The template of the CheckBox wraps its text: each TextBlock says it does not -->
+            <CheckBox Padding="4,0"
+                      MinHeight="24"
+                      IsChecked="{Binding IsIncluded, Mode=TwoWay}"
+                      ToolTip.Tip="{Binding RelativePath}">
+              <Grid ColumnDefinitions="Auto,8,Auto,8,*">
+                <TextBlock TextWrapping="NoWrap" Text="{Binding Name}" />
+                <TextBlock Grid.Column="2" TextWrapping="NoWrap" FontWeight="Bold" Text="{Binding ConventionLabel}">
+                  <TextBlock.Foreground>
+                    <MultiBinding Converter="{StaticResource ThemeResource}" ConverterParameter="Badge*ForegroundBrush">
+                      <Binding Path="ConventionTone" />
+                      <Binding Path="$self.ActualThemeVariant" />
+                    </MultiBinding>
+                  </TextBlock.Foreground>
+                </TextBlock>
+                <TextBlock Grid.Column="4"
+                           Foreground="{DynamicResource HintForegroundBrush}"
+                           TextWrapping="NoWrap"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding Folder}"
+                           IsVisible="{Binding Folder, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              </Grid>
+            </CheckBox>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+  </DockPanel>
+</Window>

@@ -598,16 +598,48 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         }
     }
 
-    /// <summary>Chooses a folder of DATs: the DATs of several MAME software lists, sorted together.</summary>
+    /// <summary>
+    /// Chooses a folder of DATs: a lot of No-Intro, Redump or TOSEC DATs, or the DATs of several MAME software lists,
+    /// sorted together. A new lot opens its DATs to check, once read (not the same folder chosen again, nor a lot
+    /// a configuration, a profile or the subfolders option reads).
+    /// </summary>
     [RelayCommand]
     public async Task BrowseDatFolderAsync()
     {
         var currentPath = DatFilePath?.Trim() ?? string.Empty;
         var startDir = Directory.Exists(currentPath) ? currentPath : Path.GetDirectoryName(currentPath) ?? string.Empty;
         var folder = await _dialogService.PickFolderAsync(_localization.Tr("dialog.browse_dat_folder_title"), startDir);
-        if (!string.IsNullOrEmpty(folder))
+        if (string.IsNullOrEmpty(folder) || folder == DatFilePath)
         {
-            DatFilePath = folder;
+            return;
+        }
+
+        DatFilePath = folder;
+        await DatLoadTask;
+        if (DatLot.IsLot && DatFilePath == folder)
+        {
+            await ChooseLotDatsAsync();
+        }
+    }
+
+    /// <summary>
+    /// Shows the DATs of the lot to check, all of them (no search, no choice of the DATs shown). The boxes change the
+    /// lot at once; Cancel puts back the DATs left out at the opening.
+    /// </summary>
+    [RelayCommand]
+    public async Task ChooseLotDatsAsync()
+    {
+        if (!DatLot.IsLot)
+        {
+            return;
+        }
+
+        var excludedAtOpening = ExcludedDats;
+        DatLot.ShowEverything();
+        if (!await _dialogService.ShowDatLotAsync(DatLot))
+        {
+            // The same list when nothing changed: no change, so no notification
+            ExcludedDats = excludedAtOpening;
         }
     }
 

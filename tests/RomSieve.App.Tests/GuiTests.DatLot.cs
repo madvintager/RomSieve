@@ -6,8 +6,8 @@ using RomSieve.App.Views;
 namespace RomSieve.App.Tests;
 
 /// <summary>
-/// A lot of DATs in the window: the subfolders option, greyed for a DAT file; the list of the DATs to check, shown for a
-/// lot only; the folder options of the output step, the mirror greyed without a folder per DAT; the variable of the DAT;
+/// A lot of DATs in the window: the subfolders option, greyed for a DAT file; the button that opens the DATs to check,
+/// greyed without a lot, and their window (search and its cross, buttons); the folder options of the output step, the mirror greyed without a folder per DAT; the variable of the DAT;
 /// the column of the DAT in the columns menu and the filter by DAT of the table, greyed without a lot.
 /// </summary>
 public sealed partial class GuiTests
@@ -39,7 +39,7 @@ public sealed partial class GuiTests
     }
 
     [Fact]
-    public async Task DatLot_ShouldBeShownToCheck_WithTheFolderOptionsOfAFolderOfDats()
+    public async Task DatLot_ShouldOpenItsDatsToCheck_WithTheFolderOptionsOfAFolderOfDats()
     {
         await RunOnUiThreadAsync(async () =>
         {
@@ -49,23 +49,75 @@ public sealed partial class GuiTests
             try
             {
                 var recursive = window.FindControl<CheckBox>("ChkDatRecursive")!;
-                var panel = window.FindControl<Border>("PanelDatLot")!;
+                var choose = window.FindControl<Button>("BtnChooseLotDats")!;
                 recursive.IsEnabled.Should().BeFalse("without a DAT, there is no folder to read");
-                panel.IsVisible.Should().BeFalse();
+                choose.IsVisible.Should().BeTrue("nothing is hidden according to the DAT");
+                choose.IsEnabled.Should().BeFalse();
                 ToolTip.GetShowOnDisabled(recursive).Should().BeTrue();
+                ToolTip.GetShowOnDisabled(choose).Should().BeTrue();
 
                 vm.Directories.DatFilePath = WriteGuiLot();
                 await vm.Directories.DatLoadTask;
                 Settle(window);
 
                 recursive.IsEnabled.Should().BeTrue();
-                panel.IsVisible.Should().BeTrue();
-                var list = window.FindControl<ListBox>("ListDatLot")!;
-                list.ItemCount.Should().Be(2);
-                window.FindControl<TextBlock>("LblDatLotCount")!.Text.Should().Be("2 DAT cochés sur 2");
+                choose.IsEnabled.Should().BeTrue();
+                choose.Command.Should().BeSameAs(vm.Directories.ChooseLotDatsCommand);
+                window.FindControl<TextBlock>("LblDatInfo")!.Text.Should().Be("Lot de 2 DAT (2 No-Intro), 2 cochés");
                 CaptureLotStep(window, "collection");
-                window.FindControl<Button>("BtnDatLotUncheckShown")!.Command!.Execute(null);
-                vm.Directories.ExcludedDats.Should().Equal("Nintendo - Game Boy", "Nintendo - Game Boy Color");
+
+                // The window of the lot, shown without its modal wait (see AGENTS.App.md)
+                var lotWindow = new DatLotWindow { DataContext = vm.Directories.DatLot };
+                lotWindow.Show(window);
+                try
+                {
+                    Settle(lotWindow);
+                    lotWindow.FindControl<ListBox>("ListDatLot")!.ItemCount.Should().Be(2);
+                    lotWindow.FindControl<TextBlock>("LblDatLotCount")!.Text.Should().Be("2 DAT cochés sur 2");
+                    var check = lotWindow.FindControl<Button>("BtnDatLotCheckShown")!;
+                    var uncheck = lotWindow.FindControl<Button>("BtnDatLotUncheckShown")!;
+                    (check.Content, uncheck.Content).Should().Be(("Tout cocher", "Tout décocher"));
+                    var shownChoice = lotWindow.FindControl<ComboBox>("ComboDatLotShown")!;
+                    shownChoice.ItemCount.Should().Be(3);
+                    vm.Directories.DatLot.Entries[0].IsIncluded = false;
+                    shownChoice.SelectedIndex = 2;
+                    Settle(lotWindow);
+                    vm.Directories.DatLot.Shown.Should().Be(DatLotShown.Unchecked);
+                    lotWindow.FindControl<ListBox>("ListDatLot")!.ItemCount.Should().Be(1);
+                    check.Content.Should().Be("Cocher les affichés");
+                    check.Command!.Execute(null);
+                    shownChoice.SelectedIndex = 0;
+                    Settle(lotWindow);
+                    vm.Directories.DatLot.Shown.Should().Be(DatLotShown.All);
+                    vm.Directories.ExcludedDats.Should().BeEmpty();
+
+                    var clear = lotWindow.FindControl<Button>("BtnClearDatLotSearch")!;
+                    clear.IsVisible.Should().BeFalse("there is no search to clear");
+                    var search = lotWindow.FindControl<TextBox>("EditDatLotSearch")!;
+                    search.Text = "nintendo";
+                    Settle(lotWindow);
+                    clear.IsVisible.Should().BeTrue();
+                    clear.Command!.Execute(null);
+                    Settle(lotWindow);
+                    search.Text.Should().BeEmpty();
+                    clear.IsVisible.Should().BeFalse();
+                    search.Text = "color";
+                    Settle(lotWindow);
+                    lotWindow.FindControl<ListBox>("ListDatLot")!.ItemCount.Should().Be(1);
+                    (check.Content, uncheck.Content).Should().Be(("Cocher les affichés", "Décocher les affichés"));
+                    uncheck.Command!.Execute(null);
+                    vm.Directories.ExcludedDats.Should().Equal("Nintendo - Game Boy Color");
+                    vm.Directories.DatLot.SearchText = string.Empty;
+                    Settle(lotWindow);
+                    CaptureLotStep(lotWindow, "dats");
+                    uncheck.Command!.Execute(null);
+                    vm.Directories.ExcludedDats.Should().Equal("Nintendo - Game Boy", "Nintendo - Game Boy Color");
+                    window.FindControl<TextBlock>("LblDatInfo")!.Text.Should().Be("Lot de 2 DAT (2 No-Intro), 0 cochés");
+                }
+                finally
+                {
+                    lotWindow.Close();
+                }
 
                 vm.Navigation.CurrentStep = WorkflowStep.Output;
                 Settle(window);
@@ -93,7 +145,7 @@ public sealed partial class GuiTests
                 vm.Navigation.CurrentStep = WorkflowStep.Collection;
                 Settle(window);
                 recursive.IsEnabled.Should().BeFalse();
-                panel.IsVisible.Should().BeFalse();
+                choose.IsEnabled.Should().BeFalse("a DAT file has no DATs to choose");
             }
             finally
             {

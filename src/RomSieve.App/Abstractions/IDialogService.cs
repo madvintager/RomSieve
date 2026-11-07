@@ -51,4 +51,10 @@ public interface IDialogService
 
     /// <summary>Shows the preferences window and returns once it is closed; its changes apply at once.</summary>
     Task ShowPreferencesAsync(PreferencesViewModel preferences);
+
+    /// <summary>
+    /// Shows the DATs of a lot to check, and returns once the window is closed: true for OK, false for Cancel (or a window
+    /// that could not be shown). The boxes change the lot at once; the caller puts them back on Cancel.
+    /// </summary>
+    Task<bool> ShowDatLotAsync(DatLotViewModel lot);
 }
