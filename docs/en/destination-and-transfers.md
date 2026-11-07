@@ -15,8 +15,10 @@ The **Pattern** describes the folders created for each game, with variables in b
 Type the pattern in the field, or use the two menus under it:
 
 * **Insert Variable** inserts a variable at the caret (at the end, as a new folder, if you have not clicked in the
-  field). The variables of every convention come first; those of TOSEC names (publisher, year...) follow, and are only
-  offered when the convention is TOSEC or not known yet.
+  field). The variables of every convention come first; those of TOSEC names (publisher, year, chipset...) follow, then
+  those of the MAME categories (genre, category). All stay in the menu: those without a value with the current
+  convention are greyed out, and their tooltip says when they apply (the TOSEC variables when the convention is TOSEC or
+  not known yet, those of the categories with MAME).
 * **Presets** replaces the pattern with a ready-made one:
 
 | Preset | Pattern | Suits |

@@ -973,6 +973,8 @@
   "var.tooltip_dump_status": "Inserta {dump_status}: indicador TOSEC de calidad y conformidad del volcado ([!], [b], [a]...).",
   "var.tooltip_genre": "Inserta {genre}: género de la máquina según el archivo de categorías (Shooter, Fighter...), Unknown sin categoría.",
   "var.tooltip_category": "Inserta {category}: género y subgénero de la máquina según el archivo de categorías (Shooter - Flying Vertical), Unknown sin categoría.",
+  "var.hint_tosec_only": "Sin efecto con la convención actual: solo los nombres TOSEC dan este valor.",
+  "var.hint_mame_only": "Sin efecto con la convención actual: solo las máquinas MAME tienen una categoría.",
   "tab2.tooltip_verified_only": "Conserva solo los volcados verificados y certificados como auténticos con el indicador [!], excluyendo todos los demás.",
   "tab2.tooltip_exclude_bad": "Excluye los volcados dañados marcados con [b].",
   "tab2.tooltip_exclude_alt": "Excluye las variantes secundarias marcadas con [a].",

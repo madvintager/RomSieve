@@ -259,11 +259,29 @@ public sealed partial class GuiTests : IDisposable
     [InlineData(NamingConvention.Tosec, true)]
     [InlineData(NamingConvention.NoIntro, false)]
     [InlineData(NamingConvention.Redump, false)]
-    public void TosecVariables_ShouldOnlyBeOfferedForTosecOrUnknownNames(NamingConvention convention, bool shown)
+    [InlineData(NamingConvention.Mame, false)]
+    public void TosecVariables_ShouldOnlyApplyToTosecOrUnknownNames(NamingConvention convention, bool applicable)
     {
         var vm = CreateViewModel();
         vm.Directories.SelectedNamingConvention = convention;
-        vm.Directories.AreTosecVariablesShown.Should().Be(shown);
+        vm.Directories.AreTosecVariablesApplicable.Should().Be(applicable);
+
+        // Greyed out, never hidden: the tooltip then says when the variable applies
+        var chipset = vm.Directories.PatternVariables.Single(v => v.Tag == "{chipset}");
+        chipset.IsApplicable.Should().Be(applicable);
+        var hint = vm.Localization.Tr("var.hint_tosec_only");
+        if (applicable)
+        {
+            chipset.Tooltip.Should().Be(vm.Localization.Tr("var.tooltip_chipset"));
+        }
+        else
+        {
+            chipset.Tooltip.Should().Be($"{vm.Localization.Tr("var.tooltip_chipset")}\n{hint}");
+        }
+
+        // The variables of every convention always apply
+        vm.Directories.PatternVariables.Where(v => v.Scope == PatternVariableScope.All)
+            .Should().OnlyContain(v => v.IsApplicable);
     }
 
     // =========================================================================

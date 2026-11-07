@@ -973,6 +973,8 @@
   "var.tooltip_dump_status": "Inserts {dump_status}: TOSEC dump quality and compliance flag ([!], [b], [a]...).",
   "var.tooltip_genre": "Inserts {genre}: genre of the machine from the category file (Shooter, Fighter...), Unknown without a category.",
   "var.tooltip_category": "Inserts {category}: genre and subgenre of the machine from the category file (Shooter - Flying Vertical), Unknown without a category.",
+  "var.hint_tosec_only": "No effect with the current convention: only TOSEC names give this value.",
+  "var.hint_mame_only": "No effect with the current convention: only MAME machines have a category.",
   "tab2.tooltip_verified_only": "Keep only verified dumps certified authentic with the [!] flag, excluding all others.",
   "tab2.tooltip_exclude_bad": "Exclude corrupt bad dumps flagged with [b].",
   "tab2.tooltip_exclude_alt": "Exclude secondary alternate dumps flagged with [a].",

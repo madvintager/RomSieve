@@ -973,6 +973,8 @@
   "var.tooltip_dump_status": "Insère {dump_status} : tag de qualité et conformité du dump TOSEC ([!], [b], [a]...).",
   "var.tooltip_genre": "Insère {genre} : genre de la machine d'après le fichier de catégories (Shooter, Fighter...), Unknown sans catégorie.",
   "var.tooltip_category": "Insère {category} : genre et sous-genre de la machine d'après le fichier de catégories (Shooter - Flying Vertical), Unknown sans catégorie.",
+  "var.hint_tosec_only": "Sans effet avec la convention actuelle : seuls les noms TOSEC donnent cette valeur.",
+  "var.hint_mame_only": "Sans effet avec la convention actuelle : seules les machines MAME ont une catégorie.",
   "tab2.tooltip_verified_only": "Ne conserver que les dumps vérifiés certifiés authentiques portant le drapeau [!], en excluant tous les autres.",
   "tab2.tooltip_exclude_bad": "Exclure les mauvais dumps corrompus signalés par le drapeau [b].",
   "tab2.tooltip_exclude_alt": "Exclure les dumps alternatifs secondaires signalés par [a].",

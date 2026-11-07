@@ -16,8 +16,10 @@ Le **Modèle** décrit les dossiers créés pour chaque jeu, avec des variables 
 Saisissez le modèle dans le champ, ou utilisez les deux menus placés dessous :
 
 * **Insérer une variable** insère une variable à la position du curseur (à la fin, comme nouveau dossier, si vous
-  n'avez pas cliqué dans le champ). Les variables de toutes les conventions viennent d'abord ; celles des noms TOSEC
-  (éditeur, année...) suivent, et ne sont proposées que si la convention est TOSEC ou pas encore connue.
+  n'avez pas cliqué dans le champ). Les variables de toutes les conventions viennent d'abord ; suivent celles des noms
+  TOSEC (éditeur, année, chipset...), puis celles des catégories MAME (genre, catégorie). Toutes restent dans le menu :
+  celles qui n'ont pas de valeur avec la convention actuelle sont grisées, et leur infobulle dit quand elles
+  s'appliquent (les variables TOSEC quand la convention est TOSEC ou pas encore connue, celles des catégories en MAME).
 * **Préréglages** remplace le modèle par un modèle tout prêt :
 
 | Préréglage | Modèle | Pour |

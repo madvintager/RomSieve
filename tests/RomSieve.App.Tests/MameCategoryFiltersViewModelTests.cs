@@ -225,12 +225,16 @@ public sealed class MameCategoryFiltersViewModelTests : IDisposable
     {
         var vm = CreateViewModel();
         var directories = vm.Directories;
-        directories.AreMameVariablesShown.Should().BeFalse();
+        directories.AreMameVariablesApplicable.Should().BeFalse();
+        directories.PatternVariables[12].IsApplicable.Should().BeFalse();
+        directories.PatternVariables[12].Tooltip.Should().EndWith(vm.Localization.Tr("var.hint_mame_only"));
 
         directories.SelectedNamingConvention = NamingConvention.Mame;
 
         directories.IsMameConvention.Should().BeTrue();
-        directories.AreMameVariablesShown.Should().BeTrue();
+        directories.AreMameVariablesApplicable.Should().BeTrue();
+        directories.PatternVariables[12].IsApplicable.Should().BeTrue();
+        directories.PatternVariables[12].Tooltip.Should().Be(vm.Localization.Tr("var.tooltip_category"));
         directories.PatternVariables[11].Tag.Should().Be("{genre}");
         directories.PatternVariables[12].Tag.Should().Be("{category}");
         directories.MameCategoryFile = "catlist.ini";

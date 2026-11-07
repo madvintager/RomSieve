@@ -127,13 +127,21 @@ public sealed partial class GuiTests
                 editPattern.IsFocused.Should().BeTrue();
                 editPattern.CaretIndex.Should().Be("{publisher}/{country}".Length);
 
-                // The variables of TOSEC names follow the effective convention
-                window.FindControl<MenuItem>("MenuVariablePublisher")!.IsVisible.Should().BeTrue();
+                // The variables of TOSEC names follow the effective convention: greyed out, never hidden, their
+                // tooltip shown on the disabled entry
+                var publisher = window.FindControl<MenuItem>("MenuVariablePublisher")!;
+                publisher.IsEnabled.Should().BeTrue();
                 vm.Directories.SelectedNamingConvention = Core.Models.NamingConvention.NoIntro;
                 insert.Flyout.ShowAt(insert);
                 Settle(window);
-                window.FindControl<MenuItem>("MenuVariablePublisher")!.IsVisible.Should().BeFalse();
-                window.FindControl<MenuItem>("MenuVariableCountry")!.IsVisible.Should().BeTrue();
+                publisher.IsVisible.Should().BeTrue();
+                publisher.IsEnabled.Should().BeFalse();
+                ToolTip.GetShowOnDisabled(publisher).Should().BeTrue();
+                ToolTip.GetTip(publisher).Should().Be(
+                    $"{vm.Localization.Tr("var.tooltip_publisher")}\n{vm.Localization.Tr("var.hint_tosec_only")}");
+                window.FindControl<MenuItem>("MenuVariableCountry")!.IsEnabled.Should().BeTrue();
+                window.FindControl<MenuItem>("MenuVariableGenre")!.IsVisible.Should().BeTrue();
+                window.FindControl<MenuItem>("MenuVariableGenre")!.IsEnabled.Should().BeFalse();
                 insert.Flyout.Hide();
             }
             finally

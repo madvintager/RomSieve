@@ -94,10 +94,11 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
         PatternVariables =
         [
-            .. CommonPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, isTosecOnly: false)),
-            .. TosecPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, isTosecOnly: true)),
-            .. MamePatternVariableSpecs.Select(spec => CreatePatternVariable(spec, isTosecOnly: false))
+            .. CommonPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.All)),
+            .. TosecPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Tosec)),
+            .. MamePatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Mame))
         ];
+        UpdatePatternVariables();
         TransferModeOptions =
         [
             new(localization, TransferMode.Copy, "tab1.radio_copy", "tab1.mode_hint_copy", "tab1.tooltip_mode_copy"),
@@ -149,8 +150,10 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     public LocalizedOptionList<int> HashingParallelismOptions { get; }
 
     /// <summary>
-    /// Entries of the "Insert a variable" menu: the variables of every convention, then those of TOSEC names, shown
-    /// when the effective convention is TOSEC or not known yet (<see cref="AreTosecVariablesShown"/>).
+    /// Entries of the "Insert a variable" menu: the variables of every convention, then those of TOSEC names, then those
+    /// of the MAME categories. All are always shown; those without value with the effective convention are greyed out
+    /// (<see cref="PatternVariableViewModel.IsApplicable"/>, <see cref="AreTosecVariablesApplicable"/>,
+    /// <see cref="AreMameVariablesApplicable"/>).
     /// </summary>
     public IReadOnlyList<PatternVariableViewModel> PatternVariables { get; }
 
@@ -162,7 +165,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
     /// <summary>Convention that the settings steps follow: the selected one, or the one detected from the DAT in Auto mode.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AreTosecVariablesShown), nameof(IsMameConvention), nameof(AreMameVariablesShown))]
+    [NotifyPropertyChangedFor(nameof(AreTosecVariablesApplicable), nameof(IsMameConvention), nameof(AreMameVariablesApplicable))]
     private NamingConvention _effectiveConvention = NamingConvention.Auto;
 
     /// <summary>Folder of the CHDs of a MAME collection, read in addition to the source; empty: none.</summary>
@@ -183,11 +186,14 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     [ObservableProperty]
     private string _mameRatingFile = string.Empty;
 
-    /// <summary>Whether the variables of the MAME categories are offered.</summary>
-    public bool AreMameVariablesShown => EffectiveConvention == NamingConvention.Mame;
+    /// <summary>Whether the variables of the MAME categories have a value: only for MAME machines.</summary>
+    public bool AreMameVariablesApplicable => EffectiveConvention == NamingConvention.Mame;
 
-    /// <summary>Whether the variables of TOSEC names are offered: they have no value in No-Intro and Redump names.</summary>
-    public bool AreTosecVariablesShown => EffectiveConvention is NamingConvention.Auto or NamingConvention.Tosec;
+    /// <summary>
+    /// Whether the variables of TOSEC names have a value: the effective convention is TOSEC or not known yet. They have
+    /// none in No-Intro and Redump names, nor for MAME.
+    /// </summary>
+    public bool AreTosecVariablesApplicable => EffectiveConvention is NamingConvention.Auto or NamingConvention.Tosec;
 
     /// <summary>What the selected transfer mode does, shown under the modes.</summary>
     [ObservableProperty]
@@ -838,8 +844,29 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     // Pattern variables and transfer mode hint
     // =========================================================================
 
-    private PatternVariableViewModel CreatePatternVariable((string Tag, string LabelKey, string TipKey) spec, bool isTosecOnly) =>
-        new(spec.Tag, spec.LabelKey, _localization.Tr(spec.LabelKey), spec.TipKey, _localization.Tr(spec.TipKey), isTosecOnly, InsertVariableAtCaret);
+    private PatternVariableViewModel CreatePatternVariable((string Tag, string LabelKey, string TipKey) spec, PatternVariableScope scope) =>
+        new(spec.Tag, spec.LabelKey, _localization.Tr(spec.LabelKey), spec.TipKey, _localization.Tr(spec.TipKey), scope, InsertVariableAtCaret);
+
+    partial void OnEffectiveConventionChanged(NamingConvention value) => UpdatePatternVariables();
+
+    /// <summary>
+    /// Greys out the variables without value with the effective convention, their tooltip then saying when they apply.
+    /// </summary>
+    private void UpdatePatternVariables()
+    {
+        foreach (var variable in PatternVariables)
+        {
+            var (isApplicable, hintKey) = variable.Scope switch
+            {
+                PatternVariableScope.Tosec => (AreTosecVariablesApplicable, "var.hint_tosec_only"),
+                PatternVariableScope.Mame => (AreMameVariablesApplicable, "var.hint_mame_only"),
+                _ => (true, null)
+            };
+            variable.IsApplicable = isApplicable;
+            var tooltip = _localization.Tr(variable.TooltipKey);
+            variable.Tooltip = isApplicable || hintKey is null ? tooltip : $"{tooltip}\n{_localization.Tr(hintKey)}";
+        }
+    }
 
     private string TransferModeHintFor(TransferMode mode) =>
         TransferModeOptions.FirstOrDefault(o => o.Value == mode)?.Description ?? TransferModeOptions[0].Description;
@@ -926,8 +953,9 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         foreach (var variable in PatternVariables)
         {
             variable.Label = _localization.Tr(variable.LabelKey);
-            variable.Tooltip = _localization.Tr(variable.TooltipKey);
         }
+
+        UpdatePatternVariables();
 
         foreach (var option in TransferModeOptions)
         {
