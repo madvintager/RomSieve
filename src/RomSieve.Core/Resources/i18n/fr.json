@@ -945,7 +945,7 @@
   "tab1.tooltip_dat": "Chemin absolu vers le fichier DAT officiel (XML Logiqx ou ClrMamePro) servant de référence pour vérifier l'intégrité et identifier les jeux.",
   "tab1.tooltip_browse_dat": "Choisir un fichier DAT (.dat ou .xml), ou un dossier de DAT : un lot No-Intro, Redump ou TOSEC, ou les DAT de listes de logiciels MAME.",
   "tab1.menu_browse_dat_file": "Fichier DAT…",
-  "tab1.menu_browse_dat_folder": "Dossier de DAT (lot No-Intro, Redump, TOSEC ou listes de logiciels MAME)…",
+  "tab1.menu_browse_dat_folder": "Dossier de DAT…",
   "tab1.tooltip_browse_dat_folder": "Un dossier de DAT No-Intro, Redump ou TOSEC (un lot) : la source se trie en un passage, chaque fichier avec le premier DAT qui le reconnaît, chaque DAT avec sa convention, ses filtres et son dossier dans la destination. Ou un dossier qui contient un DAT par liste de logiciels MAME (le dossier Software List ROMs de votre gestionnaire de ROMs, ou le dossier hash de MAME) : toutes ses listes se trient ensemble, la source étant le dossier qui contient un dossier par liste.",
   "tab1.chk_dat_recursive": "Lire aussi les sous-dossiers du dossier de DAT",
   "tab1.tooltip_dat_recursive": "Pour un dossier de DAT : les DAT de ses sous-dossiers font aussi partie du lot (un pack TOSEC rangé par constructeur, les dossiers No-Intro et Redump d'un même pack). Sans effet pour un fichier DAT et pour un dossier de listes de logiciels MAME.",

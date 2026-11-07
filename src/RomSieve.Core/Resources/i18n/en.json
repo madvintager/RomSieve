@@ -945,7 +945,7 @@
   "tab1.tooltip_dat": "Absolute path to the official DAT file (Logiqx XML or ClrMamePro) used as catalog reference to identify and verify ROMs.",
   "tab1.tooltip_browse_dat": "Choose a DAT file (.dat or .xml), or a folder of DATs: a lot of No-Intro, Redump or TOSEC DATs, or the DATs of MAME software lists.",
   "tab1.menu_browse_dat_file": "DAT file…",
-  "tab1.menu_browse_dat_folder": "Folder of DATs (lot of No-Intro, Redump, TOSEC DATs or MAME software lists)…",
+  "tab1.menu_browse_dat_folder": "Folder of DATs…",
   "tab1.tooltip_browse_dat_folder": "A folder of No-Intro, Redump or TOSEC DATs (a lot): the source is sorted in one pass, each file with the first DAT that knows it, each DAT with its convention, its filters and its folder in the destination. Or a folder holding a DAT per MAME software list (the Software List ROMs folder of your ROM manager, or the hash folder of MAME): all its lists are sorted together, the source being the folder that holds a folder per list.",
   "tab1.chk_dat_recursive": "Also read the subfolders of the folder of DATs",
   "tab1.tooltip_dat_recursive": "For a folder of DATs: the DATs of its subfolders are part of the lot too (a TOSEC pack sorted by maker, the No-Intro and Redump folders of a pack). No effect for a DAT file nor for a folder of MAME software lists.",

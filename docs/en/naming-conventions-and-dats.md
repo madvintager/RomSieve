@@ -213,8 +213,8 @@ publisher its software name. The convention can also be chosen in the list, but 
 
 To sort **one list**, choose its DAT and, as the source, the folder of the list (`Software List ROMs/megadriv`).
 
-To sort **several lists at once**, choose a **folder of DATs**: **Browse...** next to the DAT field, then **Folder of DATs
-(lot of No-Intro, Redump, TOSEC DATs or MAME software lists)…**, or `--dat <folder>` on the command line. The folder holds a DAT per list: the *Software List
+To sort **several lists at once**, choose a **folder of DATs**: **Browse...** next to the DAT field, then **Folder of
+DATs…**, or `--dat <folder>` on the command line. The folder holds a DAT per list: the *Software List
 ROMs* folder of the `DatRoot` of ROMVault, or the `hash` folder of MAME. An output of MAME that holds several lists
 (`mame -getsoftlist`, `mame -listsoftware`) works the same way. The source is then the folder that holds a folder per
 list (`Software List ROMs`), and **Scan subdirectories recursively** must be checked.
@@ -265,8 +265,8 @@ lists, most of them in `nes` (416) and `msx2_flop` (114); use the hash file for 
 ## Several DATs
 
 A No-Intro, Redump or TOSEC pack holds hundreds, even thousands of DATs, one per system. Rather than sorting the source
-once per DAT, choose the **folder** that holds them: **Browse...** next to the DAT field, then **Folder of DATs (lot of
-No-Intro, Redump, TOSEC DATs or MAME software lists)…** (`--dat <folder>` on the command line). This folder is a
+once per DAT, choose the **folder** that holds them: **Browse...** next to the DAT field, then **Folder of DATs…**
+(`--dat <folder>` on the command line). This folder is a
 **lot**: the source is analysed once, each file is sorted with the DAT that knows it, and each DAT keeps its
 convention, its filters and its 1G1R.
 

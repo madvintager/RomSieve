@@ -225,8 +225,7 @@ DAT de la liste.
 Pour trier **une liste**, choisissez son DAT et, comme source, le dossier de la liste (`Software List ROMs/megadriv`).
 
 Pour trier **plusieurs listes à la fois**, choisissez un **dossier de DAT** : **Parcourir...** à côté du champ du DAT,
-puis **Dossier de DAT (lot No-Intro, Redump, TOSEC ou listes de logiciels MAME)…**, ou `--dat <dossier>` en ligne de
-commande. Le dossier contient un
+puis **Dossier de DAT…**, ou `--dat <dossier>` en ligne de commande. Le dossier contient un
 DAT par liste : le dossier *Software List ROMs* du `DatRoot` de ROMVault, ou le dossier `hash` de MAME. Une sortie de
 MAME qui contient plusieurs listes (`mame -getsoftlist`, `mame -listsoftware`) fonctionne de même. La source est alors
 le dossier qui contient un dossier par liste (`Software List ROMs`), et **Scanner récursivement les sous-dossiers**
@@ -281,7 +280,7 @@ le clone paraît complet, et rien ne dit qu'il a besoin de son parent. Dans MAME
 
 Un pack No-Intro, Redump ou TOSEC compte des centaines, voire des milliers de DAT, un par système. Plutôt que de trier
 la source une fois par DAT, choisissez le **dossier** qui les contient : **Parcourir...** à côté du champ du DAT, puis
-**Dossier de DAT (lot No-Intro, Redump, TOSEC ou listes de logiciels MAME)…** (`--dat <dossier>` en ligne de commande).
+**Dossier de DAT…** (`--dat <dossier>` en ligne de commande).
 Ce dossier est un **lot** : la source est analysée une seule fois, chaque fichier est rangé avec le DAT qui le
 reconnaît, et chaque DAT garde sa convention, ses filtres et son 1G1R.
 
