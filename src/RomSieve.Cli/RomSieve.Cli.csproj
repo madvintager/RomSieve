@@ -6,7 +6,6 @@
     <AssemblyName>romsieve-cli</AssemblyName>
     <AssemblyTitle>RomSieve command line</AssemblyTitle>
     <Description>Command line of RomSieve: simulation, sort, undo and exports from config.json or a profile.</Description>
-    <ApplicationIcon>..\RomSieve.App\Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
