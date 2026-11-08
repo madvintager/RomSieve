@@ -153,7 +153,8 @@
                ItemsSource="{Binding FilteredEntries}">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:DatLotEntryViewModel">
-            <!-- One line per DAT: its name and its convention, its subfolder outside the root of the folder of DATs; the
+            <!-- One line per DAT: its name and its convention, its subfolder (ending with a slash, so that the TOSEC folder
+                 of the TOSEC pack is not read as the convention again) outside the root of the folder of DATs; the
                  file in the tooltip. The template of the CheckBox wraps its text: each TextBlock says it does not -->
             <CheckBox Padding="4,0"
                       MinHeight="24"
@@ -173,8 +174,8 @@
                            Foreground="{DynamicResource HintForegroundBrush}"
                            TextWrapping="NoWrap"
                            TextTrimming="CharacterEllipsis"
-                           Text="{Binding Folder}"
-                           IsVisible="{Binding Folder, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                           Text="{Binding FolderLabel}"
+                           IsVisible="{Binding FolderLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               </Grid>
             </CheckBox>
           </DataTemplate>

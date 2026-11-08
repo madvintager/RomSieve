@@ -21,6 +21,7 @@ public sealed partial class DatLotEntryViewModel : ObservableObject
         _conventionLabel = conventionLabel;
         var slash = RelativePath.LastIndexOf('/');
         Folder = slash < 0 ? string.Empty : RelativePath[..slash];
+        FolderLabel = slash < 0 ? string.Empty : Folder + "/";
         SearchName = SearchQuery.Normalize(Name);
         SearchPath = SearchQuery.Normalize(RelativePath);
         _isIncluded = isIncluded;
@@ -37,6 +38,12 @@ public sealed partial class DatLotEntryViewModel : ObservableObject
     /// would only repeat the name of the DAT.
     /// </summary>
     public string Folder { get; }
+
+    /// <summary>
+    /// <see cref="Folder"/> as the line shows it, ending with <c>/</c>: a folder named after a convention (<c>TOSEC</c> in
+    /// the TOSEC pack) read as the convention shown again.
+    /// </summary>
+    public string FolderLabel { get; }
 
     public NamingConvention Convention { get; }
 

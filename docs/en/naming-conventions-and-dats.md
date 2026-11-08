@@ -300,8 +300,8 @@ new folder with **Browse...**, once its DATs are read, and also at startup or wh
 lot is checked. It always opens on every DAT. For a new folder, no DAT is checked: check those to sort with. Opened
 again with **Choose DATs…**, it keeps your boxes.
 
-* The window gives the name and the convention of each DAT, with a box to check, and its subfolder when it is not at
-  the root of the folder chosen; the tooltip of a line names its file.
+* The window gives the name and the convention of each DAT, with a box to check, and its subfolder (`TOSEC/`) when it
+  is not at the root of the folder chosen; the tooltip of a line names its file.
 * **Search a DAT** filters the list by name, path (file included) or convention, word by word like the
   [search of the table](simulation-table.md#searching): `C64 Games D64` shows the DATs that hold the three words,
   `-Demos` leaves out those that hold *Demos*; the cross at the end of the field clears the search.

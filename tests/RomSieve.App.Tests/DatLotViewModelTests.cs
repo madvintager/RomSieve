@@ -266,6 +266,8 @@ public sealed class DatLotViewModelTests : IDisposable
         vm.Directories.DatLot.Entries.Select(e => e.Name).Should().Equal(GameBoy, GameBoyColor, Amiga);
         vm.Directories.DatLot.Entries[2].RelativePath.Should().Be("TOSEC/Commodore Amiga - Games - [ADF] (TOSEC-v2025).dat");
         vm.Directories.DatLot.Entries.Select(e => e.Folder).Should().Equal("", "", "TOSEC");
+        vm.Directories.DatLot.Entries.Select(e => e.FolderLabel).Should().Equal(
+            ["", "", "TOSEC/"], "a folder named after a convention must not read as the convention shown twice");
         vm.Directories.DatInfoText.Should().Be("Lot de 3 DAT (2 No-Intro, 1 TOSEC), 3 cochés");
         vm.BuildConfigUnchecked().DatRecursive.Should().BeTrue();
     }

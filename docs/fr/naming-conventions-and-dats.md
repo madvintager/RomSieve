@@ -314,8 +314,8 @@ choisissez un nouveau dossier par **Parcourir...**, une fois ses DAT lus, et aus
 profil quand aucun DAT du lot n'est coché. Elle s'ouvre toujours sur tous les DAT. Pour un nouveau dossier, aucun DAT
 n'est coché : cochez ceux avec lesquels trier. Rouverte par **Choisir les DAT…**, elle garde vos cases.
 
-* La fenêtre donne le nom et la convention de chaque DAT, avec une case à cocher, et son sous-dossier quand il n'est
-  pas à la racine du dossier choisi ; l'infobulle d'une ligne nomme son fichier.
+* La fenêtre donne le nom et la convention de chaque DAT, avec une case à cocher, et son sous-dossier (`TOSEC/`) quand
+  il n'est pas à la racine du dossier choisi ; l'infobulle d'une ligne nomme son fichier.
 * **Rechercher un DAT** filtre la liste par nom, chemin (fichier compris) ou convention, mot par mot comme la
   [recherche de la table](simulation-table.md#recherche) : `C64 Games D64` montre les DAT qui contiennent les trois
   mots, `-Demos` écarte ceux qui contiennent *Demos* ; la croix au bout du champ efface la recherche.
