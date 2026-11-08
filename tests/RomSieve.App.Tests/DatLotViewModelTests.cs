@@ -84,9 +84,12 @@ public sealed class DatLotViewModelTests : IDisposable
         var dialogs = new HeadlessDialogService();
         var vm = TestMainViewModel.Create(dialogs, _tmp.WriteText("config.json", "{}"));
         var shownCount = 0;
+        var checkedAtOpening = -1;
         dialogs.OnShowDatLot = lot =>
         {
             shownCount = lot.FilteredEntries.Count;
+            checkedAtOpening = lot.IncludedCount;
+            lot.Entries.Single(e => e.Name == GameBoyColor).IsIncluded = true;
             return Task.FromResult(true);
         };
         dialogs.NextPickedFolder = _dats;
@@ -95,6 +98,10 @@ public sealed class DatLotViewModelTests : IDisposable
 
         dialogs.ShownDatLots.Should().ContainSingle().Which.Should().BeSameAs(vm.Directories.DatLot);
         shownCount.Should().Be(2, "the window opens once the lot is read");
+        checkedAtOpening.Should().Be(0, "a new lot opens with none of its DATs checked");
+        vm.Directories.ExcludedDats.Should().Equal(GameBoy);
+        vm.Directories.DatLot.IncludedCount.Should().Be(1);
+        vm.Directories.DatInfoTone.Should().Be("Ok");
 
         await vm.Directories.BrowseDatFolderAsync();
         vm.Directories.DatRecursive = true;
@@ -103,17 +110,73 @@ public sealed class DatLotViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task BrowsedFolder_Cancelled_ShouldLeaveItsDatsUnchecked_AndTheChooserKeepTheBoxes()
+    {
+        var dialogs = new HeadlessDialogService { NextPickedFolder = _dats };
+        var vm = TestMainViewModel.Create(dialogs, _tmp.WriteText("config.json", "{}"));
+        dialogs.OnShowDatLot = lot =>
+        {
+            lot.Entries[0].IsIncluded = true;
+            return Task.FromResult(false);
+        };
+
+        await vm.Directories.BrowseDatFolderAsync();
+
+        vm.Directories.DatLot.IncludedCount.Should().Be(0, "Cancel puts back the boxes of the opening: none checked");
+        vm.Directories.ExcludedDats.Should().Equal(GameBoy, GameBoyColor);
+        vm.Directories.DatInfoTone.Should().Be("Error", "a lot without a DAT checked cannot be sorted");
+
+        // Opened again by its button, the lot keeps the boxes the user chose
+        vm.Directories.DatLot.Entries[1].IsIncluded = true;
+        var checkedAtOpening = -1;
+        dialogs.OnShowDatLot = lot =>
+        {
+            checkedAtOpening = lot.IncludedCount;
+            return Task.FromResult(true);
+        };
+        await vm.Directories.ChooseLotDatsAsync();
+        checkedAtOpening.Should().Be(1);
+    }
+
+    [Fact]
     public async Task LotOfAConfiguration_ShouldNotOpenItsDats_AndADatFileHasNoneToChoose()
     {
         var dialogs = new HeadlessDialogService();
         var vm = await CreateWithLotAsync(dialogs: dialogs);
 
-        dialogs.ShownDatLots.Should().BeEmpty("only a folder the user browses to opens its DATs");
+        dialogs.ShownDatLots.Should().BeEmpty("a lot of the configuration with DATs checked can be sorted as it is");
 
         vm.Directories.DatFilePath = Path.Combine(_dats, "Nintendo - Game Boy (20230414).dat");
         await vm.Directories.DatLoadTask;
         await vm.Directories.ChooseLotDatsAsync();
         dialogs.ShownDatLots.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LotOfAConfigurationWithoutADatChecked_ShouldOpenItsDatsOnceRead()
+    {
+        var dialogs = new HeadlessDialogService();
+        var checkedAtOpening = -1;
+        dialogs.OnShowDatLot = lot =>
+        {
+            checkedAtOpening = lot.IncludedCount;
+            lot.Entries.Single(e => e.Name == GameBoy).IsIncluded = true;
+            return Task.FromResult(true);
+        };
+
+        var vm = await CreateWithLotAsync(
+            config: $$"""{"excluded_dats": ["{{GameBoy}}", "{{GameBoyColor}}"]}""",
+            dialogs: dialogs);
+
+        dialogs.ShownDatLots.Should().ContainSingle("a lot without a DAT checked cannot be sorted: its DATs open to be chosen");
+        checkedAtOpening.Should().Be(0, "the boxes of the configuration are kept");
+        vm.Directories.ExcludedDats.Should().Equal(GameBoyColor);
+        vm.Directories.DatInfoTone.Should().Be("Ok");
+
+        // Read again, the lot has a DAT checked: nothing opens
+        vm.Directories.DatRecursive = true;
+        await vm.Directories.DatLoadTask;
+        dialogs.ShownDatLots.Should().ContainSingle();
     }
 
     [Fact]
@@ -330,6 +393,7 @@ public sealed class DatLotViewModelTests : IDisposable
         dialogs.ShownDatLots.Should().ContainSingle("a new archive of several DATs opens its DATs to check, as a folder does");
         var lot = vm.Directories.DatLot;
         lot.IsLot.Should().BeTrue();
+        lot.IncludedCount.Should().Be(0, "a new lot opens with none of its DATs checked, an archive as a folder");
         lot.Entries.Select(e => (e.Name, e.RelativePath)).Should().Equal(
             (GameBoy, "Nintendo - Game Boy (20230414).dat"), (Amiga, "TOSEC/Commodore Amiga - Games - [ADF] (TOSEC-v2025).dat"));
         vm.Directories.DatHeaderName.Should().Be("Pack (2026-11-08)", "an archive is named after itself, without its extension");

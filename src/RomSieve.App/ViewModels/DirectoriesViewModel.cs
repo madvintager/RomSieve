@@ -657,18 +657,13 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         }
 
         // A new archive of several DATs is a lot, whose DATs open to check once read, as for a folder
-        DatFilePath = file;
-        await DatLoadTask;
-        if (DatLot.IsLot && DatFilePath == file)
-        {
-            await ChooseLotDatsAsync();
-        }
+        await BrowseToDatAsync(file);
     }
 
     /// <summary>
     /// Chooses a folder of DATs: a lot of No-Intro, Redump or TOSEC DATs, or the DATs of several MAME software lists,
-    /// sorted together. A new lot opens its DATs to check, once read (not the same folder chosen again, nor a lot
-    /// a configuration, a profile or the subfolders option reads).
+    /// sorted together. A new lot opens its DATs to check, once read, all of them unchecked (not the same folder chosen
+    /// again, nor a lot a configuration, a profile or the subfolders option reads, which keep their boxes).
     /// </summary>
     [RelayCommand]
     public async Task BrowseDatFolderAsync()
@@ -681,10 +676,32 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             return;
         }
 
-        DatFilePath = folder;
-        await DatLoadTask;
-        if (DatLot.IsLot && DatFilePath == folder)
+        await BrowseToDatAsync(folder);
+    }
+
+    // A DAT browsed to is being read: its lot opens below, not at the end of its read (LoadDatFolderAsync)
+    private bool _browsingToDat;
+
+    /// <summary>
+    /// Reads the DAT the user just browsed to; a lot then opens its DATs, none of them checked: a pack holds hundreds of
+    /// DATs, of which the user picks those to sort with. Cancel leaves them unchecked, as they were at the opening.
+    /// </summary>
+    private async Task BrowseToDatAsync(string path)
+    {
+        _browsingToDat = true;
+        try
         {
+            DatFilePath = path;
+            await DatLoadTask;
+        }
+        finally
+        {
+            _browsingToDat = false;
+        }
+
+        if (DatLot.IsLot && DatFilePath == path)
+        {
+            ExcludedDats = DatLot.Entries.Select(e => e.Name).ToList();
             await ChooseLotDatsAsync();
         }
     }
@@ -1032,6 +1049,13 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
         DatLot.Show(entries, ExcludedDats);
         ShowLotInfo();
+
+        // A lot of the configuration or of a profile without a DAT checked cannot be sorted: its DATs open to be chosen,
+        // as those of a lot browsed to (which opens them itself)
+        if (DatLot.IncludedCount == 0 && !_browsingToDat)
+        {
+            await ChooseLotDatsAsync();
+        }
     }
 
     // Summary of the lot and convention of most of its DATs checked, again after a DAT is checked or unchecked

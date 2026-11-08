@@ -308,8 +308,9 @@ cette lecture, une barre de progression compte les DAT lus (*1 200 / 3 111 DAT l
 **Démarrer le tri** sont grisés : le tri attend de connaître les DAT du lot. Les autres réglages restent modifiables,
 et choisir un autre DAT ou vider le champ abandonne la lecture. À droite, le bouton
 **Choisir les DAT…** (grisé pour un fichier DAT) ouvre la fenêtre **DAT du lot** ; elle s'ouvre d'elle-même quand vous
-choisissez un nouveau dossier par **Parcourir...**, une fois ses DAT lus (pas au lancement, ni au chargement d'un
-profil). Elle s'ouvre toujours sur tous les DAT.
+choisissez un nouveau dossier par **Parcourir...**, une fois ses DAT lus, et aussi au lancement ou au chargement d'un
+profil quand aucun DAT du lot n'est coché. Elle s'ouvre toujours sur tous les DAT. Pour un nouveau dossier, aucun DAT
+n'est coché : cochez ceux avec lesquels trier. Rouverte par **Choisir les DAT…**, elle garde vos cases.
 
 * La fenêtre donne le nom et la convention de chaque DAT, avec une case à cocher, et son sous-dossier quand il n'est
   pas à la racine du dossier choisi ; l'infobulle d'une ligne nomme son fichier.

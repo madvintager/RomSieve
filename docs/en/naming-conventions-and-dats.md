@@ -294,8 +294,9 @@ a progress bar counts the DATs read (*1200 / 3111 DATs read*), and **Simulate (D
 greyed out: the sort waits until the DATs of the lot are known. The other settings can still be changed, and choosing
 another DAT or clearing the field drops the read. On its right, the **Choose
 DATs…** button (greyed out for a DAT file) opens the **DATs of the lot** window; it opens by itself when you choose a
-new folder with **Browse...**, once its DATs are read (not at startup, nor when a profile is loaded). It always opens
-on every DAT.
+new folder with **Browse...**, once its DATs are read, and also at startup or when a profile is loaded if no DAT of the
+lot is checked. It always opens on every DAT. For a new folder, no DAT is checked: check those to sort with. Opened
+again with **Choose DATs…**, it keeps your boxes.
 
 * The window gives the name and the convention of each DAT, with a box to check, and its subfolder when it is not at
   the root of the folder chosen; the tooltip of a line names its file.
