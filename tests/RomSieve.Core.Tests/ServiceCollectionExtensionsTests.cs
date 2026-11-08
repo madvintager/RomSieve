@@ -41,6 +41,16 @@ public sealed class ServiceCollectionExtensionsTests : IDisposable
     }
 
     [Fact]
+    public void Container_ShouldPlaceTheCacheOfTheDatHeadersNextToTheRegisteredCrcCache()
+    {
+        using var provider = BuildIsolatedProvider();
+
+        provider.GetRequiredService<IDatHeaderCache>().Should().BeOfType<DatHeaderCacheService>()
+            .Which.CachePath.Should().Be(_temp.GetFilePath(DatHeaderCacheService.FileName));
+        provider.GetRequiredService<IDatService>().Should().BeOfType<DatService>();
+    }
+
+    [Fact]
     public void Container_ShouldResolveTheUpdateCheck()
     {
         using var provider = BuildIsolatedProvider();

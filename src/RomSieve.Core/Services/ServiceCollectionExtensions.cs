@@ -18,6 +18,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMameDescriptionParser, MameDescriptionParser>();
         services.AddSingleton<IChecksumService, ChecksumService>();
         services.AddSingleton<ICrcCacheService, CrcCacheService>();
+        // Next to the CRC cache, wherever the application or the command line places it
+        services.AddSingleton<IDatHeaderCache>(sp => DatHeaderCacheService.NextTo(sp.GetRequiredService<ICrcCacheService>().CachePath));
         services.AddSingleton<IDatService, DatService>();
         services.AddSingleton<IReleaseScoringService, ReleaseScoringService>();
         services.AddSingleton<IGameKeyService, GameKeyService>();

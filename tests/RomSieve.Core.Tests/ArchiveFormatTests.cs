@@ -132,6 +132,30 @@ public sealed class ArchiveFormatTests : IDisposable
     }
 
     [Theory]
+    [InlineData("sharpcompress_rar4.rar")]
+    [InlineData("sharpcompress_rar5.rar")]
+    [InlineData("roms_solid.7z")]
+    [InlineData("roms_nonsolid.7z")]
+    public async Task ArchiveOpenedOnce_ShouldGiveEachMemberInAnyOrder_AndRefuseAMissingOne(string fixture)
+    {
+        var members = _services.ChecksumService.GetArchiveMembers(Fixture(fixture));
+        using var reader = _services.ChecksumService.OpenArchive(Fixture(fixture));
+
+        // Backwards, then the first again: the members of a reader are not read in the order of the archive
+        foreach (var member in members.Reverse().Append(members[0]))
+        {
+            await using var stream = reader.OpenMember(member.MemberName);
+            using var data = new MemoryStream();
+            await stream.CopyToAsync(data);
+
+            data.Length.Should().Be(member.Size);
+            Crc(data.ToArray()).Should().Be(member.Crc32);
+        }
+
+        FluentActions.Invoking(() => reader.OpenMember("missing.adf")).Should().Throw<FileNotFoundException>();
+    }
+
+    [Theory]
     [InlineData("roms_solid.7z")]
     [InlineData("roms_nonsolid.7z")]
     public async Task SevenZipArchive_ShouldBeScannedAndIdentifiedLikeAZip(string fixture)

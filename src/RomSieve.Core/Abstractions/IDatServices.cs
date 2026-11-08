@@ -40,6 +40,13 @@ public interface IChecksumService
     ArchiveMemberStream OpenArchiveMember(string archivePath, string memberName);
 
     /// <summary>
+    /// An archive opened once to read several of its members one after the other (<see cref="IArchiveReader"/>): each
+    /// <see cref="OpenArchiveMember"/> reads the directory of the archive again, thousands of entries for a pack of DATs.
+    /// Throws when the archive cannot be opened.
+    /// </summary>
+    IArchiveReader OpenArchive(string archivePath);
+
+    /// <summary>
     /// Members of a ZIP, 7z or RAR archive whose data does not match the CRC32 the archive records for them, or cannot be
     /// decompressed: every member is decompressed, in the order of the archive (a solid block is read once). A member
     /// without a recorded CRC32 cannot be checked and is never listed. Throws when the archive itself cannot be opened.
@@ -51,6 +58,34 @@ public interface IChecksumService
     /// throws <see cref="System.IO.InvalidDataException"/> when the file is not a readable CHD.
     /// </summary>
     ChdInfo ReadChdInfo(string path);
+}
+
+/// <summary>
+/// An open archive (<see cref="IChecksumService.OpenArchive"/>) whose members are read one at a time, from a single
+/// thread: a member stream is disposed before the next one is opened. Disposing the reader closes the archive.
+/// </summary>
+public interface IArchiveReader : IDisposable
+{
+    /// <summary>Decompressed data of a member; disposing the stream leaves the archive open.</summary>
+    Stream OpenMember(string memberName);
+}
+
+/// <summary>
+/// Persistent disk cache of the DATs of a folder or of an archive of DATs as their headers tell them (name and
+/// convention, <see cref="DatHeaderInfo"/>), in <c>dat_header_cache.json</c> next to <c>crc_cache.json</c>: the list of
+/// a lot of thousands of DATs is read again without opening them. A DAT of the disk is valid while it keeps its last
+/// write time and its size; a member of an archive while it keeps the size and the CRC32 the archive records for it.
+/// </summary>
+public interface IDatHeaderCache
+{
+    /// <summary>What the header of a DAT of the disk says, read by <paramref name="read"/> unless cached.</summary>
+    DatHeaderInfo GetOrRead(string path, Func<DatHeaderInfo> read);
+
+    /// <summary>What the header of a DAT held by an archive says, read by <paramref name="read"/> unless cached.</summary>
+    DatHeaderInfo GetOrRead(ArchiveMember member, Func<DatHeaderInfo> read);
+
+    /// <summary>Writes the cache when it changed; a write error is ignored (written again by the next save).</summary>
+    void Save();
 }
 
 /// <summary>

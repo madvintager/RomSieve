@@ -185,7 +185,7 @@ public sealed class CoreTestServices
         Organizer = new PathOrganizerService(TosecParser);
         ChecksumService = new ChecksumService();
         CrcCache = new CrcCacheService(IsolatedCrcCachePath);
-        DatService = new DatService(ChecksumService);
+        DatService = new DatService(ChecksumService, DatHeaderCacheService.NextTo(IsolatedCrcCachePath));
         OpticalCompanionService = new OpticalCompanionService();
         MameParser = new MameDescriptionParser();
         Processor = new SortProcessorService(

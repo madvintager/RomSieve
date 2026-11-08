@@ -81,6 +81,7 @@ sudo pacman -S libx11 libice libsm fontconfig icu openssl
 | Crash reports (`crashes/`) | `%APPDATA%\RomSieve\crashes\` | `~/.config/RomSieve/crashes/` |
 | Checksum cache (`crc_cache.json`) | `%LOCALAPPDATA%\RomSieve\` | `~/.cache/RomSieve/` (or `$XDG_CACHE_HOME/RomSieve/`) |
 | Header cache (`header_cache.json`) | `%LOCALAPPDATA%\RomSieve\` | `~/.cache/RomSieve/` (or `$XDG_CACHE_HOME/RomSieve/`) |
+| DAT header cache (`dat_header_cache.json`) | `%LOCALAPPDATA%\RomSieve\` | `~/.cache/RomSieve/` (or `$XDG_CACHE_HOME/RomSieve/`) |
 
 * The **settings** are saved when you close RomSieve and before each real sort: the next launch restores your
   folders, filters and window layout.
@@ -97,6 +98,10 @@ sudo pacman -S libx11 libice libsm fontconfig icu openssl
   say, also invalidated when the file changes. An unchanged archive is not opened again, which matters most on a
   network share: there, reading the headers of a whole MAME collection takes minutes, and a second analysis is
   several times faster.
+* The **DAT header cache** remembers the name and the convention of each DAT of a
+  [lot](naming-conventions-and-dats.md#several-dats) (a folder or an archive of DATs), invalidated when the DAT
+  changes. The list of a pack of thousands of DATs is then read again without opening them, when RomSieve starts as
+  at each simulation: only the DATs checked are read whole. A new version of RomSieve reads the DATs again once.
 
 To start over with default settings, close RomSieve and delete `config.json`.
 

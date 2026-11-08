@@ -30,6 +30,12 @@ public sealed record DatFolderEntry(string RelativePath, string Name, NamingConv
 }
 
 /// <summary>
+/// What the header of a DAT of a folder of DATs tells (<see cref="Abstractions.IDatHeaderCache"/>): its name (that of its
+/// header, or its file name without a name) and its convention.
+/// </summary>
+public readonly record struct DatHeaderInfo(string Name, NamingConvention Convention);
+
+/// <summary>
 /// How far the read of the headers of a folder of DATs is (<see cref="Abstractions.IDatService.ReadDatFolderPreview"/>):
 /// the DATs read so far, out of the DATs of the folder.
 /// </summary>

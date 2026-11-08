@@ -284,6 +284,37 @@ public sealed class ChecksumService : IChecksumService
         }
     }
 
+    public IArchiveReader OpenArchive(string archivePath) => IsZipArchive(archivePath)
+        ? new ZipArchiveReader(ZipFile.OpenRead(archivePath))
+        : new SharpCompressArchiveReader(ArchiveFactory.OpenArchive(archivePath, new ArchiveReaderOptions()));
+
+    private sealed class ZipArchiveReader(ZipArchive zip) : IArchiveReader
+    {
+        public Stream OpenMember(string memberName) =>
+            (zip.GetEntry(memberName) ?? throw new FileNotFoundException($"Archive member not found: {memberName}")).Open();
+
+        public void Dispose() => zip.Dispose();
+    }
+
+    private sealed class SharpCompressArchiveReader(IArchive archive) : IArchiveReader
+    {
+        // The members by their names, listed at the first read: the first of the same name, as OpenArchiveMember takes it
+        private Dictionary<string, IArchiveEntry>? _entries;
+
+        public Stream OpenMember(string memberName)
+        {
+            _entries ??= archive.Entries
+                .Where(e => !e.IsDirectory && e.Key is not null)
+                .GroupBy(e => e.Key ?? string.Empty, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+            return _entries.TryGetValue(memberName, out var entry)
+                ? entry.OpenEntryStream()
+                : throw new FileNotFoundException($"Archive member not found: {memberName}");
+        }
+
+        public void Dispose() => archive.Dispose();
+    }
+
     public IReadOnlyList<DamagedArchiveMember> FindDamagedMembers(string archivePath, CancellationToken cancellationToken = default)
     {
         try
@@ -595,10 +626,12 @@ public sealed partial class DatService : IDatService
 {
 
     private readonly IChecksumService _checksumService;
+    private readonly IDatHeaderCache _datHeaders;
 
-    public DatService(IChecksumService checksumService)
+    public DatService(IChecksumService checksumService, IDatHeaderCache datHeaders)
     {
         _checksumService = checksumService;
+        _datHeaders = datHeaders;
     }
 
     [GeneratedRegex(
@@ -1464,9 +1497,11 @@ public sealed partial class DatService : IDatService
 
     /// <summary>
     /// A DAT to read: a file of the disk, or a member of an archive (<see cref="Member"/>, its name as the archive
-    /// records it, with <see cref="Path"/> the archive).
+    /// records it, with <see cref="Path"/> the archive, and <see cref="Recorded"/> what the archive records of it).
+    /// <see cref="Readers"/>, during the read of the DATs of an archive, opens its members without opening the archive
+    /// again for each of them.
     /// </summary>
-    private readonly record struct DatLocation(string Path, string? Member = null)
+    private readonly record struct DatLocation(string Path, string? Member = null, ArchiveMember? Recorded = null, ArchiveReaderPool? Readers = null)
     {
         /// <summary>Name of the file of the DAT, without its folders.</summary>
         public string FileName => Member is null ? System.IO.Path.GetFileName(Path) : Member[(Member.LastIndexOfAny(['/', '\\']) + 1)..];
@@ -1483,7 +1518,107 @@ public sealed partial class DatService : IDatService
     // A DAT of the disk is read in sequence; a member of an archive through the service that reads the archives
     private Stream OpenDat(DatLocation location) => location.Member is null
         ? new FileStream(location.Path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan)
-        : _checksumService.OpenArchiveMember(location.Path, location.Member);
+        : location.Readers?.OpenMember(location.Member) ?? _checksumService.OpenArchiveMember(location.Path, location.Member);
+
+    /// <summary>
+    /// The archive of the DATs read together (<see cref="ReadDatFolderPreview"/>, <see cref="ParseLotAsync"/>), opened
+    /// once per thread that reads it rather than once per DAT: each opening of a ZIP reads its whole central directory,
+    /// eleven thousand entries for a pack of TOSEC DATs, read again for each of its thousands of DATs. A reader opened
+    /// serves one member at a time, and is given back when the stream of the member is disposed. Disposed once the
+    /// DATs are read: a DAT read again on demand later opens the archive by itself.
+    /// </summary>
+    private sealed class ArchiveReaderPool(IChecksumService checksumService, string archivePath) : IDisposable
+    {
+        private readonly Lock _gate = new();
+        private readonly Stack<IArchiveReader> _idle = new();
+        private readonly List<IArchiveReader> _opened = [];
+        private bool _disposed;
+
+        /// <summary>
+        /// The locations given back for a read through a pool of their archive, and the pool, which the caller disposes;
+        /// those of a folder are given back as they are, without a pool.
+        /// </summary>
+        public static (IReadOnlyList<DatLocation> Files, ArchiveReaderPool? Pool) For(IChecksumService checksumService, IReadOnlyList<DatLocation> files)
+        {
+            var first = files.FirstOrDefault(file => file.Member is not null);
+            if (first.Member is null)
+            {
+                return (files, null);
+            }
+
+            var pool = new ArchiveReaderPool(checksumService, first.Path);
+            return (files.Select(file => file.Member is null ? file : file with { Readers = pool }).ToList(), pool);
+        }
+
+        public Stream OpenMember(string memberName)
+        {
+            IArchiveReader? reader;
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                _idle.TryPop(out reader);
+            }
+
+            if (reader is null)
+            {
+                reader = checksumService.OpenArchive(archivePath);
+                lock (_gate)
+                {
+                    _opened.Add(reader);
+                }
+            }
+
+            try
+            {
+                return new ArchiveMemberStream(reader.OpenMember(memberName), new Lease(this, reader), string.Empty);
+            }
+            catch
+            {
+                GiveBack(reader);
+                throw;
+            }
+        }
+
+        private void GiveBack(IArchiveReader reader)
+        {
+            lock (_gate)
+            {
+                if (!_disposed)
+                {
+                    _idle.Push(reader);
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            lock (_gate)
+            {
+                _disposed = true;
+                _idle.Clear();
+                foreach (var reader in _opened)
+                {
+                    reader.Dispose();
+                }
+
+                _opened.Clear();
+            }
+        }
+
+        // Gives the reader back to the pool when the stream of its member is disposed, once
+        private sealed class Lease(ArchiveReaderPool pool, IArchiveReader reader) : IDisposable
+        {
+            private int _done;
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref _done, 1) == 0)
+                {
+                    pool.GiveBack(reader);
+                }
+            }
+        }
+    }
 
     // The files a folder or an archive of DATs holds as DATs
     private static bool IsDatFileName(string name) =>
@@ -1508,7 +1643,7 @@ public sealed partial class DatService : IDatService
     private List<DatLocation> GetArchiveDats(string archive) =>
         _checksumService.GetArchiveMembers(archive)
             .Where(member => IsDatFileName(member.MemberName) && PathOrganizerService.IsSafeRelativeName(member.MemberName))
-            .Select(member => (Location: new DatLocation(archive, member.MemberName), Key: member.MemberName.Replace('\\', '/')))
+            .Select(member => (Location: new DatLocation(archive, member.MemberName, member), Key: member.MemberName.Replace('\\', '/')))
             .OrderBy(dat => dat.Key, StringComparer.OrdinalIgnoreCase)
             .ThenBy(dat => dat.Key, StringComparer.Ordinal)
             .Select(dat => dat.Location)
@@ -1546,8 +1681,9 @@ public sealed partial class DatService : IDatService
     /// <summary>
     /// The DATs of a folder of DATs, or of an archive of DATs (<see cref="HoldsSeveralDats"/>; every DAT of an archive,
     /// whatever <paramref name="recursive"/>), as their headers tell them (<see cref="DatFolderEntry"/>), in the order of
-    /// their paths: what the list of the DATs to sort and a lot are made of, read in milliseconds per DAT. Empty for a
-    /// folder or an archive without DAT; the refusals are left to <see cref="CheckDatFolder"/>.
+    /// their paths: what the list of the DATs to sort and a lot are made of, read in milliseconds per DAT, and not read
+    /// again while they are unchanged (<see cref="IDatHeaderCache"/>). Empty for a folder or an archive without DAT; the
+    /// refusals are left to <see cref="CheckDatFolder"/>.
     /// </summary>
     public IReadOnlyList<DatFolderEntry> ReadDatFolderPreview(
         string folder,
@@ -1555,7 +1691,8 @@ public sealed partial class DatService : IDatService
         IProgress<DatFolderReadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var files = GetDatLocations(folder, recursive);
+        var (files, readers) = ArchiveReaderPool.For(_checksumService, GetDatLocations(folder, recursive));
+        using var pool = readers;
         cancellationToken.ThrowIfCancellationRequested();
         var entries = new DatFolderEntry[files.Count];
         progress?.Report(new DatFolderReadProgress(0, files.Count));
@@ -1576,14 +1713,24 @@ public sealed partial class DatService : IDatService
                     progress.Report(new DatFolderReadProgress(done, files.Count));
                 }
             });
+        _datHeaders.Save();
         return entries;
     }
 
+    // A DAT of a folder or of an archive of DATs as its header tells it, read unless cached
     private DatFolderEntry PreviewEntry(string folder, DatLocation file)
+    {
+        var header = file.Recorded is { } recorded
+            ? _datHeaders.GetOrRead(recorded, () => ReadHeaderInfo(file))
+            : _datHeaders.GetOrRead(file.Path, () => ReadHeaderInfo(file));
+        return new DatFolderEntry(file.RelativeTo(folder), header.Name, header.Convention);
+    }
+
+    private DatHeaderInfo ReadHeaderInfo(DatLocation file)
     {
         var preview = ReadDatPreview(file, PreviewGameCount);
         var name = string.IsNullOrWhiteSpace(preview.Header.Name) ? Path.GetFileNameWithoutExtension(file.FileName) : preview.Header.Name.Trim();
-        return new DatFolderEntry(file.RelativeTo(folder), name, preview.DetectConvention());
+        return new DatHeaderInfo(name, preview.DetectConvention());
     }
 
     /// <summary>
@@ -1657,10 +1804,14 @@ public sealed partial class DatService : IDatService
     /// that is not left out (<see cref="DatFolderOptions.ExcludedDats"/>) is read into its own catalog, named after its
     /// header, or its file without a name; refused when every DAT is left out. Read on demand
     /// (<see cref="DatFolderOptions.LoadOnDemand"/>), a DAT only keeps its summary and the keys of its checksums: its
-    /// catalog is read again, alone, when a run needs it.
+    /// catalog is read again, alone, when a run needs it. The headers of the DATs left out are not read again while
+    /// they are unchanged (<see cref="IDatHeaderCache"/>), and an archive is opened once per thread that reads it.
     /// </summary>
-    private async Task<DatCatalog> ParseLotAsync(string folder, IReadOnlyList<DatLocation> files, DatFolderOptions options, CancellationToken cancellationToken)
+    private async Task<DatCatalog> ParseLotAsync(string folder, IReadOnlyList<DatLocation> lotFiles, DatFolderOptions options, CancellationToken cancellationToken)
     {
+        // The DATs read now go through the pool; a DAT read again on demand opens the archive by itself
+        var (files, readers) = ArchiveReaderPool.For(_checksumService, lotFiles);
+        using var pool = readers;
         var entries = new DatFolderEntry[files.Count];
         await Parallel.ForAsync(
             0,
@@ -1671,6 +1822,7 @@ public sealed partial class DatService : IDatService
                 entries[index] = PreviewEntry(folder, files[index]);
                 return ValueTask.CompletedTask;
             }).ConfigureAwait(false);
+        _datHeaders.Save();
         CheckDatFolder(folder, entries);
 
         var folderName = LotName(folder);
@@ -1697,6 +1849,7 @@ public sealed partial class DatService : IDatService
             {
                 var entry = entries[included[position]];
                 var file = files[included[position]];
+                var lotFile = lotFiles[included[position]];
                 var catalog = ReadLotDat(file, entry.Name, token);
                 members[position] = options.LoadOnDemand
                     ? new DatLotMember(
@@ -1704,7 +1857,7 @@ public sealed partial class DatService : IDatService
                         entry.RelativePath,
                         DatLotSummary.Of(catalog),
                         DatLotKeys.Of(catalog),
-                        cancellation => ReadLotDat(file, entry.Name, cancellation))
+                        cancellation => ReadLotDat(lotFile, entry.Name, cancellation))
                     : new DatLotMember(entry.Name, entry.RelativePath, catalog);
                 return ValueTask.CompletedTask;
             }).ConfigureAwait(false);

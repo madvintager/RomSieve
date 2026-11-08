@@ -83,6 +83,7 @@ sudo pacman -S libx11 libice libsm fontconfig icu openssl
 | Rapports d'erreur (`crashes/`) | `%APPDATA%\RomSieve\crashes\` | `~/.config/RomSieve/crashes/` |
 | Cache des sommes de contrôle (`crc_cache.json`) | `%LOCALAPPDATA%\RomSieve\` | `~/.cache/RomSieve/` (ou `$XDG_CACHE_HOME/RomSieve/`) |
 | Cache des en-têtes (`header_cache.json`) | `%LOCALAPPDATA%\RomSieve\` | `~/.cache/RomSieve/` (ou `$XDG_CACHE_HOME/RomSieve/`) |
+| Cache des en-têtes des DAT (`dat_header_cache.json`) | `%LOCALAPPDATA%\RomSieve\` | `~/.cache/RomSieve/` (ou `$XDG_CACHE_HOME/RomSieve/`) |
 
 * Les **réglages** sont enregistrés à la fermeture de RomSieve et avant chaque tri réel : le lancement suivant
   retrouve vos dossiers, vos filtres et la disposition de la fenêtre.
@@ -100,6 +101,10 @@ sudo pacman -S libx11 libice libsm fontconfig icu openssl
   CRC32) et des CHD, lui aussi invalidé si le fichier change. Une archive inchangée n'est plus ouverte, ce qui compte
   surtout sur un partage réseau : la lecture des en-têtes d'une collection MAME complète y prend des minutes, et une
   deuxième analyse est plusieurs fois plus rapide.
+* Le **cache des en-têtes des DAT** mémorise le nom et la convention de chaque DAT d'un
+  [lot](naming-conventions-and-dats.md#plusieurs-dat) (dossier ou archive de DAT), invalidé si le DAT change. La liste
+  d'un pack de milliers de DAT se relit alors sans les ouvrir, au lancement de RomSieve comme à chaque simulation :
+  seuls les DAT cochés sont lus en entier. Une nouvelle version de RomSieve relit les DAT une fois.
 
 Pour repartir des réglages par défaut, fermez RomSieve et supprimez `config.json`.
 

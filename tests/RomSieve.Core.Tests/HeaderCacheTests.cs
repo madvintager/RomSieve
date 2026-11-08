@@ -341,5 +341,7 @@ public sealed class HeaderCacheTests : IDisposable
         public bool IsSupportedArchive(string path) => _inner.IsSupportedArchive(path);
 
         public ArchiveMemberStream OpenArchiveMember(string archivePath, string memberName) => _inner.OpenArchiveMember(archivePath, memberName);
+
+        public IArchiveReader OpenArchive(string archivePath) => _inner.OpenArchive(archivePath);
     }
 }
