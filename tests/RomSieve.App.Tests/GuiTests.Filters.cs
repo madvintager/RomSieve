@@ -69,6 +69,68 @@ public sealed partial class GuiTests
     }
 
     /// <summary>
+    /// Filtering the files missing from the DAT: one box of every convention, last of the content to keep, shown with the
+    /// options of both conventions and greyed in a MAME run or with software lists, its tooltip saying why.
+    /// </summary>
+    [Fact]
+    public async Task FiltersTab_FilterNotInDat_ShouldBeOneBoxOfEveryConvention()
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                vm.Navigation.CurrentStep = WorkflowStep.Filters;
+                Settle(window);
+
+                var box = window.FindControl<CheckBox>("ChkFilterNotInDat")!;
+                box.Parent.Should().BeSameAs(window.FindControl<WrapPanel>("GrpFilterContent"));
+                ContentText(box).Should().Be("Filtrer aussi les fichiers absents du DAT");
+                ToolTip.GetTip(box).Should().Be(vm.Localization.Tr("filters.tooltip_filter_not_in_dat"));
+                ToolTip.GetShowOnDisabled(box).Should().BeTrue();
+                box.IsChecked.Should().BeTrue("on for a new configuration");
+
+                box.IsChecked = false;
+                vm.NoIntroFilters.FilterNotInDat.Should().BeFalse();
+                vm.BuildConfigUnchecked().Filters.FilterNotInDat.Should().BeFalse();
+
+                // The same option with the No-Intro / Redump options
+                vm.Filters.IsNoIntroShown = true;
+                Settle(window);
+                box.IsEffectivelyVisible.Should().BeTrue();
+                box.IsEffectivelyEnabled.Should().BeTrue();
+                box.IsChecked.Should().BeFalse();
+                vm.NoIntroFilters.FilterNotInDat = true;
+                Settle(window);
+                box.IsChecked.Should().BeTrue();
+
+                // A MAME run or software lists: greyed, whatever the convention shown, the tooltip saying why
+                foreach (var convention in new[] { NamingConvention.Mame, NamingConvention.MameSoftwareList })
+                {
+                    vm.Directories.SelectedNamingConvention = convention;
+                    vm.Filters.IsTosecShown = true;
+                    Settle(window);
+                    box.IsEffectivelyVisible.Should().BeTrue(convention.ToString());
+                    box.IsEffectivelyEnabled.Should().BeFalse(convention.ToString());
+                    ToolTip.GetTip(box).Should().Be(vm.Localization.Tr("filters.tooltip_filter_not_in_dat_mame"));
+                    box.IsChecked.Should().BeTrue("the value stays for the next run that is not MAME");
+                }
+
+                vm.Directories.SelectedNamingConvention = NamingConvention.Tosec;
+                Settle(window);
+                box.IsEffectivelyEnabled.Should().BeTrue();
+                ToolTip.GetTip(box).Should().Be(vm.Localization.Tr("filters.tooltip_filter_not_in_dat"));
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>
     /// The tag after the label of a box ("(Translated)") is lighter than the label while the box is enabled, and greyed
     /// out with it when it is disabled: a color set on the tag itself kept it readable next to a greyed-out label.
     /// </summary>

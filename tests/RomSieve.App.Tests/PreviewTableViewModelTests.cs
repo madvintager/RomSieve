@@ -215,6 +215,34 @@ public sealed class PreviewTableViewModelTests : IDisposable
         actions.Should().Contain(a => a.Name == "act_filter_this_game");
     }
 
+    /// <summary>
+    /// A file the identification set aside is no release of the game its name gives: an excluded file missing from the
+    /// DAT, like a non-conforming one, cannot be forced as the 1G1R winner, by the button or the context menu.
+    /// </summary>
+    [Theory]
+    [InlineData(FileStatus.Excluded, IdentificationFailure.NotInDat)]
+    [InlineData(FileStatus.Unmatched, IdentificationFailure.NotInDat)]
+    [InlineData(FileStatus.Unmatched, IdentificationFailure.Sha1Mismatch)]
+    public void FileSetAsideByTheIdentification_ShouldNotBeForcedAsTheWinner(FileStatus status, IdentificationFailure failure)
+    {
+        var vm = CreateViewModel(() => false, () => new HashSet<string>());
+        var kept = CreateProcessItem(_temp.WriteBytes("Alpha (1990)(Ocean).adf", [1]), "Alpha (1990)(Ocean).adf", "Alpha", FileStatus.Valid);
+        var aside = CreateProcessItem(_temp.WriteBytes("Alpha (1990)(Ocean)[b].adf", [2]), "Alpha (1990)(Ocean)[b].adf", "Alpha", status);
+        aside.IdentificationFailure = failure;
+        vm.AddPreviewItem(kept, _temp.Path);
+        vm.AddPreviewItem(aside, _temp.Path);
+
+        vm.SelectedPreviewItem = vm.AllPreviewItems[1];
+        vm.CanForce1G1RWinner.Should().BeFalse();
+        vm.BuildPreviewContextMenuForRow(1).Should().NotContain(a => a.Name == "act_force_1g1r_winner");
+        vm.Force1G1RWinner(vm.AllPreviewItems[1]);
+        vm.HasManual1G1ROverrides.Should().BeFalse("the command refuses it too");
+
+        vm.SelectedPreviewItem = vm.AllPreviewItems[0];
+        vm.CanForce1G1RWinner.Should().BeTrue();
+        vm.BuildPreviewContextMenuForRow(0).Should().Contain(a => a.Name == "act_force_1g1r_winner");
+    }
+
     [Fact]
     public void Columns_ShouldHideCrcDiskPublisherAndRelatedByDefault()
     {

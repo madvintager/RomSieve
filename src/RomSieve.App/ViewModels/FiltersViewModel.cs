@@ -157,6 +157,16 @@ public sealed class FiltersViewModel : ViewModelBase
     /// </summary>
     public bool AreNoIntroOnlyOptionsApplicable => !AreMameOptionsShown && !AreSoftwareListOptionsShown;
 
+    /// <summary>
+    /// Whether filtering the files missing from the DAT (<see cref="NoIntroFiltersViewModel.FilterNotInDat"/>, an option
+    /// of every convention) has an effect: not in a MAME run or with software lists, whatever the convention shown, as a
+    /// file unknown to such a DAT is never read by its name. Greyed then, its tooltip saying why.
+    /// </summary>
+    public bool IsFilterNotInDatApplicable => !_isMameConvention && !_isSoftwareListConvention;
+
+    public string FilterNotInDatTooltip => _localization.Tr(
+        IsFilterNotInDatApplicable ? "filters.tooltip_filter_not_in_dat" : "filters.tooltip_filter_not_in_dat_mame");
+
     // =========================================================================
     // MAME machines
     // =========================================================================
@@ -574,6 +584,8 @@ public sealed class FiltersViewModel : ViewModelBase
         OnPropertyChanged(nameof(AreTranslationsApplicable));
         OnPropertyChanged(nameof(IsDumpQualityApplicable));
         OnPropertyChanged(nameof(AreNoIntroOnlyOptionsApplicable));
+        OnPropertyChanged(nameof(IsFilterNotInDatApplicable));
+        OnPropertyChanged(nameof(FilterNotInDatTooltip));
         OnPropertyChanged(nameof(UnlicensedTooltip));
         OnPropertyChanged(nameof(RereleasesTooltip));
         OnPropertyChanged(nameof(DumpsNoEffectText));

@@ -1853,6 +1853,13 @@
                 <Style Selector="Grid.mame WrapPanel#GrpFilterContent > CheckBox">
                   <Setter Property="Margin" Value="0,0,24,4" />
                 </Style>
+                <!-- The files the filters apply to, not a category: set a little apart from the categories above it -->
+                <Style Selector="WrapPanel#GrpFilterContent > CheckBox#ChkFilterNotInDat">
+                  <Setter Property="Margin" Value="0,8,0,4" />
+                </Style>
+                <Style Selector="Grid.mame WrapPanel#GrpFilterContent > CheckBox#ChkFilterNotInDat">
+                  <Setter Property="Margin" Value="0,0,24,4" />
+                </Style>
               </Grid.Styles>
 
               <!-- Column 1: dump quality, a single level; the exclusions one by one in a drop-down panel. Greyed with the
@@ -2034,6 +2041,17 @@
                             IsEnabled="{Binding Filters.AreNoIntroOnlyOptionsApplicable}"
                             IsChecked="{Binding Filters.KeepRereleases, Mode=TwoWay}">
                     <TextBlock TextWrapping="Wrap"><Run Text="{Binding I18n[filters.chk_keep_rereleases]}" /> <Run Text="{Binding I18n[filters.tag_nointro_rereleases]}" Classes="tag" /></TextBlock>
+                  </CheckBox>
+                  <!-- Whether these filters also apply to the files the DAT does not know: an option of every
+                       convention, greyed in a MAME run or with software lists, where it has no effect. Last of the
+                       group, so that with the MAME options it takes the room left on a row of boxes -->
+                  <CheckBox x:Name="ChkFilterNotInDat"
+                            FontSize="11"
+                            ToolTip.Tip="{Binding Filters.FilterNotInDatTooltip}"
+                            ToolTip.ShowOnDisabled="True"
+                            IsEnabled="{Binding Filters.IsFilterNotInDatApplicable}"
+                            IsChecked="{Binding NoIntroFilters.FilterNotInDat, Mode=TwoWay}">
+                    <TextBlock TextWrapping="Wrap" Text="{Binding I18n[filters.chk_filter_not_in_dat]}" />
                   </CheckBox>
                 </WrapPanel>
               </StackPanel>

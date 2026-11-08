@@ -356,9 +356,18 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
     public bool CanForce1G1RWinner =>
         !_getIsRunning()
         && SelectedPreviewItem is not null
-        && SelectedPreviewItem.Item.Parsed.IsConform
-        && SelectedPreviewItem.Item.Status != FileStatus.Unmatched
-        && SelectedPreviewItem.Item.Status != FileStatus.Error;
+        && CanBeForcedWinner(SelectedPreviewItem.Item);
+
+    /// <summary>
+    /// Whether a file can be forced as the 1G1R winner of its game: a release of a game, which a non-conforming file,
+    /// a file in error, or a file the identification set aside (missing from the DAT, even excluded by its name) never
+    /// is. The release selection ignores such a file anyway.
+    /// </summary>
+    private static bool CanBeForcedWinner(ProcessItem item) =>
+        item.Parsed.IsConform
+        && item.Status != FileStatus.Unmatched
+        && item.Status != FileStatus.Error
+        && item.IdentificationFailure == IdentificationFailure.None;
 
     public bool CanResetSelected1G1ROverride =>
         !_getIsRunning() && GetOverrideKey(SelectedRow) is { } key && _manual1G1RWinners.ContainsKey(key);
@@ -409,7 +418,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
         }
 
         var item = row.Item;
-        if (!item.Parsed.IsConform)
+        if (!CanBeForcedWinner(item))
         {
             return;
         }
@@ -600,7 +609,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
                 _localization.Tr("panel4.ctx_expand_all"),
                 ExpandAllGroups));
         }
-        else if (row is PreviewItemViewModel item && item.Item.Parsed.IsConform)
+        else if (row is PreviewItemViewModel item && CanBeForcedWinner(item.Item))
         {
             actions.Add(new PreviewContextMenuAction(
                 "act_force_1g1r_winner",
