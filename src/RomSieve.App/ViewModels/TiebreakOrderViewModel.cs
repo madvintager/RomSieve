@@ -53,8 +53,17 @@ public sealed partial class TiebreakCriterionItemViewModel : ViewModelBase
     [ObservableProperty]
     private string _description = string.Empty;
 
+    /// <summary>Rank and name of the criterion ("10. Version"), for a screen reader.</summary>
     [ObservableProperty]
     private string _text = string.Empty;
+
+    /// <summary>Rank of the criterion in the order ("10."), shown in a column of its own so that the names line up.</summary>
+    [ObservableProperty]
+    private string _rank = string.Empty;
+
+    /// <summary>Name of the criterion, translated.</summary>
+    [ObservableProperty]
+    private string _label = string.Empty;
 
     /// <summary>Why the criterion has no effect on the current collection (<see cref="TiebreakApplicability"/>), or <c>null</c>.</summary>
     [ObservableProperty]
@@ -309,7 +318,9 @@ public sealed partial class TiebreakOrderViewModel : ViewModelBase
     {
         for (var i = 0; i < Items.Count; i++)
         {
-            Items[i].Text = $"{i + 1}. {_localization.Tr(Items[i].LabelKey)}";
+            Items[i].Rank = $"{i + 1}.";
+            Items[i].Label = _localization.Tr(Items[i].LabelKey);
+            Items[i].Text = $"{Items[i].Rank} {Items[i].Label}";
             Items[i].Description = _localization.Tr(Items[i].DescriptionKey);
         }
 

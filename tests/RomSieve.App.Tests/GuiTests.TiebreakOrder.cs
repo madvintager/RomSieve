@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Headless;
@@ -73,7 +73,7 @@ public sealed partial class GuiTests
             Settle(window);
             var list = window.FindControl<ListBox>("ListTiebreakOrder")!;
             var texts = list.GetRealizedContainers()
-                .Select(c => ((ListBoxItem)c).GetVisualDescendants().OfType<TextBlock>().First())
+                .Select(c => ((ListBoxItem)c).GetVisualDescendants().OfType<TextBlock>().Single(t => t.Name == "LblCriterionName"))
                 .ToDictionary(t => ((TiebreakCriterionItemViewModel)t.DataContext!).Criterion);
 
             // Without a preferred video standard, its criterion separates nothing
@@ -109,6 +109,79 @@ public sealed partial class GuiTests
             Settle(window);
             texts[TiebreakCriterion.ParentClone].Classes.Should().NotContain("no-effect");
             window.FindControl<TextBlock>("LblTiebreakNoEffectNote")!.Opacity.Should().Be(0, "the note keeps its room without being seen");
+
+            button.Flyout.Hide();
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public async Task TiebreakOrderPanel_Rows_ShouldHaveOneHeightAndAlignedNames()
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            vm.Priorities.OneGameOneRom = true;
+            var window = new MainWindow { DataContext = vm };
+            window.Show();
+            vm.Navigation.CurrentStep = WorkflowStep.Languages;
+            vm.Priorities.ShowConvention(NamingConvention.Tosec, DatCloneRelations.Present);
+            Settle(window);
+
+            var button = window.FindControl<Button>("BtnTiebreakOrder")!;
+            button.Flyout!.ShowAt(button);
+            Settle(window);
+            var list = window.FindControl<ListBox>("ListTiebreakOrder")!;
+            list.ItemCount.Should().BeGreaterThan(10, "the ranks then have one and two digits");
+            var rows = new List<(int Index, double Height, double NameLeft, bool HasPreference)>();
+            for (var index = 0; index < list.ItemCount; index++)
+            {
+                list.ScrollIntoView(index);
+                Settle(window);
+                var container = list.ContainerFromIndex(index)!;
+                var name = container.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Name == "LblCriterionName");
+                var rank = container.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Name == "LblCriterionRank");
+                rank.Text.Should().Be($"{index + 1}.");
+                if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
+                {
+                    rank.DesiredSize.Width.Should().BeLessThanOrEqualTo(rank.Bounds.Width + 0.5, $"\"{rank.Text}\" fits in the column of the ranks");
+                }
+
+                var preference = container.GetVisualDescendants().OfType<ComboBox>().Single(b => b.Name == "ComboTiebreakPreference");
+                rows.Add((index, container.Bounds.Height, name.TranslatePoint(new Point(0, 0), container)!.Value.X, preference.IsVisible));
+            }
+
+            rows.Should().Contain(r => r.HasPreference).And.Contain(r => !r.HasPreference);
+            rows.Select(r => r.Height).Distinct().Should().ContainSingle(
+                "a row with a list on its line is as high as the others ({0})", string.Join("; ", rows.Select(r => $"{r.Index + 1} = {r.Height}")));
+            rows.Select(r => r.NameLeft).Distinct().Should().ContainSingle("the names start at one place, after \"9.\" as after \"10.\"");
+
+            // Counts of one to four digits leave the lists of the preferences lined up. Measured with the real fonts only
+            // (ROMSIEVE_HEADLESS_SKIA=1): the glyphs of the test font are much wider
+            if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
+            {
+                vm.Priorities.ShowDecisions(new Dictionary<TiebreakCriterion, int>
+                {
+                    [TiebreakCriterion.VideoStandard] = 3,
+                    [TiebreakCriterion.PreferredMediaType] = 8888,
+                    [TiebreakCriterion.LanguageCount] = 132,
+                });
+                Settle(window);
+                var listRights = new List<double>();
+                for (var index = 0; index < list.ItemCount; index++)
+                {
+                    list.ScrollIntoView(index);
+                    Settle(window);
+                    var container = list.ContainerFromIndex(index)!;
+                    var preference = container.GetVisualDescendants().OfType<ComboBox>().Single(b => b.Name == "ComboTiebreakPreference");
+                    if (preference.IsVisible)
+                    {
+                        listRights.Add(preference.TranslatePoint(new Point(preference.Bounds.Width, 0), container)!.Value.X);
+                    }
+                }
+
+                listRights.Should().HaveCountGreaterThan(1).And.OnlyContain(x => x == listRights[0], "the lists end at one place, whatever the counts after them");
+            }
 
             button.Flyout.Hide();
             window.Close();
@@ -287,7 +360,7 @@ public sealed partial class GuiTests
                             list.ScrollIntoView(index);
                             Settle(window);
                             var container = list.ContainerFromIndex(index)!;
-                            var name = container.GetVisualDescendants().OfType<TextBlock>().First();
+                            var name = container.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Name == "LblCriterionName");
                             AssertNotTrimmed(name, $"\"{name.Text}\" ({locale}, {convention})");
 
                             var preference = container.GetVisualDescendants().OfType<ComboBox>().Single(b => b.Name == "ComboTiebreakPreference");

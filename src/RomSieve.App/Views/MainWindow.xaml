@@ -223,11 +223,14 @@
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="TextDecorations" Value="Underline" />
     </Style>
-    <!-- The whole height of the row is clickable -->
+    <!-- The whole height of the row is clickable. One width up to four digits, aligned on the right, so that the lists
+         set on the lines of their criteria line up whatever the counts -->
     <Style Selector="Button.decided-count">
       <Setter Property="Margin" Value="6,-1,0,-1" />
       <Setter Property="Padding" Value="6,0" />
       <Setter Property="MinHeight" Value="0" />
+      <Setter Property="MinWidth" Value="42" />
+      <Setter Property="HorizontalContentAlignment" Value="Right" />
       <Setter Property="VerticalAlignment" Value="Stretch" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Background" Value="Transparent" />
@@ -390,9 +393,10 @@
       <Setter Property="Padding" Value="1" />
       <Setter Property="FontSize" Value="11" />
     </Style>
+    <!-- Room on the right for the scroll bar, which widens over the items when the pointer comes near it -->
     <Style Selector="ListBox.priority-list > ListBoxItem">
-      <Setter Property="Padding" Value="4,1" />
-      <Setter Property="MinHeight" Value="18" />
+      <Setter Property="Padding" Value="4,1,12,1" />
+      <Setter Property="MinHeight" Value="0" />
       <Setter Property="Margin" Value="0" />
       <Setter Property="FontSize" Value="11" />
     </Style>
@@ -2433,16 +2437,31 @@
                                        SelectedItem="{Binding Priorities.ShownCriteriaOrder.SelectedItem, Mode=TwoWay}">
                                 <ListBox.ItemTemplate>
                                   <DataTemplate x:DataType="vm:TiebreakCriterionItemViewModel">
-                                    <Grid ColumnDefinitions="*,Auto,Auto" Background="Transparent" ToolTip.Tip="{Binding ToolTipText}">
-                                      <TextBlock Text="{Binding Text}"
+                                    <!-- Every row has the height of the list some of them carry, and the ranks have a
+                                         column of their own, aligned on the right, so that the names line up after "9."
+                                         as after "10." -->
+                                    <Grid ColumnDefinitions="18,4,*,Auto,Auto"
+                                          Height="20"
+                                          Background="Transparent"
+                                          ToolTip.Tip="{Binding ToolTipText}"
+                                          AutomationProperties.Name="{Binding Text}">
+                                      <TextBlock x:Name="LblCriterionRank"
+                                                 Text="{Binding Rank}"
+                                                 TextAlignment="Right"
+                                                 VerticalAlignment="Center"
+                                                 Classes.no-effect="{Binding HasNoEffect}" />
+                                      <TextBlock x:Name="LblCriterionName"
+                                                 Grid.Column="2"
+                                                 Text="{Binding Label}"
                                                  VerticalAlignment="Center"
                                                  TextTrimming="CharacterEllipsis"
                                                  Classes.no-effect="{Binding HasNoEffect}" />
                                       <!-- What the criterion prefers, set on its line -->
                                       <ComboBox x:Name="ComboTiebreakPreference"
-                                                Grid.Column="1"
+                                                Grid.Column="3"
                                                 Width="190"
-                                                MinHeight="22"
+                                                Height="20"
+                                                MinHeight="0"
                                                 Margin="6,0,0,0"
                                                 Padding="6,0"
                                                 FontSize="11"
@@ -2455,7 +2474,7 @@
                                                 DisplayMemberBinding="{Binding Label}" />
                                       <!-- A click opens the table of the results on the games the criterion decided -->
                                       <Button x:Name="BtnDecidedGames"
-                                              Grid.Column="2"
+                                              Grid.Column="4"
                                               Classes="decided-count"
                                               IsVisible="{Binding HasDecisions}"
                                               Command="{Binding ShowDecidedGamesCommand}"
