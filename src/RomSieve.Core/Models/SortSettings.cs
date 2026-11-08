@@ -60,6 +60,14 @@ public sealed class SortSettings
     public bool GenerateM3u { get; set; }
     public M3uPlacementMode M3uPlacement { get; set; } = M3uPlacementMode.Parent;
 
+    // Filters of every convention
+
+    /// <summary>
+    /// Filters the files missing from the DAT by their name too (<c>filter_not_in_dat</c>, <see cref="FilterConfig.FilterNotInDat"/>).
+    /// On for a new configuration; a file of format 1 is migrated with the option off (<see cref="Services.ConfigSchema"/>).
+    /// </summary>
+    public bool FilterNotInDat { get; set; } = true;
+
     // TOSEC criteria
     public bool DumpsVerifiedOnly { get; set; }
     public bool ExcludeBadDumps { get; set; } = true;

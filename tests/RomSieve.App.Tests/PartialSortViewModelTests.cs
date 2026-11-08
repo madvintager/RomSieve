@@ -406,11 +406,13 @@ public sealed class PartialSortViewModelTests : IDisposable
     /// <summary>
     /// A file whose name gives its game but that the DAT does not know is isolated in <c>_unmatched</c>, apart from its
     /// game: it has its own box, so that unchecking it leaves the kept release of its game checked, and the reverse. The
-    /// header of the game still checks and unchecks all its files.
+    /// header of the game still checks and unchecks all its files. The files missing from the DAT are not filtered here,
+    /// so that the bad dump stays non-conforming too.
     /// </summary>
     [Fact]
     public async Task NonConformingFileOfAGame_ShouldBeCheckedApartFromTheKeptReleaseOfItsGame()
     {
+        _vm.NoIntroFilters.FilterNotInDat = false;
         _temp.WriteText(Path.Combine("src", "Game A (1990)(Ocean)[a].adf"), "ALT");
         _vm.Directories.DatFilePath = _temp.WriteText("catalog.xml", """
             <?xml version="1.0"?>
@@ -456,6 +458,43 @@ public sealed class PartialSortViewModelTests : IDisposable
         await PartialSort.StartCommand.ExecuteAsync(null);
         DestinationFiles().Should().Equal("Game A (1990)(Ocean)[a].adf", "Game B (1991)(Ocean).adf", "Game C (1992)(Ocean).adf");
         File.Exists(Path.Combine(_destination, PathOrganizerService.UnmatchedFolderName, "Game A (1990)(Ocean)[a].adf")).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// A file missing from the DAT that the filters exclude by its name (on by default) is not written: it has no box,
+    /// is not counted, and neither chooses nor follows the game its name gives.
+    /// </summary>
+    [Fact]
+    public async Task FileMissingFromTheDatExcludedByItsName_ShouldHaveNoBox()
+    {
+        _vm.Directories.DatFilePath = _temp.WriteText("catalog.xml", """
+            <?xml version="1.0"?>
+            <datafile>
+              <header><name>Commodore Amiga - Games - [ADF]</name><description>TOSEC</description></header>
+              <game name="Game A (1990)(Ocean)"><rom name="Game A (1990)(Ocean).adf" size="4" crc="9b0d08f1"/></game>
+              <game name="Game B (1991)(Ocean)"><rom name="Game B (1991)(Ocean).adf" size="6" crc="c9ffc5ce"/></game>
+              <game name="Game C (1992)(Ocean)"><rom name="Game C (1992)(Ocean).adf" size="2" crc="75581e13"/></game>
+            </datafile>
+            """);
+        await _vm.Execution.SimulateAsync();
+
+        var badDump = Row("Game A (1990)(Ocean)[b].adf");
+        badDump.Item.Status.Should().Be(FileStatus.Excluded);
+        badDump.Item.StatusReason!.Key.Should().Be("reason.not_in_dat_excluded");
+        badDump.CanBeSortChecked.Should().BeFalse();
+        badDump.IsSortChecked.Should().BeFalse();
+        PartialSort.CheckedCountText.Should().Be("3 games selected");
+
+        PartialSort.SetChecked([Row("Game A (1990)(Ocean).adf")], false);
+        badDump.IsSortChecked.Should().BeFalse();
+        PartialSort.CheckedCountText.Should().Be("2 games selected");
+
+        // An option of the sort: the simulation made with it is no longer the reference without it
+        PartialSort.CanSortDisplayed.Should().BeTrue();
+        _vm.NoIntroFilters.FilterNotInDat = false;
+        PartialSort.CanSortDisplayed.Should().BeFalse();
+        _vm.NoIntroFilters.FilterNotInDat = true;
+        PartialSort.CanSortDisplayed.Should().BeTrue();
     }
 
     /// <summary>

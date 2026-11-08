@@ -18,6 +18,8 @@ public sealed class SettingsParityTests
     public static TheoryData<string> Configurations =>
     [
         "{}",
+        """{ "config_version": 1, "nointro_exclude_demos": true }""",
+        """{ "config_version": 2, "filter_not_in_dat": false }""",
         """{ "one_game_one_rom": true, "region_priority_mode": "country_first", "priority_languages": ["FR", "en", "fr"], "priority_countries": ["uk", "Asia"], "exclude_modifications": false }""",
         """
         { "source_dir": " C:/src ", "dat_file": " x.dat ", "naming_convention": "nointro", "transfer_mode": "move", "hashing_parallelism": 3,

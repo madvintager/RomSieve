@@ -68,6 +68,9 @@ public static class SortSettingsSerializer
         data["generate_m3u"] = s.GenerateM3u;
         data["m3u_placement"] = s.M3uPlacement.ToConfigString();
 
+        // Filters of every convention
+        data[ConfigSchema.FilterNotInDatKey] = s.FilterNotInDat;
+
         // TOSEC criteria
         data["dumps_verified_only"] = s.DumpsVerifiedOnly;
         data["exclude_bad_dumps"] = s.ExcludeBadDumps;
@@ -178,6 +181,7 @@ public static class SortSettingsSerializer
                 Manual1G1RWinners = manual1G1RWinners is null
                     ? new Dictionary<string, string>(StringComparer.Ordinal)
                     : new Dictionary<string, string>(manual1G1RWinners, StringComparer.Ordinal),
+                FilterNotInDat = s.FilterNotInDat,
 
                 DumpsVerifiedOnly = s.DumpsVerifiedOnly,
                 ExcludeBadDumps = s.ExcludeBadDumps,
@@ -290,6 +294,9 @@ public static class SortSettingsSerializer
 
     private static void ReadTosecFilters(IReadOnlyDictionary<string, object?> data, SortSettings s)
     {
+        // Filters of every convention, read with the first ones
+        if (TryGetBool(data, ConfigSchema.FilterNotInDatKey, out var notInDat)) s.FilterNotInDat = notInDat;
+
         if (TryGetBool(data, "dumps_verified_only", out var dvo)) s.DumpsVerifiedOnly = dvo;
         if (TryGetBool(data, "exclude_bad_dumps", out var ebd)) s.ExcludeBadDumps = ebd;
         if (TryGetBool(data, "exclude_over_under", out var eou)) s.ExcludeOverUnder = eou;

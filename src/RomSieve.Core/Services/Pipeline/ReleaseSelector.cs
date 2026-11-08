@@ -218,10 +218,12 @@ public sealed class ReleaseSelector
             return;
         }
 
+        // A file the identification set aside (excluded by its name when it is missing from the DAT) is never a release
+        // of the game its name gives: neither forced, nor promoted with the forced release
         var games = new Dictionary<string, List<ProcessItem>>(StringComparer.Ordinal);
         foreach (var it in items)
         {
-            if (it.Parsed.IsConform)
+            if (it.Parsed.IsConform && it.IdentificationFailure == IdentificationFailure.None)
             {
                 var gkeyStr = _filterService.SerializeCanonicalGameKey(it.Parsed);
                 if (manualMap.ContainsKey(gkeyStr))

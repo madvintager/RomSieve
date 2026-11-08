@@ -5,7 +5,8 @@ namespace RomSieve.App.ViewModels;
 
 /// <summary>
 /// No-Intro and Redump filter options, shown by the filters tab for these conventions (<see cref="FiltersViewModel"/>),
-/// which MAME sets use too, with the options of MAME machines (BIOS, devices, mechanical machines, emulation).
+/// which MAME sets use too, with the options of MAME machines (BIOS, devices, mechanical machines, emulation) and the
+/// option of every convention that filters the files missing from the DAT (<see cref="FilterNotInDat"/>).
 /// </summary>
 public sealed partial class NoIntroFiltersViewModel : ConfigSectionViewModel
 {
@@ -40,6 +41,13 @@ public sealed partial class NoIntroFiltersViewModel : ConfigSectionViewModel
 
     [ObservableProperty]
     private bool _excludeRereleases;
+
+    /// <summary>
+    /// Filters the files missing from the DAT by their name too (<see cref="SortSettings.FilterNotInDat"/>): an option of
+    /// every convention, kept by this section like those of the MAME machines.
+    /// </summary>
+    [ObservableProperty]
+    private bool _filterNotInDat = true;
 
     // MAME machines, whose sets use the options of this section
     [ObservableProperty]
@@ -158,6 +166,7 @@ public sealed partial class NoIntroFiltersViewModel : ConfigSectionViewModel
         settings.NoIntroExcludeUnlicensed = ExcludeUnlicensed;
         settings.NoIntroExcludeDemos = ExcludeDemos;
         settings.NoIntroExcludeRereleases = ExcludeRereleases;
+        settings.FilterNotInDat = FilterNotInDat;
         settings.MameExcludeBios = ExcludeMameBios;
         settings.MameExcludeDevices = ExcludeMameDevices;
         settings.MameExcludeMechanical = ExcludeMameMechanical;
@@ -193,6 +202,7 @@ public sealed partial class NoIntroFiltersViewModel : ConfigSectionViewModel
         ExcludeUnlicensed = settings.NoIntroExcludeUnlicensed;
         ExcludeDemos = settings.NoIntroExcludeDemos;
         ExcludeRereleases = settings.NoIntroExcludeRereleases;
+        FilterNotInDat = settings.FilterNotInDat;
         ExcludeMameBios = settings.MameExcludeBios;
         ExcludeMameDevices = settings.MameExcludeDevices;
         ExcludeMameMechanical = settings.MameExcludeMechanical;

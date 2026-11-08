@@ -5,6 +5,14 @@ namespace RomSieve.Core.Models;
 /// </summary>
 public sealed class FilterConfig
 {
+    /// <summary>
+    /// Applies the content filters (<see cref="Services.FilterEvaluator.EvaluateFilter"/>) to the files whose CRC32 the
+    /// DAT does not know and whose name follows its convention: a file they exclude is excluded, left in the source,
+    /// instead of being isolated as non-conforming; a file they keep stays non-conforming. Without a DAT, every file is
+    /// already filtered by its name.
+    /// </summary>
+    public bool FilterNotInDat { get; set; } = true;
+
     // Integrity & Dumps (TOSEC)
     public bool DumpsVerifiedOnly { get; set; } = false;
     public bool ExcludeBadDumps { get; set; } = true;

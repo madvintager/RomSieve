@@ -409,6 +409,42 @@ public sealed class DatLotSortTests : IDisposable
     }
 
     [Fact]
+    public async Task FileNoDatKnows_ShouldBeFilteredByTheFiltersOfTheConventionOfItsName()
+    {
+        // A lot of a No-Intro DAT and a TOSEC DAT: each file no DAT knows meets the filters of its own convention
+        WriteGameBoy();
+        WriteAmiga();
+        WriteSource("Tetris (World) (Demo).gb", Encoding.ASCII.GetBytes("TETRIS DEMO"));
+        WriteSource("Tetris (World) (Rev 2).gb", Encoding.ASCII.GetBytes("TETRIS REV 2"));
+        WriteSource("Lemmings (1991)(Psygnosis)[cr].adf", Encoding.ASCII.GetBytes("LEMMINGS CR"));
+        WriteSource("Lemmings (1991)(Psygnosis)[a].adf", Encoding.ASCII.GetBytes("LEMMINGS ALT"));
+        var config = Config(c => c.Filters.NoIntroExcludeDemos = true);
+
+        var result = await SimulateAsync(config);
+
+        foreach (var name in new[] { "Tetris (World) (Demo).gb", "Lemmings (1991)(Psygnosis)[cr].adf" })
+        {
+            var item = ItemOf(result, name);
+            item.DatName.Should().BeNull();
+            item.Status.Should().Be(FileStatus.Excluded, name);
+            item.StatusReason!.Key.Should().Be("reason.not_in_dat_excluded");
+        }
+
+        ItemOf(result, "Tetris (World) (Demo).gb").StatusReason!.Args["reason"].Should().BeOfType<LocalizedMessage>()
+            .Which.Key.Should().Be("reason.demo_excluded");
+        foreach (var name in new[] { "Tetris (World) (Rev 2).gb", "Lemmings (1991)(Psygnosis)[a].adf" })
+        {
+            ItemOf(result, name).Status.Should().Be(FileStatus.Unmatched, $"{name}: the filters keep it");
+        }
+
+        // Recalculated with the other files, as the table does: nothing changes
+        var expected = result.Items.ToDictionary(it => it.DisplayName, it => (it.Status, it.StatusReason));
+        var all = result.Items.ToList();
+        _services.Processor.RecalculateGameItems(all, config, result.DatCatalog, all);
+        all.Select(it => (it.Status, it.StatusReason)).Should().Equal(all.Select(it => expected[it.DisplayName]));
+    }
+
+    [Fact]
     public async Task ManualWinner_ShouldOnlyDecideTheGameOfItsDat()
     {
         WriteGameBoy();

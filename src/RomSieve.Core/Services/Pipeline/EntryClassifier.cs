@@ -613,7 +613,7 @@ public sealed class EntryClassifier
             }
 
             var parsedUnmatched = _romParser.ParseRomFilename(displayName, sourcePath, fileSize, convention);
-            return new ProcessItem
+            var unmatched = new ProcessItem
             {
                 SourcePath = sourcePath,
                 FileSize = fileSize,
@@ -626,6 +626,15 @@ public sealed class EntryClassifier
                 StatusReason = sha1Mismatch ?? LocalizedMessage.Create("reason.unmatched_not_in_dat"),
                 IdentificationFailure = sha1Mismatch is null ? IdentificationFailure.NotInDat : IdentificationFailure.Sha1Mismatch
             };
+
+            if (unmatched.IdentificationFailure == IdentificationFailure.NotInDat
+                && EvaluateNotInDat(parsedUnmatched, _config.Filters, _filterService) is { IsExcluded: true } notInDat)
+            {
+                unmatched.Status = FileStatus.Excluded;
+                unmatched.StatusReason = notInDat.Reason;
+            }
+
+            return unmatched;
         }
 
         // DAT-less mode: direct filename analysis
@@ -823,6 +832,29 @@ public sealed class EntryClassifier
 
         ApplyInitialFilters(item);
         return item;
+    }
+
+    /// <summary>
+    /// Whether a file whose CRC32 the DAT does not know (<see cref="IdentificationFailure.NotInDat"/>) is excluded rather
+    /// than non-conforming: only with <see cref="FilterConfig.FilterNotInDat"/>, a name that follows the convention and
+    /// content filters (<see cref="IFilterEvaluator.EvaluateFilter"/>) that exclude it. Its name is not the one of a DAT
+    /// game: a missing tag keeps the file non-conforming, only a tag it carries excludes it. Shared by the classification
+    /// and the recalculation of a game.
+    /// </summary>
+    internal static (bool IsExcluded, LocalizedMessage? Reason) EvaluateNotInDat(
+        ParsedRomName parsed,
+        FilterConfig filters,
+        IFilterEvaluator filterService)
+    {
+        if (!filters.FilterNotInDat || !parsed.IsConform)
+        {
+            return (false, null);
+        }
+
+        var (isKept, reason) = filterService.EvaluateFilter(parsed, filters);
+        return isKept
+            ? (false, null)
+            : (true, LocalizedMessage.Create("reason.not_in_dat_excluded", ("reason", reason)));
     }
 
     /// <summary>Non-conforming name: unmatched; otherwise kept or excluded by the filters.</summary>

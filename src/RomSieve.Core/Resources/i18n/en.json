@@ -662,6 +662,7 @@
   "reason.rerelease_excluded": "Modern re-release excluded ({tag})",
   "reason.unmatched_non_tosec": "Filename does not conform to minimal TNC format",
   "reason.unmatched_not_in_dat": "File not found in DAT file",
+  "reason.not_in_dat_excluded": "{reason} (file missing from the DAT)",
   "reason.incomplete_multidisk_set": "Incomplete multi-disk set ({found}/{total} disks found)",
   "reason.mame_set_incomplete": "Incomplete MAME set: {roms} ROM(s) and {disks} disk(s) missing",
   "reason.mame_set_needs_parent": "MAME set relying on {set}: {roms} shared ROM(s) and {disks} disk(s) are not in it",

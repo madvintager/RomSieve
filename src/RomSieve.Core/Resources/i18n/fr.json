@@ -662,6 +662,7 @@
   "reason.rerelease_excluded": "Réédition moderne / borne exclue ({tag})",
   "reason.unmatched_non_tosec": "Nom non conforme au format TNC minimal",
   "reason.unmatched_not_in_dat": "Fichier non répertorié dans le fichier DAT",
+  "reason.not_in_dat_excluded": "{reason} (fichier absent du DAT)",
   "reason.incomplete_multidisk_set": "Set multi-disquettes incomplet ({found}/{total} disques trouvés)",
   "reason.mame_set_incomplete": "Set MAME incomplet : {roms} ROM et {disks} disque(s) manquants",
   "reason.mame_set_needs_parent": "Set MAME dépendant de {set} : {roms} ROM et {disks} disque(s) partagés n'y sont pas",

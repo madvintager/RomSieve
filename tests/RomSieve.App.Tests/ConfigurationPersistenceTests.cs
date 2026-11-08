@@ -40,6 +40,32 @@ public sealed class ConfigurationPersistenceTests
     }
 
     [Fact]
+    public async Task FilterNotInDat_ShouldBeOnForANewConfiguration_OffForAFileOfFormat1_AndPersisted()
+    {
+        using var tmp = new TempDirectoryFixture();
+        var fresh = TestMainViewModel.Create(new HeadlessDialogService(), tmp.GetFilePath(Path.Combine("new", "config.json")));
+        fresh.NoIntroFilters.FilterNotInDat.Should().BeTrue("a new configuration filters the files missing from the DAT");
+        fresh.BuildConfigUnchecked().Filters.FilterNotInDat.Should().BeTrue();
+
+        // A configuration of RomSieve 1.1.1 keeps its result: the files missing from the DAT stay unfiltered
+        var path = tmp.WriteText("config.json", """{ "config_version": 1, "exclude_alternate": true }""");
+        var vm = TestMainViewModel.Create(new HeadlessDialogService(), path);
+        vm.NoIntroFilters.FilterNotInDat.Should().BeFalse();
+        vm.BuildConfigUnchecked().Filters.FilterNotInDat.Should().BeFalse();
+
+        await vm.SaveConfigurationAsync();
+        using (var saved = JsonDocument.Parse(await File.ReadAllTextAsync(path)))
+        {
+            saved.RootElement.GetProperty("config_version").GetInt32().Should().Be(ConfigSchema.CurrentVersion);
+            saved.RootElement.GetProperty("filter_not_in_dat").GetBoolean().Should().BeFalse("the migrated value is saved");
+        }
+
+        vm.NoIntroFilters.FilterNotInDat = true;
+        await vm.SaveConfigurationAsync();
+        TestMainViewModel.Create(new HeadlessDialogService(), path).NoIntroFilters.FilterNotInDat.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task VerifyCopies_ShouldBeOffByDefaultAndPersisted()
     {
         using var tmp = new TempDirectoryFixture();

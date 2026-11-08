@@ -1380,7 +1380,25 @@ public sealed class SortProcessorService : ISortProcessorService
             }
 
             // Set aside by the identification (not in the DAT, damaged...): its name, which may give the key of an
-            // identified game, does not make it a release of that game, as in the simulation
+            // identified game, does not make it a release of that game, as in the simulation. A file missing from the
+            // DAT only follows the rule of the option that filters it by its name
+            if (it.IdentificationFailure == IdentificationFailure.NotInDat)
+            {
+                var (isExcluded, excludedReason) = EntryClassifier.EvaluateNotInDat(it.Parsed, config.Filters, _filterService);
+                if (isExcluded)
+                {
+                    it.Status = FileStatus.Excluded;
+                    it.StatusReason = excludedReason;
+                }
+                else if (it.Status == FileStatus.Excluded)
+                {
+                    it.Status = FileStatus.Unmatched;
+                    it.StatusReason = LocalizedMessage.Create("reason.unmatched_not_in_dat");
+                }
+
+                continue;
+            }
+
             if (it.IdentificationFailure != IdentificationFailure.None)
             {
                 continue;

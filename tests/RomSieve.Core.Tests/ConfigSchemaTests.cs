@@ -5,7 +5,8 @@ namespace RomSieve.Core.Tests;
 
 /// <summary>
 /// Version of the format of <c>config.json</c> and of the profiles: a file without version or of the current version is
-/// read as it is, and a file of a later version is read without migration and reported.
+/// read as it is, a file of an earlier version is migrated (format 1 keeps the files missing from the DAT unfiltered),
+/// and a file of a later version is read without migration and reported.
 /// </summary>
 public sealed class ConfigSchemaTests
 {
@@ -16,7 +17,6 @@ public sealed class ConfigSchemaTests
         Data([(ConfigSchema.VersionKey, (long)ConfigSchema.CurrentVersion), .. values]);
 
     [Theory]
-    [InlineData(null, 1)]
     [InlineData("two", 1)]
     [InlineData("2", 2)]
     [InlineData(0L, 1)]
@@ -24,11 +24,47 @@ public sealed class ConfigSchemaTests
     [InlineData(1L, 1)]
     [InlineData(2L, 2)]
     [InlineData(7L, 7)]
-    public void ReadVersion_ShouldTakeOneForAMissingOrUnreadableVersion(object? version, int expected)
+    public void ReadVersion_ShouldTakeOneForAnUnreadableVersion(object version, int expected)
     {
-        var data = version is null ? Data() : Data((ConfigSchema.VersionKey, version));
+        ConfigSchema.ReadVersion(Data((ConfigSchema.VersionKey, version))).Should().Be(expected);
+        ConfigSchema.ReadVersion(Data((ConfigSchema.VersionKey, null))).Should().Be(1);
+    }
 
-        ConfigSchema.ReadVersion(data).Should().Be(expected);
+    [Fact]
+    public void ReadVersion_ShouldTakeTheCurrentOneForAFileWithoutVersion()
+    {
+        // Every published version writes its version: a file without one was written by hand, in the current format
+        ConfigSchema.ReadVersion(Data(("exclude_alternate", true))).Should().Be(ConfigSchema.CurrentVersion);
+        ConfigSchema.Migrate(Data()).Should().NotContainKey("filter_not_in_dat", "no migration step runs");
+    }
+
+    [Fact]
+    public void FileOfFormat1_ShouldKeepTheFilesMissingFromTheDatUnfiltered()
+    {
+        var migrated = ConfigSchema.Migrate(Data((ConfigSchema.VersionKey, 1L), ("exclude_alternate", true)));
+
+        migrated["filter_not_in_dat"].Should().Be(false);
+        SortSettingsSerializer.Read(Data((ConfigSchema.VersionKey, 1L))).FilterNotInDat
+            .Should().BeFalse("the files missing from the DAT were never filtered before format 2");
+        SortSettingsSerializer.Read(Data((ConfigSchema.VersionKey, 1L)), new SortSettings { FilterNotInDat = true }).FilterNotInDat
+            .Should().BeFalse("the migration decides, whatever the current value");
+        SortSettingsSerializer.Read(Data((ConfigSchema.VersionKey, 1L), ("filter_not_in_dat", true))).FilterNotInDat
+            .Should().BeTrue("a value added by hand is kept");
+    }
+
+    [Fact]
+    public void NewConfigurationOrFileOfTheCurrentFormat_ShouldFilterTheFilesMissingFromTheDat()
+    {
+        new SortSettings().FilterNotInDat.Should().BeTrue();
+        new FilterConfig().FilterNotInDat.Should().BeTrue();
+        SortSettingsSerializer.Read(Data()).FilterNotInDat.Should().BeTrue("a file without version is of the current format");
+        SortSettingsSerializer.Read(Current()).FilterNotInDat.Should().BeTrue("a missing key takes its default value");
+        SortSettingsSerializer.Read(Current(("filter_not_in_dat", false))).FilterNotInDat.Should().BeFalse();
+
+        var data = new Dictionary<string, object?>();
+        SortSettingsSerializer.Write(new SortSettings { FilterNotInDat = false }, data);
+        data["filter_not_in_dat"].Should().Be(false);
+        SortSettingsSerializer.ToSortConfig(SortSettingsSerializer.Read(data)).Filters.FilterNotInDat.Should().BeFalse();
     }
 
     [Fact]
