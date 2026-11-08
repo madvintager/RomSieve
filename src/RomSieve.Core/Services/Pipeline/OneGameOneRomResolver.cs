@@ -290,9 +290,12 @@ public sealed partial class OneGameOneRomResolver
         {
             relItems.Sort((x, y) => GetDiskSortKey(x).CompareTo(GetDiskSortKey(y)));
             var sampleParsed = relItems[0].Parsed;
-            var firstFileName = !string.IsNullOrEmpty(relItems[0].ArchiveMember)
-                ? relItems[0].ArchiveMember
-                : Path.GetFileName(relItems[0].SourcePath);
+
+            // The format of a release is that of its parsed name: with a DAT, the name the DAT gives the file, which the
+            // sort writes (a file identified by its checksum may carry another extension in the source), otherwise the
+            // name of the file or of the archive member. TiebreakApplicability relies on it to grey out the format
+            // criteria of a DAT whose files all have one format
+            var firstFileName = sampleParsed.RawFilename;
 
             var r = _config.Filters.PriorityLanguages.Count > 0
                 ? _filterService.GetLanguagePriorityRank(sampleParsed, _config.Filters.PriorityLanguages)

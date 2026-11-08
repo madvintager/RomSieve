@@ -97,10 +97,11 @@ public sealed class FloppyMultidiskTests
             item.Parsed.DiscTotal.Should().Be(3);
         }
 
-        // The demo, a parent in the DAT whose name is the shortest, loses to the full game
+        // The demo, a parent in the DAT whose name is the shortest, loses to the full game: a release on one disk loses
+        // to a complete set of its media
         var demoItem = ItemOf(result, demo.FileName);
         demoItem.Status.Should().Be(FileStatus.Excluded);
-        demoItem.EliminatedBy.Should().Be(TiebreakCriterion.OriginalRelease);
+        demoItem.EliminatedBy.Should().Be(TiebreakCriterion.CompleteMultidiskSet);
 
         var playlists = Directory.GetFiles(dest, "*.m3u", SearchOption.AllDirectories);
         playlists.Should().ContainSingle();
@@ -229,5 +230,65 @@ public sealed class FloppyMultidiskTests
         ItemOf(result, disk1).Status.Should().Be(FileStatus.Valid);
         ItemOf(result, disk2).Status.Should().Be(FileStatus.Valid);
         ItemOf(result, demo).Status.Should().Be(FileStatus.Excluded);
+    }
+
+    [Fact]
+    public async Task NoIntroSetThatLacksADisk_ShouldLoseToACompleteSet_EvenOfACountryRankedLower()
+    {
+        using var tmp = new TempDirectoryFixture();
+        const string europe = "Lemmings (Europe)";
+        const string uk = "Lemmings (United Kingdom)";
+        var (src, dest, dat) = await CreateNoIntroCollectionAsync(tmp,
+        [
+            Disk(europe, 1, "adf", "0301"),
+            Disk(europe, 2, "adf", "0302"),
+            Disk(uk, 1, "adf", "0303"),
+            Disk(uk, 3, "adf", "0305")
+        ]);
+        var config = NoIntroConfig(src, dest, dat);
+        config.Filters.PriorityCountries = ["GB", "EU"];
+
+        var result = await _services.Processor.ExecuteAsync(config, isDryRun: true);
+
+        // The set of the United Kingdom lacks its disk 2: the No-Intro floppy DATs have sets to complete
+        ItemOf(result, $"{europe} (Disk 1).adf").Status.Should().Be(FileStatus.Valid);
+        ItemOf(result, $"{europe} (Disk 2).adf").Status.Should().Be(FileStatus.Valid);
+        var lost = ItemOf(result, $"{uk} (Disk 1).adf");
+        lost.Status.Should().Be(FileStatus.Excluded);
+        lost.EliminatedBy.Should().Be(TiebreakCriterion.CompleteMultidiskSet);
+    }
+
+    [Fact]
+    public async Task NoIntroFloppyImages_ShouldPreferTheFormatThatKeepsTheProtections()
+    {
+        using var tmp = new TempDirectoryFixture();
+        var adf = new DatRom("Zarch (Europe)", "Zarch (Europe).adf", "ZARCH-ADF"u8.ToArray(), "0401");
+        var jfd = new DatRom("Zarch (United Kingdom)", "Zarch (United Kingdom).jfd", "ZARCH-JFD"u8.ToArray(), "0402");
+        var (src, dest, dat) = await CreateNoIntroCollectionAsync(tmp, [adf, jfd]);
+
+        var result = await _services.Processor.ExecuteAsync(NoIntroConfig(src, dest, dat), isDryRun: true);
+
+        // Without a priority country, the JASPP image wins over the sector image, whose name is shorter
+        ItemOf(result, jfd.FileName).Status.Should().Be(FileStatus.Valid);
+        var lost = ItemOf(result, adf.FileName);
+        lost.Status.Should().Be(FileStatus.Excluded);
+        lost.EliminatedBy.Should().Be(TiebreakCriterion.MediaFidelity);
+    }
+
+    [Fact]
+    public async Task NoIntroBuildsOfAGame_ShouldKeepTheLatestDate()
+    {
+        using var tmp = new TempDirectoryFixture();
+        var older = new DatRom("40 Winks (Europe) (Proto) (1999-10-07)", "40 Winks (Europe) (Proto) (1999-10-07).adf", "WINKS-1"u8.ToArray(), "0501");
+        var newer = new DatRom("40 Winks (Europe) (Proto) (2000-01-10)", "40 Winks (Europe) (Proto) (2000-01-10).adf", "WINKS-2"u8.ToArray(), "0502");
+        var (src, dest, dat) = await CreateNoIntroCollectionAsync(tmp, [older, newer]);
+
+        var result = await _services.Processor.ExecuteAsync(NoIntroConfig(src, dest, dat), isDryRun: true);
+
+        // Before the dates were read, the name decided: the oldest build won, being the first in the ordinal order
+        ItemOf(result, newer.FileName).Status.Should().Be(FileStatus.Valid);
+        var lost = ItemOf(result, older.FileName);
+        lost.Status.Should().Be(FileStatus.Excluded);
+        lost.EliminatedBy.Should().Be(TiebreakCriterion.Date);
     }
 }

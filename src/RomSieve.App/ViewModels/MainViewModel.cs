@@ -917,7 +917,7 @@ public sealed partial class MainViewModel : ViewModelBase
     private void OnEffectiveConventionChanged(object? sender, NamingConvention effectiveConvention)
     {
         Filters.ShowConvention(effectiveConvention);
-        Priorities.ShowConvention(effectiveConvention, Directories.DatCloneRelations);
+        Priorities.ShowConvention(effectiveConvention, Directories.DatCloneRelations, Directories.DatNameTraits);
     }
 
     /// <summary>Shows the results, on the preview table (0) or on the operations log (1).</summary>

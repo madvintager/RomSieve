@@ -81,7 +81,7 @@ public sealed partial class GuiTests
             ToolTip.GetTip((Grid)texts[TiebreakCriterion.VideoStandard].Parent!).Should().Be(
                 vm.I18n["tiebreak.tooltip_video"] + "\n" + vm.I18n["tiebreak.no_effect_no_preference"]);
             texts[TiebreakCriterion.LanguageRank].Classes.Should().NotContain("no-effect");
-            texts.Should().NotContainKey(TiebreakCriterion.Date, "No-Intro names carry no date: the order of No-Intro has no date criterion");
+            texts.Should().NotContainKey(TiebreakCriterion.AmigaChipset, "No-Intro names mark no Amiga chipset: the order of No-Intro has no chipset criterion");
             window.FindControl<TextBlock>("LblTiebreakNoEffectNote")!.Opacity.Should().Be(1);
 
             // A preference chosen on the line of the criterion gives it an effect

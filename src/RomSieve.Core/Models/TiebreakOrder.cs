@@ -30,23 +30,29 @@ public static class TiebreakOrder
         TiebreakCriterion.Completeness
     ];
 
-    // A cartridge has one file, of the extension of its system: no set to complete, no format to prefer, and no date
-    // in the names
+    // Cartridges, but also the floppy disks of the No-Intro floppy DATs ("Acorn - Archimedes": "(Disk 1)", ".adf" or
+    // ".jfd"): a set to complete and a format to prefer. The dates of the development versions ("(Proto) (1999-10-07)")
+    // separate two builds of a game
     private static readonly TiebreakCriterion[] NoIntroOrder =
     [
         TiebreakCriterion.LanguageRank,
+        TiebreakCriterion.CompleteMultidiskSet,
         TiebreakCriterion.GoodDump,
         TiebreakCriterion.OriginalRelease,
         TiebreakCriterion.CountryRank,
         TiebreakCriterion.VideoStandard,
+        TiebreakCriterion.MediaFidelity,
         TiebreakCriterion.LanguageCount,
         TiebreakCriterion.RegionAffinity,
         TiebreakCriterion.Version,
         TiebreakCriterion.Revision,
+        TiebreakCriterion.Date,
+        TiebreakCriterion.Completeness,
         TiebreakCriterion.ParentClone
     ];
 
-    // A disc game can have several discs, and its images several formats; its names mark no bad dump and no date
+    // A disc game can have several discs, and its images several formats; a Redump DAT only lists verified dumps, so
+    // that its names mark no bad dump. Its development versions are dated, as in No-Intro
     private static readonly TiebreakCriterion[] RedumpOrder =
     [
         TiebreakCriterion.LanguageRank,
@@ -59,6 +65,7 @@ public static class TiebreakOrder
         TiebreakCriterion.RegionAffinity,
         TiebreakCriterion.Version,
         TiebreakCriterion.Revision,
+        TiebreakCriterion.Date,
         TiebreakCriterion.Completeness,
         TiebreakCriterion.ParentClone
     ];

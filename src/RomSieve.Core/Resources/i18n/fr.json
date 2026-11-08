@@ -275,6 +275,8 @@
   "tiebreak.no_effect_convention": "Sans effet sur les versions de cette convention.",
   "tiebreak.no_effect_no_preference": "Sans effet : aucune préférence n'est choisie sur la ligne du critère.",
   "tiebreak.no_effect_amiga_target": "Sans effet : ce critère ne départage les versions AGA et OCS d'un jeu que pour un Amiga AGA (page Filtres, Machine Amiga).",
+  "tiebreak.no_effect_no_chipset_in_dat": "Sans effet sur cette collection : aucun nom du DAT ne marque un chipset Amiga ni une correction pour AGA.",
+  "tiebreak.no_effect_one_format_in_dat": "Sans effet sur cette collection : tous les fichiers du DAT ont le même support et le même format.",
   "tab3.video_none": "Indifférent",
   "tab3.video_pal": "PAL (50Hz / Europe)",
   "tab3.video_ntsc": "NTSC (60Hz / USA, Japon)",

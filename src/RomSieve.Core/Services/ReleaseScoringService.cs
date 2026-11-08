@@ -355,12 +355,25 @@ public sealed partial class ReleaseScoringService : IReleaseScoringService
         return string.Empty;
     }
 
-    public string GetMediaExtension(string? filenameOrPath) =>
+    public string GetMediaExtension(string? filenameOrPath) => MediaExtensionOf(filenameOrPath);
+
+    public string GetMediaCategory(string? filenameOrPath) => MediaCategoryOf(filenameOrPath);
+
+    public int GetMediaFormatFidelityScore(string? filenameOrPath, ParsedRomName? parsed = null) =>
+        MediaFidelityOf(filenameOrPath, parsed);
+
+    /// <summary>Extension of a file name, in lowercase, with its dot.</summary>
+    public static string MediaExtensionOf(string? filenameOrPath) =>
         Path.GetExtension(filenameOrPath ?? string.Empty).ToLowerInvariant();
 
-    public string GetMediaCategory(string? filenameOrPath)
+    /// <summary>
+    /// Media of a file (<c>floppy</c>, <c>tape</c>, <c>cartridge</c>, <c>cd</c>, <c>hd</c> or <c>other</c>): from its
+    /// extension, otherwise from a mention of its name. Depends on the name alone, so that what the names of a DAT give is
+    /// known without a file (<see cref="Models.TiebreakApplicability.GetDatNameTraits"/>).
+    /// </summary>
+    public static string MediaCategoryOf(string? filenameOrPath)
     {
-        var ext = GetMediaExtension(filenameOrPath);
+        var ext = MediaExtensionOf(filenameOrPath);
         if (FloppyExtensions.Contains(ext)) return "floppy";
         if (TapeExtensions.Contains(ext)) return "tape";
         if (CartridgeExtensions.Contains(ext)) return "cartridge";
@@ -377,9 +390,14 @@ public sealed partial class ReleaseScoringService : IReleaseScoringService
         return "other";
     }
 
-    public int GetMediaFormatFidelityScore(string? filenameOrPath, ParsedRomName? parsed = null)
+    /// <summary>
+    /// Fidelity of the image format of a file, the highest the most faithful: from its extension, and the <c>(sps)</c>
+    /// mark of a floppy image in its name (the file name, or the parsed name of <paramref name="parsed"/>). Depends on
+    /// the names alone, like <see cref="MediaCategoryOf"/>.
+    /// </summary>
+    public static int MediaFidelityOf(string? filenameOrPath, ParsedRomName? parsed = null)
     {
-        var ext = GetMediaExtension(filenameOrPath);
+        var ext = MediaExtensionOf(filenameOrPath);
 
         // Floppy family: the images that keep the copy protections (.jfd: JASPP floppy disk of the Acorn Archimedes)
         // before the sector images
@@ -387,9 +405,10 @@ public sealed partial class ReleaseScoringService : IReleaseScoringService
             return 30;
         if (ext is ".adf" or ".d64" or ".d71" or ".d81" or ".dsk" or ".st" or ".msa" or ".img" or ".ima")
         {
-            if (parsed is not null &&
-                ((parsed.RawOptParens?.Contains("(sps)", StringComparison.OrdinalIgnoreCase) ?? false) ||
-                 (parsed.RawFilename?.Contains("(sps)", StringComparison.OrdinalIgnoreCase) ?? false)))
+            if ((filenameOrPath?.Contains("(sps)", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (parsed is not null &&
+                 ((parsed.RawOptParens?.Contains("(sps)", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                  (parsed.RawFilename?.Contains("(sps)", StringComparison.OrdinalIgnoreCase) ?? false))))
             {
                 return 30;
             }

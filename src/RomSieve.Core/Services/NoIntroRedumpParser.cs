@@ -52,6 +52,11 @@ public sealed partial class NoIntroRedumpParser : INoIntroRedumpParser
     [GeneratedRegex(@"^(?:demo|kiosk|sample|taikenban)(?![a-z])", RegexOptions.CultureInvariant)]
     private static partial Regex DemoSegmentRegex();
 
+    // The date of a build, given to development versions: "(1999-10-07)", an unknown day "(1999-10-xx)", or with the
+    // time of the build "(2001-03-14T101500)"
+    [GeneratedRegex(@"^(?:19|20)\d{2}-(?:\d{2}|xx)-(?:\d{2}|xx)(?:T\d{4,6})?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex BuildDateSegmentRegex();
+
     [GeneratedRegex(@"^Track\s*(\d+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TrackSegmentRegex();
 
@@ -426,6 +431,7 @@ public sealed partial class NoIntroRedumpParser : INoIntroRedumpParser
         string? devStatus = null;
         string? copyright = null;
         string? rereleaseTag = null;
+        string? date = null;
         var isVerified = true;
         var isBadDump = false;
         var isAlternate = false;
@@ -499,6 +505,13 @@ public sealed partial class NoIntroRedumpParser : INoIntroRedumpParser
             {
                 trackNum = int.Parse(mTrack.Groups[1].ValueSpan);
                 mediaLabel = segStrip;
+                continue;
+            }
+
+            // Date of the build: the first one only; a name never has two, but a second one would stay a mark of its own
+            if (date is null && BuildDateSegmentRegex().IsMatch(segStrip))
+            {
+                date = segStrip;
                 continue;
             }
 
@@ -658,6 +671,7 @@ public sealed partial class NoIntroRedumpParser : INoIntroRedumpParser
             IsTosecConform = isConform,
             BaseTitle = rawTitle,
             Title = restoredTitle,
+            Date = date ?? string.Empty,
             Version = version,
             Extension = ext,
             Video = video,

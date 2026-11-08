@@ -67,14 +67,16 @@ et Japon préfèrent aussi les versions unilingues.
 Les candidates sont comparées critère par critère ; le premier critère qui les distingue décide. Une candidate est une
 version complète d'un jeu : tous les disques d'une même édition multi-disques concourent ensemble, et ses
 caractéristiques sont lues sur son premier fichier (le disque 1). Les informations viennent surtout du **nom du
-fichier**, analysé selon sa convention (TOSEC, No-Intro ou Redump), et de son **extension** ; le DAT n'intervient que
-pour les relations parent / clone. Un set MAME est décrit par sa machine dans le DAT (description, année, fabricant,
+fichier**, analysé selon sa convention (TOSEC, No-Intro ou Redump), et de son **extension**. Avec un DAT, c'est le nom
+que le DAT donne au fichier reconnu, celui sous lequel il est écrit : un fichier nommé autrement dans la source garde le
+format que lui donne le DAT. Le DAT fournit aussi les relations parent / clone. Un set MAME est décrit par sa machine dans le DAT (description, année, fabricant,
 statut d'émulation), et un logiciel d'une liste MAME par son entrée dans le DAT de la liste (description, année,
 éditeur, prise en charge par MAME). Un critère sur lequel les candidates sont à égalité, par exemple faute d'information
 dans leurs noms, laisse décider le suivant.
 
 Chaque convention a **son propre ordre des critères**, fait des seuls critères qui peuvent départager deux de ses
-versions : un nom No-Intro ne porte pas de date, une cartouche n'a qu'un fichier, une borne MAME n'est ni PAL ni NTSC...
+versions : un DAT Redump ne liste que des dumps vérifiés, un nom No-Intro ne marque aucun chipset Amiga, une borne MAME
+n'est ni PAL ni NTSC...
 Une version suit l'ordre de sa convention ; une version dont la convention n'est pas connue suit l'ordre de TOSEC.
 
 La raison affichée pour une version exclue nomme le critère décisif (par exemple *version v1.2 > v1.0*, ou *version v1.0 > sans version* face à un nom sans numéro de version, qui passe après tous les autres).
@@ -152,9 +154,11 @@ La raison affichée pour une version exclue nomme le critère décisif (par exem
 * **Révision la plus récente** : la révision la plus élevée l'emporte : `(Rev 2)` avant `(Rev 1)`, `(Rev B)` avant
   `(Rev A)`, ou `(PRG1)` avant `(PRG0)`. Une version sans révision passe après.
 * **Date la plus récente** : la date du nom la plus récente l'emporte (`(1991-03-12)` avant `(1990)`), dans les noms
-  TOSEC, dont la date est obligatoire, et dans les descriptions MAME (la date d'un prototype d'une liste de logiciels,
-  `prototype 19940420`). Une date incomplète (`19xx`, `1990-xx`) perd ses
-  parties inconnues : `1990-05` l'emporte sur `1990`, et `19xx` compte comme une absence de date.
+  TOSEC, dont la date est obligatoire, dans les noms No-Intro et Redump, où elle date une version de développement
+  (`(Proto) (2000-01-10)` avant `(Proto) (1999-10-07)`), et dans les descriptions MAME (la date d'un prototype d'une
+  liste de logiciels, `prototype 19940420`). Une date incomplète (`19xx`, `1990-xx`, `1998-12-xx`) perd ses
+  parties inconnues : `1990-05` l'emporte sur `1990`, et `19xx` compte comme une absence de date. Une version datée
+  l'emporte sur une version sans date.
 * **Le plus de disques (set incomplet)** : entre deux versions dont il manque des disques, celle dont on a trouvé le
   plus de disques ou de parties distincts l'emporte (`Disk 1`, `Disk 2`... ou `Side A`, `Side B`).
 * **Parent plutôt que clone** : avec un DAT, la version parente d'un jeu l'emporte sur ses clones (attribut `cloneof`
@@ -172,24 +176,27 @@ de l'ordre des fichiers sur le disque.
 | Critère | TOSEC | No-Intro | Redump | MAME | Listes MAME |
 |---|:-:|:-:|:-:|:-:|:-:|
 | Langue (rang de priorité) | 1 | 1 | 1 | 5 | 1 |
-| Set complet | 2 | | 2 | 1 | 2 |
+| Set complet | 2 | 2 | 2 | 1 | 2 |
 | Chipset Amiga (machine AGA) | 3 | | | | |
-| Bon dump (vérifié d'abord) | 4 | 2 | | | |
-| Version originale | 5 | 3 | 3 | 2 | 3 |
+| Bon dump (vérifié d'abord) | 4 | 3 | | | |
+| Version originale | 5 | 4 | 3 | 2 | 3 |
 | Émulation MAME (statut du driver) | | | | 3 | 4 |
-| Pays / région (rang de priorité) | 6 | 4 | 4 | 6 | 5 |
-| Standard vidéo préféré | 7 | 5 | 5 | | 6 |
+| Pays / région (rang de priorité) | 6 | 5 | 4 | 6 | 5 |
+| Standard vidéo préféré | 7 | 6 | 5 | | 6 |
 | Type de média préféré | 8 | | | | |
-| Fidélité du format | 9 | | 6 | | |
-| Une ou plusieurs langues | 10 | 6 | 7 | | 7 |
-| Pays parlant la langue choisie | 11 | 7 | 8 | 10 | 8 |
-| Version la plus récente | 12 | 8 | 9 | 7 | 9 |
-| Révision la plus récente | 13 | 9 | 10 | 8 | 10 |
-| Date la plus récente | 14 | | | 9 | 11 |
-| Le plus de disques (set incomplet) | 15 | | 11 | | |
-| Parent plutôt que clone | | 10 | 12 | 4 | 12 |
+| Fidélité du format | 9 | 7 | 6 | | |
+| Une ou plusieurs langues | 10 | 8 | 7 | | 7 |
+| Pays parlant la langue choisie | 11 | 9 | 8 | 10 | 8 |
+| Version la plus récente | 12 | 10 | 9 | 7 | 9 |
+| Révision la plus récente | 13 | 11 | 10 | 8 | 10 |
+| Date la plus récente | 14 | 12 | 11 | 9 | 11 |
+| Le plus de disques (set incomplet) | 15 | 13 | 12 | | |
+| Parent plutôt que clone | | 14 | 13 | 4 | 12 |
 
 Une case vide est un critère qui ne peut départager deux versions de la convention : il ne figure pas dans son ordre.
+Les DAT No-Intro de disquettes, comme celui de l'Acorn Archimedes, ont des jeux sur plusieurs disquettes et des
+images de formats différents (`.adf`, `.jfd`) : l'ordre de No-Intro a donc *Set complet*, *Fidélité du format* et *Le
+plus de disques*, sans effet sur un DAT de cartouches.
 En mode « pays d'abord », le pays passe en tête des ordres de TOSEC, No-Intro, Redump et des listes MAME.
 
 ### Modifier la cascade
@@ -213,10 +220,17 @@ Les critères sans effet sur la collection que vous triez sont en gris et en ita
 pour savoir ce qu'il compare et, s'il est grisé, pourquoi il est sans effet. RomSieve ne grise un critère que lorsqu'il
 est certain qu'il ne départage aucune version :
 
-* **Chipset Amiga (machine AGA)** tant que la *Machine Amiga* choisie n'est pas un Amiga AGA ;
+* **Chipset Amiga (machine AGA)** tant que la *Machine Amiga* choisie n'est pas un Amiga AGA, ou quand aucun nom du
+  DAT ne marque un chipset (`(AGA)`, `(A1200)`, `(OCS-AGA)`...) ni une correction pour AGA (`[f AGA NOMAD]`), comme un
+  DAT Atari ST ;
 * **Standard vidéo préféré** et **Type de média préféré** tant que leur ligne indique **Indifférent** ;
-* **Parent plutôt que clone** sans DAT, ou avec un DAT qui ne décrit aucune relation parent / clone. Il n'est grisé
-  qu'une fois le DAT entièrement lu.
+* **Type de média préféré** et **Fidélité du format** quand tous les fichiers du DAT ont le même support et le même
+  format, comme un DAT TOSEC (`[ADF]`, `[ST]`, `[TZX]`...) ou un DAT de cartouches. L'option avancée *Identifier les CHD
+  par leur nom* leur rend leur effet, un CHD gardant son extension ;
+* **Parent plutôt que clone** sans DAT, ou avec un DAT qui ne décrit aucune relation parent / clone.
+
+Ce qui dépend du DAT n'est grisé qu'une fois le DAT entièrement lu, et jamais pour un dossier de DAT, dont chaque DAT
+n'est lu qu'au moment du tri.
 
 Après une simulation, chaque critère affiche à droite le nombre de jeux qu'il a départagés : ceux où il a désigné la
 version retenue face à au moins une autre version. Un jeu compte une fois pour chaque critère qui a écarté l'une de ses

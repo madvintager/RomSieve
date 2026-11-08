@@ -65,13 +65,15 @@ prefer single-language releases.
 The candidates are compared criterion by criterion; the first criterion that tells them apart decides. A candidate is a
 whole release of a game: all the disks of the same multi-disk edition compete together, and the release's properties
 are read from its first file (disk 1). The information comes mostly from the **file name**, parsed according to its
-convention (TOSEC, No-Intro or Redump), and from its **extension**; the DAT is only used for parent / clone relations.
+convention (TOSEC, No-Intro or Redump), and from its **extension**. With a DAT, it is the name the DAT gives the
+identified file, the name it is written under: a file named otherwise in the source keeps the format the DAT gives it.
+The DAT also gives the parent / clone relations.
 A MAME set is described by its machine in the DAT (description, year, manufacturer, emulation status), and a software
 of a MAME list by its entry in the DAT of the list (description, year, publisher, support by MAME). A criterion on
 which the candidates are tied, for instance because their names say nothing about it, lets the next one decide.
 
 Each convention has **its own order of the criteria**, made of the only criteria that can separate two of its releases:
-a No-Intro name carries no date, a cartridge has a single file, a MAME board is neither PAL nor NTSC... A release follows
+a Redump DAT only lists verified dumps, a No-Intro name marks no Amiga chipset, a MAME board is neither PAL nor NTSC... A release follows
 the order of its convention; a release whose convention is not known follows the order of TOSEC.
 
 The reason shown for an excluded release names the deciding criterion (for instance *version v1.2 > v1.0*, or *version
@@ -148,9 +150,10 @@ v1.0 > no version* against a name without a version number, which comes after al
 * **Latest revision**: the highest revision wins: `(Rev 2)` before `(Rev 1)`, `(Rev B)` before `(Rev A)`, or
   `(PRG1)` before `(PRG0)`. A release with no revision comes after.
 * **Latest date**: the most recent date in the name wins (`(1991-03-12)` before `(1990)`), in TOSEC names, where the
-  date is mandatory, and in MAME descriptions (the date of a prototype of a software list, `prototype 19940420`). An
-  incomplete date (`19xx`, `1990-xx`) loses its unknown parts:
-  `1990-05` wins over `1990`, and `19xx` counts as no date.
+  date is mandatory, in No-Intro and Redump names, where it dates a development version (`(Proto) (2000-01-10)` before
+  `(Proto) (1999-10-07)`), and in MAME descriptions (the date of a prototype of a software list, `prototype 19940420`).
+  An incomplete date (`19xx`, `1990-xx`, `1998-12-xx`) loses its unknown parts: `1990-05` wins over `1990`, and `19xx`
+  counts as no date. A dated release wins over a release without a date.
 * **Most disks (incomplete set)**: between two releases whose disks are not all there, the one with the most distinct
   disks or parts found wins (`Disk 1`, `Disk 2`... or `Side A`, `Side B`).
 * **Parent rather than clone**: with a DAT, the parent release of a game wins over its clones (the DAT's `cloneof`
@@ -167,25 +170,28 @@ first file name in character code order, so that the result never depends on the
 | Criterion | TOSEC | No-Intro | Redump | MAME | MAME lists |
 |---|:-:|:-:|:-:|:-:|:-:|
 | Language (priority rank) | 1 | 1 | 1 | 5 | 1 |
-| Complete set | 2 | | 2 | 1 | 2 |
+| Complete set | 2 | 2 | 2 | 1 | 2 |
 | Amiga chipset (AGA machine) | 3 | | | | |
-| Good dump (verified first) | 4 | 2 | | | |
-| Original release | 5 | 3 | 3 | 2 | 3 |
+| Good dump (verified first) | 4 | 3 | | | |
+| Original release | 5 | 4 | 3 | 2 | 3 |
 | MAME emulation (driver status) | | | | 3 | 4 |
-| Country / region (priority rank) | 6 | 4 | 4 | 6 | 5 |
-| Preferred video standard | 7 | 5 | 5 | | 6 |
+| Country / region (priority rank) | 6 | 5 | 4 | 6 | 5 |
+| Preferred video standard | 7 | 6 | 5 | | 6 |
 | Preferred media type | 8 | | | | |
-| Format fidelity | 9 | | 6 | | |
-| One or several languages | 10 | 6 | 7 | | 7 |
-| Country speaking the chosen language | 11 | 7 | 8 | 10 | 8 |
-| Latest version | 12 | 8 | 9 | 7 | 9 |
-| Latest revision | 13 | 9 | 10 | 8 | 10 |
-| Latest date | 14 | | | 9 | 11 |
-| Most disks (incomplete set) | 15 | | 11 | | |
-| Parent rather than clone | | 10 | 12 | 4 | 12 |
+| Format fidelity | 9 | 7 | 6 | | |
+| One or several languages | 10 | 8 | 7 | | 7 |
+| Country speaking the chosen language | 11 | 9 | 8 | 10 | 8 |
+| Latest version | 12 | 10 | 9 | 7 | 9 |
+| Latest revision | 13 | 11 | 10 | 8 | 10 |
+| Latest date | 14 | 12 | 11 | 9 | 11 |
+| Most disks (incomplete set) | 15 | 13 | 12 | | |
+| Parent rather than clone | | 14 | 13 | 4 | 12 |
 
-An empty cell is a criterion that cannot separate two releases of the convention: it is not in its order. In the
-"country first" mode, the country moves to the top of the orders of TOSEC, No-Intro, Redump and the MAME lists.
+An empty cell is a criterion that cannot separate two releases of the convention: it is not in its order. The No-Intro
+DATs of floppy disks, such as the one of the Acorn Archimedes, have games on several floppy disks and images of
+different formats (`.adf`, `.jfd`): the order of No-Intro therefore has *Complete set*, *Format fidelity* and *Most
+disks*, which have no effect on a DAT of cartridges. In the "country first" mode, the country moves to the top of the
+orders of TOSEC, No-Intro, Redump and the MAME lists.
 
 ### Changing the order
 
@@ -207,10 +213,16 @@ The criteria that have no effect on the collection you are sorting are greyed ou
 over a criterion to see what it compares and, when it is greyed out, why it has no effect. RomSieve only greys out a
 criterion when it is certain that it separates no versions:
 
-* **Amiga chipset (AGA machine)** while the chosen *Amiga machine* is not an AGA Amiga;
+* **Amiga chipset (AGA machine)** while the chosen *Amiga machine* is not an AGA Amiga, or when no name of the DAT
+  marks a chipset (`(AGA)`, `(A1200)`, `(OCS-AGA)`...) or a fix for AGA (`[f AGA NOMAD]`), as in an Atari ST DAT;
 * **Preferred video standard** and **Preferred media type** while their line says **Any**;
-* **Parent rather than clone** without a DAT, or with a DAT that describes no parent / clone relation. It is only
-  greyed out once the whole DAT is read.
+* **Preferred media type** and **Format fidelity** when all the files of the DAT have the same media and the same
+  format, as in a TOSEC DAT (`[ADF]`, `[ST]`, `[TZX]`...) or a DAT of cartridges. The advanced option *Identify CHDs by
+  their name* gives them back their effect, a CHD keeping its extension;
+* **Parent rather than clone** without a DAT, or with a DAT that describes no parent / clone relation.
+
+What depends on the DAT is only greyed out once the whole DAT is read, and never for a folder of DATs, each DAT of
+which is only read when sorting.
 
 After a simulation, each criterion shows on its right the number of games it decided: those in which it set the kept
 version apart from at least one other version. A game counts once for each criterion that discarded one of its

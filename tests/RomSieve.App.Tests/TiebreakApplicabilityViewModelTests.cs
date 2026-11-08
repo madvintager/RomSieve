@@ -73,9 +73,11 @@ public sealed class TiebreakApplicabilityViewModelTests : IDisposable
         vm.Directories.EffectiveConvention.Should().Be(NamingConvention.NoIntro);
         var order = vm.Priorities.ShownCriteriaOrder;
         order.Should().BeSameAs(vm.Priorities.NoIntroCriteriaOrder);
-        GreyedOut(order).Should().BeEmpty();
-        order.Order.Should().NotContain(
-            [TiebreakCriterion.AmigaChipset, TiebreakCriterion.DriverStatus, TiebreakCriterion.PreferredMediaType, TiebreakCriterion.Date]);
+
+        // All the files of the DAT are .sfc: no format to prefer
+        GreyedOut(order).Should().Equal(TiebreakCriterion.MediaFidelity);
+        Item(order, TiebreakCriterion.MediaFidelity).NoEffectText.Should().Be(vm.I18n["tiebreak.no_effect_one_format_in_dat"]);
+        order.Order.Should().NotContain([TiebreakCriterion.AmigaChipset, TiebreakCriterion.DriverStatus, TiebreakCriterion.PreferredMediaType]);
     }
 
     [Fact]
@@ -90,8 +92,68 @@ public sealed class TiebreakApplicabilityViewModelTests : IDisposable
         vm.Directories.EffectiveConvention.Should().Be(NamingConvention.Tosec);
         var order = vm.Priorities.ShownCriteriaOrder;
         order.Should().BeSameAs(vm.Priorities.TosecCriteriaOrder);
-        GreyedOut(order).Should().Equal(TiebreakCriterion.AmigaChipset);
+        GreyedOut(order).Should().Equal(TiebreakCriterion.AmigaChipset, TiebreakCriterion.PreferredMediaType, TiebreakCriterion.MediaFidelity);
+        Item(order, TiebreakCriterion.AmigaChipset).NoEffectText.Should().Be(vm.I18n["tiebreak.no_effect_amiga_target"]);
+        Item(order, TiebreakCriterion.PreferredMediaType).NoEffectText.Should().Be(vm.I18n["tiebreak.no_effect_one_format_in_dat"]);
         Item(vm.Priorities.NoIntroCriteriaOrder, TiebreakCriterion.ParentClone).NoEffectText.Should().Be(vm.I18n["tiebreak.no_effect_no_clones"]);
+    }
+
+    private string WriteAmigaDat(string secondRom) => _tmp.WriteText("amiga.dat", $"""
+        clrmamepro (
+        	name "Commodore Amiga - Games (TOSEC)"
+        	version "2024-01-01"
+        )
+        game (
+        	name "Xenon 2 (1989)(Mirrorsoft)"
+        	rom ( name "Xenon 2 (1989)(Mirrorsoft).adf" size 901120 crc 11223344 )
+        )
+        game (
+        	name "Game"
+        	rom ( name "{secondRom}" size 901120 crc 55667788 )
+        )
+        """);
+
+    [Fact]
+    public async Task AmigaChipset_ForAnAgaAmiga_ShouldBeGreyedOutWhenNoNameOfTheDatMarksAChipset()
+    {
+        var vm = CreateViewModel();
+        vm.TosecFilters.AmigaTarget = AmigaTarget.Aga;
+        var order = vm.Priorities.TosecCriteriaOrder;
+
+        vm.Directories.DatFilePath = WriteTosecDat();
+        await vm.Directories.DatLoadTask;
+        Item(order, TiebreakCriterion.AmigaChipset).NoEffectText.Should().Be(vm.I18n["tiebreak.no_effect_no_chipset_in_dat"]);
+
+        vm.Directories.DatFilePath = WriteAmigaDat("Banshee (1994)(Core Design)(AGA).adf");
+        await vm.Directories.DatLoadTask;
+        Item(order, TiebreakCriterion.AmigaChipset).HasNoEffect.Should().BeFalse("a name of the DAT marks the AGA chipset");
+    }
+
+    [Fact]
+    public async Task FormatCriteria_ShouldBeGreyedOutWhenAllTheFilesOfTheDatHaveOneFormat_UnlessACdMayKeepItsName()
+    {
+        var vm = CreateViewModel();
+        vm.TosecFilters.PreferredMediaType = MediaPreference.Floppy;
+        var order = vm.Priorities.TosecCriteriaOrder;
+
+        vm.Directories.DatFilePath = WriteAmigaDat("Banshee (1994)(Core Design).ipf");
+        await vm.Directories.DatLoadTask;
+        Item(order, TiebreakCriterion.MediaFidelity).HasNoEffect.Should().BeFalse("the DAT has two formats");
+
+        vm.Directories.DatFilePath = WriteTosecDat();
+        await vm.Directories.DatLoadTask;
+        Item(order, TiebreakCriterion.MediaFidelity).HasNoEffect.Should().BeTrue();
+
+        // A CHD matched by its name keeps its extension, whatever the DAT says
+        vm.Directories.MatchChdByName = true;
+        Item(order, TiebreakCriterion.MediaFidelity).HasNoEffect.Should().BeFalse();
+        Item(order, TiebreakCriterion.PreferredMediaType).HasNoEffect.Should().BeFalse();
+        vm.Directories.MatchChdByName = false;
+        Item(order, TiebreakCriterion.MediaFidelity).HasNoEffect.Should().BeTrue();
+
+        // Nothing is claimed of a DAT not read whole yet, nor without a DAT
+        vm.Directories.DatFilePath = string.Empty;
+        Item(order, TiebreakCriterion.MediaFidelity).HasNoEffect.Should().BeFalse();
     }
 
     [Fact]

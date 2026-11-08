@@ -268,6 +268,19 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     [ObservableProperty]
     private DatCloneRelations _datCloneRelations = DatCloneRelations.NoDat;
 
+    // What the names of the files of the chosen DAT tell, once the whole DAT is read; null before, without a DAT, or for
+    // a lot (its DATs are read by their headers only)
+    private DatNameTraits? _datNameTraitsRead;
+
+    /// <summary>
+    /// What the names of the files of the chosen DAT tell the 1G1R criteria read from a name
+    /// (<see cref="TiebreakApplicability.GetDatNameTraits"/>), once the whole DAT is read; <see langword="null"/> when not
+    /// known. With <see cref="MatchChdByName"/>, a CHD keeps its own extension: the formats of the DAT are then not
+    /// claimed. Set before <see cref="EffectiveConventionChanged"/> is raised.
+    /// </summary>
+    public DatNameTraits? DatNameTraits =>
+        _datNameTraitsRead is { } traits && MatchChdByName ? traits with { HasOneMediaFormat = false } : _datNameTraitsRead;
+
     /// <summary>
     /// Mechanical machines of the chosen DAT, known once the whole DAT is read; <c>null</c> before, without a DAT, or
     /// when the DAT has none.
@@ -479,6 +492,15 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     }
 
     partial void OnSelectedNamingConventionChanged(NamingConvention value) => UpdateEffectiveConvention();
+
+    // A CHD matched by its name keeps its own extension: the 1G1R criteria of the formats are greyed out again, or no more
+    partial void OnMatchChdByNameChanged(bool value)
+    {
+        if (_datNameTraitsRead is not null)
+        {
+            UpdateEffectiveConvention();
+        }
+    }
 
     partial void OnDatFilePathChanged(string value)
     {
@@ -871,13 +893,14 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     {
         DatCatalog? catalog = null;
         MameDatSummary? mameSummary = null;
+        DatNameTraits? nameTraits = null;
         Exception? error = null;
         try
         {
-            (catalog, mameSummary) = await Task.Run(async () =>
+            (catalog, mameSummary, nameTraits) = await Task.Run(async () =>
             {
                 var read = await _datService.ParseDatFileAsync(path, cancellationToken);
-                return (read, MameDatSummary.FromCatalog(read));
+                return (read, MameDatSummary.FromCatalog(read), TiebreakApplicability.GetDatNameTraits(read));
             }, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -918,7 +941,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             "Ok",
             DetectConvention(catalog),
             TiebreakApplicability.GetCloneRelations(catalog),
-            mameSummary);
+            mameSummary,
+            nameTraits);
     }
 
     /// <summary>
@@ -1038,11 +1062,13 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         string tone,
         NamingConvention? detected,
         DatCloneRelations cloneRelations,
-        MameDatSummary? mameSummary = null)
+        MameDatSummary? mameSummary = null,
+        DatNameTraits? nameTraits = null)
     {
         _datInfoMessage = message;
         _datInfoIsLot = false;
         DatCloneRelations = cloneRelations;
+        _datNameTraitsRead = nameTraits;
         DatMameSummary = mameSummary;
         DatInfoText = message is null ? string.Empty : _localization.Format(message);
         DatInfoTone = tone;

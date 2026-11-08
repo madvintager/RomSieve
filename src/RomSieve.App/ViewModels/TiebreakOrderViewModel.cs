@@ -152,6 +152,7 @@ public sealed partial class TiebreakOrderViewModel : ViewModelBase
 
     // Collection and settings that the criteria are evaluated against (ShowApplicability, ShowAmigaTarget, ShowPreferences)
     private DatCloneRelations _cloneRelations = DatCloneRelations.Unknown;
+    private DatNameTraits? _nameTraits;
     private AmigaTarget? _amigaTarget;
     private VideoPreference? _preferredVideo;
     private MediaPreference? _preferredMediaType;
@@ -179,11 +180,13 @@ public sealed partial class TiebreakOrderViewModel : ViewModelBase
 
     /// <summary>
     /// Greys out the criteria that cannot separate two releases of a collection sorted with a DAT whose relations are
-    /// <paramref name="cloneRelations"/>. They keep their place, so that the order is the same with another DAT.
+    /// <paramref name="cloneRelations"/> and whose file names tell <paramref name="nameTraits"/> (<see langword="null"/>
+    /// when not known). They keep their place, so that the order is the same with another DAT.
     /// </summary>
-    public void ShowApplicability(DatCloneRelations cloneRelations)
+    public void ShowApplicability(DatCloneRelations cloneRelations, DatNameTraits? nameTraits = null)
     {
         _cloneRelations = cloneRelations;
+        _nameTraits = nameTraits;
         RefreshItemStates();
     }
 
@@ -213,7 +216,7 @@ public sealed partial class TiebreakOrderViewModel : ViewModelBase
         foreach (var item in Items)
         {
             item.NoEffectReason = TiebreakApplicability.GetNoEffectReason(
-                item.Criterion, Convention, _cloneRelations, _amigaTarget, _preferredVideo, _preferredMediaType);
+                item.Criterion, Convention, _cloneRelations, _amigaTarget, _preferredVideo, _preferredMediaType, _nameTraits);
             item.NoEffectText = item.NoEffectReason is { } reason ? _localization.Format(reason) : null;
             item.DecidedGames = _decisions is null ? null : _decisions.GetValueOrDefault(item.Criterion);
             var decidedText = item.DecidedGames switch

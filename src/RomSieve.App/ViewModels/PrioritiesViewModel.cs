@@ -312,9 +312,13 @@ public sealed partial class PrioritiesViewModel : ConfigSectionViewModel
     /// Greys out the TOSEC option (<see cref="AreTosecOptionsApplicable"/>), shows the order of the effective
     /// convention (<see cref="ShownOrderConvention"/>; the last one shown while it is not known), and greys out the
     /// criteria that have no effect on a collection sorted with a DAT whose parent / clone relations are
-    /// <paramref name="cloneRelations"/>.
+    /// <paramref name="cloneRelations"/> and whose file names tell <paramref name="nameTraits"/> (<see langword="null"/>
+    /// when not known).
     /// </summary>
-    public void ShowConvention(NamingConvention convention, DatCloneRelations cloneRelations = DatCloneRelations.Unknown)
+    public void ShowConvention(
+        NamingConvention convention,
+        DatCloneRelations cloneRelations = DatCloneRelations.Unknown,
+        DatNameTraits? nameTraits = null)
     {
         AreTosecOptionsApplicable = convention is NamingConvention.Tosec or NamingConvention.Auto;
         if (TiebreakOrder.Conventions.Contains(convention))
@@ -324,7 +328,7 @@ public sealed partial class PrioritiesViewModel : ConfigSectionViewModel
 
         foreach (var order in CriteriaOrders)
         {
-            order.ShowApplicability(cloneRelations);
+            order.ShowApplicability(cloneRelations, nameTraits);
         }
     }
 

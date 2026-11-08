@@ -108,7 +108,8 @@ public sealed class TiebreakOrderViewModelTests : IDisposable
         var order = vm.Priorities.NoIntroCriteriaOrder;
 
         Select(order, TiebreakCriterion.CountryRank);
-        for (var i = 0; i < 3; i++)
+        var moves = order.Order.ToList().IndexOf(TiebreakCriterion.CountryRank);
+        for (var i = 0; i < moves; i++)
         {
             order.MoveUpCommand.Execute(null);
         }

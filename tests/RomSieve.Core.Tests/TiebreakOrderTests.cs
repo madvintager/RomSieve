@@ -17,11 +17,11 @@ public sealed class TiebreakOrderTests
             LanguageRank, CompleteMultidiskSet, TiebreakCriterion.AmigaChipset, GoodDump, OriginalRelease, CountryRank, VideoStandard,
             PreferredMediaType, MediaFidelity, LanguageCount, RegionAffinity, TiebreakCriterion.Version, Revision, Date, Completeness);
         TiebreakOrder.Default(NamingConvention.NoIntro).Should().Equal(
-            LanguageRank, GoodDump, OriginalRelease, CountryRank, VideoStandard, LanguageCount, RegionAffinity, TiebreakCriterion.Version,
-            Revision, ParentClone);
+            LanguageRank, CompleteMultidiskSet, GoodDump, OriginalRelease, CountryRank, VideoStandard, MediaFidelity, LanguageCount,
+            RegionAffinity, TiebreakCriterion.Version, Revision, Date, Completeness, ParentClone);
         TiebreakOrder.Default(NamingConvention.Redump).Should().Equal(
             LanguageRank, CompleteMultidiskSet, OriginalRelease, CountryRank, VideoStandard, MediaFidelity, LanguageCount, RegionAffinity,
-            TiebreakCriterion.Version, Revision, Completeness, ParentClone);
+            TiebreakCriterion.Version, Revision, Date, Completeness, ParentClone);
         TiebreakOrder.Default(NamingConvention.Mame).Should().Equal(
             CompleteMultidiskSet, OriginalRelease, DriverStatus, ParentClone, LanguageRank, CountryRank, TiebreakCriterion.Version, Revision,
             Date, RegionAffinity);
@@ -29,8 +29,8 @@ public sealed class TiebreakOrderTests
 
     [Theory]
     [InlineData(NamingConvention.Tosec, new[] { DriverStatus, ParentClone })]
-    [InlineData(NamingConvention.NoIntro, new[] { CompleteMultidiskSet, TiebreakCriterion.AmigaChipset, DriverStatus, PreferredMediaType, MediaFidelity, Date, Completeness })]
-    [InlineData(NamingConvention.Redump, new[] { TiebreakCriterion.AmigaChipset, GoodDump, DriverStatus, PreferredMediaType, Date })]
+    [InlineData(NamingConvention.NoIntro, new[] { TiebreakCriterion.AmigaChipset, DriverStatus, PreferredMediaType })]
+    [InlineData(NamingConvention.Redump, new[] { TiebreakCriterion.AmigaChipset, GoodDump, DriverStatus, PreferredMediaType })]
     [InlineData(NamingConvention.Mame, new[] { TiebreakCriterion.AmigaChipset, GoodDump, VideoStandard, PreferredMediaType, MediaFidelity, LanguageCount, Completeness })]
     public void CriteriaOf_ShouldLeaveOutTheCriteriaThatCannotSeparateTwoReleasesOfTheConvention(NamingConvention convention, TiebreakCriterion[] leftOut)
     {
@@ -82,10 +82,10 @@ public sealed class TiebreakOrderTests
     {
         var order = TiebreakOrder.Normalize([TiebreakCriterion.Version, None, LanguageRank, Name, TiebreakCriterion.Version], NamingConvention.NoIntro);
 
-        // The revision and the parent follow the version as by default; the dump, the release... follow the language
+        // The revision, the date and the parent follow the version as by default; the set, the dump... follow the language
         order.Should().Equal(
-            TiebreakCriterion.Version, Revision, ParentClone,
-            LanguageRank, GoodDump, OriginalRelease, CountryRank, VideoStandard, LanguageCount, RegionAffinity);
+            TiebreakCriterion.Version, Revision, Date, Completeness, ParentClone,
+            LanguageRank, CompleteMultidiskSet, GoodDump, OriginalRelease, CountryRank, VideoStandard, MediaFidelity, LanguageCount, RegionAffinity);
     }
 
     [Fact]
@@ -125,12 +125,16 @@ public sealed class TiebreakOrderTests
     public void ApplyRegionMode_OnACustomOrder_ShouldOnlySwapTheLanguageAndTheCountry()
     {
         IReadOnlyList<TiebreakCriterion> custom =
-            [TiebreakCriterion.Version, LanguageRank, OriginalRelease, GoodDump, CountryRank, VideoStandard, LanguageCount, RegionAffinity, Revision, ParentClone];
+        [
+            TiebreakCriterion.Version, LanguageRank, CompleteMultidiskSet, OriginalRelease, GoodDump, CountryRank, VideoStandard, MediaFidelity,
+            LanguageCount, RegionAffinity, Revision, Date, Completeness, ParentClone
+        ];
 
         var countryFirst = TiebreakOrder.ApplyRegionMode(custom, NamingConvention.NoIntro, RegionPriorityMode.CountryFirst);
 
         countryFirst.Should().Equal(
-            TiebreakCriterion.Version, CountryRank, OriginalRelease, GoodDump, LanguageRank, VideoStandard, LanguageCount, RegionAffinity, Revision, ParentClone);
+            TiebreakCriterion.Version, CountryRank, CompleteMultidiskSet, OriginalRelease, GoodDump, LanguageRank, VideoStandard, MediaFidelity,
+            LanguageCount, RegionAffinity, Revision, Date, Completeness, ParentClone);
         TiebreakOrder.ApplyRegionMode(countryFirst, NamingConvention.NoIntro, RegionPriorityMode.CountryFirst).Should().Equal(countryFirst, "an order that follows the mode is kept");
         TiebreakOrder.ApplyRegionMode(countryFirst, NamingConvention.NoIntro, RegionPriorityMode.LanguageFirst).Should().Equal(custom);
     }
