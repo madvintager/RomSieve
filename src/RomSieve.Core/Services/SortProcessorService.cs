@@ -1379,6 +1379,13 @@ public sealed class SortProcessorService : ISortProcessorService
                 continue;
             }
 
+            // Set aside by the identification (not in the DAT, damaged...): its name, which may give the key of an
+            // identified game, does not make it a release of that game, as in the simulation
+            if (it.IdentificationFailure != IdentificationFailure.None)
+            {
+                continue;
+            }
+
             if (datCatalog is not null && !string.IsNullOrEmpty(it.TargetFilename))
             {
                 var game = datCatalog.GetGameForRom(it.TargetFilename, it.DatGameName);

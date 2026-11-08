@@ -384,6 +384,31 @@ public sealed class DatLotSortTests : IDisposable
     }
 
     [Fact]
+    public async Task Recalculation_ShouldLeaveAFileNoDatKnowsNonConforming()
+    {
+        // A conforming name, the title of a game of the lot, but a CRC32 no DAT of the lot knows
+        WriteGameBoy();
+        WriteGameBoyColor();
+        WriteTetrisSources();
+        WriteSource("Tetris (World) (Aftermarket) (Unl).gb", Encoding.ASCII.GetBytes("TETRIS AFTERMARKET"));
+        var config = Config(c => c.Filters.OneGameOneRom = true);
+
+        var result = await SimulateAsync(config);
+        var unknown = ItemOf(result, "Tetris (World) (Aftermarket) (Unl).gb");
+        unknown.Parsed.IsConform.Should().BeTrue();
+        unknown.DatName.Should().BeNull();
+        unknown.IdentificationFailure.Should().Be(IdentificationFailure.NotInDat);
+        var expected = result.Items.ToDictionary(it => it.DisplayName, it => (it.Status, it.StatusReason, it.Is1G1RWinner));
+
+        var all = result.Items.ToList();
+        _services.Processor.RecalculateGameItems(all, config, result.DatCatalog, all);
+
+        unknown.Status.Should().Be(FileStatus.Unmatched);
+        unknown.StatusReason!.Key.Should().Be("reason.unmatched_not_in_dat");
+        all.Select(it => (it.Status, it.StatusReason, it.Is1G1RWinner)).Should().Equal(all.Select(it => expected[it.DisplayName]));
+    }
+
+    [Fact]
     public async Task ManualWinner_ShouldOnlyDecideTheGameOfItsDat()
     {
         WriteGameBoy();

@@ -247,6 +247,7 @@ public sealed class EntryClassifier
         {
             item.Status = FileStatus.Unmatched;
             item.StatusReason = relItem.StatusReason;
+            item.IdentificationFailure = IdentificationFailure.DamagedArchive;
         }
         else if (item.Status == FileStatus.Valid)
         {
@@ -527,6 +528,7 @@ public sealed class EntryClassifier
         {
             item.Status = FileStatus.Unmatched;
             item.StatusReason = damage;
+            item.IdentificationFailure = IdentificationFailure.DamagedArchive;
         }
 
         return item;
@@ -551,7 +553,8 @@ public sealed class EntryClassifier
                 FileSize = fileSize,
                 Parsed = _romParser.ParseRomFilename(displayName, sourcePath, fileSize, convention),
                 Status = FileStatus.Unmatched,
-                StatusReason = LocalizedMessage.Create("reason.chd_invalid", ("error", LocalizedMessage.Verbatim(chdError)))
+                StatusReason = LocalizedMessage.Create("reason.chd_invalid", ("error", LocalizedMessage.Verbatim(chdError))),
+                IdentificationFailure = IdentificationFailure.InvalidChd
             };
         }
 
@@ -620,7 +623,8 @@ public sealed class EntryClassifier
                 ArchivePath = archPath,
                 ArchiveMember = archMember,
                 Status = FileStatus.Unmatched,
-                StatusReason = sha1Mismatch ?? LocalizedMessage.Create("reason.unmatched_not_in_dat")
+                StatusReason = sha1Mismatch ?? LocalizedMessage.Create("reason.unmatched_not_in_dat"),
+                IdentificationFailure = sha1Mismatch is null ? IdentificationFailure.NotInDat : IdentificationFailure.Sha1Mismatch
             };
         }
 

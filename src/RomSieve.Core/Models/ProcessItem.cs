@@ -230,6 +230,14 @@ public sealed class ProcessItem
     public bool IsIdentifiedByName { get; set; }
 
     /// <summary>
+    /// Why the identification set the file aside whatever its name (<see cref="Models.IdentificationFailure.None"/> for
+    /// a file identified by the DAT, or sorted by its name without a DAT). Set by the classification only: its name may
+    /// follow the convention and give the key of an identified game, and the recalculation of a game
+    /// (<c>RecalculateGameItems</c>) keeps its status instead of evaluating its name as a release of that game.
+    /// </summary>
+    public IdentificationFailure IdentificationFailure { get; set; }
+
+    /// <summary>
     /// The item is a whole archive (a MAME set, identified or not): it is transferred as it is, never extracted, put into
     /// another archive in ZIP mode, nor renamed on a collision, since MAME finds a set by its file name only.
     /// </summary>

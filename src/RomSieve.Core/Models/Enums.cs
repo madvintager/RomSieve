@@ -39,6 +39,27 @@ public enum FileStatus
 }
 
 /// <summary>
+/// Why the identification set a file aside whatever its name (<see cref="ProcessItem.IdentificationFailure"/>).
+/// </summary>
+public enum IdentificationFailure
+{
+    /// <summary>Identified by the DAT, or sorted by its name without a DAT.</summary>
+    None,
+
+    /// <summary>CRC32 (and size) unknown to the DAT (<c>reason.unmatched_not_in_dat</c>).</summary>
+    NotInDat,
+
+    /// <summary>CRC32 of the DAT, but another SHA-1 (<c>reason.sha1_mismatch</c>).</summary>
+    Sha1Mismatch,
+
+    /// <summary>The file, or a track of its set, is damaged in its archive, or the archive is unreadable.</summary>
+    DamagedArchive,
+
+    /// <summary>Damaged or incomplete CHD (<c>reason.chd_invalid</c>).</summary>
+    InvalidChd
+}
+
+/// <summary>
 /// Supported naming convention.
 /// </summary>
 public enum NamingConvention
