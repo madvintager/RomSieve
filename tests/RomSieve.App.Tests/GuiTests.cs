@@ -1089,11 +1089,17 @@ public sealed partial class GuiTests : IDisposable
 
         vm.CanExportReport.Should().BeTrue();
 
-        // 1. Export as JSON
+        // 1. Export as JSON, with a default name that holds neither a language nor a convention
         var jsonOut = Path.Combine(_tempDir, "exported_report.json");
-        dialog.OnPickSaveFile = (_, _, _, _) => jsonOut;
+        string? suggestedName = null;
+        dialog.OnPickSaveFile = (_, suggested, _, _) =>
+        {
+            suggestedName = suggested;
+            return jsonOut;
+        };
         await vm.ExportReportAsync();
 
+        suggestedName.Should().Be("romsieve_report.json");
         File.Exists(jsonOut).Should().BeTrue();
         var jsonContent = await File.ReadAllTextAsync(jsonOut);
         jsonContent.Should().Contain("Super Mario Bros. (1985)(Nintendo)(US).nes");
@@ -1132,12 +1138,12 @@ public sealed partial class GuiTests : IDisposable
 
         var opt1 = AvaloniaDialogService.CreateSaveFilePickerOptions(
             "Export report",
-            "rapport_tosec.json",
+            "romsieve_report.json",
             reportFilters,
             null);
 
         opt1.Title.Should().Be("Export report");
-        opt1.SuggestedFileName.Should().Be("rapport_tosec");
+        opt1.SuggestedFileName.Should().Be("romsieve_report");
         opt1.DefaultExtension.Should().Be("json");
         opt1.ShowOverwritePrompt.Should().BeTrue();
         opt1.FileTypeChoices.Should().HaveCount(2);

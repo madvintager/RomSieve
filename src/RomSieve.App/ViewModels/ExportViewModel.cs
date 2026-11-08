@@ -196,7 +196,7 @@ public sealed partial class ExportViewModel : ViewModelBase
 
         var path = await _dialogService.PickSaveFileAsync(
             _localization.Tr("dialog.export_report_title"),
-            "rapport_tosec.json",
+            "romsieve_report.json",
             filters);
 
         if (string.IsNullOrWhiteSpace(path))
