@@ -32,6 +32,8 @@ romsieve-cli run -s /roms/incoming -d /roms/sorted --dat "Commodore - Amiga.dat"
 romsieve-cli run --dat /dats/TOSEC --dat-recursive --dir-dat-mirror --execute
 # ... or two of its DATs only
 romsieve-cli run --dat /dats/No-Intro --dat-only "Nintendo - Game Boy" --dat-only "Nintendo - Game Boy Color"
+# ... or the No-Intro daily pack as it was downloaded, without extracting it
+romsieve-cli run --dat "No-Intro Love Pack (PC XML).zip" --dat-only "Nintendo - Game Boy"
 
 # Complete a non-empty destination, or purge it first (its content is set aside in _purged/)
 romsieve-cli run --execute --append
@@ -60,8 +62,8 @@ romsieve-cli dat --dat /dats/No-Intro -o /dats/No-Intro-1G1R      # a lot: a fol
 |---|---|
 | `-o`, `--output <file>` | DAT file to write (required): `.xml` for Logiqx XML, `.dat` for ClrMamePro. With [MAME software lists](naming-conventions-and-dats.md#mame-software-lists), the **folder** where a DAT per list is written at the root (`megadriv.xml`...), as MAME software lists when they were read from MAME's `hash` files, otherwise in Logiqx XML; with a [lot of DATs](naming-conventions-and-dats.md#several-dats), the **folder** where a DAT per DAT of the lot is written, each in the format of its own. A file `.xml` or `.dat` is then refused (code 2), and the DATs of the folder that the export did not replace are named |
 | `-p`, `--profile <name>` | Uses a saved profile instead of the settings of the interface |
-| `--dat <file>` | DAT file of the catalog, or folder of DATs: a lot of No-Intro, Redump or TOSEC DATs, or MAME software lists |
-| `--dat-recursive` | Also reads the DATs of the subfolders of the folder of DATs |
+| `--dat <file>` | DAT file of the catalog, or folder or archive (ZIP, 7z, RAR) of DATs: a lot of No-Intro, Redump or TOSEC DATs, or MAME software lists; an archive of a single DAT is that DAT |
+| `--dat-recursive` | Also reads the DATs of the subfolders of the folder of DATs; an archive is always read whole |
 | `--dat-only <name>` | Only uses this DAT of the lot (see `run`) |
 | `--categories <file>` | Category file of the MAME machines |
 | `--ratings <file>` | Rating file of the MAME machines |
@@ -77,10 +79,10 @@ the settings keep no game, no file is written and the exit code is 4.
 | `-p`, `--profile <name>` | Uses a saved profile instead of the settings of the interface |
 | `-s`, `--source <folder>` | Source folder |
 | `-d`, `--destination <folder>` | Destination folder |
-| `--dat <file>` | DAT file, or folder of DATs: a lot of No-Intro, Redump or TOSEC DATs, or MAME software lists. Once only. |
-| `--dat-recursive` | Also reads the DATs of the subfolders of the folder of DATs (a lot) |
+| `--dat <file>` | DAT file, or folder or archive (ZIP, 7z, RAR) of DATs: a lot of No-Intro, Redump or TOSEC DATs, or MAME software lists; an archive of a single DAT is that DAT ([DATs in an archive](naming-conventions-and-dats.md#dats-in-an-archive)). Once only. |
+| `--dat-recursive` | Also reads the DATs of the subfolders of the folder of DATs (a lot); an archive of DATs is always read whole |
 | `--dat-only <name>` | Only sorts with this DAT of the lot, named by the name of its header, case ignored. Repeatable; replaces the DATs unchecked in the settings. A name the lot does not have is refused (code 2), with the names of the lot |
-| `--dir-dat-mirror` | Places the folder of each DAT of the lot under the folders of its path in the folder of DATs. Refused (code 2) when **A folder per DAT** is unchecked in the settings |
+| `--dir-dat-mirror` | Places the folder of each DAT of the lot under the folders of its path in the folder or the archive of DATs. Refused (code 2) when **A folder per DAT** is unchecked in the settings |
 | `--chd <folder>` | Folder of the CHDs of a MAME collection, when they are not in the source |
 | `--categories <file>` | Category file of the MAME machines (`catver.ini`, `catlist.ini`) |
 | `--ratings <file>` | Rating file of the MAME machines (`bestgames.ini`) |
@@ -132,7 +134,7 @@ export.
 | 0 | Success |
 | 1 | Unexpected error (a crash report is saved in `crashes/` next to the settings, and its path printed) |
 | 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT, unsupported export format, `dat --output` over the DAT read) |
-| 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder of DATs refused, overlapping folders) |
+| 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder or archive of DATs refused, overlapping folders) |
 | 4 | Finished, but some files are in error (including a sort stopped by a full destination or a journal that cannot be written), an export failed (or `dat` kept no game), some operations could not be undone or some items of the quarantine could not be deleted |
 | 5 | Cancelled (Ctrl+C) |
 | 6 | Confirmation required (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, or `quarantine --empty` without `--yes`) |

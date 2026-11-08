@@ -2982,7 +2982,7 @@
                               Content="{Binding I18n[tab1.chk_folder_per_dat]}"
                               ToolTip.Tip="{Binding I18n[tab1.tooltip_folder_per_dat]}"
                               ToolTip.ShowOnDisabled="True"
-                              IsEnabled="{Binding Directories.IsDatFolder}"
+                              IsEnabled="{Binding Directories.HoldsSeveralDats}"
                               IsChecked="{Binding Directories.FolderPerDat, Mode=TwoWay}" />
                     <CheckBox x:Name="ChkDatFolderMirror"
                               FontSize="11"

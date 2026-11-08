@@ -270,6 +270,22 @@ once per DAT, choose the **folder** that holds them: **Browse...** next to the D
 **lot**: the source is analysed once, each file is sorted with the DAT that knows it, and each DAT keeps its
 convention, its filters and its 1G1R.
 
+### DATs in an archive
+
+The DAT may also be a **ZIP, 7z or RAR archive**, as it was downloaded: choose it with **Browse...** (**DAT file…**),
+or `--dat pack.zip` on the command line. RomSieve reads it without extracting anything, and only takes its `.dat` and
+`.xml` files.
+
+* An archive that holds **a single DAT** (a Redump DAT, for instance) is that DAT: everything goes as if you had chosen
+  the file itself.
+* An archive that holds **several DATs** (a No-Intro daily pack, a TOSEC pack) is a **lot**, like a folder of DATs: the
+  **DATs of the lot** window opens once its DATs are read, and the lot bears the name of the archive, without its
+  extension. All its DATs are read, whatever their folder in the archive, and these folders can be mirrored in the
+  destination like those of a folder of DATs.
+* An archive that holds no DAT, or that cannot be read, is refused, and the information line says so.
+* A MAME software list in MAME's own format (a `hash/<list>.xml` file) read from an archive is exported as an XML DAT,
+  not in MAME's format.
+
 ### Choosing the DATs of the lot
 
 Under the field, the information line sums the lot up: *Lot of 3111 DATs (2900 TOSEC, 150 No-Intro, 61 Redump), 3111
@@ -296,11 +312,11 @@ on every DAT.
   are saved in the settings and the profiles; on the command line, `--dat-only <name>` chooses the DATs to use.
 * **Also read the subfolders of the folder of DATs**, under the information line, adds the DATs of its subfolders to
   the lot (a TOSEC pack sorted by maker, the No-Intro and Redump folders of a pack; `--dat-recursive`). The box is
-  greyed out for a DAT file.
+  greyed out for a DAT file and for an archive, whose DATs are all read.
 
-A folder is refused, and the information line says why, when two of its DATs bear the same name (case ignored), when it
-holds a DAT of MAME machines (to choose alone), when it mixes MAME software lists with other DATs, or when all its DATs
-are unchecked.
+A folder (or an archive) is refused, and the information line says why, when two of its DATs bear the same name (case
+ignored), when it holds a DAT of MAME machines (to choose alone), when it mixes MAME software lists with other DATs, or
+when all its DATs are unchecked.
 
 ### Conventions of a lot
 

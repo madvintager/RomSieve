@@ -96,10 +96,11 @@ placent les fichiers de chaque DAT à part :
   DAT partagent les mêmes dossiers : la variable `{dat}` permet alors de placer le DAT ailleurs dans le modèle, et deux
   fichiers de DAT différents qui visent la même cible suivent la règle des [conflits](#conflits).
 * **Reproduire l'arborescence des DAT** : le dossier de chaque DAT va sous les dossiers de son chemin dans le dossier
-  de DAT, comme dans le pack (`TOSEC/Commodore/Amiga/Commodore Amiga - Games - [ADF]/...`). Seulement avec un dossier
-  par DAT, et pour les DAT lus dans des sous-dossiers (`--dir-dat-mirror` en ligne de commande).
+  ou l'archive de DAT, comme dans le pack (`TOSEC/Commodore/Amiga/Commodore Amiga - Games - [ADF]/...`). Seulement
+  avec un dossier par DAT, et pour les DAT rangés dans des sous-dossiers (`--dir-dat-mirror` en ligne de commande).
 
-Les deux cases sont grisées avec un fichier DAT : un DAT seul n'a jamais de dossier à lui, et sa sortie ne change pas.
+Les deux cases sont grisées avec un fichier DAT ou une archive d'un seul DAT : un DAT seul n'a jamais de dossier à lui,
+et sa sortie ne change pas.
 Le dossier `_unmatched` des fichiers non conformes reste à la racine de la destination.
 
 ### Options associées

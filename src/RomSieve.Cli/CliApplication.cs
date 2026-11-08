@@ -661,7 +661,7 @@ public sealed class CliApplication
     }
 
     /// <summary>
-    /// The DATs of a lot (a folder of No-Intro, Redump or TOSEC DATs), from their headers alone, as the sort reads them:
+    /// The DATs of a lot (a folder or an archive of No-Intro, Redump or TOSEC DATs), from their headers alone, as the sort reads them:
     /// a folder the sort would refuse is refused before anything is done (<c>dat.folder_*</c>, code 3); with
     /// <c>--dat-only</c>, the DATs named alone are sorted (case ignored), in place of those <c>excluded_dats</c> leaves
     /// out, and a name no DAT of the lot has is refused with the names of the lot (code 2), as is the option without a
@@ -673,7 +673,7 @@ public sealed class CliApplication
         lot = null;
         var only = parseResult.GetValue(_datOnlyOption) ?? [];
         var path = settings.DatFile.Trim();
-        if (path.Length > 0 && Directory.Exists(path))
+        if (path.Length > 0 && datService.HoldsSeveralDats(path))
         {
             IReadOnlyList<DatFolderEntry> entries;
             try
@@ -763,8 +763,8 @@ public sealed class CliApplication
             return false;
         }
 
-        // A folder of DATs is a lot or MAME software lists, never MAME machines, which a lot refuses
-        if (Directory.Exists(config.DatFile))
+        // A folder or an archive of DATs is a lot or MAME software lists, never MAME machines, which a lot refuses
+        if (datService.HoldsSeveralDats(config.DatFile))
         {
             return false;
         }

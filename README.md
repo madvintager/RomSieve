@@ -40,9 +40,9 @@ not want (or filter the table) to sort only a part of it, each game with all its
 
 **DAT audit.** Files are identified by size and CRC32 (SHA-1 optional), even badly named ones. RomSieve reads Logiqx
 XML and ClrMamePro DATs, including parent/clone relations, shows how complete the collection is, and exports a miss
-list or a fixdat. A whole No-Intro, Redump or TOSEC pack can be used at once: choose its folder of DATs, and each file
-is sorted with the DAT that knows it, each DAT with its own convention, filters, 1G1R and folder in the destination.
-Only the DATs the source needs are read in full.
+list or a fixdat. A whole No-Intro, Redump or TOSEC pack can be used at once: choose its folder of DATs, or the ZIP, 7z
+or RAR archive it was downloaded as, and each file is sorted with the DAT that knows it, each DAT with its own
+convention, filters, 1G1R and folder in the destination. Only the DATs the source needs are read in full.
 
 **Safe file operations.** RomSieve can copy, move, create hard links or symbolic links, or write one TorrentZip archive per game,
 into folder patterns such as `{publisher}/{title}/` or `{country}/{title}/`. Files that do not match go to

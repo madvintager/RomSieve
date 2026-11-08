@@ -284,6 +284,22 @@ la source une fois par DAT, choisissez le **dossier** qui les contient : **Parco
 Ce dossier est un **lot** : la source est analysée une seule fois, chaque fichier est rangé avec le DAT qui le
 reconnaît, et chaque DAT garde sa convention, ses filtres et son 1G1R.
 
+### DAT dans une archive
+
+Le DAT peut aussi être une **archive ZIP, 7z ou RAR**, telle qu'on la télécharge : choisissez-la par **Parcourir...**
+(**Fichier DAT…**), ou `--dat pack.zip` en ligne de commande. RomSieve la lit sans rien extraire, et ne prend que ses
+fichiers `.dat` et `.xml`.
+
+* Une archive qui contient **un seul DAT** (un DAT Redump, par exemple) est ce DAT : tout se passe comme si vous aviez
+  choisi le fichier lui-même.
+* Une archive qui contient **plusieurs DAT** (un pack quotidien No-Intro, un pack TOSEC) est un **lot**, comme un
+  dossier de DAT : la fenêtre **DAT du lot** s'ouvre une fois ses DAT lus, et le lot porte le nom de l'archive, sans
+  son extension. Tous ses DAT sont lus, quel que soit leur dossier dans l'archive, et ces dossiers peuvent être
+  reproduits dans la destination comme ceux d'un dossier de DAT.
+* Une archive qui ne contient aucun DAT, ou qu'on ne peut pas lire, est refusée, et la ligne d'information le dit.
+* Une liste de logiciels MAME au format de MAME (fichier `hash/<liste>.xml`) lue dans une archive est exportée en DAT
+  XML, et non au format de MAME.
+
 ### Choisir les DAT du lot
 
 Sous le champ, la ligne d'information résume le lot : *Lot de 3 111 DAT (2 900 TOSEC, 150 No-Intro, 61 Redump),
@@ -312,11 +328,11 @@ profil). Elle s'ouvre toujours sur tous les DAT.
   à utiliser.
 * **Lire aussi les sous-dossiers du dossier de DAT**, sous la ligne d'information, ajoute au lot les DAT de ses
   sous-dossiers (un pack TOSEC rangé par constructeur, les dossiers No-Intro et Redump d'un même pack ;
-  `--dat-recursive`). La case est grisée pour un fichier DAT.
+  `--dat-recursive`). La case est grisée pour un fichier DAT et pour une archive, dont tous les DAT sont lus.
 
-Un dossier est refusé, et la ligne d'information dit pourquoi, quand deux de ses DAT portent le même nom (sans tenir
-compte des majuscules), quand il contient un DAT de machines MAME (à choisir seul), quand il mêle des listes de
-logiciels MAME à d'autres DAT, ou quand tous ses DAT sont décochés.
+Un dossier (ou une archive) est refusé, et la ligne d'information dit pourquoi, quand deux de ses DAT portent le même
+nom (sans tenir compte des majuscules), quand il contient un DAT de machines MAME (à choisir seul), quand il mêle des
+listes de logiciels MAME à d'autres DAT, ou quand tous ses DAT sont décochés.
 
 ### Conventions d'un lot
 

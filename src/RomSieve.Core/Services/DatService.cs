@@ -1393,32 +1393,49 @@ public sealed partial class DatService : IDatService
             return await ParseDatFolderAsync(path, folderOptions, cancellationToken).ConfigureAwait(false);
         }
 
+        if (IsDatArchive(path))
+        {
+            var dats = GetArchiveDats(path);
+            if (dats.Count != 1)
+            {
+                return await ParseLotAsync(path, dats, folderOptions, cancellationToken).ConfigureAwait(false);
+            }
+
+            // An archive of a single DAT is that DAT, which no export may replace by writing over the archive
+            var catalog = ParseDatContent(dats[0], cancellationToken);
+            catalog.Header.SourceFile = path;
+            return catalog;
+        }
+
         return ParseDatFile(path, cancellationToken);
     }
 
     /// <summary>A DAT file read whole, at once (<see cref="ParseDatFileAsync(string, CancellationToken)"/> of a file).</summary>
-    internal DatCatalog ParseDatFile(string path, CancellationToken cancellationToken)
+    internal DatCatalog ParseDatFile(string path, CancellationToken cancellationToken) =>
+        ParseDatFile(new DatLocation(path), cancellationToken);
+
+    private DatCatalog ParseDatFile(DatLocation location, CancellationToken cancellationToken)
     {
-        var catalog = ParseDatFileContent(path, cancellationToken);
-        catalog.Header.SourceFile = path;
+        var catalog = ParseDatContent(location, cancellationToken);
+        catalog.Header.SourceFile = location.Path;
         return catalog;
     }
 
-    private DatCatalog ParseDatFileContent(string path, CancellationToken cancellationToken)
+    private DatCatalog ParseDatContent(DatLocation location, CancellationToken cancellationToken)
     {
         // A file is read as UTF-8 (or as announced by its byte order mark, UTF-16 for a "mame -listxml > file" of
         // PowerShell), and as Latin-1 when it is not valid UTF-8
         var utf8Strict = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
-        if (IsXmlDatFile(path))
+        if (IsXmlDat(location))
         {
             try
             {
-                return ParseXmlDatFile(path, utf8Strict, cancellationToken);
+                return ParseXmlDat(location, utf8Strict, cancellationToken);
             }
             catch (DecoderFallbackException)
             {
-                return ParseXmlDatFile(path, Encoding.Latin1, cancellationToken);
+                return ParseXmlDat(location, Encoding.Latin1, cancellationToken);
             }
         }
 
@@ -1426,17 +1443,88 @@ public sealed partial class DatService : IDatService
         string content;
         try
         {
-            content = File.ReadAllText(path, utf8Strict);
+            content = ReadAllText(location, utf8Strict);
         }
         catch (DecoderFallbackException)
         {
-            content = File.ReadAllText(path, Encoding.Latin1);
+            content = ReadAllText(location, Encoding.Latin1);
         }
 
         var clrMamePro = ParseClrMameProText(content);
         clrMamePro.Header.IsClrMameProSource = true;
         return clrMamePro;
     }
+
+    // The text of a DAT, its encoding announced by its byte order mark if it has one, as File.ReadAllText reads a file
+    private string ReadAllText(DatLocation location, Encoding encoding)
+    {
+        using var reader = new StreamReader(OpenDat(location), encoding, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
+    }
+
+    /// <summary>
+    /// A DAT to read: a file of the disk, or a member of an archive (<see cref="Member"/>, its name as the archive
+    /// records it, with <see cref="Path"/> the archive).
+    /// </summary>
+    private readonly record struct DatLocation(string Path, string? Member = null)
+    {
+        /// <summary>Name of the file of the DAT, without its folders.</summary>
+        public string FileName => Member is null ? System.IO.Path.GetFileName(Path) : Member[(Member.LastIndexOfAny(['/', '\\']) + 1)..];
+
+        /// <summary>
+        /// Path of the DAT relative to the folder or the archive read, with the separator of the system: what a lot
+        /// names it by (<see cref="DatFolderEntry.RelativePath"/>), and what its folder is mirrored from.
+        /// </summary>
+        public string RelativeTo(string root) => Member is null
+            ? System.IO.Path.GetRelativePath(root, Path)
+            : Member.Replace('\\', '/').Replace('/', System.IO.Path.DirectorySeparatorChar);
+    }
+
+    // A DAT of the disk is read in sequence; a member of an archive through the service that reads the archives
+    private Stream OpenDat(DatLocation location) => location.Member is null
+        ? new FileStream(location.Path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan)
+        : _checksumService.OpenArchiveMember(location.Path, location.Member);
+
+    // The files a folder or an archive of DATs holds as DATs
+    private static bool IsDatFileName(string name) =>
+        Path.GetExtension(name).ToLowerInvariant() is ".xml" or ".dat";
+
+    /// <summary>
+    /// Whether <paramref name="path"/> names several DATs read together: a folder of DATs, or an archive (ZIP, 7z or
+    /// RAR) that does not hold exactly one DAT, read as a folder of DATs would be (an archive without DAT is refused as a
+    /// folder without DAT is). An archive that holds a single DAT is read as that DAT.
+    /// </summary>
+    public bool HoldsSeveralDats(string path) =>
+        !string.IsNullOrWhiteSpace(path) && (Directory.Exists(path) || (IsDatArchive(path) && GetArchiveDats(path).Count != 1));
+
+    // An archive given as a DAT, read without extraction
+    private bool IsDatArchive(string path) => _checksumService.IsSupportedArchive(path) && File.Exists(path);
+
+    /// <summary>
+    /// The DATs of an archive: its <c>.xml</c> and <c>.dat</c> members, whatever their folder in the archive, in the order
+    /// of their names; a name that would lead out of a folder (<see cref="PathOrganizerService.IsSafeRelativeName"/>) is
+    /// left out, since the folders of the DATs of a lot may be mirrored in the destination. None for an unreadable archive.
+    /// </summary>
+    private List<DatLocation> GetArchiveDats(string archive) =>
+        _checksumService.GetArchiveMembers(archive)
+            .Where(member => IsDatFileName(member.MemberName) && PathOrganizerService.IsSafeRelativeName(member.MemberName))
+            .Select(member => (Location: new DatLocation(archive, member.MemberName), Key: member.MemberName.Replace('\\', '/')))
+            .OrderBy(dat => dat.Key, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(dat => dat.Key, StringComparer.Ordinal)
+            .Select(dat => dat.Location)
+            .ToList();
+
+    // The DATs of a folder or of an archive of DATs
+    private List<DatLocation> GetDatLocations(string path, bool recursive) =>
+        Directory.Exists(path)
+            ? GetDatFolderFiles(path, recursive).Select(file => new DatLocation(file)).ToList()
+            : GetArchiveDats(path);
+
+    // Name of a lot after its folder, or its archive without its extension
+    private static string LotName(string path) =>
+        Directory.Exists(path)
+            ? Path.GetFileName(Path.TrimEndingDirectorySeparator(path))
+            : Path.GetFileNameWithoutExtension(path);
 
     // DATs of a folder read at the same time
     private const int DatFolderParallelism = 8;
@@ -1448,7 +1536,7 @@ public sealed partial class DatService : IDatService
     /// </summary>
     public static IReadOnlyList<string> GetDatFolderFiles(string folder, bool recursive = false) =>
         FileTree.EnumerateFiles(folder, recursive, new FileTreeSkips())
-            .Where(f => Path.GetExtension(f).ToLowerInvariant() is ".xml" or ".dat")
+            .Where(IsDatFileName)
             .Select(f => (Path: f, Key: Path.GetRelativePath(folder, f).Replace('\\', '/')))
             .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
             .ThenBy(f => f.Key, StringComparer.Ordinal)
@@ -1456,9 +1544,10 @@ public sealed partial class DatService : IDatService
             .ToList();
 
     /// <summary>
-    /// The DATs of a folder of DATs as their headers tell them (<see cref="DatFolderEntry"/>), in the order of their
-    /// paths: what the list of the DATs to sort and a lot are made of, read in milliseconds per DAT. Empty for a folder
-    /// without DAT; the refusals are left to <see cref="CheckDatFolder"/>.
+    /// The DATs of a folder of DATs, or of an archive of DATs (<see cref="HoldsSeveralDats"/>; every DAT of an archive,
+    /// whatever <paramref name="recursive"/>), as their headers tell them (<see cref="DatFolderEntry"/>), in the order of
+    /// their paths: what the list of the DATs to sort and a lot are made of, read in milliseconds per DAT. Empty for a
+    /// folder or an archive without DAT; the refusals are left to <see cref="CheckDatFolder"/>.
     /// </summary>
     public IReadOnlyList<DatFolderEntry> ReadDatFolderPreview(
         string folder,
@@ -1466,7 +1555,7 @@ public sealed partial class DatService : IDatService
         IProgress<DatFolderReadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var files = GetDatFolderFiles(folder, recursive);
+        var files = GetDatLocations(folder, recursive);
         cancellationToken.ThrowIfCancellationRequested();
         var entries = new DatFolderEntry[files.Count];
         progress?.Report(new DatFolderReadProgress(0, files.Count));
@@ -1490,24 +1579,26 @@ public sealed partial class DatService : IDatService
         return entries;
     }
 
-    private DatFolderEntry PreviewEntry(string folder, string file)
+    private DatFolderEntry PreviewEntry(string folder, DatLocation file)
     {
-        var preview = ReadDatPreview(file);
-        var name = string.IsNullOrWhiteSpace(preview.Header.Name) ? Path.GetFileNameWithoutExtension(file) : preview.Header.Name.Trim();
-        return new DatFolderEntry(Path.GetRelativePath(folder, file), name, preview.DetectConvention());
+        var preview = ReadDatPreview(file, PreviewGameCount);
+        var name = string.IsNullOrWhiteSpace(preview.Header.Name) ? Path.GetFileNameWithoutExtension(file.FileName) : preview.Header.Name.Trim();
+        return new DatFolderEntry(file.RelativeTo(folder), name, preview.DetectConvention());
     }
 
     /// <summary>
-    /// Refuses (<see cref="DatFolderException"/>) a folder of DATs that cannot be sorted: without DAT, with a DAT of
-    /// MAME machines, or mixing the DATs of MAME software lists with other DATs. A folder of software lists only, which
-    /// keeps its own checks, is accepted, and so is a lot of No-Intro, Redump and TOSEC DATs whose names are unique
+    /// Refuses (<see cref="DatFolderException"/>) a folder or an archive of DATs that cannot be sorted: without DAT, with
+    /// a DAT of MAME machines, or mixing the DATs of MAME software lists with other DATs. A folder of software lists only,
+    /// which keeps its own checks, is accepted, and so is a lot of No-Intro, Redump and TOSEC DATs whose names are unique
     /// (case ignored).
     /// </summary>
     public static void CheckDatFolder(string folder, IReadOnlyList<DatFolderEntry> entries)
     {
         if (entries.Count == 0)
         {
-            throw new DatFolderException(LocalizedMessage.Create("dat.folder_empty", ("path", folder)));
+            throw new DatFolderException(LocalizedMessage.Create(
+                Directory.Exists(folder) ? "dat.folder_empty" : "dat.archive_empty",
+                ("path", folder)));
         }
 
         if (entries.FirstOrDefault(e => e.Convention == NamingConvention.Mame) is { } machines)
@@ -1546,18 +1637,30 @@ public sealed partial class DatService : IDatService
         }
     }
 
+    // A folder of DATs, with its subfolders or not; its path is kept so that no DAT is exported there
+    private async Task<DatCatalog> ParseDatFolderAsync(string folder, DatFolderOptions options, CancellationToken cancellationToken)
+    {
+        var lot = await ParseLotAsync(folder, GetDatLocations(folder, options.Recursive), options, cancellationToken).ConfigureAwait(false);
+        if (lot.Dats is not null)
+        {
+            lot.LotFolder = Path.GetFullPath(folder);
+        }
+
+        return lot;
+    }
+
     /// <summary>
-    /// Reads a folder of DATs. The headers of its DATs are read first, and the folder is refused when it cannot be
-    /// sorted (<see cref="CheckDatFolder"/>). A folder of MAME software lists is read as it always was
+    /// Reads the DATs of a folder or of an archive of DATs (<paramref name="files"/>, those of <paramref name="folder"/>).
+    /// The headers of its DATs are read first, and the folder is refused when it cannot be sorted
+    /// (<see cref="CheckDatFolder"/>). A folder of MAME software lists is read as it always was
     /// (<see cref="ParseSoftwareListFolderAsync"/>). Any other folder is a lot (<see cref="DatCatalog.Dats"/>): each DAT
     /// that is not left out (<see cref="DatFolderOptions.ExcludedDats"/>) is read into its own catalog, named after its
     /// header, or its file without a name; refused when every DAT is left out. Read on demand
     /// (<see cref="DatFolderOptions.LoadOnDemand"/>), a DAT only keeps its summary and the keys of its checksums: its
     /// catalog is read again, alone, when a run needs it.
     /// </summary>
-    private async Task<DatCatalog> ParseDatFolderAsync(string folder, DatFolderOptions options, CancellationToken cancellationToken)
+    private async Task<DatCatalog> ParseLotAsync(string folder, IReadOnlyList<DatLocation> files, DatFolderOptions options, CancellationToken cancellationToken)
     {
-        var files = GetDatFolderFiles(folder, options.Recursive);
         var entries = new DatFolderEntry[files.Count];
         await Parallel.ForAsync(
             0,
@@ -1570,7 +1673,7 @@ public sealed partial class DatService : IDatService
             }).ConfigureAwait(false);
         CheckDatFolder(folder, entries);
 
-        var folderName = Path.GetFileName(Path.TrimEndingDirectorySeparator(folder));
+        var folderName = LotName(folder);
         if (entries[0].Convention == NamingConvention.MameSoftwareList)
         {
             return await ParseSoftwareListFolderAsync(files, folderName, cancellationToken).ConfigureAwait(false);
@@ -1612,13 +1715,11 @@ public sealed partial class DatService : IDatService
             throw new DatFolderException(LocalizedMessage.Create("dat.folder_mame_machines", ("file", mame.RelativePath)));
         }
 
-        var lot = DatCatalog.GatherLot(members, folderName);
-        lot.LotFolder = Path.GetFullPath(folder);
-        return lot;
+        return DatCatalog.GatherLot(members, folderName);
     }
 
     // A DAT of a lot read whole, named after its file when its header has no name
-    private DatCatalog ReadLotDat(string file, string name, CancellationToken cancellationToken)
+    private DatCatalog ReadLotDat(DatLocation file, string name, CancellationToken cancellationToken)
     {
         var catalog = ParseDatFile(file, cancellationToken);
         if (string.IsNullOrWhiteSpace(catalog.Header.Name))
@@ -1635,25 +1736,30 @@ public sealed partial class DatService : IDatService
     /// DAT, or by its file without a name. Refused (<see cref="DatFolderException"/>) when a DAT turns out to be of
     /// another convention once read, or when two DATs describe the same list.
     /// </summary>
-    private async Task<DatCatalog> ParseSoftwareListFolderAsync(IReadOnlyList<string> files, string folderName, CancellationToken cancellationToken)
+    private async Task<DatCatalog> ParseSoftwareListFolderAsync(IReadOnlyList<DatLocation> files, string folderName, CancellationToken cancellationToken)
     {
         // Opening a file costs more than reading it (hundreds of DATs, an antivirus that checks each one): the DATs are
         // read in parallel, then taken in name order
         var catalogs = new DatCatalog[files.Count];
-        await Parallel.ForEachAsync(
-            Enumerable.Range(0, files.Count),
+        await Parallel.ForAsync(
+            0,
+            files.Count,
             new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism, CancellationToken = cancellationToken },
-            async (index, token) => catalogs[index] = await ParseDatFileAsync(files[index], token).ConfigureAwait(false)).ConfigureAwait(false);
+            (index, token) =>
+            {
+                catalogs[index] = ParseDatFile(files[index], token);
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false);
 
         var lists = new List<DatCatalog>();
         var fileOfList = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < files.Count; index++)
         {
-            var file = files[index];
+            var file = files[index].FileName;
             var catalog = catalogs[index];
             if (catalog.Header.Convention != NamingConvention.MameSoftwareList)
             {
-                throw new DatFolderException(LocalizedMessage.Create("dat.folder_not_software_list", ("file", Path.GetFileName(file))));
+                throw new DatFolderException(LocalizedMessage.Create("dat.folder_not_software_list", ("file", file)));
             }
 
             foreach (var list in catalog.SoftwareLists?.Values ?? [catalog])
@@ -1669,8 +1775,8 @@ public sealed partial class DatService : IDatService
                     throw new DatFolderException(LocalizedMessage.Create(
                         "dat.folder_duplicate_list",
                         ("list", list.Header.Name),
-                        ("first", Path.GetFileName(fileOfList[list.Header.Name])),
-                        ("second", Path.GetFileName(file))));
+                        ("first", fileOfList[list.Header.Name]),
+                        ("second", file)));
                 }
 
                 lists.Add(list);
@@ -1698,41 +1804,51 @@ public sealed partial class DatService : IDatService
     /// </summary>
     public DatCatalog ReadDatPreview(string path, int maxGames = PreviewGameCount)
     {
-        // A folder of DATs: its first DAT tells the convention, the folder names it
-        if (Directory.Exists(path))
+        // A folder or an archive of DATs: its first DAT tells the convention, the folder or the archive names it
+        var isFolder = Directory.Exists(path);
+        if (isFolder || IsDatArchive(path))
         {
-            var files = GetDatFolderFiles(path);
+            var files = GetDatLocations(path, recursive: false);
             if (files.Count == 0)
             {
-                throw new DatFolderException(LocalizedMessage.Create("dat.folder_empty", ("path", path)));
+                throw new DatFolderException(LocalizedMessage.Create(isFolder ? "dat.folder_empty" : "dat.archive_empty", ("path", path)));
             }
 
             var first = ReadDatPreview(files[0], maxGames);
-            first.Header.Name = Path.GetFileName(Path.TrimEndingDirectorySeparator(path));
+            if (isFolder || files.Count > 1)
+            {
+                first.Header.Name = LotName(path);
+            }
+
             return first;
         }
 
+        return ReadDatPreview(new DatLocation(path), maxGames);
+    }
+
+    private DatCatalog ReadDatPreview(DatLocation location, int maxGames)
+    {
         var utf8Strict = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
-        if (IsXmlDatFile(path))
+        if (IsXmlDat(location))
         {
             try
             {
-                return ReadXmlDatPreview(path, utf8Strict, maxGames);
+                return ReadXmlDatPreview(location, utf8Strict, maxGames);
             }
             catch (DecoderFallbackException)
             {
-                return ReadXmlDatPreview(path, Encoding.Latin1, maxGames);
+                return ReadXmlDatPreview(location, Encoding.Latin1, maxGames);
             }
         }
 
         string head;
         try
         {
-            head = ReadHead(path, utf8Strict);
+            head = ReadHead(location, utf8Strict);
         }
         catch (DecoderFallbackException)
         {
-            head = ReadHead(path, Encoding.Latin1);
+            head = ReadHead(location, Encoding.Latin1);
         }
 
         // A file longer than the preview is cut before its last game, which may be incomplete
@@ -1746,27 +1862,26 @@ public sealed partial class DatService : IDatService
         }
 
         return ParseClrMameProText(head);
-
-        static string ReadHead(string path, Encoding encoding)
-        {
-            using var reader = new StreamReader(path, encoding, detectEncodingFromByteOrderMarks: true);
-            var buffer = new char[ClrMameProPreviewLength];
-            var read = reader.ReadBlock(buffer, 0, buffer.Length);
-            return new string(buffer, 0, read);
-        }
     }
 
-    private DatCatalog ReadXmlDatPreview(string path, Encoding encoding, int maxGames)
+    private string ReadHead(DatLocation location, Encoding encoding)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16);
-        using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks: true);
+        using var reader = new StreamReader(OpenDat(location), encoding, detectEncodingFromByteOrderMarks: true);
+        var buffer = new char[ClrMameProPreviewLength];
+        var read = reader.ReadBlock(buffer, 0, buffer.Length);
+        return new string(buffer, 0, read);
+    }
+
+    private DatCatalog ReadXmlDatPreview(DatLocation location, Encoding encoding, int maxGames)
+    {
+        using var reader = new StreamReader(OpenDat(location), encoding, detectEncodingFromByteOrderMarks: true);
         return ParseLogiqxXml(reader, maxGames, CancellationToken.None);
     }
 
     // An XML DAT starts with its declaration, or shows its root element in its first characters
-    private static bool IsXmlDatFile(string path)
+    private bool IsXmlDat(DatLocation location)
     {
-        using var reader = new StreamReader(path, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        using var reader = new StreamReader(OpenDat(location), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
         var buffer = new char[1024];
         var read = reader.ReadBlock(buffer, 0, buffer.Length);
         var head = new string(buffer, 0, read).TrimStart();
@@ -1777,11 +1892,13 @@ public sealed partial class DatService : IDatService
                headSpan.Contains("<softwarelist", StringComparison.OrdinalIgnoreCase);
     }
 
-    private DatCatalog ParseXmlDatFile(string path, Encoding encoding, CancellationToken cancellationToken)
+    private DatCatalog ParseXmlDat(DatLocation location, Encoding encoding, CancellationToken cancellationToken)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan);
-        using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks: true);
-        return ParseLogiqxXml(reader, int.MaxValue, cancellationToken, Path.GetFullPath(path));
+        using var reader = new StreamReader(OpenDat(location), encoding, detectEncodingFromByteOrderMarks: true);
+
+        // The <software> elements of a MAME software list are copied from its file by an export in MAME's format: a list
+        // read from an archive is exported as a DAT
+        return ParseLogiqxXml(reader, int.MaxValue, cancellationToken, location.Member is null ? Path.GetFullPath(location.Path) : null);
     }
 
     public async Task<DatCatalog> CreateDatFromProcessItemsAsync(

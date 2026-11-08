@@ -187,6 +187,15 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// </summary>
     public bool IsDatFolder => !string.IsNullOrWhiteSpace(DatFilePath) && Directory.Exists(DatFilePath.Trim());
 
+    /// <summary>
+    /// Whether the DAT chosen is read as a folder of DATs (<see cref="IDatService.HoldsSeveralDats"/>): a folder, or an
+    /// archive that does not hold exactly one DAT. The folder options of the output step then apply to a lot. Known once
+    /// the path is chosen, without reading the archive again at each binding.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDatFolderMirrorEnabled))]
+    private bool _holdsSeveralDats;
+
     /// <summary>Raised when the user changes the source directory (not while a configuration is being loaded).</summary>
     public event EventHandler? SourceDirChangedByUser;
 
@@ -505,7 +514,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     partial void OnDatFilePathChanged(string value)
     {
         OnPropertyChanged(nameof(IsDatFolder));
-        OnPropertyChanged(nameof(IsDatFolderMirrorEnabled));
+        HoldsSeveralDats = _datService.HoldsSeveralDats(value.Trim());
         UpdateDatStatusInfo(value);
         UpdatePatternVariables();
     }
@@ -513,8 +522,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     // The mirror only acts with a folder per DAT
     partial void OnFolderPerDatChanged(bool value) => OnPropertyChanged(nameof(IsDatFolderMirrorEnabled));
 
-    /// <summary>Whether the folders of the DATs may be mirrored: a folder of DATs, each with a folder of its own.</summary>
-    public bool IsDatFolderMirrorEnabled => IsDatFolder && FolderPerDat;
+    /// <summary>Whether the folders of the DATs may be mirrored: a folder or an archive of DATs, each with a folder of its own.</summary>
+    public bool IsDatFolderMirrorEnabled => HoldsSeveralDats && FolderPerDat;
 
     // The subfolders change the DATs of the lot
     partial void OnDatRecursiveChanged(bool value)
@@ -637,14 +646,22 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
         FileDialogFilter[] filters =
         [
-            new(_localization.Tr("dialog.browse_dat_filter"), ["dat", "xml"]),
+            new(_localization.Tr("dialog.browse_dat_filter"), ["dat", "xml", "zip", "7z", "rar"]),
             FileDialogFilter.AllFiles(_localization)
         ];
 
         var file = await _dialogService.PickOpenFileAsync(_localization.Tr("dialog.browse_dat_title"), filters, startDir);
-        if (!string.IsNullOrEmpty(file))
+        if (string.IsNullOrEmpty(file) || file == DatFilePath)
         {
-            DatFilePath = file;
+            return;
+        }
+
+        // A new archive of several DATs is a lot, whose DATs open to check once read, as for a folder
+        DatFilePath = file;
+        await DatLoadTask;
+        if (DatLot.IsLot && DatFilePath == file)
+        {
+            await ChooseLotDatsAsync();
         }
     }
 
@@ -848,11 +865,14 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
         DatLot.Clear();
 
-        // A folder, a lot or the DATs of MAME software lists, is listed and read off the UI thread: it may hold
-        // thousands of DATs, or be on the network. It is named after itself, whatever its first DAT says.
-        if (Directory.Exists(cleanPath))
+        // A folder (or an archive) of DATs, a lot or the DATs of MAME software lists, is listed and read off the UI
+        // thread: it may hold thousands of DATs, or be on the network. It is named after itself (an archive without its
+        // extension), whatever its first DAT says.
+        if (HoldsSeveralDats)
         {
-            var folderName = Path.GetFileName(Path.TrimEndingDirectorySeparator(cleanPath));
+            var folderName = Directory.Exists(cleanPath)
+                ? Path.GetFileName(Path.TrimEndingDirectorySeparator(cleanPath))
+                : Path.GetFileNameWithoutExtension(cleanPath);
             DatHeaderName = folderName;
             ShowDatInfo(LocalizedMessage.Create("tab1.dat_info_reading", ("name", folderName)), "Neutral", null, DatCloneRelations.Unknown);
             DatFolderReadCount = 0;

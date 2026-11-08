@@ -94,11 +94,12 @@ files of each DAT apart:
   the pattern. With `{title}`, `Tetris (World).gb` goes into `Nintendo - Game Boy/Tetris/`. Unchecked, every DAT shares
   the same folders: the `{dat}` variable then places the DAT elsewhere in the pattern, and two files of different DATs
   that aim at the same target follow the [conflict](#conflicts) rule.
-* **Mirror the folders of the DATs**: the folder of each DAT goes under the folders of its path in the folder of DATs,
-  as in the pack (`TOSEC/Commodore/Amiga/Commodore Amiga - Games - [ADF]/...`). Only with a folder per DAT, and for the
-  DATs read in subfolders (`--dir-dat-mirror` on the command line).
+* **Mirror the folders of the DATs**: the folder of each DAT goes under the folders of its path in the folder or the
+  archive of DATs, as in the pack (`TOSEC/Commodore/Amiga/Commodore Amiga - Games - [ADF]/...`). Only with a folder per
+  DAT, and for the DATs kept in subfolders (`--dir-dat-mirror` on the command line).
 
-Both boxes are greyed out with a DAT file: a single DAT never gets a folder of its own, and its output does not change.
+Both boxes are greyed out with a DAT file or an archive of a single DAT: a single DAT never gets a folder of its own,
+and its output does not change.
 The `_unmatched` folder of the non-conforming files stays at the root of the destination.
 
 ### Related options

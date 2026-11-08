@@ -301,6 +301,61 @@ public sealed class DatLotViewModelTests : IDisposable
         vm.Directories.PatternVariables.Single(v => v.Tag == "{dat}").IsApplicable.Should().BeFalse();
     }
 
+    // A ZIP archive of the DATs of the folder, with their folders
+    private string ZipDats(string name, params string[] relativePaths)
+    {
+        var path = _tmp.GetFilePath(name);
+        using var zip = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create);
+        foreach (var relativePath in relativePaths)
+        {
+            System.IO.Compression.ZipFileExtensions.CreateEntryFromFile(zip, Path.Combine(_dats, relativePath), relativePath.Replace('\\', '/'));
+        }
+
+        return path;
+    }
+
+    [Fact]
+    public async Task BrowsedArchiveOfSeveralDats_ShouldBeALotToCheck_WithTheFolderOptions_ButNotTheSubfolders()
+    {
+        var zip = ZipDats(
+            "Pack (2026-11-08).zip",
+            "Nintendo - Game Boy (20230414).dat",
+            Path.Combine("TOSEC", "Commodore Amiga - Games - [ADF] (TOSEC-v2025).dat"));
+        var dialogs = new HeadlessDialogService { NextPickedOpenFile = zip };
+        var vm = TestMainViewModel.Create(dialogs, _tmp.WriteText("config.json", "{}"));
+        dialogs.OnShowDatLot = _ => Task.FromResult(true);
+
+        await vm.Directories.BrowseDatAsync();
+
+        dialogs.ShownDatLots.Should().ContainSingle("a new archive of several DATs opens its DATs to check, as a folder does");
+        var lot = vm.Directories.DatLot;
+        lot.IsLot.Should().BeTrue();
+        lot.Entries.Select(e => (e.Name, e.RelativePath)).Should().Equal(
+            (GameBoy, "Nintendo - Game Boy (20230414).dat"), (Amiga, "TOSEC/Commodore Amiga - Games - [ADF] (TOSEC-v2025).dat"));
+        vm.Directories.DatHeaderName.Should().Be("Pack (2026-11-08)", "an archive is named after itself, without its extension");
+        vm.Directories.HoldsSeveralDats.Should().BeTrue();
+        vm.Directories.IsDatFolderMirrorEnabled.Should().BeTrue();
+        vm.Directories.IsDatFolder.Should().BeFalse("every DAT of an archive is read: it has no subfolders option");
+    }
+
+    [Fact]
+    public async Task ArchiveOfASingleDat_ShouldBeThatDat_WithoutLot()
+    {
+        var zip = ZipDats("gb.zip", "Nintendo - Game Boy (20230414).dat");
+        var dialogs = new HeadlessDialogService { NextPickedOpenFile = zip };
+        var vm = TestMainViewModel.Create(dialogs, _tmp.WriteText("config.json", "{}"));
+
+        await vm.Directories.BrowseDatAsync();
+
+        dialogs.ShownDatLots.Should().BeEmpty();
+        vm.Directories.DatLot.IsLot.Should().BeFalse();
+        vm.Directories.HoldsSeveralDats.Should().BeFalse();
+        vm.Directories.IsDatFolderMirrorEnabled.Should().BeFalse();
+        vm.Directories.DatHeaderName.Should().Be(GameBoy);
+        vm.Directories.DatInfoTone.Should().Be("Ok");
+        vm.Directories.EffectiveConvention.Should().Be(NamingConvention.NoIntro);
+    }
+
     [Fact]
     public async Task RefusedFolder_ShouldSayWhy_WithoutALot()
     {

@@ -180,6 +180,7 @@ public sealed class MameConventionViewModelTests : IDisposable
             string folder, bool recursive = false, IProgress<DatFolderReadProgress>? progress = null, CancellationToken cancellationToken = default) =>
             inner.ReadDatFolderPreview(folder, recursive, progress, cancellationToken);
         public DatCatalog ReadDatPreview(string path, int maxGames = DatService.PreviewGameCount) => inner.ReadDatPreview(path, maxGames);
+        public bool HoldsSeveralDats(string path) => inner.HoldsSeveralDats(path);
         public DatCatalog ParseClrMameProText(string text) => inner.ParseClrMameProText(text);
         public DatCatalog ParseLogiqxXml(string text) => inner.ParseLogiqxXml(text);
 

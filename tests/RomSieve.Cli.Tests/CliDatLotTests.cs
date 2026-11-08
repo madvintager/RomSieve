@@ -143,6 +143,45 @@ public sealed class CliDatLotTests : IDisposable
         result.Error.Should().Contain("Sega - Mega Drive").And.Contain(GameBoy).And.Contain(GameBoyColor);
     }
 
+    // A ZIP archive of the whole folder of DATs, with its subfolders
+    private string ZipDats()
+    {
+        var zip = Path.Combine(_temp.Path, "pack.zip");
+        System.IO.Compression.ZipFile.CreateFromDirectory(_dats, zip);
+        return zip;
+    }
+
+    [Fact]
+    public async Task Run_WithAnArchiveOfDats_ShouldSortWithAllItsDats_AndTheDatsItNamesAlone()
+    {
+        var zip = ZipDats();
+
+        var all = await RunAsync("run", "--dat", zip, "--dir-dat-mirror", "--execute");
+
+        all.ExitCode.Should().Be(ExitCodes.Success, all.Error);
+        DestinationFiles().Should().Equal(
+            new[] { $"{GameBoy}/Tetris/Tetris (World).gb", $"TOSEC/Commodore/{Amiga}/Lemmings/Lemmings (1991)(Psygnosis).adf" },
+            "every DAT of an archive is read, whatever its folder in the archive");
+
+        Directory.Delete(_destination, recursive: true);
+        var only = await RunAsync("run", "--dat", zip, "--dat-only", Amiga, "--execute");
+
+        only.ExitCode.Should().Be(ExitCodes.Success, only.Error);
+        DestinationFiles().Should().Equal($"{Amiga}/Lemmings/Lemmings (1991)(Psygnosis).adf", "_unmatched/tetris.gb");
+    }
+
+    [Fact]
+    public async Task Run_WithAnArchiveWithoutDat_ShouldBeRefusedBeforeAnything()
+    {
+        var zip = Path.Combine(_temp.Path, "roms.zip");
+        System.IO.Compression.ZipFile.CreateFromDirectory(_source, zip);
+
+        var result = await RunAsync("run", "--dat", zip);
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidConfiguration);
+        result.Error.Should().Contain("roms.zip").And.Contain("holds no DAT");
+    }
+
     [Fact]
     public async Task DatOnly_WithoutALot_ShouldBeRefused()
     {

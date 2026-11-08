@@ -688,7 +688,7 @@ public sealed class SortProcessorService : ISortProcessorService
         CancellationToken cancellationToken = default)
     {
         // A lot: DAT by DAT, never all its DATs in memory at once
-        if (string.IsNullOrWhiteSpace(config.DatFile) || !Directory.Exists(config.DatFile))
+        if (string.IsNullOrWhiteSpace(config.DatFile) || !_datService.HoldsSeveralDats(config.DatFile))
         {
             return await ExportSingleCatalogDatAsync(config, outputPath, format, progress, logProgress, cancellationToken).ConfigureAwait(false);
         }
@@ -1157,7 +1157,7 @@ public sealed class SortProcessorService : ISortProcessorService
             return null;
         }
 
-        // A folder holds a lot of DATs, or the DATs of several MAME software lists
+        // A folder (or an archive) holds a lot of DATs, or the DATs of several MAME software lists
         if (!File.Exists(config.DatFile) && !Directory.Exists(config.DatFile))
         {
             throw new FileNotFoundException(_i18n.Tr("log.dat_file_not_found", ("path", config.DatFile)));

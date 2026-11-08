@@ -187,6 +187,7 @@ public sealed class DatFolderReadingTests : IDisposable
             inner.ParseDatFileAsync(path, folderOptions, cancellationToken);
 
         public DatCatalog ReadDatPreview(string path, int maxGames = DatService.PreviewGameCount) => inner.ReadDatPreview(path, maxGames);
+        public bool HoldsSeveralDats(string path) => inner.HoldsSeveralDats(path);
         public DatCatalog ParseClrMameProText(string text) => inner.ParseClrMameProText(text);
         public DatCatalog ParseLogiqxXml(string text) => inner.ParseLogiqxXml(text);
 

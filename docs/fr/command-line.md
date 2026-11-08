@@ -32,6 +32,8 @@ romsieve-cli run -s /roms/arrivee -d /roms/triees --dat "Commodore - Amiga.dat" 
 romsieve-cli run --dat /dats/TOSEC --dat-recursive --dir-dat-mirror --execute
 # ... ou deux de ses DAT seulement
 romsieve-cli run --dat /dats/No-Intro --dat-only "Nintendo - Game Boy" --dat-only "Nintendo - Game Boy Color"
+# ... ou le pack quotidien No-Intro tel qu'il a été téléchargé, sans l'extraire
+romsieve-cli run --dat "No-Intro Love Pack (PC XML).zip" --dat-only "Nintendo - Game Boy"
 
 # Compléter une destination non vide, ou la purger d'abord (son contenu est mis de côté dans _purged/)
 romsieve-cli run --execute --append
@@ -60,8 +62,8 @@ romsieve-cli dat --dat /dats/No-Intro -o /dats/No-Intro-1G1R      # un lot : un 
 |---|---|
 | `-o`, `--output <fichier>` | Fichier DAT à écrire (obligatoire) : `.xml` pour Logiqx XML, `.dat` pour ClrMamePro. Avec des [listes de logiciels MAME](naming-conventions-and-dats.md#listes-de-logiciels-mame), le **dossier** à la racine duquel s'écrit un DAT par liste (`megadriv.xml`...), comme des listes de logiciels MAME quand elles ont été lues dans les fichiers `hash` de MAME, sinon en Logiqx XML ; avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), le **dossier** où s'écrit un DAT par DAT du lot, chacun dans le format du sien. Un fichier `.xml` ou `.dat` est alors refusé (code 2), et les DAT du dossier que l'export n'a pas remplacés sont nommés |
 | `-p`, `--profile <nom>` | Utilise un profil enregistré au lieu des réglages de l'interface |
-| `--dat <fichier>` | Fichier DAT du catalogue, ou dossier de DAT : un lot No-Intro, Redump ou TOSEC, ou des listes de logiciels MAME |
-| `--dat-recursive` | Lit aussi les DAT des sous-dossiers du dossier de DAT |
+| `--dat <fichier>` | Fichier DAT du catalogue, ou dossier ou archive (ZIP, 7z, RAR) de DAT : un lot No-Intro, Redump ou TOSEC, ou des listes de logiciels MAME ; une archive d'un seul DAT est ce DAT |
+| `--dat-recursive` | Lit aussi les DAT des sous-dossiers du dossier de DAT ; une archive est toujours lue entière |
 | `--dat-only <nom>` | N'utilise que ce DAT du lot (voir `run`) |
 | `--categories <fichier>` | Fichier de catégories des machines MAME |
 | `--ratings <fichier>` | Fichier de notes des machines MAME |
@@ -77,10 +79,10 @@ réglages ne gardent aucun jeu, aucun fichier n'est écrit et le code de sortie 
 | `-p`, `--profile <nom>` | Utilise un profil enregistré au lieu des réglages de l'interface |
 | `-s`, `--source <dossier>` | Dossier source |
 | `-d`, `--destination <dossier>` | Dossier de destination |
-| `--dat <fichier>` | Fichier DAT, ou dossier de DAT : un lot No-Intro, Redump ou TOSEC, ou des listes de logiciels MAME. Une seule fois. |
-| `--dat-recursive` | Lit aussi les DAT des sous-dossiers du dossier de DAT (un lot) |
+| `--dat <fichier>` | Fichier DAT, ou dossier ou archive (ZIP, 7z, RAR) de DAT : un lot No-Intro, Redump ou TOSEC, ou des listes de logiciels MAME ; une archive d'un seul DAT est ce DAT ([DAT dans une archive](naming-conventions-and-dats.md#dat-dans-une-archive)). Une seule fois. |
+| `--dat-recursive` | Lit aussi les DAT des sous-dossiers du dossier de DAT (un lot) ; une archive de DAT est toujours lue entière |
 | `--dat-only <nom>` | Ne trie qu'avec ce DAT du lot, désigné par le nom de son en-tête, sans tenir compte des majuscules. Répétable ; remplace les DAT décochés des réglages. Un nom absent du lot est refusé (code 2), avec les noms du lot |
-| `--dir-dat-mirror` | Place le dossier de chaque DAT du lot sous les dossiers de son chemin dans le dossier de DAT. Refusé (code 2) quand **Un dossier par DAT** est décoché dans les réglages |
+| `--dir-dat-mirror` | Place le dossier de chaque DAT du lot sous les dossiers de son chemin dans le dossier ou l'archive de DAT. Refusé (code 2) quand **Un dossier par DAT** est décoché dans les réglages |
 | `--chd <dossier>` | Dossier des CHD d'une collection MAME, s'ils ne sont pas dans la source |
 | `--categories <fichier>` | Fichier de catégories des machines MAME (`catver.ini`, `catlist.ini`) |
 | `--ratings <fichier>` | Fichier de notes des machines MAME (`bestgames.ini`) |
@@ -132,7 +134,7 @@ DAT ; avec `--miss-list` ou `--fixdat`, une ligne compte les DAT complets et ceu
 | 0 | Succès |
 | 1 | Erreur inattendue (un rapport d'erreur est enregistré dans `crashes/` à côté des réglages, et son chemin affiché) |
 | 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT, format d'export non pris en charge, `dat --output` sur le DAT lu) |
-| 3 | Configuration invalide (fichier de réglages ou profil absent ou illisible, source, DAT ou destination introuvable, dossier de DAT refusé, dossiers qui se chevauchent) |
+| 3 | Configuration invalide (fichier de réglages ou profil absent ou illisible, source, DAT ou destination introuvable, dossier ou archive de DAT refusé, dossiers qui se chevauchent) |
 | 4 | Terminé, mais des fichiers sont en erreur (dont un tri arrêté par une destination pleine ou un journal impossible à écrire), un export a échoué (ou `dat` n'a gardé aucun jeu), des opérations n'ont pas pu être annulées ou des éléments de la quarantaine n'ont pas pu être supprimés |
 | 5 | Interrompu (Ctrl+C) |
 | 6 | Confirmation requise (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, ou `quarantine --empty` sans `--yes`) |
