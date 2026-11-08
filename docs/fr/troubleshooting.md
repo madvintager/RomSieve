@@ -16,6 +16,11 @@ Les réglages TOSEC de la page **Filtres** ne s'appliquent qu'aux noms TOSEC, et
 noms No-Intro et Redump. Vérifiez **Réglages pour :** et le badge de convention. En 1G1R, certaines options (média préféré, versions modifiées) ne servent qu'à
 départager les versions d'un même jeu.
 
+Avec un DAT, les filtres ne voient que les fichiers que le DAT identifie : un fichier absent du DAT reste non conforme,
+même avec un tag que vous excluez, quand **Filtrer aussi les fichiers absents du DAT** est décochée (voir
+[Fichiers absents du DAT](filters.md#fichiers-absents-du-dat)). C'est le cas d'une configuration enregistrée par une
+version précédente de RomSieve.
+
 ### Le 1G1R n'a pas gardé la version que je voulais
 
 L'info-bulle de la version exclue, ou le panneau **Détail de la ligne sélectionnée**, indique le critère qui a décidé

@@ -91,6 +91,31 @@ never mark, are greyed, their tooltip saying why.
 Only the wording changed since the versions that showed "Exclude translations"...: `config.json` and the profiles keep
 the same options (`exclude_translations`...), so a file is read back unchanged.
 
+### Files missing from the DAT
+
+With a DAT, the filters judge a file by its name in the DAT: they only see the files the DAT identifies. A file whose
+checksum the DAT does not know is **non-conforming**, isolated in `_unmatched/`.
+
+**Also filter files missing from the DAT**, the last box of the **Content to keep** group, checked by default, puts
+these files through the filters of this page (dump quality, content, Amiga machine), by the tags of their own name when
+it follows the convention of the DAT:
+
+* a file the filters exclude is **Excluded** and stays in the source; its reason is the one of the filter, followed by
+  "(file missing from the DAT)", for example "Demo version excluded (file missing from the DAT)";
+* a file the filters keep stays **non-conforming**, as without the box.
+
+This name is not the one of the DAT: only a tag the name carries excludes a file, and a missing tag leaves it in
+`_unmatched/`. These files belong to no game, excluded or not: they go neither through the 1G1R nor through the
+priority languages and countries, do not count in the completeness of the DAT, cannot be chosen as 1G1R winners, and an
+excluded file has no box for a [partial sort](simulation-table.md#sorting-part-of-the-simulation). A file whose SHA-1
+alone differs from the one of the DAT, a file damaged in its archive or an unreadable CHD always stays
+non-conforming: these are anomalies to look at.
+
+Uncheck the box for `_unmatched/` to keep everything the DAT does not know, for example to complete a DAT or to spot bad
+dumps. A configuration or a profile saved by an earlier version of RomSieve keeps its result: the box is unchecked
+there. Without a DAT, every file is already filtered by its name. The box is greyed with a MAME DAT or software lists,
+where a file the DAT does not know is always non-conforming.
+
 ## Multi-disc
 
 * **Complete sets only (requires the DAT)**: a game whose disks (or, for No-Intro / Redump, whose media and tracks)

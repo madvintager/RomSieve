@@ -83,7 +83,9 @@ Avec un DAT :
 
 * chaque fichier est identifié par sa **taille et son CRC32**, même s'il est mal nommé ; c'est alors son nom dans le
   DAT qui est utilisé ;
-* un fichier absent du DAT est **non conforme** et va dans `_unmatched/` ;
+* un fichier absent du DAT est **non conforme** et va dans `_unmatched/`, sauf si les filtres excluent un tag de son
+  nom (voir [Fichiers absents du DAT](filters.md#fichiers-absents-du-dat)) : il est alors exclu et reste dans la
+  source ;
 * les relations **parent / clone** du DAT aident à regrouper les versions d'un jeu pour le 1G1R ;
 * le bandeau affiche la **complétude** de votre collection, et vous pouvez [exporter les ROMs manquantes](exports.md).
 
@@ -351,7 +353,8 @@ réglages de l'autre famille. Les variables TOSEC du modèle restent actives dè
 * Les autres DAT qui le reconnaissent sont nommés au journal et dans le panneau de détail du
   [tableau de simulation](simulation-table.md) : ses ROMs y comptent comme présentes, mais il n'est écrit qu'une fois,
   avec son DAT.
-* Un fichier qu'aucun DAT ne reconnaît est **non conforme**, comme avec un DAT seul.
+* Un fichier qu'aucun DAT ne reconnaît est **non conforme**, ou exclu par un tag de son nom, comme avec un DAT seul ;
+  les filtres sont ceux de la convention de son nom.
 * Le même titre dans deux DAT fait deux jeux : le 1G1R garde une version dans chacun, un choix 1G1R manuel ne vaut que
   pour son DAT, et un jeu multi-disques n'est complet qu'avec les disques rangés avec son DAT.
 * Chaque DAT a par défaut son **dossier** dans la destination ; voir [Un dossier par DAT](destination-and-transfers.md#un-dossier-par-dat).

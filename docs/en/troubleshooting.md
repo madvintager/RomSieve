@@ -15,6 +15,11 @@ The TOSEC settings of the **Filters** page only apply to TOSEC names, and the *N
 Redump names. Check **Settings for:** and the convention badge. In 1G1R, some options (preferred media, modified releases) only decide between releases of the same
 game.
 
+With a DAT, the filters only see the files the DAT identifies: a file missing from the DAT stays non-conforming, even
+with a tag you exclude, while **Also filter files missing from the DAT** is unchecked (see
+[Files missing from the DAT](filters.md#files-missing-from-the-dat)). This is the case of a configuration saved by an
+earlier version of RomSieve.
+
 ### 1G1R did not keep the release I wanted
 
 The tooltip of the excluded release, or the **Selected Row Details** panel, tells which criterion decided (for

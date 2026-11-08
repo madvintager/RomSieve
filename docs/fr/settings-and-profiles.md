@@ -70,7 +70,10 @@ ordinateur, les versionner ou les modifier à la main. Seuls les profils du doss
 `--profile` ; un profil enregistré ailleurs peut tout de même être chargé depuis l'interface.
 
 `config.json` et les profils portent la version de leur format, `config_version`. Un fichier qui ne l'a pas (écrit à la
-main) est lu au format actuel : une option qui lui manque garde sa valeur par défaut. Un fichier écrit par une version
+main) est lu au format actuel : une option qui lui manque garde sa valeur par défaut. Un fichier d'une version
+précédente est mis au format actuel à sa lecture, sans changer le résultat d'un tri : une configuration enregistrée
+avant l'option [Filtrer aussi les fichiers absents du DAT](filters.md#fichiers-absents-du-dat) la garde décochée,
+alors qu'elle est cochée pour une nouvelle configuration. Un fichier écrit par une version
 plus récente de RomSieve est lu avec un avertissement,
 dans le journal de l'interface ou dans la sortie de la ligne de commande : les options que cette version ne connaît pas
 sont ignorées, et le `config.json` qu'elle enregistre ne les contient plus.

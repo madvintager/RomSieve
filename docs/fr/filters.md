@@ -94,6 +94,30 @@ descriptions ne marquent jamais, sont grisées, leur infobulle disant pourquoi.
 Seule la présentation a changé depuis les versions qui affichaient « Exclure les traductions »... : `config.json` et
 les profils gardent les mêmes options (`exclude_translations`...), si bien qu'un fichier est relu à l'identique.
 
+### Fichiers absents du DAT
+
+Avec un DAT, les filtres jugent un fichier d'après son nom dans le DAT : ils ne voient que les fichiers que le DAT
+identifie. Un fichier dont le DAT ne connaît pas la somme de contrôle est **non conforme**, isolé dans `_unmatched/`.
+
+**Filtrer aussi les fichiers absents du DAT**, dernière case du groupe **Contenu à garder**, cochée par défaut, fait
+passer ces fichiers par les filtres de cette page (qualité des dumps, contenu, machine Amiga), d'après les tags de leur
+propre nom quand il suit la convention du DAT :
+
+* un fichier que les filtres excluent est **Exclu** et reste dans la source ; sa raison est celle du filtre, suivie de
+  « (fichier absent du DAT) », par exemple « Version Démo exclue (fichier absent du DAT) » ;
+* un fichier que les filtres gardent reste **non conforme**, comme sans la case.
+
+Ce nom n'est pas celui du DAT : seul un tag présent exclut un fichier, et un tag manquant le laisse dans `_unmatched/`.
+Ces fichiers ne sont d'aucun jeu, exclus ou non : ils ne passent ni par le 1G1R ni par les langues et pays prioritaires,
+ne comptent pas dans la complétude du DAT, ne peuvent pas être retenus comme gagnants 1G1R, et un fichier exclu n'a pas
+de case pour le [tri partiel](simulation-table.md#trier-une-partie-de-la-simulation). Un fichier dont seul le SHA-1 diffère de celui du DAT,
+un fichier abîmé dans son archive ou un CHD illisible reste toujours non conforme : ce sont des anomalies à voir.
+
+Décochez la case pour que `_unmatched/` garde tout ce que le DAT ne connaît pas, par exemple pour compléter un DAT ou
+repérer de mauvais dumps. Une configuration ou un profil enregistré par une version précédente de RomSieve garde son
+résultat : la case y est décochée. Sans DAT, tous les fichiers sont déjà filtrés d'après leur nom. La case est grisée
+avec un DAT MAME ou des listes de logiciels, où un fichier que le DAT ne connaît pas est toujours non conforme.
+
 ## Multi-disques
 
 * **Sets complets uniquement (nécessite le DAT)** : un jeu dont tous les disques (ou, pour No-Intro / Redump, tous

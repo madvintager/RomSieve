@@ -66,7 +66,10 @@ under version control, or edit them by hand. Only the profiles of the `profiles`
 `--profile`; a profile saved elsewhere can still be loaded from the interface.
 
 `config.json` and the profiles hold the version of their format, `config_version`. A file without it (written by hand)
-is read in the current format: an option it lacks keeps its default value. A file written by a newer version of
+is read in the current format: an option it lacks keeps its default value. A file of an earlier version is brought to
+the current format when it is read, without changing the result of a sort: a configuration saved before the option
+[Also filter files missing from the DAT](filters.md#files-missing-from-the-dat) keeps it unchecked, whereas it is
+checked for a new configuration. A file written by a newer version of
 RomSieve is read with a warning, in the log of the interface or in the output of the command line:
 the options this version does not know are ignored, and the `config.json` it saves no longer contains them.
 

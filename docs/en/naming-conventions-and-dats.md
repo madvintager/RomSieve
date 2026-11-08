@@ -81,7 +81,9 @@ reads the **Logiqx XML** (`.dat`, `.xml`) and **ClrMamePro** (`.dat`) formats pu
 With a DAT:
 
 * each file is identified by its **size and CRC32**, even if it is badly named; its name in the DAT is then used;
-* a file absent from the DAT is **non-conforming** and goes to `_unmatched/`;
+* a file absent from the DAT is **non-conforming** and goes to `_unmatched/`, unless the filters exclude a tag of its
+  name (see [Files missing from the DAT](filters.md#files-missing-from-the-dat)): it is then excluded and stays in the
+  source;
 * the **parent / clone** relations of the DAT help group the releases of a game for 1G1R;
 * the banner shows the **completion** of your collection, and you can [export the missing ROMs](exports.md).
 
@@ -333,7 +335,8 @@ variables of the pattern stay active as soon as a TOSEC DAT is checked.
   CHD, by the SHA-1 of its disk). A descriptor and its tracks go together, with the DAT of their first file known.
 * The other DATs that know it are named in the log and in the detail panel of the
   [simulation table](simulation-table.md): its ROMs count as present there, but it is written once, with its DAT.
-* A file no DAT knows is **non-conforming**, as with a single DAT.
+* A file no DAT knows is **non-conforming**, or excluded by a tag of its name, as with a single DAT; the filters are
+  those of the convention of its name.
 * The same title in two DATs makes two games: 1G1R keeps a release in each, a manual 1G1R choice only applies to its
   DAT, and a multi-disk game is only complete with the disks sorted with its DAT.
 * Each DAT gets its own **folder** in the destination by default; see
