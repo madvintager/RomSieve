@@ -31,8 +31,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Install pandoc
-        run: sudo apt-get update && sudo apt-get install -y pandoc
+      - name: Install pandoc and Pillow
+        run: sudo apt-get update && sudo apt-get install -y pandoc python3-pil
 
       - name: Build the website with the HTML guide and check their links
         run: bash scripts/build-site.sh "$RUNNER_TEMP/site" 0.0.0

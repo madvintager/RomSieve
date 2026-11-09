@@ -68,8 +68,8 @@ jobs:
           ref: ${{ steps.ref.outputs.ref }}
           path: guide-source
 
-      - name: Install pandoc
-        run: sudo apt-get update && sudo apt-get install -y pandoc
+      - name: Install pandoc and Pillow
+        run: sudo apt-get update && sudo apt-get install -y pandoc python3-pil
 
       - name: Build the website and check its links
         shell: bash

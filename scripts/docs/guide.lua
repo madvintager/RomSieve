@@ -1,7 +1,8 @@
 -- Pandoc filter of scripts/build-docs.sh: turns a page of the Markdown user guide into an HTML page.
 -- Links to another page lead to its .html file (README.md files stay as they are), the first heading gives the
--- title of the browser tab, and a page given "contents-href" starts with a link to the contents of its language
--- and, given "other-href", to the same page in the other language.
+-- title of the browser tab, the first paragraph gives the description of the page (shown by search engines), and a
+-- page given "contents-href" starts with a link to the contents of its language and, given "other-href", to the same
+-- page in the other language.
 
 local function to_html(target)
   if target:match('^%a[%w+.-]*:') then
@@ -12,6 +13,22 @@ local function to_html(target)
     return path:gsub('%.md$', '.html') .. anchor
   end
   return target
+end
+
+-- The description of a page: its first paragraph, cut at a word under 160 characters
+local function description(blocks)
+  for _, block in ipairs(blocks) do
+    if block.t == 'Para' then
+      -- %s would depend on the locale, which may take a byte of a UTF-8 character for a space
+      local text = pandoc.utils.stringify(block):gsub('[ \t\r\n]+', ' ')
+      if utf8.len(text) <= 160 then
+        return text
+      end
+      local cut = text:sub(1, utf8.offset(text, 158) - 1):match('^(.*[^ ]) ')
+      return (cut or text:sub(1, utf8.offset(text, 158) - 1)) .. '…'
+    end
+  end
+  return nil
 end
 
 local function meta_text(meta, name)
@@ -36,6 +53,13 @@ function Pandoc(doc)
         doc.meta.pagetitle = title
         break
       end
+    end
+  end
+
+  if not doc.meta['description-meta'] then
+    local text = description(doc.blocks)
+    if text then
+      doc.meta['description-meta'] = pandoc.MetaString(text)
     end
   end
 
