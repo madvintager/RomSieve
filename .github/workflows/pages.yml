@@ -1,0 +1,81 @@
+name: Pages
+
+# Publishes the HTML user guide (scripts/build-docs.sh) as the website of the repository on GitHub Pages:
+# https://madvintager.github.io/RomSieve/. The release workflow calls it once a version (never a prerelease) is
+# published, so that the guide online is the one of the latest release, not of the work in progress. A manual run
+# publishes the guide of the ref given (a tag or a branch), or of the latest release when none is given.
+# Settings > Pages must use the source "GitHub Actions", and the github-pages environment must allow the v* tags.
+# The actions are pinned to a commit, with its version in a comment, as in the CI and release workflows.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Tag or branch whose guide is published
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag or branch whose guide is published (empty for the latest release)
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+# One deployment at a time, and a deployment in progress is never cancelled halfway
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the user guide
+    runs-on: ubuntu-latest
+    steps:
+      - name: Choose the version
+        id: ref
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          REF: ${{ inputs.ref }}
+        run: |
+          # gh release view without a tag gives the latest release, never a draft or a prerelease
+          if [ -z "$REF" ]; then
+            REF="$(gh release view --json tagName --jq .tagName)"
+          fi
+          echo "Guide of $REF"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
+      - name: Build the HTML guide and check its links
+        run: bash scripts/build-docs.sh dist/site
+
+      - name: Keep the site for the deployment
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        with:
+          path: dist/site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

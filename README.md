@@ -78,7 +78,8 @@ with `sha256sum -c <archive>.sha256`. The binaries are not signed, so Windows Sm
 The [user guide](docs/README.md), in [English](docs/en/index.md) and [French](docs/fr/index.md), covers every feature:
 [quick start](docs/en/quick-start.md), [naming conventions and DATs](docs/en/naming-conventions-and-dats.md),
 [1G1R](docs/en/languages-regions-1g1r.md), [safety and undo](docs/en/safety-and-undo.md) and
-[command line](docs/en/command-line.md) (all options and exit codes).
+[command line](docs/en/command-line.md) (all options and exit codes). It is also online, for the latest release:
+[madvintager.github.io/RomSieve](https://madvintager.github.io/RomSieve/).
 
 ## Building from source
 

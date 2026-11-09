@@ -1,6 +1,7 @@
 name: CI
 
-# The actions are pinned to a commit, with its version in a comment, as in the release workflow: update both together.
+# The actions are pinned to a commit, with its version in a comment, as in the release and pages workflows: update them
+# together.
 on:
   push:
     branches: [main, dev]
