@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Builds the website published on GitHub Pages (.github/workflows/pages.yml): the home page of site/ in English
-# (<output>/index.html) and French (<output>/fr/index.html), with the icon of the application, and the HTML user guide
-# in <output>/guide/. The version given is written into the home pages, whose buttons download its two archives from
-# GitHub Releases. The screenshots of the home pages are those of the guide, in WebP at the width shown
+# (<output>/index.html) and French (<output>/fr/index.html), and the HTML user guide in <output>/guide/. The version
+# given is written into the home pages, whose buttons download its two archives from GitHub Releases. The screenshots
+# of the home pages are those of the guide, in WebP at the width shown, and their icon is the one of the application
 # (scripts/docs/site-images.py, which needs Pillow). For search engines, every page of the guide gets its canonical
 # address and the same page in the other language, and sitemap.xml lists the pages; the home pages carry theirs, with
 # their social previews (site/social.jpg) and structured data. Then checks that every local link and image of the site
@@ -37,12 +37,11 @@ while IFS= read -r page; do
 done < <(find "$out/guide" -name '*.html')
 
 cp -r "$root/site/." "$out/"
-cp "$root/src/RomSieve.App/Assets/icon-128x128.png" "$out/icon.png"
 while IFS= read -r page; do
   sed -i "s/@VERSION@/$version/g" "$page"
 done < <(find "$out" -maxdepth 2 -name index.html ! -path "$out/guide/*")
 
-# Screenshots of the home page: those of the guide, lighter (WebP at the width shown)
+# Images of the home page: the screenshots of the guide, lighter (WebP at the width shown), and the icon
 python=""
 for candidate in python3 python; do
   if "$candidate" -c "import PIL.WebPImagePlugin" > /dev/null 2>&1; then
@@ -54,7 +53,7 @@ if [ -z "$python" ]; then
   echo "Pillow not found: install it (pip install pillow, or the python3-pil package)" >&2
   exit 1
 fi
-"$python" "$root/scripts/docs/site-images.py" "$out/guide/images" "$out/images"
+"$python" "$root/scripts/docs/site-images.py" "$out/guide/images" "$root/src/RomSieve.App/Assets/icon.png" "$out"
 
 # Search engines: the address of each page, and for the guide the same page in the other language
 site_url="https://madvintager.github.io/RomSieve"
