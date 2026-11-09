@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RomSieve: sort your ROM collections</title>
+  <meta name="description" content="RomSieve audits ROM collections against their DAT (TOSEC, No-Intro, Redump, MAME), keeps the best release of each game and rebuilds a clean folder tree, with a full preview first. Free, for Windows and Linux.">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="fr" href="fr/index.html">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <div class="topbar">
+        <a class="brand" href="index.html"><img src="icon.png" alt="" width="36" height="36">RomSieve</a>
+        <nav>
+          <a class="optional" href="#features">Features</a>
+          <a href="guide/en/index.html">User guide</a>
+          <a class="optional" href="https://github.com/madvintager/RomSieve">GitHub</a>
+          <a href="fr/index.html" lang="fr" hreflang="fr">Français</a>
+        </nav>
+      </div>
+
+      <div class="hero-text">
+        <h1>Your ROM collection, sorted.</h1>
+        <p class="lead">RomSieve checks your games against their DAT, keeps the best release of each one in your
+          languages, and rebuilds a clean folder tree. You see every move before a single file is touched.</p>
+        <div class="downloads" id="download">
+          <a class="button" href="https://github.com/madvintager/RomSieve/releases/download/v@VERSION@/RomSieve-@VERSION@-win-x64.zip">
+            Download for Windows<small>Windows 10 and 11, x64 · .zip</small></a>
+          <a class="button secondary" href="https://github.com/madvintager/RomSieve/releases/download/v@VERSION@/RomSieve-@VERSION@-linux-x64.tar.gz">
+            Download for Linux<small>x64 · .tar.gz</small></a>
+        </div>
+        <p class="release-info">Version @VERSION@ · free and open source (GPL v3) · nothing to install, no .NET
+          needed · <a href="https://github.com/madvintager/RomSieve/releases">all releases</a></p>
+      </div>
+
+      <picture class="screenshot">
+        <source srcset="guide/images/window_dark.png" media="(prefers-color-scheme: dark)">
+        <img src="guide/images/window.png" width="2560" height="1920"
+          alt="The RomSieve window: the simulation table lists every file with its title, languages, target folder and status">
+      </picture>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap">
+        <h2>Every preservation standard</h2>
+        <p class="section-lead">RomSieve reads the DATs of the preservation groups and understands the names of their
+          files, down to the last tag.</p>
+        <div class="cards">
+          <div class="card">
+            <span class="tag">TOSEC</span>
+            <h3>Vintage computers</h3>
+            <p>Amiga, Atari ST, Amstrad CPC, C64, ZX Spectrum… The whole naming convention is read: publisher, year,
+              countries, languages, disks and dump flags.</p>
+          </div>
+          <div class="card">
+            <span class="tag">No-Intro</span>
+            <h3>Cartridge consoles</h3>
+            <p>NES, SNES, Mega Drive, Game Boy, GBA, N64… Regions, revisions, betas and demos, parent and clone
+              releases.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Redump</span>
+            <h3>Optical media</h3>
+            <p>PlayStation, Saturn, Dreamcast, Amiga CD32… <code>.cue</code>, <code>.gdi</code> and
+              <code>.ccd</code> sets stay with their tracks, CHD files included.</p>
+          </div>
+          <div class="card">
+            <span class="tag">MAME</span>
+            <h3>Arcade and software lists</h3>
+            <p>Non-merged or merged sets, one archive per machine with the BIOS and devices it needs, and the software
+              of MAME software lists.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="features">
+      <div class="wrap">
+        <div class="feature">
+          <div class="feature-text">
+            <h2>See everything before anything moves</h2>
+            <p>A simulation fills a table with every file: kept, excluded, duplicate or non-conforming, why, and where it
+              will go.</p>
+            <ul>
+              <li>Search, filter by status, group the releases of each game.</li>
+              <li>Right-click a game to keep another release.</li>
+              <li>Uncheck games to sort only a part of the collection.</li>
+            </ul>
+          </div>
+          <picture class="screenshot">
+            <source srcset="guide/images/simulation_preview_dark.png" media="(prefers-color-scheme: dark)">
+            <img src="guide/images/simulation_preview.png" width="2204" height="1700" loading="lazy"
+              alt="The simulation table with the status of each file">
+          </picture>
+        </div>
+
+        <div class="feature flip">
+          <div class="feature-text">
+            <h2>One game, one ROM, your way</h2>
+            <p>Among all the releases of a game, RomSieve keeps the best one for you: your languages and countries
+              first, then the video standard, dump quality, complete disk sets, version and revision.</p>
+            <ul>
+              <li>Reorder the criteria as you like.</li>
+              <li>France, Europe, USA and Japan presets in one click.</li>
+              <li>The same collection always gives the same result.</li>
+            </ul>
+          </div>
+          <picture class="screenshot">
+            <source srcset="guide/images/1g1r_settings_dark.png" media="(prefers-color-scheme: dark)">
+            <img src="guide/images/1g1r_settings.png" width="2536" height="1764" loading="lazy"
+              alt="The languages, regions and 1G1R settings">
+          </picture>
+        </div>
+
+        <div class="feature">
+          <div class="feature-text">
+            <h2>Folders the way you want them</h2>
+            <p>Copy, move, create hard or symbolic links, or write one TorrentZip archive per game, into folders
+              such as <code>{publisher}/{title}/</code> or <code>{country}/{title}/</code>, with a live preview of
+              the pattern.</p>
+            <ul>
+              <li>Multi-disk sets completed from other dumps, with <code>.m3u</code> playlists.</li>
+              <li>A whole DAT pack in one pass, each DAT in its own folder.</li>
+            </ul>
+          </div>
+          <picture class="screenshot">
+            <source srcset="guide/images/output_settings_dark.png" media="(prefers-color-scheme: dark)">
+            <img src="guide/images/output_settings.png" width="2536" height="1304" loading="lazy"
+              alt="The output settings: transfer mode and folder pattern with its preview">
+          </picture>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Safe by design</h2>
+        <p class="section-lead">Your files are never deleted behind your back, and the last sort can always be taken back.</p>
+        <ul class="checklist">
+          <li>Every real sort is logged, and the last one can be undone.</li>
+          <li>Purging a destination deletes nothing: its content is set aside in <code>_purged/</code>.</li>
+          <li>A cancelled transfer leaves no partial file behind.</li>
+          <li>Files that match nothing go to <code>_unmatched/</code>, never lost.</li>
+          <li>A destination that overlaps the source is refused, even through a link.</li>
+          <li>Nothing is ever written outside the destination.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap">
+        <h2>And also</h2>
+        <ul class="checklist">
+          <li>Files identified by size and CRC32 (SHA-1 optional), even badly named ones.</li>
+          <li>ZIP, 7z and RAR archives read without extraction.</li>
+          <li>DATs read straight from their ZIP, 7z or RAR archive.</li>
+          <li>Miss lists, fixdats, JSON and CSV reports.</li>
+          <li>Configuration profiles and a CRC cache.</li>
+          <li>Light and dark themes; English, French and Spanish.</li>
+        </ul>
+        <div class="terminal" aria-label="Command line example">
+          <div><span class="prompt">$ </span>romsieve-cli run --profile "Amiga 1G1R"</div>
+          <div><span class="prompt">$ </span>romsieve-cli run --dat ~/dats/No-Intro --dat-recursive --execute</div>
+          <div><span class="prompt">$ </span>romsieve-cli undo --yes</div>
+        </div>
+        <p>The command line, <code>romsieve-cli</code>, runs the same sort with the same safeguards, for scripts and
+          servers. It only simulates unless <code>--execute</code> is given.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Get started</h2>
+        <p class="section-lead">Download the archive for your system, extract it anywhere and run
+          <code>RomSieve</code>. The user guide walks you through your first sort.</p>
+        <div class="guide-links">
+          <a href="guide/en/quick-start.html">Quick start</a>
+          <a href="guide/en/installation.html">Installation</a>
+          <a href="guide/en/command-line.html">Command line</a>
+          <a href="guide/en/index.html">The whole guide</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span class="brand"><img src="icon.png" alt="" width="36" height="36">RomSieve @VERSION@</span>
+      <nav>
+        <a href="https://github.com/madvintager/RomSieve">Source code</a>
+        <a href="https://github.com/madvintager/RomSieve/issues">Report a problem</a>
+        <a href="https://github.com/madvintager/RomSieve/blob/main/LICENSE">License (GPL v3)</a>
+        <a href="fr/index.html" lang="fr" hreflang="fr">Français</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

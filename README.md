@@ -67,7 +67,8 @@ romsieve-cli undo --yes
 
 ## Download
 
-Download the latest version from the [releases page](https://github.com/madvintager/RomSieve/releases/latest). Each
+Download the latest version from the [website](https://madvintager.github.io/RomSieve/) or the
+[releases page](https://github.com/madvintager/RomSieve/releases/latest). Each
 release ships a self-contained archive for Windows x64 (`.zip`) and Linux x64 (`.tar.gz`). It contains the
 interface (`RomSieve`), the command line (`romsieve-cli`), the user guide in HTML (`docs/index.html`) and the licenses
 of the components they embed (`THIRD-PARTY-NOTICES.txt`), and needs no .NET installation. You can check a download
@@ -78,8 +79,8 @@ with `sha256sum -c <archive>.sha256`. The binaries are not signed, so Windows Sm
 The [user guide](docs/README.md), in [English](docs/en/index.md) and [French](docs/fr/index.md), covers every feature:
 [quick start](docs/en/quick-start.md), [naming conventions and DATs](docs/en/naming-conventions-and-dats.md),
 [1G1R](docs/en/languages-regions-1g1r.md), [safety and undo](docs/en/safety-and-undo.md) and
-[command line](docs/en/command-line.md) (all options and exit codes). It is also online, for the latest release:
-[madvintager.github.io/RomSieve](https://madvintager.github.io/RomSieve/).
+[command line](docs/en/command-line.md) (all options and exit codes). The guide of the latest release is also
+[online](https://madvintager.github.io/RomSieve/guide/index.html).
 
 ## Building from source
 

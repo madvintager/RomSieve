@@ -53,39 +53,6 @@ for lang in en fr; do
   done
 done
 
-# Every local link and image must exist, and every anchor must be an id of its page. A target outside the guide
-# (the README of the archive) is not checked.
-errors=0
-while IFS= read -r html; do
-  dir="$(dirname "$html")"
-  while IFS= read -r ref; do
-    case "$ref" in
-      http:* | https:* | mailto:*) continue ;;
-    esac
-    path="${ref%%#*}"
-    anchor=""
-    [[ "$ref" == *"#"* ]] && anchor="${ref#*#}"
-    if [ -z "$path" ]; then
-      file="$html"
-    else
-      file="$(cd "$dir" && realpath -m "$path")"
-      case "$file" in
-        "$out"/*) ;;
-        *) continue ;;
-      esac
-    fi
-    if [ ! -e "$file" ]; then
-      echo "${html#"$out"/}: missing target $ref" >&2
-      errors=$((errors + 1))
-    elif [ -n "$anchor" ] && ! grep -q "id=\"$anchor\"" "$file"; then
-      echo "${html#"$out"/}: missing anchor $ref" >&2
-      errors=$((errors + 1))
-    fi
-  done < <(grep -oE '(href|src)="[^"]*"' "$html" | sed -E 's/^(href|src)="(.*)"$/\2/' | grep -v '^guide\.css$\|^\.\./guide\.css$')
-done < <(find "$out" -name '*.html')
-
-if [ "$errors" -gt 0 ]; then
-  echo "$errors broken link(s) in the user guide" >&2
-  exit 1
-fi
+# Every local link, image and anchor of the pages must exist
+bash "$root/scripts/docs/check-links.sh" "$out"
 echo "$out"

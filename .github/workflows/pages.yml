@@ -1,16 +1,19 @@
 name: Pages
 
-# Publishes the HTML user guide (scripts/build-docs.sh) as the website of the repository on GitHub Pages:
-# https://madvintager.github.io/RomSieve/. The release workflow calls it once a version (never a prerelease) is
-# published, so that the guide online is the one of the latest release, not of the work in progress. A manual run
-# publishes the guide of the ref given (a tag or a branch), or of the latest release when none is given.
+# Publishes the website of the repository on GitHub Pages, https://madvintager.github.io/RomSieve/: the home page of
+# site/ with the download buttons of a release, and the HTML user guide in guide/ (scripts/build-site.sh). The release
+# workflow calls it once a version (never a prerelease) is published, so that the site shows the latest release, not
+# the work in progress. A manual run publishes the guide of the ref given (a tag or a branch), or of the latest release
+# when none is given. The home page and the scripts always come from the commit of this workflow, so that the guide of
+# a version tagged before the site existed can still be published; the downloads are those of the tag given, or of the
+# latest release for a branch.
 # Settings > Pages must use the source "GitHub Actions", and the github-pages environment must allow the v* tags.
 # The actions are pinned to a commit, with its version in a comment, as in the CI and release workflows.
 on:
   workflow_call:
     inputs:
       ref:
-        description: Tag or branch whose guide is published
+        description: Tag or branch whose guide and downloads are published
         type: string
         required: true
   workflow_dispatch:
@@ -31,7 +34,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build the user guide
+    name: Build the website
     runs-on: ubuntu-latest
     steps:
       - name: Choose the version
@@ -43,22 +46,36 @@ jobs:
           REF: ${{ inputs.ref }}
         run: |
           # gh release view without a tag gives the latest release, never a draft or a prerelease
+          latest="$(gh release view --json tagName --jq .tagName)"
           if [ -z "$REF" ]; then
-            REF="$(gh release view --json tagName --jq .tagName)"
+            REF="$latest"
           fi
-          echo "Guide of $REF"
+          if [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            version="${REF#v}"
+          else
+            version="${latest#v}"
+          fi
+          echo "Guide of $REF, downloads of $version"
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout
+      - name: Checkout the home page
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Checkout the guide
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ steps.ref.outputs.ref }}
+          path: guide-source
 
       - name: Install pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
 
-      - name: Build the HTML guide and check its links
-        run: bash scripts/build-docs.sh dist/site
+      - name: Build the website and check its links
+        shell: bash
+        run: |
+          bash guide-source/scripts/build-docs.sh "$RUNNER_TEMP/guide"
+          DOCS_HTML_DIR="$RUNNER_TEMP/guide" bash scripts/build-site.sh dist/site "${{ steps.ref.outputs.version }}"
 
       - name: Keep the site for the deployment
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0

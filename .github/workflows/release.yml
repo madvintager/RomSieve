@@ -4,7 +4,8 @@ name: Release
 # pushed on the default branch. The GitHub release goes through the gh command line, preinstalled on the runners.
 # The notes are those of Notes-<version>.md at the root when it exists (Notes-1.2.0.md for v1.2.0), otherwise the list
 # of the commits since the previous tag. The HTML user guide is built once, with the pandoc of Ubuntu, and shipped in
-# both archives. Once a version (not a prerelease) is published, the pages workflow puts its guide online.
+# both archives. Once a version (not a prerelease) is published, the pages workflow puts the website online, with its
+# download buttons and its guide.
 # A manual run builds the archives as workflow artifacts without publishing anything.
 # The actions are pinned to a commit, with its version in a comment: a tag moved in their repository cannot change
 # what runs with the right to write to this one. Update them all together, with the same commits as the CI.

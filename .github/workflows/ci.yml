@@ -22,9 +22,10 @@ env:
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 jobs:
-  # The release archives ship the guide in HTML: a broken link or anchor of docs/ fails here, not at the release
+  # The release archives ship the guide in HTML, and the website shows it: a broken link or anchor of docs/ or site/
+  # fails here, not at the release
   docs:
-    name: User guide
+    name: User guide and website
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,8 +34,8 @@ jobs:
       - name: Install pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
 
-      - name: Build the HTML guide and check its links
-        run: bash scripts/build-docs.sh "$RUNNER_TEMP/docs"
+      - name: Build the website with the HTML guide and check their links
+        run: bash scripts/build-site.sh "$RUNNER_TEMP/site" 0.0.0
 
   build-test:
     name: Build and test (${{ matrix.os }})
