@@ -175,7 +175,7 @@ Sans DAT, les patchs ne sont pas lus : le journal le dit.
 
 La plupart des IPS téléchargés n'ont de CRC32 ni dans leur nom ni dans leur readme. Plutôt que de le chercher et de
 renommer le fichier à la main, ouvrez la fenêtre **Patchs** : après une simulation, cliquez sur « *n* patchs non
-appliqués » dans le bandeau des résultats (ou sur « *n* patchs à nommer » ou « Voir les patchs », quand aucun patch n'est
+appliqués » dans le bandeau des résultats (ou sur « *n* patchs à nommer (facultatif) » ou « Voir les patchs », quand aucun patch n'est
 resté non appliqué).
 
 ![La fenêtre Patchs](../images/fr/patches_window.png)

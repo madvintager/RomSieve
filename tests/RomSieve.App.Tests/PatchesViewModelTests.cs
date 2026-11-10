@@ -532,7 +532,7 @@ public sealed class PatchesViewModelTests : IDisposable
         window.Refresh();
         window.NoteMatchedCount.Should().Be(1);
         window.IsNamingLinkVisible.Should().BeTrue("no patch is left out");
-        window.NamingLinkText.Should().Be("1 patch à nommer");
+        window.NamingLinkText.Should().Be("1 patch à nommer (facultatif)");
         window.OpenCommand.CanExecute(null).Should().BeTrue();
 
         _dialogs.OnShowPatches = shown =>

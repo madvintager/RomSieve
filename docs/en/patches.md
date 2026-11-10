@@ -171,7 +171,7 @@ Without a DAT, the patches are not read: the log says so.
 
 Most downloaded IPS have a CRC32 neither in their name nor in their readme. Rather than looking it up and renaming the
 file by hand, open the **Patches** window: after a simulation, click "*n* patches not applied" in the banner of the
-results (or "*n* patches to name" or "View the patches", when no patch was left out).
+results (or "*n* patches to name (optional)" or "View the patches", when no patch was left out).
 
 ![The Patches window](../images/patches_window.png)
 
