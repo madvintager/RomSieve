@@ -92,6 +92,10 @@ public sealed class ReleaseSelector
     {
         var filters = _config.Filters;
 
+        // The label of each disc ("(Disc 1) (GDI Disc)") is left out of the release key before anything groups the
+        // disks of a set into releases
+        DiscLabelResolver.Apply(items, datCatalog);
+
         // Forced releases are promoted before the multi-disk evaluation so that their disks count
         // in the completeness of their set, then again because that evaluation may exclude them
         // as an incomplete set.

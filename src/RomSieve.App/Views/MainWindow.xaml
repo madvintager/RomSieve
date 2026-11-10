@@ -2069,10 +2069,12 @@
                             IsChecked="{Binding Filters.CompleteSetsOnly, Mode=TwoWay}">
                     <TextBlock TextWrapping="Wrap" Text="{Binding I18n[filters.chk_complete_sets_only]}" />
                   </CheckBox>
+                  <!-- One option of TOSEC and No-Intro / Redump: shown with both, greyed with the software lists -->
                   <CheckBox x:Name="ChkSmartMultidisk"
                             FontSize="11"
                             ToolTip.Tip="{Binding I18n[tab2.tooltip_smart_multidisk]}"
-                            IsVisible="{Binding Filters.IsTosecShown}"
+                            ToolTip.ShowOnDisabled="True"
+                            IsEnabled="{Binding Filters.IsSmartMultidiskApplicable}"
                             IsChecked="{Binding TosecFilters.SmartMultidiskGrouping, Mode=TwoWay}">
                     <TextBlock TextWrapping="Wrap" Text="{Binding I18n[tab2.chk_smart_multidisk]}" />
                   </CheckBox>

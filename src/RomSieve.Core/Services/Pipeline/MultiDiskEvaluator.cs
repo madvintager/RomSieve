@@ -28,6 +28,146 @@ public sealed partial class MultiDiskEvaluator
     [GeneratedRegex(@"\b(\d+)\b", RegexOptions.CultureInvariant)]
     internal static partial Regex SingleNumberRegex();
 
+    // Mastering codes of a Redump disc, "(1M)", "(2M, 3M)", "(2MB3)": they tell the pressings of one disc apart, not the
+    // editions of a game
+    [GeneratedRegex(@"^\(\d+M(?:B\d+)?(?:,\s*\d+M(?:B\d+)?)*\)$", RegexOptions.CultureInvariant)]
+    private static partial Regex MasteringCodeRegex();
+
+    private static bool IsNoIntroDisc(ProcessItem item) =>
+        item.Parsed.Convention is NamingConvention.NoIntro or NamingConvention.Redump &&
+        !item.Parsed.TrackNumber.HasValue &&
+        ExtractDiskPartInfo(item.Parsed).PartNum is > 0;
+
+    /// <summary>
+    /// The release key of a No-Intro / Redump disc without its mastering codes: the dumps of one edition share it, so
+    /// that a set can borrow from another pressing the disc it lacks (<c>Phantasm (Japan) (Disc 6) (4M)</c> for the set
+    /// whose other disks have no code). The marks of an edition (<c>(Premium Box)</c>), the region, the revision or a
+    /// development status keep their dumps apart.
+    /// </summary>
+    private string DumpKeyOf(ParsedRomName parsed)
+    {
+        var marks = _filterService.GetCleanedMoreInfo(parsed).Where(info => !MasteringCodeRegex().IsMatch(info)).ToList();
+        return _filterService.SerializeCanonicalGameKey(parsed) + "\u001E" +
+               _filterService.GetReleaseKey(parsed with { MoreInfo = marks, DiscLabel = null });
+    }
+
+    /// <summary>
+    /// The disks that complete a No-Intro / Redump release from the other dumps of its edition (same
+    /// <see cref="DumpKeyOf"/>). Only the releases that hold the most disks of their edition borrow, the expected number of
+    /// disks is the highest disc number of the edition, and a release only borrows when that makes it complete. Among
+    /// several dumps of the missing disc, the one that shares the most tags with the release wins, then the one with the
+    /// fewest tags, then the first name: the same collection always gives the same set.
+    /// </summary>
+    private static List<(TRelease Release, int Total, List<ProcessItem> Borrowed)> FindDumpsToBorrow<TRelease>(
+        IReadOnlyList<(TRelease Release, IReadOnlyCollection<ProcessItem> Items)> releases,
+        IReadOnlyCollection<ProcessItem> dumps)
+        where TRelease : notnull
+    {
+        var result = new List<(TRelease, int, List<ProcessItem>)>();
+        static int PartOf(ProcessItem item) => ExtractDiskPartInfo(item.Parsed).PartNum ?? 0;
+
+        var total = dumps.Concat(releases.SelectMany(r => r.Items))
+            .Select(it => Math.Max(PartOf(it), ExtractDiskPartInfo(it.Parsed).PartTotal ?? 0))
+            .DefaultIfEmpty(0)
+            .Max();
+        if (total < 2)
+        {
+            return result;
+        }
+
+        var partsOf = releases.ToDictionary(r => r.Release, r => r.Items.Select(PartOf).Where(p => p > 0).ToHashSet());
+        var most = partsOf.Values.Max(parts => parts.Count);
+        foreach (var (release, items) in releases)
+        {
+            var parts = partsOf[release];
+            if (parts.Count != most || parts.Count >= total)
+            {
+                continue;
+            }
+
+            var tags = items.SelectMany(it => it.Parsed.MoreInfo).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var borrowed = new List<ProcessItem>();
+            for (var part = 1; part <= total; part++)
+            {
+                if (parts.Contains(part))
+                {
+                    continue;
+                }
+
+                var donor = dumps
+                    .Where(it => PartOf(it) == part && !items.Contains(it))
+                    .OrderByDescending(it => it.Parsed.MoreInfo.Count(tags.Contains))
+                    .ThenBy(it => it.Parsed.MoreInfo.Count)
+                    .ThenBy(it => it.Parsed.RawFilename, StringComparer.Ordinal)
+                    .FirstOrDefault();
+                if (donor is null)
+                {
+                    borrowed.Clear();
+                    break;
+                }
+                borrowed.Add(donor);
+            }
+
+            if (borrowed.Count > 0)
+            {
+                result.Add((release, total, borrowed));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Smart multi-disk grouping of No-Intro / Redump releases (<see cref="FindDumpsToBorrow"/>), before the selection:
+    /// updates the parts and the expected total of each release that borrows, and records its borrowed disks.
+    /// </summary>
+    private void BorrowNoIntroDumps(
+        IList<ProcessItem> itemsToProcess,
+        IReadOnlyDictionary<ProcessItem, string> itemRelKey,
+        Dictionary<string, HashSet<int>> relCounts,
+        Dictionary<string, int> relTotals,
+        Dictionary<string, IReadOnlyList<ProcessItem>> borrowedByRelease,
+        HashSet<ProcessItem> borrowedDisks)
+    {
+        var dumpsByKey = itemsToProcess
+            .Where(it => it.Status == FileStatus.Valid && IsNoIntroDisc(it))
+            .GroupBy(it => DumpKeyOf(it.Parsed), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => (IReadOnlyCollection<ProcessItem>)g.ToList(), StringComparer.Ordinal);
+
+        var releasesByKey = itemRelKey
+            .Where(pair => IsNoIntroDisc(pair.Key))
+            .GroupBy(pair => pair.Value, StringComparer.Ordinal)
+            .Select(g => (Release: g.Key, Items: (IReadOnlyCollection<ProcessItem>)g.Select(pair => pair.Key).ToList()))
+            .GroupBy(r => DumpKeyOf(r.Items.First().Parsed), StringComparer.Ordinal);
+
+        foreach (var group in releasesByKey)
+        {
+            if (!dumpsByKey.TryGetValue(group.Key, out var dumps))
+            {
+                continue;
+            }
+
+            foreach (var (rkey, total, borrowed) in FindDumpsToBorrow(group.ToList(), dumps))
+            {
+                foreach (var disk in borrowed)
+                {
+                    relCounts[rkey].Add(ExtractDiskPartInfo(disk.Parsed).PartNum ?? 0);
+                    borrowedDisks.Add(disk);
+                }
+                relTotals[rkey] = total;
+                borrowedByRelease[rkey] = borrowed;
+
+                // Each disk of the set says it is one of the whole set ("6 of 8"), its borrowed disks too
+                foreach (var disk in itemRelKey.Where(pair => pair.Value == rkey).Select(pair => pair.Key).Concat(borrowed))
+                {
+                    if (disk.Parsed.DiscTotal is { } discTotal && discTotal < total)
+                    {
+                        disk.Parsed = disk.Parsed with { DiscTotal = total };
+                    }
+                }
+            }
+        }
+    }
+
     public static (int? PartNum, int? PartTotal) ExtractDiskPartInfo(ParsedRomName parsed, string defaultLabel = "")
     {
         var label = !string.IsNullOrEmpty(parsed.MediaLabel)
@@ -263,6 +403,8 @@ public sealed partial class MultiDiskEvaluator
                     }
                 }
             }
+
+            BorrowNoIntroDumps(itemsToProcess, itemRelKey, relCounts, relTotals, borrowedByRelease, cleanDisksParticipatingInCompleteSets);
         }
 
         foreach (var item in itemsToProcess)
@@ -442,6 +584,39 @@ public sealed partial class MultiDiskEvaluator
             }
         }
 
+        if (smartMultiCfg)
+        {
+            GroupBorrowedNoIntroDumps(releaseGroups);
+        }
+
         return releaseGroups.Values.Select(group => (IReadOnlyList<ProcessItem>)group).ToList();
+    }
+
+    /// <summary>
+    /// The playlist of a No-Intro / Redump set lists the disc it borrowed from another pressing of its edition placed in
+    /// the same folder (<see cref="FindDumpsToBorrow"/>), and that disc has no playlist of its own.
+    /// </summary>
+    private void GroupBorrowedNoIntroDumps(Dictionary<(string GameKey, string RelKey, string TargetParent), List<ProcessItem>> releaseGroups)
+    {
+        var borrowedDisks = new HashSet<ProcessItem>(ReferenceEqualityComparer.Instance);
+        var editions = releaseGroups
+            .Where(pair => pair.Value.All(IsNoIntroDisc))
+            .GroupBy(pair => (pair.Key.GameKey, DumpKey: DumpKeyOf(pair.Value[0].Parsed), pair.Key.TargetParent));
+
+        foreach (var edition in editions)
+        {
+            var releases = edition.Select(pair => (Release: pair.Key, Items: (IReadOnlyCollection<ProcessItem>)pair.Value)).ToList();
+            var dumps = edition.SelectMany(pair => pair.Value).ToList();
+            foreach (var (release, _, borrowed) in FindDumpsToBorrow(releases, dumps))
+            {
+                releaseGroups[release].AddRange(borrowed);
+                borrowedDisks.UnionWith(borrowed);
+            }
+        }
+
+        foreach (var key in releaseGroups.Where(pair => pair.Value.All(borrowedDisks.Contains)).Select(pair => pair.Key).ToList())
+        {
+            releaseGroups.Remove(key);
+        }
     }
 }

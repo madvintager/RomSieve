@@ -124,9 +124,21 @@ avec un DAT MAME ou des listes de logiciels, où un fichier que le DAT ne conna�
   les supports et pistes) ne sont pas présents est exclu. Avec la convention MAME, ce groupe laisse place à l'option
   **Sets complets uniquement (ROM et CHD présents)** du cadre [Machines MAME](#machines-mame). Pour les logiciels
   d'une liste MAME, cette option exclut un logiciel dont l'archive n'a pas toutes ses ROMs.
-* **Tolérer les différences de tags entre disquettes (trainers/fixes)** *(TOSEC)* : un set est souvent incomplet parce
-  que le disque 1 porte un trainer `[t]` ou un correctif `[f]` que les disques de données n'ont pas. Avec cette option,
-  RomSieve complète le set avec les disques de données propres du même jeu.
+* **Compléter un set avec les disques d'un autre dump** : un set incomplet emprunte le disque qui lui manque à un autre
+  dump de la même édition. *(TOSEC)* Un set est souvent incomplet parce que le disque 1 porte un trainer `[t]` ou un
+  correctif `[f]` que les disques de données n'ont pas : RomSieve le complète avec les disques de données propres du
+  même jeu. *(No-Intro / Redump)* Un disque dumpé en plusieurs pressages, distingués par leurs codes de mastering
+  (`Phantasm (Japan) (Disc 6) (4M)` et `(Disc 6) (5M)`), complète le set dont les autres disques n'en ont pas. Seul
+  le set qui a le plus de disques emprunte, toujours le même dump (celui qui partage le plus de tags avec le set, puis
+  celui qui en a le moins, puis le premier nom), et jamais un disque d'une autre édition (`(Premium Box)`). L'option
+  est sans effet sur les sets MAME et les listes de logiciels.
+
+*(No-Intro / Redump)* Un disque porte souvent son étiquette après son numéro : `Command & Conquer (USA) (Disc 1) (GDI Disc)`
+et `(Disc 2) (NOD Disc)`, `(Disc 1) (Allies)` et `(Disc 2) (Soviet)`. Ces disques forment un seul set, dont la playlist
+est nommée sans l'étiquette du premier disque (`Command & Conquer (USA).m3u`). Un tag que portent tous les disques
+d'une édition, comme `(Disc 1) (Premium Box)` et `(Disc 2) (Premium Box)`, sépare toujours cette édition, de même
+qu'un tag qui distingue un disque d'un autre dump du même disque (`(Disc 1) (EDC)` à côté de `(Disc 1)`). RomSieve
+compare les disques du DAT, quand il y en a un : le résultat ne dépend pas des disques présents dans la source.
 
 ## Machine Amiga
 
