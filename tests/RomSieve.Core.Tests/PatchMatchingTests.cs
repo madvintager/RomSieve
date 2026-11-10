@@ -120,7 +120,7 @@ public sealed class PatchMatchingTests : IDisposable
         patched.Patch.Format.Should().Be(PatchFormat.Bps);
         patched.Patch.SourceOffset.Should().Be(0);
         japan.PatchedVersions.Should().ContainSingle().Which.Should().BeSameAs(patched);
-        patched.TargetFilename.Should().Be("Game (Japan) (T-En).sfc");
+        patched.TargetFilename.Should().Be("Game (Japan) [T-En].sfc");
         patched.FileSize.Should().Be(Translated.Length);
         patched.Crc32.Should().Be(Crc(Translated).ToString("x8"));
         patched.Parsed.Should().BeSameAs(japan.Parsed, "the patched version belongs to the game of its origin");
@@ -143,7 +143,7 @@ public sealed class PatchMatchingTests : IDisposable
         var japan = Named(result, "Game (Japan).sfc");
         var patched = PatchedVersion(result);
         Path.GetDirectoryName(patched.FinalTargetPath).Should().Be(Path.GetDirectoryName(japan.TargetPath));
-        Path.GetFileName(patched.FinalTargetPath).Should().Be("Game (Japan) (T-En).sfc");
+        Path.GetFileName(patched.FinalTargetPath).Should().Be("Game (Japan) [T-En].sfc");
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class PatchMatchingTests : IDisposable
 
         var patched = PatchedVersion(result);
         patched.Patch!.Origin.DisplayName.Should().Be("Game (Japan).sfc");
-        patched.TargetFilename.Should().Be("Game (Japan) (T-En).sfc", "the CRC32 is removed from the name with its brackets");
+        patched.TargetFilename.Should().Be("Game (Japan) [T-En].sfc", "the CRC32 is removed from the name with its brackets");
         patched.FileSize.Should().Be(Translated.Length);
         patched.Crc32.Should().BeEmpty("an IPS records no checksum");
     }
@@ -238,8 +238,8 @@ public sealed class PatchMatchingTests : IDisposable
         var items = result.Items.ToList();
         var japan = Named(result, "Game (Japan).sfc");
         var index = items.IndexOf(japan);
-        items[index - 2].TargetFilename.Should().Be("Game (Japan) (T-En).sfc");
-        items[index - 1].TargetFilename.Should().Be("Game (Japan) (T-Fr).sfc");
+        items[index - 2].TargetFilename.Should().Be("Game (Japan) [T-En].sfc");
+        items[index - 1].TargetFilename.Should().Be("Game (Japan) [T-Fr].sfc");
         japan.PatchedVersions.Should().HaveCount(2);
     }
 
@@ -438,7 +438,7 @@ public sealed class PatchMatchingTests : IDisposable
 
         result.Items.Should().NotContain(it => it.Patch == null && it.SourcePath.StartsWith(inside, StringComparison.OrdinalIgnoreCase),
             "no file of the patch folder is a file of the collection");
-        PatchedVersion(result).TargetFilename.Should().Be("Game (Japan) (T-En).sfc");
+        PatchedVersion(result).TargetFilename.Should().Be("Game (Japan) [T-En].sfc");
     }
 
     [Fact]
@@ -599,16 +599,88 @@ public sealed class PatchMatchingTests : IDisposable
     // =========================================================================
 
     [Theory]
-    [InlineData("Game (T-En) [47e70e08].ips", PatchFormat.Ips, "Game (T-En).sfc")]
-    [InlineData("Game (T-En) (0x47E70E08).ips", PatchFormat.Ips, "Game (T-En).sfc")]
-    [InlineData("[47E70E08] Game v1.1.ips32", PatchFormat.Ips32, "Game v1.1.sfc")]
-    [InlineData("Game_47e70e08.ips", PatchFormat.Ips, "Game_.sfc")]
-    [InlineData("47e70e08.ips", PatchFormat.Ips, "47e70e08.sfc")]
-    [InlineData("Game [47e70e08] [deadbeef].ips", PatchFormat.Ips, "Game [deadbeef].sfc")]
-    [InlineData("Game [47e70e08].bps", PatchFormat.Bps, "Game [47e70e08].sfc")]
-    [InlineData("sub/Game (Hack).ups", PatchFormat.Ups, "Game (Hack).sfc")]
-    public void PatchedName_ShouldFollowThePatchAndTheExtensionOfTheOrigin(string patchName, PatchFormat format, string expected)
+    // What follows the name of the origin, or its title, without its parentheses
+    [InlineData("Game (Japan) (T-En).bps", "Game (Japan) [T-En].sfc")]
+    [InlineData("Game (T-En).bps", "Game (Japan) [T-En].sfc")]
+    [InlineData("game (japan) (T-En) (v1.2).bps", "Game (Japan) [T-En v1.2].sfc")]
+    [InlineData("Game_(T-En).ups", "Game (Japan) [T-En].sfc")]
+    [InlineData("Game - English Translation.ups", "Game (Japan) [English Translation].sfc")]
+    [InlineData("Game (Japan, Korea) [T+Eng].bps", "Game (Japan) [Japan, Korea T+Eng].sfc")]
+    [InlineData("Gameplay Fix.bps", "Game (Japan) [Gameplay Fix].sfc")]
+    // A name without the title of the origin is the label whole
+    [InlineData("SMB3_eng_v1.2.ups", "Game (Japan) [SMB3_eng_v1.2].sfc")]
+    [InlineData("[T+Eng] Game.bps", "Game (Japan) [T+Eng Game].sfc")]
+    // The CRC32 of the origin is removed, whatever the format, with the brackets that held it only
+    [InlineData("Game (T-En) [47e70e08].ips", "Game (Japan) [T-En].sfc")]
+    [InlineData("Game (T-En) (0x47E70E08).ips", "Game (Japan) [T-En].sfc")]
+    [InlineData("Game [47e70e08] [deadbeef].ips", "Game (Japan) [deadbeef].sfc")]
+    [InlineData("Game (T-En) [47e70e08].bps", "Game (Japan) [T-En].sfc")]
+    // A generic label is kept without a better one; nothing left gives the default label
+    [InlineData("Game (Japan) (Hack).bps", "Game (Japan) [Hack].sfc")]
+    [InlineData("[47E70E08] Game v1.1.ips32", "Game (Japan) [v1.1].sfc")]
+    [InlineData("patch.bps", "Game (Japan) [patch].sfc")]
+    [InlineData("Game (Japan).ips", "Game (Japan) [patched].sfc")]
+    [InlineData("Game_47e70e08.ips", "Game (Japan) [patched].sfc")]
+    [InlineData("47e70e08.ips", "Game (Japan) [patched].sfc")]
+    public void PatchedName_ShouldBeTheOriginAndALabelOfThePatch(string patchName, string expected)
     {
-        PatchMatcher.PatchedName(patchName, "Game (Japan).sfc", format, 0x47e70e08).Should().Be(expected);
+        var patch = new PatchFile(Path.Combine("patches", patchName));
+
+        PatchMatcher.PatchedName(patch, "Game (Japan).sfc", 0x47e70e08, folderLabel: null, NamingConvention.NoIntro).Should().Be(expected);
+    }
+
+    [Theory]
+    // A generic or empty name of the patch gives way to its folder in its archive, its archive, then its folder
+    [InlineData("Game Translation v1.0.zip", "patch.ips", null, "Game (Japan) [Translation v1.0].sfc")]
+    [InlineData("translations.zip", "CT English/patch.ips", null, "Game (Japan) [CT English].sfc")]
+    [InlineData("translations.zip", "Game (Japan) (T-En).bps", null, "Game (Japan) [T-En].sfc")]
+    [InlineData(null, "Game (Japan).bps", "fr", "Game (Japan) [fr].sfc")]
+    [InlineData(null, "patch.bps", "Game Redux", "Game (Japan) [Redux].sfc")]
+    [InlineData(null, "Game (Japan) (Hack).bps", "Game", "Game (Japan) [Hack].sfc")]
+    [InlineData(null, "SMB3_eng.bps", "Hacks", "Game (Japan) [SMB3_eng].sfc")]
+    [InlineData("patch.zip", "patch.ips", null, "Game (Japan) [patch].sfc")]
+    public void PatchedName_ShouldTakeTheLabelOfTheArchiveOrTheFolderOfAGenericPatch(
+        string? archive, string patchName, string? folderLabel, string expected)
+    {
+        var patch = archive is null
+            ? new PatchFile(Path.Combine("patches", patchName))
+            : new PatchFile(Path.Combine("patches", archive), patchName);
+
+        PatchMatcher.PatchedName(patch, "Game (Japan).sfc", 0x47e70e08, folderLabel, NamingConvention.NoIntro).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("Alpha (1990)(Ocean)[h Hack].bps", "Alpha (1990)(Ocean)[h Hack].adf")]
+    [InlineData("Alpha (1990)(Ocean)[tr en].ips", "Alpha (1990)(Ocean)[tr en].adf")]
+    [InlineData("Alpha - Fix.bps", "Alpha (1990)(Ocean)[Fix].adf")]
+    public void PatchedName_ShouldWriteTheLabelAsAFlagOfTosec(string patchName, string expected)
+    {
+        var patch = new PatchFile(Path.Combine("patches", patchName));
+
+        PatchMatcher.PatchedName(patch, "Alpha (1990)(Ocean).adf", 0x47e70e08, folderLabel: null, NamingConvention.Tosec).Should().Be(expected);
+    }
+
+    [Fact]
+    public void PatchedName_ShouldKeepTheFolderOfTheNameOfItsOrigin()
+    {
+        var patch = new PatchFile(Path.Combine("patches", "Game (T-En).bps"));
+
+        PatchMatcher.PatchedName(patch, "sub/Game (Japan).sfc", 0x47e70e08, folderLabel: null, NamingConvention.NoIntro).Should().Be("sub/Game (Japan) [T-En].sfc");
+    }
+
+    [Fact]
+    public async Task TheFolderOfAPatch_ShouldGiveItsLabelOnlyWhenItHoldsNoOtherPatch()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.CreateSubdirectory("patches/Game Redux");
+        _temp.CreateSubdirectory("patches/SNES");
+        _temp.WriteBytes("patches/Game Redux/patch.bps", BpsLinear(Japan, Translated));
+        _temp.WriteBytes("patches/SNES/patch.ups", Ups(Usa, Translate(Usa)));
+        _temp.WriteBytes("patches/SNES/Other (USA) (T-Fr).ups", Ups(Data(9, 64), Data(10, 64)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        result.Items.Where(it => it.Patch is not null).Select(it => it.TargetFilename)
+            .Should().BeEquivalentTo("Game (Japan) [Redux].sfc", "Game (USA) [patch].sfc");
     }
 }

@@ -602,10 +602,11 @@ public sealed partial class FileTransferExecutor
             CollisionMode? collisionMode = null;
             if (item.Patch is { } patch)
             {
-                // A patched version named as its origin, which keeps its name: renamed whatever the mode, the modes being
-                // about what the destination already holds, not about losing one of the two files the sort writes
+                // A patched version named as a file the sort writes (its origin, which keeps its name, or another patched
+                // version): renamed whatever the mode, the modes being about what the destination already holds, not
+                // about losing one of two files the sort writes
                 ReserveOriginTarget(patch.Origin, claimedPaths);
-                if (_reservedTargets.TryGetValue(patch.Origin, out var origin) && IsSameTarget(origin.Set.PrimaryTarget, candidateTarget))
+                if (claimedPaths.Contains(PathOrganizerService.NormalizeCollisionKey(candidateTarget)))
                 {
                     collisionMode = CollisionMode.Rename;
                 }
@@ -782,10 +783,6 @@ public sealed partial class FileTransferExecutor
         !string.IsNullOrEmpty(relItem.TargetFilename)
             ? relItem.TargetFilename
             : Path.GetFileName(relItem.DisplayName);
-
-    /// <summary>Whether two targets are the same file for the collisions of a run (case ignored).</summary>
-    private static bool IsSameTarget(string first, string second) =>
-        string.Equals(PathOrganizerService.NormalizeCollisionKey(first), PathOrganizerService.NormalizeCollisionKey(second), StringComparison.Ordinal);
 
     /// <param name="collisionMode">Mode of a collision, when the item does not follow the one of the run.</param>
     private TargetSet ResolveItemSet(ProcessItem item, string candidateTarget, ISet<string> claimedPaths, CollisionMode? collisionMode = null)

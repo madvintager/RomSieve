@@ -60,16 +60,41 @@ que le 1G1R écarte au profit de la version américaine.
 
 ## La version patchée
 
-* **Nom** : celui du patch, avec l'extension de la ROM d'origine. `Jeu (Japan) (T-En).bps` appliqué à
-  `Jeu (Japan).sfc` donne `Jeu (Japan) (T-En).sfc`. Pour un IPS, le CRC32 est retiré du nom, avec ses crochets ou ses
-  parenthèses.
+* **Nom** : celui de la ROM d'origine, suivi d'un libellé du patch entre crochets, avec l'extension de la ROM
+  d'origine (voir [Choix du nom](#choix-du-nom)).
 * **Dossier** : celui que la ROM d'origine aurait dans la destination, même quand le 1G1R l'écarte.
 * **Jeu** : la version patchée appartient au jeu de sa ROM d'origine. Elle reste en dehors du 1G1R, des multi-disques
   et des filtres : elle n'est jamais écartée à la place de son origine, ni ne l'écarte.
 * **Conflits** : une collision avec un fichier déjà présent dans la destination suit le mode de conflit choisi (voir
-  [Conflits](destination-and-transfers.md#conflits)). Si la version patchée porte le nom de sa ROM d'origine (un patch
-  nommé comme sa ROM, comme le demandent les émulateurs qui appliquent un patch au lancement), la ROM d'origine garde
-  son nom, et la version patchée prend le suffixe `_01` quel que soit le mode : les deux sont écrites.
+  [Conflits](destination-and-transfers.md#conflits)). Si deux patchs donnent le même nom (le même patch en IPS et en
+  BPS, par exemple), la seconde version patchée prend le suffixe `_01` quel que soit le mode : les deux sont écrites.
+
+### Choix du nom
+
+Le nom part toujours de celui de la ROM d'origine, tel que le DAT le donne : la région et la révision viennent du DAT,
+jamais de l'auteur du patch, et chaque version patchée se range à côté de sa ROM d'origine. Le libellé entre crochets
+est tiré du nom du patch :
+
+| Patch | ROM d'origine | Version patchée |
+|---|---|---|
+| `Jeu (Japan) (T-En).bps` | `Jeu (Japan).sfc` | `Jeu (Japan) [T-En].sfc` |
+| `Jeu (T-En v1.2).bps` | `Jeu (Japan).sfc` | `Jeu (Japan) [T-En v1.2].sfc` |
+| `Jeu (T-En) [47E70E08].ips` | `Jeu (Japan).sfc` | `Jeu (Japan) [T-En].sfc` |
+| `SMB3_eng_v1.2.ups` | `Super Mario Bros. 3 (Japan).nes` | `Super Mario Bros. 3 (Japan) [SMB3_eng_v1.2].nes` |
+| `Alpha (1990)(Ocean)[h Hack].bps` | `Alpha (1990)(Ocean).adf` | `Alpha (1990)(Ocean)[h Hack].adf` |
+
+* Ce qui répète la ROM d'origine est retiré : son nom entier ou son titre, quand le nom du patch commence par eux, et
+  son CRC32, avec ses crochets ou ses parenthèses. Les parenthèses et crochets qui restent disparaissent.
+* Les crochets marquent un dump modifié, comme chez TOSEC (`[h]`, `[tr]`) : les parenthèses décrivent, chez No-Intro et
+  Redump, une version officielle. Pour une ROM TOSEC, le libellé suit le nom sans espace, comme un drapeau TOSEC.
+* Un nom de patch **générique** (`patch`, `patched`, `hack`, `fix`, `translation`, `rom`, `game`, `english`, `eng`,
+  `update`, ou une version seule comme `v1.1`) cède la place au nom de l'archive qui contient le patch, ou de son dossier
+  dans cette archive, puis au nom de son dossier dans le dossier des patchs, si ce dossier ne contient pas d'autre patch
+  (un dossier de plusieurs patchs les range, par système ou par genre, et ne dit rien de chacun). `Traduction CT/patch.ips`
+  donne `Chrono Trigger (Japan) [Traduction CT].sfc`. Sans meilleur libellé, le nom générique est gardé.
+* Un patch qui ne donne aucun libellé (nommé comme sa ROM d'origine, comme le demandent les émulateurs qui appliquent
+  un patch au lancement) prend le libellé `patched` : `Jeu (Japan) [patched].sfc`. La version patchée ne porte jamais le
+  nom de sa ROM d'origine.
 
 ### N'écrire que les versions patchées
 

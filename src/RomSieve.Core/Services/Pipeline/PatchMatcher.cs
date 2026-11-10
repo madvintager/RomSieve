@@ -21,9 +21,9 @@ namespace RomSieve.Core.Services;
 /// form, computed only when a patch is left without origin. The patch applies to the form it expects.</item>
 /// <item>Several files of the same CRC32: the one the sort writes, then the first by path. Several patches of a file:
 /// a patched version each.</item>
-/// <item>The patched version is named after its patch, with the extension of the origin; the CRC32 in the name of an
-/// IPS is removed with its brackets. It goes into the folder of the origin, just before it in the list (a move leaves
-/// the source after the patched version is written).</item>
+/// <item>The patched version is named after its origin, with a label of its patch in brackets
+/// (<see cref="PatchedName"/>). It goes into the folder of the origin, just before it in the list (a move leaves the
+/// source after the patched version is written).</item>
 /// </list>
 /// A patch that gives no patched version is reported (<see cref="Unapplied"/>, a line of the log each).
 /// </summary>
@@ -70,6 +70,7 @@ public sealed partial class PatchMatcher
         IProgress<SortProgress>? progress = null)
     {
         progress?.Report(new SortProgress(0, 0, 0, 0, 0.0, LocalizedMessage.Create("progress.reading_patches")));
+        CountPatchesByFolder(patches);
         var read = new List<ReadPatch>();
         foreach (var patch in patches)
         {
@@ -486,7 +487,7 @@ public sealed partial class PatchMatcher
     // The patched version
     // =========================================================================
 
-    private static ProcessItem CreatePatchedVersion(ReadPatch patch, Candidate origin)
+    private ProcessItem CreatePatchedVersion(ReadPatch patch, Candidate origin)
     {
         var item = origin.Item;
         var version = new PatchedVersion(patch.File, patch.Header, item, origin.Offset, origin.Size, origin.Crc32);
@@ -505,7 +506,7 @@ public sealed partial class PatchMatcher
                 ("origin", originName),
                 ("patch", patch.File.DisplayName),
                 ("format", patch.Header.Format.ToDisplayName())),
-            TargetFilename = PatchedName(patch.File.DisplayName, originName, patch.Header.Format, origin.Crc32),
+            TargetFilename = PatchedName(patch.File, originName, origin.Crc32, FolderLabel(patch.File), item.Parsed.Convention),
             DatName = item.DatName,
             IsMultidisk = false,
             Crc32 = patch.Header.TargetCrc32 is { } targetCrc ? FormatCrc(targetCrc) : string.Empty,
@@ -513,41 +514,159 @@ public sealed partial class PatchMatcher
         };
     }
 
+    /// <summary>Label of a patched version that no name of its patch gives one.</summary>
+    internal const string DefaultPatchLabel = "patched";
+
     /// <summary>
-    /// Name of a patched version (igir): the name of its patch without its extension, then the extension of the origin.
-    /// The CRC32 an IPS gives in its name is removed, with the brackets or parentheses that hold only it; a name left
-    /// empty keeps it.
+    /// Names that tell nothing of a patch once its origin is removed: a label made of one of them gives way to a later
+    /// source, and is kept only when none gives a better one.
     /// </summary>
-    internal static string PatchedName(string patchName, string originName, PatchFormat format, uint originCrc)
+    private static readonly HashSet<string> GenericLabels = new(StringComparer.OrdinalIgnoreCase)
     {
-        var baseName = BaseName(patchName);
-        if (format is PatchFormat.Ips or PatchFormat.Ips32)
+        "patch", "patched", "hack", "fix", "translation", "rom", "game", "english", "eng", "update"
+    };
+
+    /// <summary>A version alone, as a label: <c>1.0</c>, <c>v2</c>, <c>v1.2.3</c>.</summary>
+    [GeneratedRegex(@"^v?\d+(?:\.\d+)*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex VersionOnlyRegex();
+
+    /// <summary>Brackets, parentheses or braces left empty once a CRC32 is removed.</summary>
+    [GeneratedRegex(@"\(\s*\)|\[\s*\]|\{\s*\}", RegexOptions.CultureInvariant)]
+    private static partial Regex EmptyPairRegex();
+
+    /// <summary>Characters trimmed from both ends of a label: spaces and the separators that joined it to the title.</summary>
+    private static readonly char[] LabelTrim = [' ', '-', '_', '.', ',', '+', '~', ';', ':'];
+
+    /// <summary>Patches of each folder of the patch folder: a file, or an archive whatever its members.</summary>
+    private readonly Dictionary<string, int> _patchesByFolder = new(StringComparer.OrdinalIgnoreCase);
+
+    private void CountPatchesByFolder(IReadOnlyList<PatchFile> patches)
+    {
+        _patchesByFolder.Clear();
+        foreach (var path in patches.Select(p => p.SourcePath).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var cleaned = baseName;
-            foreach (var (_, match) in CrcTokens(baseName).Where(t => t.Crc == originCrc).Reverse())
-            {
-                var start = match.Index;
-                var end = match.Index + match.Length;
-                if (start > 0 && end < cleaned.Length && IsPair(cleaned[start - 1], cleaned[end]))
-                {
-                    start--;
-                    end++;
-                }
-
-                cleaned = cleaned[..start] + cleaned[end..];
-            }
-
-            cleaned = string.Join(' ', cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
-            if (cleaned.Length > 0)
-            {
-                baseName = cleaned;
-            }
+            var folder = Path.GetDirectoryName(path) ?? string.Empty;
+            _patchesByFolder[folder] = _patchesByFolder.GetValueOrDefault(folder) + 1;
         }
-
-        return baseName + Path.GetExtension(originName);
     }
 
-    private static bool IsPair(char open, char close) => (open, close) is ('[', ']') or ('(', ')') or ('{', '}');
+    /// <summary>
+    /// The folder of a patch as a label: the name of its folder in the patch folder, only when that folder holds no other
+    /// patch (a folder of several patches sorts them, by system or by kind, and tells nothing of each one).
+    /// <see langword="null"/> for a patch at the root of the patch folder.
+    /// </summary>
+    private string? FolderLabel(PatchFile patch)
+    {
+        var folder = Path.GetDirectoryName(patch.SourcePath);
+        if (string.IsNullOrEmpty(folder) || string.IsNullOrEmpty(_config.PatchDir) || _patchesByFolder.GetValueOrDefault(folder) != 1)
+        {
+            return null;
+        }
+
+        var relative = Path.GetRelativePath(Path.GetFullPath(_config.PatchDir), Path.GetFullPath(folder));
+        return relative == "." || relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative)
+            ? null
+            : Path.GetFileName(relative.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+    }
+
+    /// <summary>
+    /// Name of a patched version: the name of its origin, then a label of its patch in brackets, then the extension of
+    /// the origin (<c>Game (Japan) [T-En].sfc</c>), in the folder the name of the origin may hold. The label comes from
+    /// the first of these names: the patch, its folder in its archive, its archive, its folder in the patch folder
+    /// (<paramref name="folderLabel"/>). From each, the CRC32 of the origin is removed, then the name of the origin or
+    /// its title the name starts with, then the brackets and parentheses. A generic label (<see cref="GenericLabels"/>,
+    /// a version alone) gives way to the next name, and is kept when none gives a better one; without any label,
+    /// <see cref="DefaultPatchLabel"/>. The name never is that of its origin. TOSEC writes its flags without a space
+    /// before them (<c>Game (1990)(Ocean)[h Hack].adf</c>), the other conventions with one.
+    /// </summary>
+    internal static string PatchedName(PatchFile patch, string originName, uint originCrc, string? folderLabel, NamingConvention convention)
+    {
+        var originFile = Path.GetFileName(originName);
+        var originBase = Path.GetFileNameWithoutExtension(originFile);
+        var originTitle = TitleOf(originBase);
+        string? chosen = null;
+        foreach (var source in LabelSources(patch, folderLabel))
+        {
+            var label = Label(source, originBase, originTitle, originCrc);
+            if (label.Length == 0)
+            {
+                continue;
+            }
+
+            if (!IsGeneric(label))
+            {
+                chosen = label;
+                break;
+            }
+
+            // A generic label is kept only when no later name gives a better one
+            chosen ??= label;
+        }
+
+        var separator = convention == NamingConvention.Tosec ? string.Empty : " ";
+        return $"{originName[..^originFile.Length]}{originBase}{separator}[{chosen ?? DefaultPatchLabel}]{Path.GetExtension(originFile)}";
+    }
+
+    /// <summary>The names a label is looked for in, in order.</summary>
+    private static IEnumerable<string> LabelSources(PatchFile patch, string? folderLabel)
+    {
+        yield return BaseName(patch.DisplayName);
+        if (patch.ArchiveMember is { } member)
+        {
+            var segments = member.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length > 1)
+            {
+                yield return segments[^2];
+            }
+
+            yield return Path.GetFileNameWithoutExtension(patch.SourcePath);
+        }
+
+        if (!string.IsNullOrEmpty(folderLabel))
+        {
+            yield return folderLabel;
+        }
+    }
+
+    /// <summary>The title of a name: what comes before its first parenthesis or bracket.</summary>
+    private static string TitleOf(string name)
+    {
+        var end = name.IndexOfAny(['(', '[']);
+        return (end < 0 ? name : name[..end]).Trim();
+    }
+
+    /// <summary>The label a name gives, or an empty string (see <see cref="PatchedName"/>).</summary>
+    private static string Label(string name, string originBase, string originTitle, uint originCrc)
+    {
+        var text = CrcTokenRegex().Replace(name, m =>
+            uint.Parse(m.Groups[1].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture) == originCrc ? " " : m.Value);
+        text = CollapseSpaces(EmptyPairRegex().Replace(text, " "));
+        text = WithoutPrefix(text, originBase) ?? WithoutPrefix(text, originTitle) ?? text;
+        text = Tidy(text.Replace('(', ' ').Replace(')', ' ').Replace('[', ' ').Replace(']', ' ').Replace('{', ' ').Replace('}', ' '));
+        return text.Any(char.IsLetterOrDigit) ? text : string.Empty;
+    }
+
+    /// <summary>
+    /// What follows <paramref name="prefix"/> at the start of <paramref name="text"/>, case and underscores ignored, when
+    /// it ends there a word; otherwise <see langword="null"/>.
+    /// </summary>
+    private static string? WithoutPrefix(string text, string prefix)
+    {
+        if (prefix.Length == 0
+            || !text.Replace('_', ' ').StartsWith(prefix.Replace('_', ' '), StringComparison.OrdinalIgnoreCase)
+            || (text.Length > prefix.Length && char.IsLetterOrDigit(text[prefix.Length])))
+        {
+            return null;
+        }
+
+        return text[prefix.Length..];
+    }
+
+    private static string CollapseSpaces(string text) => string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private static string Tidy(string text) => CollapseSpaces(text).Trim(LabelTrim);
+
+    private static bool IsGeneric(string label) => GenericLabels.Contains(label) || VersionOnlyRegex().IsMatch(label);
 
     private static string FormatCrc(uint crc) => crc.ToString("x8", CultureInfo.InvariantCulture);
 }

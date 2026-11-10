@@ -218,12 +218,12 @@ public sealed class PatchConfigurationTests : IDisposable
         await _services.Processor.ExportDatAsync(result.Items, output, DatExportFormat.LogiqxXml, result.DatCatalog);
 
         var roms = XDocument.Load(output).Descendants("rom").ToList();
-        var patched = roms.Single(r => (string?)r.Attribute("name") == "Game (Japan) (T-En).sfc");
+        var patched = roms.Single(r => (string?)r.Attribute("name") == "Game (Japan) [T-En].sfc");
         ((string?)patched.Attribute("crc")).Should().Be(Crc(Translated).ToString("x8"));
         ((string?)patched.Attribute("size")).Should().Be(Translated.Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
         ((string?)patched.Attribute("sha1")).Should().Be(Convert.ToHexStringLower(System.Security.Cryptography.SHA1.HashData(Translated)),
             "the result of the patch, applied again after a simulation, never the patch itself");
-        ((string?)patched.Parent!.Attribute("name")).Should().Be("Game (Japan) (T-En)");
+        ((string?)patched.Parent!.Attribute("name")).Should().Be("Game (Japan) [T-En]");
         Directory.EnumerateDirectories(Path.GetTempPath(), "romsieve_patch_*").Should().BeEmpty("the temporary files are deleted");
     }
 }

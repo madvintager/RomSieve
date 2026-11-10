@@ -127,9 +127,9 @@ public sealed class PatchTransferTests : IDisposable
 
         var patched = PatchedVersion(result);
         patched.Status.Should().Be(FileStatus.Valid);
-        File.ReadAllBytes(Destination("Game (Japan) (T-En).sfc")).Should().Equal(Translated);
+        File.ReadAllBytes(Destination("Game (Japan) [T-En].sfc")).Should().Equal(Translated);
         patched.Crc32.Should().Be(Crc(Translated).ToString("x8"));
-        DestinationFiles().Should().BeEquivalentTo(["Game (Japan) (T-En).sfc", "Game (USA).sfc"], "the Japanese release itself is left out by the 1G1R");
+        DestinationFiles().Should().BeEquivalentTo(["Game (Japan) [T-En].sfc", "Game (USA).sfc"], "the Japanese release itself is left out by the 1G1R");
         File.ReadAllBytes(Path.Combine(_src, "Game (Japan).sfc")).Should().Equal(Japan, "the origin is never modified");
         File.Exists(Path.Combine(_patches, "Game (Japan) (T-En).bps")).Should().BeTrue();
         AssertNoTemporaryFile();
@@ -155,12 +155,12 @@ public sealed class PatchTransferTests : IDisposable
     {
         var dat = WriteCollection();
         var result = await SortAsync(Config(dat));
-        File.WriteAllBytes(Destination("Game (Japan) (T-En).sfc"), Ascii("Edited by the user"));
+        File.WriteAllBytes(Destination("Game (Japan) [T-En].sfc"), Ascii("Edited by the user"));
 
         var report = await _journal.UndoAsync(result.JournalPath!);
 
         report.Issues.Should().ContainSingle(i => i.Kind == UndoIssueKind.TargetModified);
-        File.ReadAllBytes(Destination("Game (Japan) (T-En).sfc")).Should().Equal(Ascii("Edited by the user"));
+        File.ReadAllBytes(Destination("Game (Japan) [T-En].sfc")).Should().Equal(Ascii("Edited by the user"));
     }
 
     [Fact]
@@ -172,11 +172,11 @@ public sealed class PatchTransferTests : IDisposable
         var result = await SortAsync(Config(dat, TransferMode.Move));
 
         result.Items.Where(it => it.Patch is not null).Should().OnlyContain(it => it.Status == FileStatus.Valid);
-        File.ReadAllBytes(Destination("Game (USA) (Hack).sfc")).Should().Equal(UsaHack);
+        File.ReadAllBytes(Destination("Game (USA) [Hack].sfc")).Should().Equal(UsaHack);
         File.ReadAllBytes(Destination("Game (USA).sfc")).Should().Equal(Usa);
         File.Exists(Path.Combine(_src, "Game (USA).sfc")).Should().BeFalse("the origin is moved, after its patched version");
         File.Exists(Path.Combine(_src, "Game (Japan).sfc")).Should().BeTrue("an origin the 1G1R leaves out stays in the source");
-        File.ReadAllBytes(Destination("Game (Japan) (T-En).sfc")).Should().Equal(Translated);
+        File.ReadAllBytes(Destination("Game (Japan) [T-En].sfc")).Should().Equal(Translated);
 
         var report = await _journal.UndoAsync(result.JournalPath!);
         report.Issues.Should().BeEmpty();
@@ -192,10 +192,10 @@ public sealed class PatchTransferTests : IDisposable
         var result = await SortAsync(Config(dat, TransferMode.Zip));
 
         PatchedVersion(result).Status.Should().Be(FileStatus.Valid);
-        using (var zip = ZipFile.OpenRead(Destination("Game (Japan) (T-En).zip")))
+        using (var zip = ZipFile.OpenRead(Destination("Game (Japan) [T-En].zip")))
         {
             var entry = zip.Entries.Should().ContainSingle().Which;
-            entry.FullName.Should().Be("Game (Japan) (T-En).sfc");
+            entry.FullName.Should().Be("Game (Japan) [T-En].sfc");
             using var stream = entry.Open();
             using var memory = new MemoryStream();
             stream.CopyTo(memory);
@@ -220,7 +220,7 @@ public sealed class PatchTransferTests : IDisposable
         var result = await SortAsync(Config(dat, mode), log);
 
         PatchedVersion(result).Status.Should().Be(FileStatus.Valid);
-        var path = Destination("Game (Japan) (T-En).sfc");
+        var path = Destination("Game (Japan) [T-En].sfc");
         File.ReadAllBytes(path).Should().Equal(Translated);
         new FileInfo(path).LinkTarget.Should().BeNull("a link cannot hold modified data");
         log.Messages.Should().ContainSingle(m => m.Message.Key == "log.patched_written_as_copies");
@@ -234,7 +234,7 @@ public sealed class PatchTransferTests : IDisposable
     [InlineData(CollisionMode.Rename)]
     [InlineData(CollisionMode.Skip)]
     [InlineData(CollisionMode.Overwrite)]
-    public async Task APatchedVersionWithTheNameOfItsOrigin_ShouldBeRenamedInEveryMode(CollisionMode collision)
+    public async Task APatchWithTheNameOfItsOrigin_ShouldGiveAPatchedVersionOfAnotherNameInEveryMode(CollisionMode collision)
     {
         // A patch named as its ROM, as for the patches an emulator applies when it starts a game
         var dat = WriteCollection();
@@ -244,9 +244,9 @@ public sealed class PatchTransferTests : IDisposable
 
         var patched = result.Items.Single(it => it.Patch is { } p && p.File.DisplayName == "Game (USA).ups");
         patched.Status.Should().Be(FileStatus.Valid, "the sort writes both files, whatever the collision mode");
-        patched.FinalTargetPath.Should().Be(Destination("Game (USA)_01.sfc"));
+        patched.FinalTargetPath.Should().Be(Destination("Game (USA) [patched].sfc"));
         File.ReadAllBytes(Destination("Game (USA).sfc")).Should().Equal(Usa, "the origin keeps its name");
-        File.ReadAllBytes(Destination("Game (USA)_01.sfc")).Should().Equal(UsaHack);
+        File.ReadAllBytes(Destination("Game (USA) [patched].sfc")).Should().Equal(UsaHack);
         AssertNoTemporaryFile();
 
         (await _journal.UndoAsync(result.JournalPath!)).Issues.Should().BeEmpty();
@@ -254,9 +254,9 @@ public sealed class PatchTransferTests : IDisposable
     }
 
     [Fact]
-    public async Task APatchedVersionWithTheNameOfAnOriginAlreadyInTheDestination_ShouldStillBeWritten()
+    public async Task APatchedVersionOfAnOriginAlreadyInTheDestination_ShouldStillBeWritten()
     {
-        // The origin is skipped as already there; its patched version is renamed, not lost with it
+        // The origin is skipped as already there; its patched version is not lost with it
         var dat = WriteCollection();
         _temp.WriteBytes("patches/Game (USA).ups", Ups(Usa, UsaHack));
         File.WriteAllBytes(Destination("Game (USA).sfc"), Usa);
@@ -264,22 +264,27 @@ public sealed class PatchTransferTests : IDisposable
         var result = await SortAsync(Config(dat, collision: CollisionMode.Skip));
 
         result.Items.Single(it => it.DisplayName == "Game (USA).sfc").IsAlreadyInDestination.Should().BeTrue();
-        File.ReadAllBytes(Destination("Game (USA)_01.sfc")).Should().Equal(UsaHack);
+        File.ReadAllBytes(Destination("Game (USA) [patched].sfc")).Should().Equal(UsaHack);
     }
 
-    [Fact]
-    public async Task TwoPatchedVersionsWithTheNameOfTheirOrigin_ShouldTakeTheNextSuffixes()
+    [Theory]
+    [InlineData(CollisionMode.Rename)]
+    [InlineData(CollisionMode.Skip)]
+    [InlineData(CollisionMode.Overwrite)]
+    public async Task TwoPatchedVersionsOfTheSameName_ShouldTakeTheNextSuffixesInEveryMode(CollisionMode collision)
     {
+        // Two patches of one origin that give the same label: the sort writes both, the modes being about the destination
         var dat = WriteCollection();
-        _temp.CreateSubdirectory("patches/fr");
-        _temp.WriteBytes("patches/Game (USA).ups", Ups(Usa, UsaHack));
-        _temp.WriteBytes("patches/fr/Game (USA).bps", BpsLinear(Usa, Translate(UsaHack)));
+        _temp.WriteBytes("patches/Game (USA) (T-En).ups", Ups(Usa, UsaHack));
+        _temp.WriteBytes("patches/Game (USA) (T-En).bps", BpsLinear(Usa, Translate(UsaHack)));
+        _temp.WriteBytes($"patches/Game (USA) (T-En) [{Crc(Usa):x8}].ips", IpsDiff(Usa, Translate(Translate(UsaHack))));
 
-        await SortAsync(Config(dat, collision: CollisionMode.Overwrite));
+        var result = await SortAsync(Config(dat, collision: collision));
 
+        result.Items.Where(it => it.Patch is not null && it.Patch.Origin.DisplayName == "Game (USA).sfc")
+            .Should().HaveCount(3).And.OnlyContain(it => it.Status == FileStatus.Valid);
         File.ReadAllBytes(Destination("Game (USA).sfc")).Should().Equal(Usa);
-        File.Exists(Destination("Game (USA)_01.sfc")).Should().BeTrue();
-        File.Exists(Destination("Game (USA)_02.sfc")).Should().BeTrue();
+        DestinationFiles().Should().Contain(["Game (USA) [T-En].sfc", "Game (USA) [T-En]_01.sfc", "Game (USA) [T-En]_02.sfc"]);
     }
 
     [Theory]
@@ -290,7 +295,7 @@ public sealed class PatchTransferTests : IDisposable
     {
         var dat = WriteCollection();
         var existing = Ascii("Already in the destination");
-        File.WriteAllBytes(Destination("Game (Japan) (T-En).sfc"), existing);
+        File.WriteAllBytes(Destination("Game (Japan) [T-En].sfc"), existing);
 
         var result = await SortAsync(Config(dat, collision: collision));
 
@@ -298,16 +303,16 @@ public sealed class PatchTransferTests : IDisposable
         switch (collision)
         {
             case CollisionMode.Rename:
-                File.ReadAllBytes(Destination("Game (Japan) (T-En).sfc")).Should().Equal(existing);
-                File.ReadAllBytes(Destination("Game (Japan) (T-En)_01.sfc")).Should().Equal(Translated);
+                File.ReadAllBytes(Destination("Game (Japan) [T-En].sfc")).Should().Equal(existing);
+                File.ReadAllBytes(Destination("Game (Japan) [T-En]_01.sfc")).Should().Equal(Translated);
                 break;
             case CollisionMode.Skip:
                 patched.Status.Should().Be(FileStatus.Duplicate);
                 patched.IsAlreadyInDestination.Should().BeTrue();
-                File.ReadAllBytes(Destination("Game (Japan) (T-En).sfc")).Should().Equal(existing);
+                File.ReadAllBytes(Destination("Game (Japan) [T-En].sfc")).Should().Equal(existing);
                 break;
             default:
-                File.ReadAllBytes(Destination("Game (Japan) (T-En).sfc")).Should().Equal(Translated);
+                File.ReadAllBytes(Destination("Game (Japan) [T-En].sfc")).Should().Equal(Translated);
                 File.ReadAllText(result.JournalPath!).Should().Contain("\"replacedExistingFile\":true");
                 break;
         }
@@ -327,7 +332,7 @@ public sealed class PatchTransferTests : IDisposable
         var act = () => SortAsync(Config(dat));
 
         await act.Should().ThrowAsync<OperationCanceledException>();
-        File.Exists(Destination("Game (Japan) (T-En).sfc")).Should().BeFalse();
+        File.Exists(Destination("Game (Japan) [T-En].sfc")).Should().BeFalse();
         AssertNoTemporaryFile();
         File.ReadAllBytes(Path.Combine(_src, "Game (Japan).sfc")).Should().Equal(Japan);
     }
@@ -343,7 +348,7 @@ public sealed class PatchTransferTests : IDisposable
 
         PatchedVersion(result).Status.Should().Be(FileStatus.Error);
         result.StopReason!.Key.Should().Be("log.sort_stopped_disk_full");
-        File.Exists(Destination("Game (Japan) (T-En).sfc")).Should().BeFalse();
+        File.Exists(Destination("Game (Japan) [T-En].sfc")).Should().BeFalse();
         AssertNoTemporaryFile();
     }
 
@@ -361,7 +366,7 @@ public sealed class PatchTransferTests : IDisposable
         patched.Status.Should().Be(FileStatus.Error);
         patched.StatusReason!.Key.Should().Be("reason.patch_failed");
         patched.StatusReason.Args["error"].Should().BeOfType<LocalizedMessage>().Which.Key.Should().Be("patch.error_target_crc");
-        File.Exists(Destination("Game (Japan) (T-En).sfc")).Should().BeFalse();
+        File.Exists(Destination("Game (Japan) [T-En].sfc")).Should().BeFalse();
         AssertNoTemporaryFile();
     }
 
@@ -377,7 +382,7 @@ public sealed class PatchTransferTests : IDisposable
 
         var patched = result.Items.Single(it => it.Patch?.Format == PatchFormat.Ips);
         patched.StatusReason!.Args["error"].Should().BeOfType<LocalizedMessage>().Which.Key.Should().Be("patch.error_source_crc");
-        File.Exists(Destination("Game (USA) (Hack).sfc")).Should().BeFalse();
+        File.Exists(Destination("Game (USA) [Hack].sfc")).Should().BeFalse();
     }
 
     [Fact]
@@ -388,7 +393,7 @@ public sealed class PatchTransferTests : IDisposable
         config.VerifyCopies = true;
         _processor.ConfigureTransferExecutor = executor => executor.AfterTargetWritten = path =>
         {
-            if (path.Contains("(T-En)", StringComparison.Ordinal))
+            if (path.Contains("[T-En]", StringComparison.Ordinal))
             {
                 using var stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite);
                 stream.WriteByte(0xFF);
@@ -398,7 +403,7 @@ public sealed class PatchTransferTests : IDisposable
         var result = await SortAsync(config);
 
         PatchedVersion(result).StatusReason!.Key.Should().Be("reason.copy_verification_failed");
-        File.Exists(Destination("Game (Japan) (T-En).sfc")).Should().BeFalse();
+        File.Exists(Destination("Game (Japan) [T-En].sfc")).Should().BeFalse();
         AssertNoTemporaryFile();
     }
 
@@ -423,7 +428,7 @@ public sealed class PatchTransferTests : IDisposable
         var result = await SortAsync(Config(dat, TransferMode.Move));
 
         PatchedVersion(result).Status.Should().Be(FileStatus.Valid);
-        File.ReadAllBytes(Destination("Game (Japan) (T-En).sfc")).Should().Equal(Translated);
+        File.ReadAllBytes(Destination("Game (Japan) [T-En].sfc")).Should().Equal(Translated);
         File.ReadAllBytes(zip).Should().Equal(before, "an archive stays in place, even in Move mode");
         AssertNoTemporaryFile();
     }
@@ -440,7 +445,7 @@ public sealed class PatchTransferTests : IDisposable
         var result = await SortAsync(Config(dat));
 
         PatchedVersion(result).Status.Should().Be(FileStatus.Valid);
-        File.ReadAllBytes(Destination("Game (USA) (Hack).nes")).Should().Equal(hacked, "the result is written as the patch produces it");
+        File.ReadAllBytes(Destination("Game (USA) [Hack].nes")).Should().Equal(hacked, "the result is written as the patch produces it");
     }
 
     [Fact]
@@ -487,7 +492,7 @@ public sealed class PatchTransferTests : IDisposable
 
         var result = await _processor.ExecuteAsync(config, isDryRun: false, selection: selection);
 
-        DestinationFiles().Should().BeEquivalentTo(["Game (Japan) (T-En).sfc", "Game (USA).sfc"]);
+        DestinationFiles().Should().BeEquivalentTo(["Game (Japan) [T-En].sfc", "Game (USA).sfc"]);
         result.Items.Single(it => it.Patch?.File.DisplayName == "Other (USA) (Hack).ups").IsOutsideSelection.Should().BeTrue();
     }
 
@@ -504,7 +509,7 @@ public sealed class PatchTransferTests : IDisposable
 
         PatchedVersion(result).Status.Should().Be(FileStatus.Error);
         result.StopReason!.Key.Should().Be("log.sort_stopped_disk_full");
-        File.Exists(Destination("Game (Japan) (T-En).zip")).Should().BeFalse();
+        File.Exists(Destination("Game (Japan) [T-En].zip")).Should().BeFalse();
         AssertNoTemporaryFile();
         File.ReadAllBytes(Path.Combine(_src, "Game (Japan).sfc")).Should().Equal(Japan);
     }

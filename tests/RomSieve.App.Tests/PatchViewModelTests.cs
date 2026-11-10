@@ -148,7 +148,7 @@ public sealed class PatchViewModelTests : IDisposable
         var origin = Row(table, "Game (Japan).sfc");
         origin.IsPatched.Should().BeFalse();
         origin.DetailPatchLabel.Should().Be("Versions patchées");
-        origin.DetailPatchText.Should().Be("Game (Japan) (T-En).sfc");
+        origin.DetailPatchText.Should().Be("Game (Japan) [T-En].sfc");
         Row(table, "Game (USA).sfc").DetailPatchText.Should().BeEmpty();
     }
 

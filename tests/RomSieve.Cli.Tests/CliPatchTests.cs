@@ -90,8 +90,8 @@ public sealed class CliPatchTests : IDisposable
         var result = await RunAsync("run", "--patches", _patches, "--execute");
 
         result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
-        DestinationFiles().Should().Equal("Game (Japan) (T-En).sfc", "Game (USA) (Hack).sfc", "Game (USA).sfc");
-        File.ReadAllBytes(Path.Combine(_destination, "Game (Japan) (T-En).sfc")).Should().Equal(Translated);
+        DestinationFiles().Should().Equal("Game (Japan) [T-En].sfc", "Game (USA) [Hack].sfc", "Game (USA).sfc");
+        File.ReadAllBytes(Path.Combine(_destination, "Game (Japan) [T-En].sfc")).Should().Equal(Translated);
         result.Output.Should().Contain("Patches: 2 patched versions, 1 patches not applied.");
         result.Output.Should().Contain("Orphan (T-En).bps", "each patch not applied has its line");
     }
@@ -102,7 +102,7 @@ public sealed class CliPatchTests : IDisposable
         var result = await RunAsync("run", "--patches", _patches, "--patch-only", "--execute");
 
         result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
-        DestinationFiles().Should().Equal("Game (Japan) (T-En).sfc", "Game (USA) (Hack).sfc");
+        DestinationFiles().Should().Equal("Game (Japan) [T-En].sfc", "Game (USA) [Hack].sfc");
     }
 
     [Fact]
