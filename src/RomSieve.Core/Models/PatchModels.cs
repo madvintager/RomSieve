@@ -62,6 +62,56 @@ public sealed record PatchHeader(PatchFormat Format)
     }
 }
 
+public static class PatchFormatExtensions
+{
+    /// <summary>Name of the format as patchers write it (<c>IPS</c>, <c>IPS32</c>, <c>UPS</c>, <c>BPS</c>), never translated.</summary>
+    public static string ToDisplayName(this PatchFormat format) => format switch
+    {
+        PatchFormat.Ips32 => "IPS32",
+        PatchFormat.Ups => "UPS",
+        PatchFormat.Bps => "BPS",
+        _ => "IPS"
+    };
+}
+
+/// <summary>
+/// A patch of the patch folder (<see cref="SortConfig.PatchDir"/>): a file, or the member of an archive
+/// (<see cref="SourcePath"/> is then the archive).
+/// </summary>
+public sealed record PatchFile(string SourcePath, string? ArchiveMember = null)
+{
+    /// <summary>Name of the patch: the member of its archive, or its file name.</summary>
+    public string DisplayName => ArchiveMember ?? Path.GetFileName(SourcePath);
+}
+
+/// <summary>A patch of the patch folder that gives no patched version, and why (<c>reason.patch_*</c>).</summary>
+public sealed record UnappliedPatch(PatchFile File, LocalizedMessage Reason);
+
+/// <summary>
+/// What makes a <see cref="ProcessItem"/> a patched version (<see cref="ProcessItem.Patch"/>): its patch, what the patch
+/// told of itself, the item it is applied to, and the part of that item's data it reads (after a copier header the
+/// patch does not expect).
+/// </summary>
+/// <param name="File">The patch.</param>
+/// <param name="Header">What the patch told when it was read.</param>
+/// <param name="Origin">The item of the source the patch is applied to, never modified.</param>
+/// <param name="SourceOffset">Bytes of the origin skipped before the data the patch expects (a copier header).</param>
+/// <param name="SourceLength">Bytes of the origin the patch reads, from <see cref="SourceOffset"/>.</param>
+/// <param name="SourceCrc32">CRC32 of those bytes, by which the patch was matched with the origin.</param>
+public sealed record PatchedVersion(
+    PatchFile File,
+    PatchHeader Header,
+    ProcessItem Origin,
+    long SourceOffset,
+    long SourceLength,
+    uint SourceCrc32)
+{
+    public PatchFormat Format => Header.Format;
+
+    /// <summary>Size of the result.</summary>
+    public long TargetSize => Header.TargetSizeFor(SourceLength);
+}
+
 /// <summary>What applying a patch wrote: the size and CRC32 of the result, and the CRC32 of the source it read.</summary>
 public sealed record PatchResult(long Size, uint Crc32, uint SourceCrc32);
 

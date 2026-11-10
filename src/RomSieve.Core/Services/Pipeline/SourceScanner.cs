@@ -89,6 +89,96 @@ public sealed class SourceScanner
         return entries;
     }
 
+    /// <summary>
+    /// Patches of the patch folder (<see cref="SortConfig.PatchDir"/>), read recursively: the files with the extension
+    /// of a patch (<see cref="PatchService.Extensions"/>), and the members with such an extension of its ZIP, 7z and
+    /// RAR archives. Their signature is read later, with the rest of the patch (<see cref="PatchMatcher"/>). In the order
+    /// of their paths, then of their members.
+    /// </summary>
+    public List<PatchFile> ScanPatchFolder(
+        string patchDir,
+        CancellationToken cancellationToken = default,
+        IProgress<SortProgress>? progress = null)
+    {
+        if (!Directory.Exists(patchDir))
+        {
+            _log(LogLevel.Warn, LocalizedMessage.Create("log.patch_dir_not_found", ("path", patchDir)));
+            return [];
+        }
+
+        ReportStep(progress, LocalizedMessage.Create("progress.listing_patches", ("count", 0)));
+        var sw = Stopwatch.StartNew();
+        var lastReportMs = 0L;
+        var patches = new List<PatchFile>();
+        var skips = new FileTreeSkips();
+        foreach (var path in FileTree.EnumerateFiles(patchDir, recursive: true, skips))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (DestinationGuard.IsGuardPath(path))
+            {
+                continue;
+            }
+
+            if (sw.ElapsedMilliseconds - lastReportMs >= ProgressIntervalMs)
+            {
+                ReportStep(progress, LocalizedMessage.Create("progress.listing_patches", ("count", patches.Count)));
+                lastReportMs = sw.ElapsedMilliseconds;
+            }
+
+            if (PatchService.HasPatchExtension(path))
+            {
+                patches.Add(new PatchFile(path));
+            }
+            else if (_checksumService.IsSupportedArchive(path))
+            {
+                try
+                {
+                    var members = _headerCache?.GetArchiveMembers(path, _checksumService) ?? _checksumService.GetArchiveMembers(path);
+                    patches.AddRange(members
+                        .Where(m => PatchService.HasPatchExtension(m.MemberName))
+                        .Select(m => new PatchFile(path, m.MemberName)));
+                }
+                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+                {
+                    // An unreadable archive holds no patch the sort can read
+                }
+            }
+        }
+
+        ReportSkips(skips);
+        patches.Sort((a, b) =>
+        {
+            var byPath = string.CompareOrdinal(a.SourcePath, b.SourcePath);
+            return byPath != 0 ? byPath : string.CompareOrdinal(a.ArchiveMember, b.ArchiveMember);
+        });
+        _log(LogLevel.Info, LocalizedMessage.Create("log.patch_dir_scanned", ("count", patches.Count), ("path", patchDir)));
+        return patches;
+    }
+
+    /// <summary>
+    /// Whether a file of the source belongs to the patch folder and stays out of the collection: every file of a patch
+    /// folder inside the source; only the patches of one that is the source, or holds it, whose other files are ROMs.
+    /// </summary>
+    private Func<string, bool> PatchFolderFilter()
+    {
+        if (string.IsNullOrWhiteSpace(_config.PatchDir))
+        {
+            return _ => false;
+        }
+
+        var patchDir = _config.PatchDir;
+        var overlap = SortConfigValidator.GetPathOverlap(_config.SourceDir, patchDir, recursive: true);
+        if (overlap == PathOverlap.None)
+        {
+            return _ => false;
+        }
+
+        var wholeFolder = overlap == PathOverlap.DestinationInsideSource;
+        var isSource = overlap == PathOverlap.Identical;
+        return path => (isSource || PathOrganizerService.IsInsideDirectory(path, patchDir))
+                       && (wholeFolder || PatchService.HasPatchExtension(path));
+    }
+
     /// <summary>Warns about what a listing skipped: the folders it could not read, the links to a folder it did not follow.</summary>
     private void ReportSkips(FileTreeSkips skips)
     {
@@ -129,10 +219,11 @@ public sealed class SourceScanner
         var lastReportMs = 0L;
         var filePaths = new List<string>();
         var skips = new FileTreeSkips();
+        var isPatchFolderFile = PatchFolderFilter();
         foreach (var path in FileTree.EnumerateFiles(sourceDir, _config.Recursive, skips))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (DestinationGuard.IsGuardPath(path))
+            if (DestinationGuard.IsGuardPath(path) || isPatchFolderFile(path))
             {
                 continue;
             }

@@ -2444,7 +2444,7 @@ public sealed class SortProcessorServiceTests : IDisposable
             _services.Organizer,
             _services.I18n,
             _services.OpticalCompanionService,
-            _services.MameParser,
+            _services.MameParser, _services.Patches,
             trackingCache);
 
         processorWithMockCache.CrcCache.Should().BeSameAs(trackingCache);

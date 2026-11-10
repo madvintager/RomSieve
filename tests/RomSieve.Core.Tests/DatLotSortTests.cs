@@ -671,7 +671,7 @@ public sealed class DatLotSortTests : IDisposable
         var journal = new OperationJournalService(_tmp.GetFilePath("journals"), _services.ChecksumService, crcCache);
         var processor = new SortProcessorService(
             _services.ChecksumService, _services.DatService, _services.NoIntroParser, _services.FilterService, _services.Organizer,
-            _services.I18n, _services.OpticalCompanionService, _services.MameParser, crcCache, journal);
+            _services.I18n, _services.OpticalCompanionService, _services.MameParser, _services.Patches, crcCache, journal);
 
         var result = await processor.ExecuteAsync(Config(c => c.TransferMode = TransferMode.Move), isDryRun: false);
 

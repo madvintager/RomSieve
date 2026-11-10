@@ -214,7 +214,7 @@ public sealed class ArchiveFormatTests : IDisposable
         var journal = new OperationJournalService(_temp.GetFilePath("journals"), _services.ChecksumService, crcCache);
         var processor = new SortProcessorService(
             _services.ChecksumService, _services.DatService, _services.NoIntroParser, _services.FilterService,
-            _services.Organizer, _services.I18n, _services.OpticalCompanionService, _services.MameParser, crcCache, journal);
+            _services.Organizer, _services.I18n, _services.OpticalCompanionService, _services.MameParser, _services.Patches, crcCache, journal);
 
         await processor.ExecuteAsync(Config(TransferMode.Move, SevenZipDat()), isDryRun: false);
         File.Exists(_temp.GetFilePath(Path.Combine("dst", Alpha))).Should().BeTrue();

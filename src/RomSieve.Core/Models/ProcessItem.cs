@@ -278,6 +278,28 @@ public sealed class ProcessItem
     /// <summary>Comparison of a MAME set with its machine of the DAT; <see langword="null"/> for any other item.</summary>
     public MameSetInfo? MameSet { get; set; }
 
+    /// <summary>
+    /// Size of the copier header the classification found before the data identified with the DAT (an iNES, Lynx or
+    /// SNES copier header): <see cref="Crc32"/> is then the CRC32 of the file without it. Zero for any other file.
+    /// </summary>
+    public int CopierHeaderSize { get; set; }
+
+    /// <summary>
+    /// The patch whose result this item is (<see cref="Services.PatchMatcher"/>): a patched version of
+    /// <see cref="PatchedVersion.Origin"/>, written next to it, outside the 1G1R, the multi-disk sets and the filters.
+    /// Its <see cref="SourcePath"/> (and <see cref="ArchiveMember"/>) is the patch. <see langword="null"/> for any other item.
+    /// </summary>
+    public PatchedVersion? Patch { get; set; }
+
+    /// <summary>The patched versions of this item, in the order of their patches; empty for any other item.</summary>
+    public List<ProcessItem> PatchedVersions { get; set; } = [];
+
+    /// <summary>
+    /// Whether the option to write the patched versions only (<see cref="SortConfig.PatchOnly"/>) left this item out: the
+    /// release selection kept it, but a patched version replaces it. Every new selection gives it its chance again.
+    /// </summary>
+    public bool IsReplacedByPatch { get; set; }
+
     public string DisplayName => !string.IsNullOrEmpty(ArchiveMember)
         ? ArchiveMember
         : Path.GetFileName(SourcePath);

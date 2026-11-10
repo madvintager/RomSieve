@@ -114,7 +114,11 @@ public sealed record SortExecutionResult(
     DatCatalog? DatCatalog,
     string? JournalPath = null,
     LocalizedMessage? StopReason = null
-);
+)
+{
+    /// <summary>The patches of the patch folder that gave no patched version, and why.</summary>
+    public IReadOnlyList<UnappliedPatch> UnappliedPatches { get; init; } = [];
+}
 
 /// <summary>
 /// Result of a selection made on the DAT alone (<c>ISortProcessorService.SelectFromCatalogAsync</c>): the catalog read,

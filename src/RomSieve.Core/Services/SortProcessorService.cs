@@ -22,6 +22,7 @@ public sealed class SortProcessorService : ISortProcessorService
     private readonly IPathOrganizerService _organizer;
     private readonly IOpticalCompanionService _opticalService;
     private readonly IMameDescriptionParser _mameParser;
+    private readonly IPatchService _patchService;
     private readonly ILocalizationService _i18n;
     private readonly IOperationJournalService? _journalService;
 
@@ -48,9 +49,11 @@ public sealed class SortProcessorService : ISortProcessorService
         ILocalizationService i18n,
         IOpticalCompanionService opticalService,
         IMameDescriptionParser mameParser,
+        IPatchService patchService,
         ICrcCacheService crcCache,
         IOperationJournalService? journalService = null)
     {
+        _patchService = patchService;
         // A null journal service disables the operation journal (and therefore the undo of sorts)
         _journalService = journalService;
         _checksumService = checksumService;
@@ -131,7 +134,8 @@ public sealed class SortProcessorService : ISortProcessorService
         IReadOnlyDictionary<string, HashSet<string>> gameMatchedRoms;
         DatLotIdentifier? lotIdentifier = null;
         var isMameRun = MameSetIdentifier.IsMameRun(config, datCatalog);
-        if (MameSetIdentifier.GetSetConvention(config, datCatalog).IsMameSets() && datCatalog is not null)
+        var sortsMameSets = MameSetIdentifier.GetSetConvention(config, datCatalog).IsMameSets() && datCatalog is not null;
+        if (sortsMameSets && datCatalog is not null)
         {
             // The CHDs of a MAME collection may be kept in a folder of their own, which the destination cannot overlap;
             // the files of the MAME machines (CHD folder, categories, ratings) say nothing of the software of a list
@@ -225,6 +229,10 @@ public sealed class SortProcessorService : ISortProcessorService
         SelectReleases(config, itemsToProcess, datCatalog, gameMatchedRoms, progress, Log, lotIdentifier is null
             ? null
             : name => lotIdentifier.ClassifierFor(name)?.GameMatchedRoms);
+
+        // The patched versions join the files once the releases are chosen: they stay outside the 1G1R and the filters
+        var unappliedPatches = await MatchPatchesAsync(config, scanner, itemsToProcess, datCatalog, sortsMameSets, progress, Log, cancellationToken)
+            .ConfigureAwait(false);
 
         // The selection of a partial sort only filters the transfers: the releases are chosen on the whole collection
         if (selection is not null)
@@ -465,7 +473,49 @@ public sealed class SortProcessorService : ISortProcessorService
                 ("not_selected", stats.NotSelectedCount)));
 
         var journalPath = journal is { OperationCount: > 0 } ? journal.JournalPath : null;
-        return new SortExecutionResult(stats, processedItems, missingRoms, datCatalog, journalPath, stopReason);
+        return new SortExecutionResult(stats, processedItems, missingRoms, datCatalog, journalPath, stopReason)
+        {
+            UnappliedPatches = unappliedPatches
+        };
+    }
+
+    /// <summary>
+    /// Reads the patch folder and adds the patched versions of the identified files (<see cref="PatchMatcher"/>), then
+    /// applies the option to write the patched versions only. Neither a sort of MAME sets nor a sort without DAT reads
+    /// it: the patches of the sets are not supported, and no file is identified without a DAT.
+    /// </summary>
+    private async Task<IReadOnlyList<UnappliedPatch>> MatchPatchesAsync(
+        SortConfig config,
+        SourceScanner scanner,
+        List<ProcessItem> items,
+        DatCatalog? datCatalog,
+        bool sortsMameSets,
+        IProgress<SortProgress>? progress,
+        Action<LogLevel, LocalizedMessage> log,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(config.PatchDir))
+        {
+            return [];
+        }
+
+        if (sortsMameSets)
+        {
+            log(LogLevel.Info, LocalizedMessage.Create("log.patches_ignored_mame"));
+            return [];
+        }
+
+        if (datCatalog is null)
+        {
+            log(LogLevel.Warn, LocalizedMessage.Create("log.patches_need_dat"));
+            return [];
+        }
+
+        var patches = scanner.ScanPatchFolder(config.PatchDir, cancellationToken, progress);
+        var matcher = new PatchMatcher(config, _patchService, _checksumService, _crcCache, log);
+        await matcher.MatchAsync(items, patches, cancellationToken, progress).ConfigureAwait(false);
+        PatchMatcher.ApplyPatchOnly(items, config.PatchOnly);
+        return matcher.Unapplied;
     }
 
     /// <summary>
@@ -1347,6 +1397,15 @@ public sealed class SortProcessorService : ISortProcessorService
     {
         if (gameItems.Count == 0)
         {
+            return;
+        }
+
+        // The patched versions stay outside the selection, as in a run: the origins they replace are decided after it
+        if (gameItems.Any(it => it.Patch is not null) || allItems?.Any(it => it.Patch is not null) == true)
+        {
+            var originals = gameItems.Where(it => it.Patch is null).ToList();
+            RecalculateGameItems(originals, config, datCatalog, allItems?.Where(it => it.Patch is null).ToList());
+            PatchMatcher.ApplyPatchOnly(originals, config.PatchOnly);
             return;
         }
 

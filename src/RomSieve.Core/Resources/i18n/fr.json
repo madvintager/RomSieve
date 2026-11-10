@@ -1427,5 +1427,21 @@
   "patch.error_patch_crc": "Le patch est abîmé : son CRC32 est {actual} au lieu de {expected}.",
   "patch.error_source_size": "Le patch attend une ROM d'origine de {expected} octets, et non de {actual}.",
   "patch.error_source_crc": "Le patch attend une ROM d'origine de CRC32 {expected}, et non {actual}.",
-  "patch.error_target_crc": "Le résultat a le CRC32 {actual} au lieu de {expected}."
+  "patch.error_target_crc": "Le résultat a le CRC32 {actual} au lieu de {expected}.",
+  "log.patch_dir_not_found": "Dossier des patchs introuvable : {path}",
+  "log.patch_dir_scanned": "Dossier des patchs : {count} patchs trouvés ({path})",
+  "progress.listing_patches": "Recherche des patchs : {count} trouvés",
+  "progress.reading_patches": "Lecture des patchs…",
+  "log.patch_not_applied": "Patch non appliqué : {name} ({reason})",
+  "log.patches_summary": "Patchs : {patched} versions patchées, {unapplied} patchs non appliqués",
+  "log.patches_ignored_mame": "Les patchs ne s'appliquent pas aux sets MAME : le dossier des patchs n'est pas lu.",
+  "log.patches_need_dat": "Les patchs ne s'appliquent qu'aux fichiers identifiés dans un DAT : le dossier des patchs n'est pas lu.",
+  "reason.patched_from": "Version patchée de {origin} par {patch} ({format})",
+  "reason.replaced_by_patch": "Remplacée par sa version patchée : {patches}",
+  "reason.patch_unreadable": "Patch illisible : {error}",
+  "reason.patch_no_crc": "Le nom d'un patch IPS doit donner le CRC32 de la ROM d'origine, par exemple [1a2b3c4d]",
+  "reason.patch_orphan": "Aucune ROM identifiée de CRC32 {crc} dans la source",
+  "reason.patch_source_size_mismatch": "La ROM de CRC32 {crc} n'a pas la taille que le patch attend ({size} octets)",
+  "reason.patch_ambiguous": "Le nom du patch donne les CRC32 de plusieurs ROMs de la source ({crc})",
+  "reason.patch_multi_file": "La ROM d'origine, {origin}, fait partie d'un jeu en plusieurs fichiers"
 }

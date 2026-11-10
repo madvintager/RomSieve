@@ -52,7 +52,7 @@ public sealed class Sha1VerificationTests : IDisposable
         _services.Organizer,
         _services.I18n,
         _services.OpticalCompanionService,
-        _services.MameParser,
+        _services.MameParser, _services.Patches,
         new CrcCacheService(cachePath));
 
     private async Task<SortExecutionResult> SimulateAsync(string dat, bool verifySha1, string? cachePath = null) =>

@@ -172,6 +172,7 @@ public sealed class CoreTestServices
     public DatService DatService { get; }
     public OpticalCompanionService OpticalCompanionService { get; }
     public MameDescriptionParser MameParser { get; }
+    public PatchService Patches { get; }
     public CrcCacheService CrcCache { get; }
     public SortProcessorService Processor { get; }
 
@@ -188,6 +189,7 @@ public sealed class CoreTestServices
         DatService = new DatService(ChecksumService, DatHeaderCacheService.NextTo(IsolatedCrcCachePath));
         OpticalCompanionService = new OpticalCompanionService();
         MameParser = new MameDescriptionParser();
+        Patches = new PatchService();
         Processor = new SortProcessorService(
             ChecksumService,
             DatService,
@@ -197,6 +199,7 @@ public sealed class CoreTestServices
             I18n,
             OpticalCompanionService,
             MameParser,
+            Patches,
             CrcCache);
     }
 }

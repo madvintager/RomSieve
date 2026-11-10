@@ -782,6 +782,7 @@ public sealed partial class FileTransferExecutor
 
         try
         {
+            RefusePatchedVersion(item);
             var parentDir = Path.GetDirectoryName(zipPath);
             if (!string.IsNullOrEmpty(parentDir))
             {
@@ -888,6 +889,19 @@ public sealed partial class FileTransferExecutor
             relItem.ErrorMessage = item.ErrorMessage;
             relItem.TargetPath = targetPath;
             relItem.FinalTargetPath = targetPath;
+        }
+    }
+
+    /// <summary>
+    /// A patched version is not written yet: its source is its patch, which a copy would write under the name of the
+    /// target. Until its own transfer exists (step 3 of <c>PlanPatch.md</c>), a real sort puts it in error; the
+    /// option that gives the patch folder is not in the configuration before then.
+    /// </summary>
+    private static void RefusePatchedVersion(ProcessItem item)
+    {
+        if (item.Patch is not null)
+        {
+            throw new NotSupportedException("Patched versions are not written yet.");
         }
     }
 
@@ -1163,6 +1177,7 @@ public sealed partial class FileTransferExecutor
 
         try
         {
+            RefusePatchedVersion(item);
             var parentDir = Path.GetDirectoryName(targetPath);
             if (!string.IsNullOrEmpty(parentDir))
             {

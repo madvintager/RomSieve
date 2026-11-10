@@ -33,7 +33,7 @@ public sealed class PartialSortTests : IDisposable
             _services.Organizer,
             _services.I18n,
             _services.OpticalCompanionService,
-            _services.MameParser,
+            _services.MameParser, _services.Patches,
             _crcCache,
             _journal);
         _src = _temp.CreateSubdirectory("src");

@@ -599,6 +599,9 @@ public sealed class EntryClassifier
                 item.Crc32 = !string.IsNullOrEmpty(match.Crc) ? match.Crc : fileCrc ?? string.Empty;
                 item.Md5 = match.Md5;
                 item.Sha1 = match.Sha1;
+
+                // The CRC32 is that of the data after the header: the patches look for both forms
+                item.CopierHeaderSize = fingerprint.HeaderOffset;
                 return item;
             }
 

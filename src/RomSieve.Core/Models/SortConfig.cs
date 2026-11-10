@@ -61,6 +61,17 @@ public sealed class SortConfig
     /// filters and the order in which the size budget keeps the sets. Ignored by the other conventions.
     /// </summary>
     public string? MameRatingFile { get; set; }
+
+    /// <summary>
+    /// Folder of the patches (IPS, IPS32, UPS, BPS), read with its subfolders and its archives: each patch whose original
+    /// ROM is identified in the source gives a patched version, written next to it. Not read by a sort of MAME sets.
+    /// </summary>
+    public string? PatchDir { get; set; }
+
+    /// <summary>
+    /// Writes the patched versions only: an original ROM that at least one patched version replaces is not written.
+    /// </summary>
+    public bool PatchOnly { get; set; }
     public NamingConvention NamingConvention { get; set; } = NamingConvention.Auto;
 
     /// <summary>

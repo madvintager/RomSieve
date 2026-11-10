@@ -63,7 +63,7 @@ public sealed class SortStopTests : IDisposable
             _services.Organizer,
             _services.I18n,
             _services.OpticalCompanionService,
-            _services.MameParser,
+            _services.MameParser, _services.Patches,
             _crcCache,
             _journal)
         {
@@ -189,7 +189,7 @@ public sealed class SortStopTests : IDisposable
             _services.Organizer,
             _services.I18n,
             _services.OpticalCompanionService,
-            _services.MameParser,
+            _services.MameParser, _services.Patches,
             _crcCache,
             _journal);
 
