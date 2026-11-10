@@ -1460,7 +1460,7 @@
   "reason.patched_from": "Version patchée de {origin} par {patch} ({format})",
   "reason.replaced_by_patch": "Remplacée par une version patchée : {patches}",
   "reason.patch_unreadable": "Patch illisible : {error}",
-  "reason.patch_no_crc": "Ni le nom du patch IPS ni un texte qui l'accompagne ne donnent le CRC32 de la ROM d'origine : ajoutez-le au nom, par exemple [1a2b3c4d]",
+  "reason.patch_no_crc": "Ni le nom du patch IPS ni un texte qui l'accompagne ne donnent le CRC32 de la ROM d'origine : choisissez sa ROM dans la fenêtre Patchs",
   "reason.patch_orphan": "Aucune ROM identifiée de CRC32 {crc} dans la source",
   "reason.patch_link_origin_missing": "La ROM que vous avez choisie pour ce patch, {origin}, n'est pas identifiée dans la source",
   "reason.patch_source_size_mismatch": "La ROM de CRC32 {crc} n'a pas la taille que le patch attend ({size} octets)",
