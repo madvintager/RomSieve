@@ -278,6 +278,145 @@ public sealed class PatchesViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task AnIpsAppliedFromItsName_ShouldBeListed_AndApplyToAnotherRomOnceRenamed()
+    {
+        WriteJapanAndUsa();
+        var path = _temp.WriteBytes($"patches/Game (T-Fr) [{Crc(Japan):x8}].ips", IpsDiff(Japan, Translate(Japan)));
+        var window = await LoadAsync();
+
+        var row = window.Rows.Single();
+        row.Kind.Should().Be(PatchRowKind.AppliedByName);
+        row.StatusText.Should().Be("Appliqué à Game (Japan).sfc d'après son nom");
+        row.CanChoose.Should().BeTrue();
+        row.SelectedOrigin!.Label.Should().Be("Game (Japan).sfc");
+        row.SelectedForm!.Form.Crc32.Should().Be(Crc(Japan));
+        row.CanCheck.Should().BeFalse("its name already designates that ROM");
+        row.NewNameText.Should().BeEmpty();
+        row.CheckTooltip.Should().Be("Le patch est déjà appliqué à cette ROM : choisissez-en une autre, ou cliquez sur « Ne plus appliquer à cette ROM ».");
+        window.CanSearch.Should().BeTrue();
+
+        window.OriginSearchText = "usa";
+        window.ChooseSearchResultCommand.Execute(null);
+        await row.FormsLoading;
+        row.SelectedOrigin!.Label.Should().Be("Game (USA).sfc");
+        row.CanCheck.Should().BeTrue();
+        row.NewNameText.Should().Be($"Nouveau nom : Game (T-Fr) [{Crc(Usa):x8}].ips", "the CRC32 of the new ROM replaces the old one");
+
+        row.IsChecked = true;
+        await window.RenameCommand.ExecuteAsync(null);
+
+        File.Exists(path).Should().BeFalse();
+        File.Exists(Path.Combine(_patches, $"Game (T-Fr) [{Crc(Usa):x8}].ips")).Should().BeTrue();
+        await SimulateAsync();
+        _result!.Items.Single(it => it.Patch is not null).Patch!.Origin.DisplayName.Should().Be("Game (USA).sfc");
+    }
+
+    [Fact]
+    public async Task AnIpsAppliedFromItsName_ShouldStopApplyingToItsRom_AndBeProposedAgain()
+    {
+        WriteJapanAndUsa();
+        var path = _temp.WriteBytes($"patches/Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips", IpsDiff(Japan, Translate(Japan)));
+        var window = await LoadAsync();
+        var row = window.Rows.Single();
+        window.SelectedRow.Should().BeSameAs(row);
+        row.CanDetach.Should().BeTrue();
+        window.DetachTooltip.Should().StartWith("Retire du nom du patch ce qui désigne sa ROM");
+        window.DetachSelectedCommand.CanExecute(null).Should().BeTrue();
+
+        await window.DetachSelectedCommand.ExecuteAsync(null);
+
+        File.Exists(path).Should().BeFalse();
+        File.ReadAllBytes(Path.Combine(_patches, "Game (Japan) (T-Fr).ips")).Should().Equal(IpsDiff(Japan, Translate(Japan)));
+        row.IsRenamed.Should().BeTrue();
+        row.ResultText.Should().Be("Ne s'applique plus à sa ROM : renommé en Game (Japan) (T-Fr).ips");
+        row.CanCheck.Should().BeFalse();
+        window.HasRenamed.Should().BeTrue("« Simulate again » proposes it again");
+        window.CanSearch.Should().BeFalse();
+        window.DetachSelectedCommand.CanExecute(null).Should().BeFalse("a patch is renamed once");
+        window.DetachTooltip.Should().Be(row.ResultText);
+        _log.Should().ContainSingle().Which.Message.Key.Should().Be("log.patch_detached");
+
+        await SimulateAsync();
+        _result!.Items.Should().NotContain(it => it.Patch != null);
+        window.Load();
+        var proposed = window.Rows.Single();
+        proposed.Kind.Should().Be(PatchRowKind.Unapplied);
+        proposed.SelectedOrigin!.Label.Should().Be("Game (Japan).sfc", "its name proposes its ROM again");
+    }
+
+    [Fact]
+    public async Task OnlyAnIpsAppliedFromItsNameOnTheDisk_ShouldStopApplying()
+    {
+        WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
+        _temp.WriteBytes("patches/a/Hack.ips", IpsDiff(Usa, Translate(Usa)));
+        _temp.WriteText("patches/a/readme.txt", $"CRC32: {Crc(Usa):X8}");
+        using (var zip = ZipFile.Open(_temp.GetFilePath($"patches/Packed.zip"), ZipArchiveMode.Create))
+        using (var stream = zip.CreateEntry($"Packed [{Crc(Usa):x8}].ips").Open())
+        {
+            stream.Write(IpsDiff(Usa, Translate(Usa)));
+        }
+
+        var window = await LoadAsync();
+
+        window.Rows.Select(r => (r.Name, r.Kind)).Should().Equal(
+            ("Game (T-Fr).ips", PatchRowKind.Unapplied),
+            ("Hack.ips", PatchRowKind.AppliedByNote));
+        window.SelectedRow = Row(window, "Game (T-Fr).ips");
+        window.DetachSelectedCommand.CanExecute(null).Should().BeFalse();
+        window.DetachTooltip.Should().Be("Ce patch n'est appliqué à aucune ROM.");
+
+        var hack = Row(window, "Hack.ips");
+        window.SelectedRow = hack;
+        window.DetachSelectedCommand.CanExecute(null).Should().BeFalse("its readme would give its ROM again");
+        window.DetachTooltip.Should().StartWith("Ce patch est appliqué grâce à son readme");
+        hack.CanChoose.Should().BeTrue("another ROM, written in its name, wins over its readme");
+        window.CanSearch.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ThePatchedVersionOfTheTable_ShouldOpenTheWindowOnItsPatch()
+    {
+        WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
+        _temp.WriteBytes($"patches/Game (T-En) [{Crc(Usa):x8}].ips", IpsDiff(Usa, Translate(Usa)));
+        _temp.WriteBytes("patches/Other.bps", BpsLinear(Usa, Translate(Usa)));
+        await SimulateAsync();
+        var window = CreateWindow();
+        var versions = _result!.Items.Select(it => it.Patch).OfType<PatchedVersion>().ToList();
+        var ips = versions.Single(p => p.Format == PatchFormat.Ips);
+        var bps = versions.Single(p => p.Format == PatchFormat.Bps);
+
+        window.CanOpenFor(bps).Should().BeFalse("a BPS records its ROM, which nothing can change");
+        window.CanOpenFor(null).Should().BeFalse();
+        window.CanOpenFor(ips).Should().BeTrue();
+        _dialogs.OnShowPatches = shown =>
+        {
+            shown.SelectedRow!.Name.Should().Be($"Game (T-En) [{Crc(Usa):x8}].ips");
+            return Task.FromResult(false);
+        };
+        await window.OpenForAsync(ips);
+        _dialogs.ShownPatches.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task TheBanner_ShouldOpenTheWindow_OnThePatchesAppliedFromTheirName()
+    {
+        WriteJapanAndUsa();
+        _temp.WriteBytes($"patches/Game (T-En) [{Crc(Usa):x8}].ips", IpsDiff(Usa, Translate(Usa)));
+        await SimulateAsync();
+        var window = CreateWindow();
+
+        window.Refresh();
+
+        window.NameMatchedCount.Should().Be(1);
+        window.IsNamingLinkVisible.Should().BeTrue();
+        window.NamingLinkText.Should().Be("Voir les patchs");
+        window.NamingLinkTooltip.Should().StartWith("Ouvre la liste des patchs appliqués d'après leur nom");
+        window.OpenCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task TheCommandOfTheBanner_ShouldOpenTheWindow_AndSimulateAgainWhenAsked()
     {
         WriteJapanAndUsa();

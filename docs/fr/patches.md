@@ -175,7 +175,8 @@ mais que des IPS l'ont été grâce à leur readme).
 
 ![La fenêtre Patchs](../images/fr/patches_window.png)
 
-La fenêtre liste les patchs non appliqués, puis les IPS appliqués grâce à leur readme. Pour un patch sélectionné :
+La fenêtre liste les patchs non appliqués, puis les IPS appliqués grâce à leur readme, puis ceux appliqués d'après leur
+nom (voir [Changer la ROM du patch](#changer-la-rom-du-patch)). Pour un patch sélectionné :
 
 * **ROM d'origine** propose les ROMs identifiées dont le nom ou le titre commence le nom du patch, ou celui de son
   archive, ou celui de son dossier quand ce dossier ne contient que lui (`Traduction CT/patch.ips`). Les noms génériques
@@ -197,10 +198,31 @@ qui applique les patchs renommés. Le CRC32 ajouté n'apparaît pas dans le nom 
   écrire leur CRC32 dans leur nom les fait aussi appliquer par d'autres outils, comme igir.
 * Un patch rangé dans une **archive** n'est jamais renommé, puisqu'une archive n'est jamais modifiée : la fenêtre donne le
   CRC32 de la ROM choisie, et il faut extraire le patch pour écrire ce CRC32 dans son nom.
-* Un patch dont le nom donne déjà un CRC32, un UPS ou un BPS ne se choisit pas : un CRC32 dans son nom ne le réparerait
-  pas.
+* Un UPS, un BPS, ou un IPS non appliqué dont le nom donne déjà un CRC32 ne se choisit pas : un CRC32 dans son nom ne le
+  réparerait pas.
 * Rien n'est écrasé : un nom déjà pris laisse le patch tel quel, et sa ligne le dit. Le renommage n'est pas inscrit au
-  journal des tris, et **Annuler le dernier tri** ne le défait pas : il se défait à la main.
+  journal des tris, et **Annuler le dernier tri** ne le défait pas : il se défait à la main, ou dans la fenêtre (voir
+  [Changer la ROM du patch](#changer-la-rom-du-patch)).
+
+## Changer la ROM du patch
+
+Un IPS dont le nom donne le CRC32 d'une ROM s'applique à cette ROM à chaque simulation : RomSieve ne garde aucun choix
+en mémoire, il relit le nom du patch. Si la version patchée ne fonctionne pas, parce que le patch était fait pour une
+autre ROM, la fenêtre **Patchs** liste aussi, après les autres, les IPS appliqués d'après leur nom (ceux du disque : un
+patch rangé dans une archive ne se renomme pas). Elle s'ouvre par le lien « Voir les patchs » du bandeau, quand aucun
+patch n'est resté non appliqué, ou par **Changer la ROM de ce patch…** dans le menu contextuel d'une version patchée du
+tableau, qui sélectionne son patch.
+
+* Pour l'appliquer à **une autre ROM**, choisissez-la comme pour un patch non appliqué (**Autre ROM**, puis **Prendre
+  cette ROM**), cochez le patch et cliquez sur **Renommer** : le CRC32 de la nouvelle ROM remplace celui du nom
+  (`Jeu (T-Fr) [47e70e08].ips` devient `Jeu (T-Fr) [1a2b3c4d].ips`).
+* Pour qu'il **ne s'applique plus**, cliquez sur **Ne plus appliquer à cette ROM** : RomSieve retire du nom du patch ce
+  qui désigne sa ROM (`Jeu (T-Fr) [47e70e08].ips` redevient `Jeu (T-Fr).ips`). La simulation suivante ne l'applique
+  plus, et vous le propose de nouveau parmi les patchs non appliqués, avec les ROMs que suggère son nom.
+
+Un IPS appliqué grâce à son readme se change de ROM de la même façon (le CRC32 écrit dans son nom l'emporte sur son
+readme), mais ne peut pas cesser de s'appliquer : son readme désignerait de nouveau sa ROM. La version patchée qu'un tri
+a déjà écrite dans une destination reste en place : **Annuler le dernier tri** la supprime, si ce tri est le dernier.
 
 ## Dans les résultats
 
@@ -210,6 +232,8 @@ qui applique les patchs renommés. Le CRC32 ajouté n'apparaît pas dans le nom 
 * Le bandeau compte les versions patchées dans la pastille **Patchées**, qui n'affiche qu'elles, et les patchs non
   appliqués dans « *n* patchs non appliqués », dont l'infobulle donne la liste avec leurs raisons et qu'un clic ouvre
   dans la fenêtre **Patchs** (voir [Nommer un IPS](#nommer-un-ips)).
+* Le menu contextuel d'une version patchée par un IPS propose **Changer la ROM de ce patch…** (voir
+  [Changer la ROM du patch](#changer-la-rom-du-patch)).
 * Dans un [tri partiel](simulation-table.md#trier-une-partie-de-la-simulation), une version patchée suit la case de son
   jeu.
 * Les [exports](exports.md) la décrivent : le rapport nomme son patch, et le DAT de votre collection l'écrit avec ses
@@ -226,4 +250,6 @@ modifiée depuis le tri.
 [Ligne de commande](command-line.md)). Le bilan compte les versions patchées et les patchs non appliqués.
 
 `romsieve-cli patches` simule le tri et liste ses patchs non appliqués, avec les ROMs proposées pour un IPS sans CRC32,
-puis les IPS appliqués grâce à leur readme ; `--name-from-notes --yes` écrit le CRC32 dans le nom de ces derniers.
+puis les IPS appliqués grâce à leur readme et ceux appliqués d'après leur nom ; `--name-from-notes --yes` écrit le CRC32
+dans le nom des IPS appliqués grâce à leur readme, et `--detach <patch> --yes` retire de son nom la ROM que désigne un IPS
+appliqué d'après son nom, pour qu'il ne s'applique plus.

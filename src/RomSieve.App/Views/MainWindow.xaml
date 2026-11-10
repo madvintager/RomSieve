@@ -3256,10 +3256,11 @@
                              Text="{Binding StatsBanner.UnappliedPatchesText}"
                              Foreground="{DynamicResource SizeWarningForegroundBrush}" />
                 </Button>
-                <!-- Without patches left out: the IPS applied thanks to their readme, whose name may get their CRC32 -->
+                <!-- Without patches left out: the IPS applied thanks to their readme, whose name may get their CRC32, or
+                     else the IPS applied from their name, which may change ROM or stop applying -->
                 <Button x:Name="BtnPatchesToName"
                         Classes="banner-link"
-                        ToolTip.Tip="{Binding I18n[stats.tooltip_patches_to_name]}"
+                        ToolTip.Tip="{Binding Patches.NamingLinkTooltip}"
                         IsVisible="{Binding Patches.IsNamingLinkVisible}"
                         Command="{Binding Patches.OpenCommand}">
                   <TextBlock x:Name="LblPatchesToName"
@@ -3626,6 +3627,12 @@
                               Command="{Binding ClearAll1G1ROverridesCommand}"
                               IsVisible="{Binding HasManual1G1ROverrides}"
                               IsEnabled="{Binding HasManual1G1ROverrides}" />
+                    <!-- A patched version: its IPS may change ROM or stop applying, in the window of the patches -->
+                    <MenuItem x:Name="MenuOpenPatch"
+                              Header="{Binding I18n[panel4.ctx_open_patch]}"
+                              ToolTip.Tip="{Binding I18n[panel4.tooltip_ctx_open_patch]}"
+                              Command="{Binding OpenSelectedPatchCommand}"
+                              IsVisible="{Binding CanOpenSelectedPatch}" />
                     <Separator IsVisible="{Binding CanShowPreviewContextMenuSeparator}" />
                     <MenuItem Header="{Binding IsolateGameMenuText}"
                               ToolTip.Tip="{Binding I18n[panel4.tooltip_ctx_filter_game]}"

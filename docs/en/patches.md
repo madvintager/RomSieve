@@ -171,7 +171,8 @@ results (or "*n* patches to name", when no patch was left out but some IPS were 
 
 ![The Patches window](../images/patches_window.png)
 
-The window lists the patches not applied, then the IPS applied thanks to their readme. For the patch selected:
+The window lists the patches not applied, then the IPS applied thanks to their readme, then those applied from their
+name (see [Changing the ROM of a patch](#changing-the-rom-of-a-patch)). For the patch selected:
 
 * **Original ROM** proposes the identified ROMs whose name or title starts the name of the patch, or that of its
   archive, or that of its folder when the folder holds it alone (`CT Translation/patch.ips`). Generic names (`patch`,
@@ -193,9 +194,30 @@ which applies the patches renamed. The CRC32 added does not appear in the name o
   their CRC32 in their name makes other tools, such as igir, apply them too.
 * A patch stored in an **archive** is never renamed, since an archive is never modified: the window gives the CRC32 of
   the ROM chosen, and the patch has to be extracted to write that CRC32 in its name.
-* A patch whose name already gives a CRC32, a UPS or a BPS cannot be chosen for: a CRC32 in its name would not fix it.
+* A UPS, a BPS, or an IPS not applied whose name already gives a CRC32 cannot be chosen for: a CRC32 in its name would
+  not fix it.
 * Nothing is overwritten: a name already taken leaves the patch as it was, and its row says so. Renaming is not recorded
-  in the journal of the sorts, and **Undo Last Sort** does not undo it: it is undone by hand.
+  in the journal of the sorts, and **Undo Last Sort** does not undo it: it is undone by hand, or in the window (see
+  [Changing the ROM of a patch](#changing-the-rom-of-a-patch)).
+
+## Changing the ROM of a patch
+
+An IPS whose name gives the CRC32 of a ROM applies to that ROM at each simulation: RomSieve keeps no choice in memory, it
+reads the name of the patch again. If the patched version does not work, because the patch was made for another ROM,
+the **Patches** window also lists, after the others, the IPS applied from their name (those on the disk: a patch stored
+in an archive is not renamed). It opens from the "View the patches" link of the banner, when no patch was left out, or
+from **Change the ROM of this patch…** in the context menu of a patched version of the table, which selects its patch.
+
+* To apply it to **another ROM**, choose it as for a patch not applied (**Other ROM**, then **Take this ROM**), check
+  the patch and click **Rename**: the CRC32 of the new ROM replaces the one of the name (`Game (T-Fr) [47e70e08].ips`
+  becomes `Game (T-Fr) [1a2b3c4d].ips`).
+* To **stop applying** it, click **Stop applying to this ROM**: RomSieve removes from the name of the patch what
+  designates its ROM (`Game (T-Fr) [47e70e08].ips` becomes `Game (T-Fr).ips` again). The next simulation no longer
+  applies it, and proposes it to you again among the patches not applied, with the ROMs its name suggests.
+
+An IPS applied thanks to its readme changes ROM the same way (the CRC32 written in its name wins over its readme), but
+cannot stop applying: its readme would designate its ROM again. The patched version a sort already wrote in a
+destination stays in place: **Undo Last Sort** deletes it, if that sort is the last one.
 
 ## In the results
 
@@ -205,6 +227,8 @@ which applies the patches renamed. The CRC32 added does not appear in the name o
 * The banner counts the patched versions in the **Patched** chip, which shows them alone, and the patches not applied in
   "*n* patches not applied", whose tooltip lists them with their reasons and which a click opens in the **Patches**
   window (see [Naming an IPS](#naming-an-ips)).
+* The context menu of a version patched by an IPS offers **Change the ROM of this patch…** (see
+  [Changing the ROM of a patch](#changing-the-rom-of-a-patch)).
 * In a [partial sort](simulation-table.md#sorting-part-of-the-simulation), a patched version follows the checkbox of
   its game.
 * The [exports](exports.md) describe it: the report names its patch, and the DAT of your collection writes it with its
@@ -221,4 +245,6 @@ the sort.
 [Command line](command-line.md)). The summary counts the patched versions and the patches not applied.
 
 `romsieve-cli patches` simulates the sort and lists its patches not applied, with the ROMs proposed for an IPS without
-CRC32, then the IPS applied thanks to their readme; `--name-from-notes --yes` writes the CRC32 in the name of the latter.
+CRC32, then the IPS applied thanks to their readme and those applied from their name; `--name-from-notes --yes` writes
+the CRC32 in the name of the IPS applied thanks to their readme, and `--detach <patch> --yes` removes from its name the
+ROM an IPS applied from its name designates, so that it no longer applies.

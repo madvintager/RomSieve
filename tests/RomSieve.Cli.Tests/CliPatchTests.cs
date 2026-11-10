@@ -132,7 +132,7 @@ public sealed class CliPatchTests : IDisposable
 
         result.Output.Should().Contain("--patches").And.Contain("--patch-only");
         (await RunAsync("--help")).Output.Should().Contain("patches");
-        (await RunAsync("patches", "--help")).Output.Should().Contain("--name-from-notes").And.Contain("--yes");
+        (await RunAsync("patches", "--help")).Output.Should().Contain("--name-from-notes").And.Contain("--detach").And.Contain("--yes");
     }
 
     // =========================================================================
@@ -155,7 +155,7 @@ public sealed class CliPatchTests : IDisposable
         var result = await RunAsync("patches", "--patches", _patches);
 
         result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
-        result.Output.Should().Contain("3 patched versions, 2 patches not applied, 1 IPS applied thanks to its readme.");
+        result.Output.Should().Contain("3 patched versions, 2 patches not applied, 1 IPS applied thanks to its readme, 0 IPS applied from their name.");
         result.Output.Should().Contain("Not applied, Game (Japan) (T-Fr).ips: Neither the name of the IPS patch");
         result.Output.Should().Contain($"ROM proposed: Game (Japan).sfc, CRC32 {Crc(Japan):X8}; new name: Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips");
         result.Output.Should().Contain("A ROM proposed is never taken on its own");
@@ -188,8 +188,45 @@ public sealed class CliPatchTests : IDisposable
         // The CRC32 in its name now applies it, without its readme
         var again = await RunAsync("patches", "--patches", _patches, "--name-from-notes");
         again.ExitCode.Should().Be(ExitCodes.Success, again.Error);
-        again.Output.Should().Contain("3 patched versions, 1 patch not applied, 0 IPS applied thanks to their readme.");
+        again.Output.Should().Contain("3 patched versions, 1 patch not applied, 0 IPS applied thanks to their readme, 1 IPS applied from its name.");
+        again.Output.Should().Contain($"Applied from its name, {Path.Combine("hack", $"Hack [{Crc(Usa):x8}].ips")}: to Game (USA).sfc");
         again.Output.Should().Contain("No IPS applied thanks to its readme is to be named.");
+    }
+
+    [Fact]
+    public async Task Patches_Detach_ShouldShowTheNewName_AndRenameOnlyWithYes_SoThatThePatchIsProposedAgain()
+    {
+        var ips = _temp.WriteBytes($"patches/Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips", IpsDiff(Japan, Translated));
+        var detached = Path.Combine(_patches, "Game (Japan) (T-Fr).ips");
+
+        var shown = await RunAsync("patches", "--patches", _patches, "--detach", Path.GetFileName(ips).ToUpperInvariant());
+
+        shown.ExitCode.Should().Be(ExitCodes.ConfirmationRequired);
+        shown.Output.Should().Contain($"To stop applying to Game (Japan).sfc: Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips -> Game (Japan) (T-Fr).ips");
+        File.Exists(ips).Should().BeTrue();
+
+        var done = await RunAsync("patches", "--patches", _patches, "--detach", Path.GetFileName(ips), "--yes");
+
+        done.ExitCode.Should().Be(ExitCodes.Success, done.Error);
+        done.Output.Should().Contain("Patch detached from its ROM:").And.Contain("1 patch renamed, 0 refused.");
+        File.Exists(ips).Should().BeFalse();
+        File.Exists(detached).Should().BeTrue();
+
+        var again = await RunAsync("patches", "--patches", _patches);
+        again.Output.Should().Contain("Not applied, Game (Japan) (T-Fr).ips");
+        again.Output.Should().Contain($"ROM proposed: Game (Japan).sfc, CRC32 {Crc(Japan):X8}");
+    }
+
+    [Fact]
+    public async Task Patches_DetachOfAnUnknownPatch_ShouldBeRefused_WithTheNamesThatCanBe()
+    {
+        _temp.WriteBytes($"patches/Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips", IpsDiff(Japan, Translated));
+
+        var result = await RunAsync("patches", "--patches", _patches, "--detach", "Game (USA) (Hack).ups", "--yes");
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidArguments);
+        result.Error.Should().Contain("--detach Game (USA) (Hack).ups").And.Contain($"Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips");
+        File.Exists(Path.Combine(_patches, "Game (USA) (Hack).ups")).Should().BeTrue();
     }
 
     [Fact]

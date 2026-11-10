@@ -2151,12 +2151,15 @@ public sealed partial class GuiTests : IDisposable
             var menuForce = (MenuItem)items[0];
             var menuReset = (MenuItem)items[1];
             var menuClearAll = (MenuItem)items[2];
-            var separator = (Separator)items[3];
-            var menuIsolate = (MenuItem)items[4];
-            var menuClearFilter = (MenuItem)items[5];
+            var menuOpenPatch = (MenuItem)items[3];
+            var separator = (Separator)items[4];
+            var menuIsolate = (MenuItem)items[5];
+            var menuClearFilter = (MenuItem)items[6];
 
             // When Row 0 is selected (no override, no filter):
             vm.SelectedPreviewItem = vm.AllPreviewItems[0];
+            menuOpenPatch.Name.Should().Be("MenuOpenPatch");
+            menuOpenPatch.IsVisible.Should().BeFalse("the row is not a patched version");
             menuForce.IsVisible.Should().BeTrue();
             menuReset.IsVisible.Should().BeFalse();
             menuClearAll.IsVisible.Should().BeFalse();

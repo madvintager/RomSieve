@@ -210,7 +210,7 @@ public sealed partial class GuiTests
                             {
                                 vm.UiLocale = locale;
                                 Settle(patchesWindow);
-                                foreach (var name in new[] { "BtnPatchesCheckNoteMatched", "BtnPatchesRename", "BtnPatchesSimulateAgain", "BtnPatchesClose", "BtnPatchChooseFound" })
+                                foreach (var name in new[] { "BtnPatchesCheckNoteMatched", "BtnPatchesRename", "BtnPatchesSimulateAgain", "BtnPatchesClose", "BtnPatchChooseFound", "BtnPatchDetach" })
                                 {
                                     AssertNotTrimmed(patchesWindow.FindControl<Control>(name)!, $"{name} ({locale})");
                                 }
@@ -239,6 +239,161 @@ public sealed partial class GuiTests
                 File.Exists(Path.Combine(patches, $"Game (T-Fr) [{PatchTestEncoder.Crc(usa):x8}].ips")).Should().BeTrue();
                 vm.AllPreviewItems.Should().ContainSingle(r => r.IsPatched, "the new simulation applies the patch renamed");
                 vm.StatsBanner.IsUnappliedPatchesVisible.Should().BeFalse();
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Going from a patch to another and back: each keeps the ROM and the form chosen for it. The lists of origins and of
+    /// forms write an empty choice when the selected patch changes, which used to leave the patch without its ROM.
+    /// </summary>
+    [Fact]
+    public async Task PatchesWindow_GoingBackToAPatch_ShouldKeepItsRomAndForm()
+    {
+        var source = Path.Combine(_tempDir, "back_src");
+        var patches = Path.Combine(_tempDir, "back_folder");
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(patches);
+        var usa = System.Text.Encoding.ASCII.GetBytes(new string('U', 4096));
+        var world = System.Text.Encoding.ASCII.GetBytes(new string('W', 4096));
+        File.WriteAllBytes(Path.Combine(source, "Game (USA).sfc"), usa);
+        File.WriteAllBytes(Path.Combine(source, "Other (World).sfc"), world);
+        var dat = Path.Combine(_tempDir, "back_snes.dat");
+        File.WriteAllText(dat, $"""
+            <?xml version="1.0"?><datafile><header><name>Nintendo - SNES</name><homepage>No-Intro</homepage></header>
+            <game name="Game (USA)"><description>Game (USA)</description><rom name="Game (USA).sfc" size="4096" crc="{PatchTestEncoder.Crc(usa):x8}"/></game>
+            <game name="Other (World)"><description>Other (World)</description><rom name="Other (World).sfc" size="4096" crc="{PatchTestEncoder.Crc(world):x8}"/></game></datafile>
+            """);
+        File.WriteAllBytes(Path.Combine(patches, "Game (T-Fr).ips"), PatchTestEncoder.IpsDiff(usa, [.. usa, .. "Fr"u8.ToArray()]));
+        File.WriteAllBytes(Path.Combine(patches, "Other (Hack).ips"), PatchTestEncoder.IpsDiff(world, [.. world, .. "Hack"u8.ToArray()]));
+
+        var dialogs = new HeadlessDialogService();
+        var vm = CreateViewModel(dialogs);
+        vm.Directories.SourceDir = source;
+        vm.Directories.DestinationDir = Path.Combine(_tempDir, "back_dst");
+        vm.Directories.DatFilePath = dat;
+        vm.Directories.PatchDir = patches;
+        await vm.Execution.SimulateAsync();
+
+        await RunOnUiThreadAsync(async () =>
+        {
+            var shown = vm.Patches;
+            shown.Load();
+            await Task.WhenAll(shown.Rows.Select(r => r.FormsLoading));
+            var patchesWindow = new PatchesWindow { DataContext = shown };
+            patchesWindow.Show();
+            try
+            {
+                Settle(patchesWindow);
+                var origin = patchesWindow.FindControl<ComboBox>("ComboPatchOrigin")!;
+                var first = shown.Rows[0];
+                var second = shown.Rows[1];
+                foreach (var row in new[] { second, first, second, first })
+                {
+                    shown.SelectedRow = row;
+                    Settle(patchesWindow);
+                    await row.FormsLoading;
+                    Settle(patchesWindow);
+                    row.SelectedOrigin.Should().NotBeNull($"{row.Name} keeps its ROM");
+                    row.SelectedForm.Should().NotBeNull($"{row.Name} keeps its form");
+                    origin.SelectedItem.Should().BeSameAs(row.SelectedOrigin);
+                }
+
+                first.SelectedOrigin!.Label.Should().Be("Game (USA).sfc");
+                second.SelectedOrigin!.Label.Should().Be("Other (World).sfc");
+                first.CanCheck.Should().BeTrue();
+                second.CanCheck.Should().BeTrue();
+            }
+            finally
+            {
+                patchesWindow.Close();
+            }
+        });
+    }
+
+    /// <summary>
+    /// An IPS applied from the CRC32 of its name: the table opens the window of the patches on it, « Stop applying to
+    /// this ROM » removes the CRC32 from its name, and « Simulate again » proposes it again among the patches left out.
+    /// </summary>
+    [Fact]
+    public async Task PatchesWindow_FromTheTable_ShouldStopApplyingAnIpsToItsRom()
+    {
+        var source = Path.Combine(_tempDir, "detach_src");
+        var patches = Path.Combine(_tempDir, "detach_folder");
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(patches);
+        var usa = System.Text.Encoding.ASCII.GetBytes(new string('U', 4096));
+        File.WriteAllBytes(Path.Combine(source, "Game (USA).sfc"), usa);
+        var dat = Path.Combine(_tempDir, "detach_snes.dat");
+        File.WriteAllText(dat, $"""
+            <?xml version="1.0"?><datafile><header><name>Nintendo - SNES</name><homepage>No-Intro</homepage></header>
+            <game name="Game (USA)"><description>Game (USA)</description><rom name="Game (USA).sfc" size="4096" crc="{PatchTestEncoder.Crc(usa):x8}"/></game></datafile>
+            """);
+        var patchName = $"Game (T-Fr) [{PatchTestEncoder.Crc(usa):x8}].ips";
+        File.WriteAllBytes(Path.Combine(patches, patchName), PatchTestEncoder.IpsDiff(usa, [.. usa, .. "Fr"u8.ToArray()]));
+
+        var dialogs = new HeadlessDialogService();
+        var vm = CreateViewModel(dialogs);
+        vm.Directories.SourceDir = source;
+        vm.Directories.DestinationDir = Path.Combine(_tempDir, "detach_dst");
+        vm.Directories.DatFilePath = dat;
+        vm.Directories.PatchDir = patches;
+        await vm.Execution.SimulateAsync();
+
+        await RunOnUiThreadAsync(async () =>
+        {
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                vm.Navigation.CurrentStep = WorkflowStep.Results;
+                Settle(window);
+                var link = window.FindControl<Button>("BtnPatchesToName")!;
+                link.IsEffectivelyVisible.Should().BeTrue("the banner opens the patches applied from their name");
+                window.FindControl<TextBlock>("LblPatchesToName")!.Text.Should().Be("Voir les patchs");
+
+                vm.SelectedPreviewItem = vm.AllPreviewItems.Single(r => r.IsPatched);
+                vm.CanOpenSelectedPatch.Should().BeTrue();
+                vm.CanOpenPreviewContextMenu.Should().BeTrue();
+                vm.SelectedPreviewItem = vm.AllPreviewItems.Single(r => !r.IsPatched);
+                vm.CanOpenSelectedPatch.Should().BeFalse("only a patched version has a patch");
+                vm.SelectedPreviewItem = vm.AllPreviewItems.Single(r => r.IsPatched);
+
+                dialogs.OnShowPatches = async shown =>
+                {
+                    var patchesWindow = new PatchesWindow { DataContext = shown };
+                    patchesWindow.Show(window);
+                    try
+                    {
+                        await Task.WhenAll(shown.Rows.Select(r => r.FormsLoading));
+                        Settle(patchesWindow);
+                        shown.SelectedRow!.Name.Should().Be(patchName);
+                        var detach = patchesWindow.FindControl<Button>("BtnPatchDetach")!;
+                        detach.IsEffectivelyEnabled.Should().BeTrue();
+                        ToolTip.GetShowOnDisabled(detach).Should().BeTrue();
+                        patchesWindow.FindControl<Button>("BtnPatchesRename")!.IsEffectivelyEnabled.Should().BeFalse();
+
+                        await shown.DetachSelectedCommand.ExecuteAsync(null);
+                        Settle(patchesWindow);
+                        detach.IsEffectivelyEnabled.Should().BeFalse();
+                        patchesWindow.FindControl<Button>("BtnPatchesSimulateAgain")!.IsEffectivelyEnabled.Should().BeTrue();
+                    }
+                    finally
+                    {
+                        patchesWindow.Close();
+                    }
+
+                    return true;
+                };
+
+                await vm.OpenSelectedPatchCommand.ExecuteAsync(null);
+                File.Exists(Path.Combine(patches, "Game (T-Fr).ips")).Should().BeTrue();
+                vm.AllPreviewItems.Should().NotContain(r => r.IsPatched, "the new simulation no longer applies the patch");
+                vm.StatsBanner.IsUnappliedPatchesVisible.Should().BeTrue("it is proposed again");
             }
             finally
             {

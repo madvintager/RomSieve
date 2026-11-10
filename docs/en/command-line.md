@@ -48,6 +48,9 @@ romsieve-cli patches --patches /roms/patches
 romsieve-cli patches --patches /roms/patches --name-from-notes          # shows the new names
 romsieve-cli patches --patches /roms/patches --name-from-notes --yes    # renames
 
+# Stop applying an IPS to the ROM its name designates, so that it is proposed again
+romsieve-cli patches --patches /roms/patches --detach "Game (T-Fr) [47e70e08].ips" --yes
+
 # Undo the last real sort
 romsieve-cli undo           # shows what would be undone
 romsieve-cli undo --yes     # undoes it
@@ -90,7 +93,8 @@ sort.
 | Option | Role |
 |---|---|
 | `--name-from-notes` | Shows the name each IPS applied thanks to its readme would take, with the CRC32 of its ROM (`Hack.ips` becomes `Hack [47e70e08].ips`). An IPS stored in an archive is not renamed |
-| `-y`, `--yes` | With `--name-from-notes`, renames these IPS in the folder of the patches. Without it, the exit code is 6 |
+| `--detach <patch>` | Stop applying this IPS, applied from its name, to its ROM: shows the name it would take without the CRC32 that designates it (`Game (T-Fr) [47e70e08].ips` becomes `Game (T-Fr).ips`), so that the next simulation proposes it again. The patch is named by its name or its path in the folder of the patches, case ignored; repeatable. A name no IPS applied from its name has is refused (code 2), with the names possible |
+| `-y`, `--yes` | With `--name-from-notes` or `--detach`, renames these IPS in the folder of the patches. Without it, the exit code is 6 |
 
 The list gives, for each patch not applied, its reason and, for an IPS without CRC32, the ROMs proposed from its name
 with the name it would take. A ROM proposed is never taken on its own: rename the patch yourself, or choose its ROM in
@@ -156,8 +160,8 @@ With a folder of the patches, a line of the summary counts the patched versions 
   `--purge --yes` purges the destination even when this option is checked.
 * `undo` only shows the sort to undo until `--yes` is added. After an incomplete undo (a locked file, an occupied
   original place), `undo --yes` resumes the operations left only.
-* `patches --name-from-notes` renames nothing without `--yes`, and only touches the name of the IPS of the folder of
-  the patches.
+* `patches --name-from-notes` and `patches --detach` rename nothing without `--yes`, and only touch the name of the IPS
+  of the folder of the patches.
 * `quarantine --empty` requires `--yes`, and only touches the quarantine of a destination marked by RomSieve: the
   deleted content can no longer be put back by undoing the sorts that purged it.
 * **Ctrl+C** stops the run cleanly: the file being written is removed.
@@ -168,11 +172,11 @@ With a folder of the patches, a line of the summary counts the patched versions 
 |---|---|
 | 0 | Success |
 | 1 | Unexpected error (a crash report is saved in `crashes/` next to the settings, and its path printed) |
-| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT, unsupported export format, `dat --output` over the DAT read) |
+| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT, unsupported export format, `dat --output` over the DAT read, `patches --detach` of a patch that is not an IPS applied from its name) |
 | 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder or archive of DATs refused, overlapping folders) |
 | 4 | Finished, but some files are in error (including a sort stopped by a full destination or a journal that cannot be written), an export failed (or `dat` kept no game), some operations could not be undone or some items of the quarantine could not be deleted |
 | 5 | Cancelled (Ctrl+C) |
-| 6 | Confirmation required (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, `quarantine --empty` or `patches --name-from-notes` without `--yes`) |
+| 6 | Confirmation required (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, `quarantine --empty`, `patches --name-from-notes` or `patches --detach` without `--yes`) |
 | 7 | Nothing to undo |
 
 For instance, in a script:

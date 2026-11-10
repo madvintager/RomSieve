@@ -172,6 +172,12 @@ public sealed partial class MainViewModel : ViewModelBase
             {
                 OnPropertyChanged(e.PropertyName);
             }
+
+            if (e.PropertyName is nameof(PreviewTableViewModel.SelectedPreviewItem) or nameof(PreviewTableViewModel.CanOpenPreviewContextMenu))
+            {
+                OnPropertyChanged(nameof(CanOpenSelectedPatch));
+                OnPropertyChanged(nameof(CanOpenPreviewContextMenu));
+            }
         };
 
         PartialSort = new PartialSortViewModel(_localization, Execution, PreviewTable);
@@ -400,7 +406,17 @@ public sealed partial class MainViewModel : ViewModelBase
 
     public bool CanShowPreviewContextMenuSeparator => PreviewTable.CanShowPreviewContextMenuSeparator;
 
-    public bool CanOpenPreviewContextMenu => PreviewTable.CanOpenPreviewContextMenu;
+    public bool CanOpenPreviewContextMenu => PreviewTable.CanOpenPreviewContextMenu || CanOpenSelectedPatch;
+
+    /// <summary>
+    /// Whether the selected row is a patched version whose IPS the window of the patches can apply to another ROM or stop
+    /// applying (<see cref="PatchesViewModel.CanOpenFor"/>).
+    /// </summary>
+    public bool CanOpenSelectedPatch => Patches is not null && Patches.CanOpenFor(SelectedPreviewItem?.Item.Patch);
+
+    /// <summary>Opens the window of the patches on the patch of the selected patched version.</summary>
+    [RelayCommand]
+    private Task OpenSelectedPatchAsync() => Patches.OpenForAsync(SelectedPreviewItem?.Item.Patch);
 
     // =========================================================================
     // Window state and top bar

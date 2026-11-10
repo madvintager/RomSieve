@@ -315,6 +315,34 @@ public sealed partial class PatchMatcher
     /// <summary>Whether the name of a patch gives a CRC32, as an IPS is matched by (<see cref="CrcTokenRegex"/>).</summary>
     public static bool NameGivesCrc(string patchName) => CrcTokens(BaseName(patchName)).Any();
 
+    /// <summary>
+    /// A CRC32 of a name as <see cref="CrcTokenRegex"/> reads it, with the word <c>CRC</c> or <c>CRC32</c> that may come
+    /// before it (<c>(CRC32: 47e70e08)</c>), to take it out of the name.
+    /// </summary>
+    [GeneratedRegex(@"(?<![a-z0-9])(?:crc(?:32)?\s*[:=#]?\s*)?(?:0x)?[a-f0-9]{8}(?![a-z0-9])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex CrcWithWordRegex();
+
+    /// <summary>Separators left at the end of a name once its CRC32 is removed.</summary>
+    private static readonly char[] NameEndTrim = [' ', '-', '_', '.', ',', '+', '~', ';', ':'];
+
+    /// <summary>
+    /// A name of a patch (without folders nor extension) without the CRC32 it gives: each of them removed with the word
+    /// <c>CRC</c> before it, then the brackets left empty, the doubled spaces and the separators left at its end
+    /// (<c>Game (T-Fr) [47e70e08]</c> becomes <c>Game (T-Fr)</c>). A name that gives none is returned as it is; an empty
+    /// string when nothing but a CRC32 made it.
+    /// </summary>
+    public static string BaseNameWithoutCrc(string baseName)
+    {
+        if (!CrcTokens(baseName).Any())
+        {
+            return baseName;
+        }
+
+        var text = CollapseSpaces(EmptyPairRegex().Replace(CrcWithWordRegex().Replace(baseName, " "), " "));
+        text = text.Trim().TrimEnd(NameEndTrim);
+        return text.Any(char.IsLetterOrDigit) ? text : string.Empty;
+    }
+
     // =========================================================================
     // The texts that come with a patch
     // =========================================================================

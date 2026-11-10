@@ -118,21 +118,29 @@
                    Text="{Binding SelectedRow.StatusText, FallbackValue=''}" />
 
         <TextBlock Grid.Row="3" Classes="form-label" Text="{Binding I18n[patches.origin_label]}" />
-        <ComboBox x:Name="ComboPatchOrigin"
-                  Grid.Row="3"
-                  Grid.Column="1"
-                  PlaceholderText="{Binding I18n[patches.origin_placeholder]}"
-                  ToolTip.Tip="{Binding I18n[patches.tooltip_origin]}"
+        <!-- An IPS applied from its name can stop applying to its ROM: the next simulation proposes it again -->
+        <DockPanel Grid.Row="3" Grid.Column="1">
+          <Button x:Name="BtnPatchDetach"
+                  DockPanel.Dock="Right"
+                  Margin="8,0,0,0"
+                  Content="{Binding I18n[patches.btn_detach]}"
+                  ToolTip.Tip="{Binding DetachTooltip}"
                   ToolTip.ShowOnDisabled="True"
-                  IsEnabled="{Binding CanSearch}"
-                  ItemsSource="{Binding SelectedRow.Origins, FallbackValue={x:Null}}"
-                  SelectedItem="{Binding SelectedRow.SelectedOrigin, Mode=TwoWay, FallbackValue={x:Null}}">
-          <ComboBox.ItemTemplate>
-            <DataTemplate x:DataType="vm:PatchOriginOptionViewModel">
-              <TextBlock TextWrapping="NoWrap" Text="{Binding Label}" ToolTip.Tip="{Binding Location}" />
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
+                  Command="{Binding DetachSelectedCommand}" />
+          <ComboBox x:Name="ComboPatchOrigin"
+                    PlaceholderText="{Binding I18n[patches.origin_placeholder]}"
+                    ToolTip.Tip="{Binding I18n[patches.tooltip_origin]}"
+                    ToolTip.ShowOnDisabled="True"
+                    IsEnabled="{Binding CanSearch}"
+                    ItemsSource="{Binding SelectedRow.Origins, FallbackValue={x:Null}}"
+                    SelectedItem="{Binding SelectedRow.SelectedOrigin, Mode=TwoWay, FallbackValue={x:Null}}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:PatchOriginOptionViewModel">
+                <TextBlock TextWrapping="NoWrap" Text="{Binding Label}" ToolTip.Tip="{Binding Location}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </DockPanel>
 
         <TextBlock Grid.Row="5" Classes="form-label" Text="{Binding I18n[patches.form_label]}" />
         <ComboBox x:Name="ComboPatchForm"

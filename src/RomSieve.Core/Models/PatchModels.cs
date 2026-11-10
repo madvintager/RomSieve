@@ -163,9 +163,15 @@ public sealed record PatchedVersion(
 
 /// <summary>
 /// The CRC32 of its origin to write in the name of an IPS (<see cref="Abstractions.IPatchNamingService.RenameAsync"/>):
-/// <c>Game (T-Fr).ips</c> becomes <c>Game (T-Fr) [47e70e08].ips</c>.
+/// <c>Game (T-Fr).ips</c> becomes <c>Game (T-Fr) [47e70e08].ips</c>, and the CRC32 a name already gives is replaced.
+/// Without <paramref name="Crc32"/>, the CRC32 the name gives is removed: the patch is detached from its ROM, and the
+/// next simulation proposes it again.
 /// </summary>
-public sealed record PatchRename(PatchFile Patch, uint Crc32);
+public sealed record PatchRename(PatchFile Patch, uint? Crc32)
+{
+    /// <summary>Whether the patch is detached from its ROM rather than given one.</summary>
+    public bool IsDetach => Crc32 is null;
+}
 
 /// <summary>
 /// What became of a <see cref="PatchRename"/>: the new path of the patch, or why it was left as it was
@@ -174,6 +180,16 @@ public sealed record PatchRename(PatchFile Patch, uint Crc32);
 public sealed record PatchRenameResult(PatchRename Request, string? NewPath, LocalizedMessage? Refusal)
 {
     public bool IsRenamed => NewPath is not null;
+}
+
+/// <summary>
+/// What became of the undoing of a <see cref="PatchRenameResult"/>
+/// (<see cref="Abstractions.IPatchNamingService.UndoAsync"/>): the patch took back its old name, the path of
+/// <see cref="PatchRename.Patch"/>, or why it kept its new one (<c>reason.patch_rename_*</c>).
+/// </summary>
+public sealed record PatchUndoResult(PatchRenameResult Renaming, LocalizedMessage? Refusal)
+{
+    public bool IsUndone => Refusal is null;
 }
 
 /// <summary>What applying a patch wrote: the size and CRC32 of the result, and the CRC32 of the source it read.</summary>

@@ -13,7 +13,8 @@ namespace RomSieve.Cli;
 /// Command line of RomSieve: <c>run</c> (simulation by default, real sort with <c>--execute</c>), <c>undo</c>
 /// (undo of the last real sort), <c>dat</c> (filtered DAT of the catalog alone, without source), <c>quarantine</c> (size of the quarantine of the purges of a destination, emptied
 /// with <c>--empty --yes</c>), <c>profiles</c> (list of the configuration profiles) and <c>patches</c> (the patches of a
-/// simulation, and the CRC32 of their readme written in the name of the IPS with <c>--name-from-notes --yes</c>). The options come from
+/// simulation, the CRC32 of their readme written in the name of the IPS with <c>--name-from-notes --yes</c>, and an IPS
+/// that stops applying to its ROM with <c>--detach --yes</c>). The options come from
 /// <c>config.json</c> or from a profile saved by the interface, read by <see cref="SortSettingsSerializer"/> as
 /// the interface reads them; the messages are translated (<c>--lang</c>).
 /// </summary>
@@ -43,6 +44,7 @@ public sealed class CliApplication
     private readonly Option<string?> _patchesOption = new("--patches");
     private readonly Option<bool> _patchOnlyOption = new("--patch-only");
     private readonly Option<bool> _nameFromNotesOption = new("--name-from-notes");
+    private readonly Option<string[]> _detachOption = new("--detach") { AllowMultipleArgumentsPerToken = false };
     private readonly Option<string?> _categoriesOption = new("--categories");
     private readonly Option<string?> _ratingsOption = new("--ratings");
     private readonly Option<string?> _modeOption = new("--mode");
@@ -160,6 +162,8 @@ public sealed class CliApplication
         _patchesOption.HelpName = Tr("cli.help_directory");
         _patchOnlyOption.Description = Tr("cli.option_patch_only");
         _nameFromNotesOption.Description = Tr("cli.option_name_from_notes");
+        _detachOption.Description = Tr("cli.option_detach");
+        _detachOption.HelpName = Tr("cli.help_patch");
         _categoriesOption.Description = Tr("cli.option_categories");
         _categoriesOption.HelpName = Tr("cli.help_file");
         _ratingsOption.Description = Tr("cli.option_ratings");
@@ -211,7 +215,7 @@ public sealed class CliApplication
         var patches = new Command("patches", Tr("cli.command_patches"))
         {
             _profileOption, _sourceOption, _destinationOption, _datOption, _datRecursiveOption, _datOnlyOption, _datMirrorOption,
-            _chdOption, _patchesOption, _categoriesOption, _ratingsOption, _nameFromNotesOption, _yesOption
+            _chdOption, _patchesOption, _categoriesOption, _ratingsOption, _nameFromNotesOption, _detachOption, _yesOption
         };
         patches.SetAction((parseResult, cancellationToken) => PatchesAsync(parseResult, cancellationToken));
 
@@ -622,8 +626,10 @@ public sealed class CliApplication
     /// <summary>
     /// Simulates the run of the options (as <c>run</c> without <c>--execute</c>, nothing written) and lists its patches:
     /// those left out with their reason and the origins proposed for an IPS without CRC32, then the IPS applied thanks to
-    /// their readme. With <c>--name-from-notes</c>, shows the CRC32 those IPS would get in their name and, with
-    /// <c>--yes</c>, writes it (<see cref="IPatchNamingService"/>): other tools, such as igir, then apply them too. A
+    /// their readme, and those applied from their name. With <c>--name-from-notes</c>, shows the CRC32 the IPS applied
+    /// thanks to their readme would get in their name and, with <c>--yes</c>, writes it (<see cref="IPatchNamingService"/>):
+    /// other tools, such as igir, then apply them too. With <c>--detach</c>, an IPS applied from its name stops applying
+    /// to its ROM: the CRC32 is removed from its name (with <c>--yes</c>), and the next simulation proposes it again. A
     /// suggestion is never taken: the user names such a patch, or chooses its ROM in the window of the interface.
     /// </summary>
     private async Task<int> PatchesAsync(ParseResult parseResult, CancellationToken cancellationToken)
@@ -672,11 +678,17 @@ public sealed class CliApplication
             .Where(p => p.CrcSource == PatchCrcSource.Notes)
             .DistinctBy(p => p.File)
             .ToList();
+        var byName = result.Items.Select(it => it.Patch)
+            .OfType<PatchedVersion>()
+            .Where(p => p.CrcSource == PatchCrcSource.FileName)
+            .DistinctBy(p => p.File)
+            .ToList();
         WriteLine(_localization.Format(LocalizedMessage.Create(
             "cli.patches_summary",
             ("patched", LocalizedMessage.Count("patches.count_patched", result.Stats.PatchedCount)),
             ("unapplied", LocalizedMessage.Count("patches.count_unapplied", result.UnappliedPatches.Count)),
-            ("by_note", LocalizedMessage.Count("patches.count_by_note", byNote.Count)))));
+            ("by_note", LocalizedMessage.Count("patches.count_by_note", byNote.Count)),
+            ("by_name", LocalizedMessage.Count("patches.count_by_name", byName.Count)))));
 
         string Describe(PatchFile patch) => patch.ArchiveMember is { } member
             ? $"{member} ({Path.GetFileName(patch.SourcePath)})"
@@ -709,13 +721,43 @@ public sealed class CliApplication
                 ("note", version.Note?.DisplayName ?? string.Empty)));
         }
 
-        if (!parseResult.GetValue(_nameFromNotesOption))
+        foreach (var version in byName)
+        {
+            WriteLine("  " + Tr("cli.patches_by_name", ("name", Describe(version.File)), ("origin", version.Origin.DisplayName)));
+        }
+
+        var nameFromNotes = parseResult.GetValue(_nameFromNotesOption);
+        var detachNames = parseResult.GetValue(_detachOption) ?? [];
+        if (!nameFromNotes && detachNames.Length == 0)
         {
             return ExitCodes.Success;
         }
 
+        // --detach: an IPS applied from its name, by its name or its path in the patch folder, whatever the case
+        var detached = new List<PatchedVersion>();
+        foreach (var name in detachNames)
+        {
+            var version = byName.FirstOrDefault(p =>
+                string.Equals(p.File.DisplayName, name, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Describe(p.File), name, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Describe(p.File).Replace('\\', '/'), name.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
+            if (version is null)
+            {
+                return Fail(ExitCodes.InvalidArguments, Tr(
+                    "cli.patches_detach_unknown",
+                    ("name", name),
+                    ("names", byName.Count == 0 ? "-" : string.Join(", ", byName.Select(p => Describe(p.File))))));
+            }
+
+            if (!detached.Contains(version))
+            {
+                detached.Add(version);
+            }
+        }
+
         // A patch in an archive is never renamed: the archive is never modified
-        foreach (var version in byNote.Where(p => p.File.ArchiveMember is not null))
+        var toName = nameFromNotes ? byNote : [];
+        foreach (var version in toName.Concat(detached).Where(p => p.File.ArchiveMember is not null))
         {
             WriteLine($"[{LogLevel.Skip.ToTag()}] " + Tr(
                 "log.patch_rename_refused",
@@ -723,7 +765,9 @@ public sealed class CliApplication
                 ("reason", Tr("reason.patch_rename_in_archive"))));
         }
 
-        var renames = byNote.Where(p => p.File.ArchiveMember is null).Select(p => new PatchRename(p.File, p.SourceCrc32)).ToList();
+        var renames = toName.Where(p => p.File.ArchiveMember is null).Select(p => new PatchRename(p.File, p.SourceCrc32))
+            .Concat(detached.Where(p => p.File.ArchiveMember is null).Select(p => new PatchRename(p.File, null)))
+            .ToList();
         if (renames.Count == 0)
         {
             WriteLine(Tr("cli.patches_nothing_to_name"));
@@ -732,10 +776,14 @@ public sealed class CliApplication
 
         foreach (var rename in renames)
         {
-            WriteLine("  " + Tr(
-                "cli.patches_rename_planned",
-                ("old", Describe(rename.Patch)),
-                ("new", naming.NameWithCrc(rename.Patch.DisplayName, rename.Crc32))));
+            var newName = naming.NewName(rename) ?? rename.Patch.DisplayName;
+            WriteLine("  " + (rename.IsDetach
+                ? Tr(
+                    "cli.patches_detach_planned",
+                    ("origin", detached.First(p => p.File == rename.Patch).Origin.DisplayName),
+                    ("old", Describe(rename.Patch)),
+                    ("new", newName))
+                : Tr("cli.patches_rename_planned", ("old", Describe(rename.Patch)), ("new", newName))));
         }
 
         if (!parseResult.GetValue(_yesOption))

@@ -48,6 +48,9 @@ romsieve-cli patches --patches /roms/patchs
 romsieve-cli patches --patches /roms/patchs --name-from-notes          # affiche les nouveaux noms
 romsieve-cli patches --patches /roms/patchs --name-from-notes --yes    # renomme
 
+# Ne plus appliquer un IPS à la ROM que son nom désigne, pour qu'il soit proposé de nouveau
+romsieve-cli patches --patches /roms/patchs --detach "Jeu (T-Fr) [47e70e08].ips" --yes
+
 # Annuler le dernier tri réel
 romsieve-cli undo           # affiche ce qui serait annulé
 romsieve-cli undo --yes     # l'annule
@@ -89,7 +92,8 @@ rien écrire dans la destination. Il exige un dossier des patchs et un DAT (code
 | Option | Rôle |
 |---|---|
 | `--name-from-notes` | Montre le nom que prendrait chaque IPS appliqué grâce à son readme, avec le CRC32 de sa ROM (`Hack.ips` devient `Hack [47e70e08].ips`). Un IPS rangé dans une archive n'est pas renommé |
-| `-y`, `--yes` | Avec `--name-from-notes`, renomme ces IPS dans le dossier des patchs. Sans lui, le code de sortie est 6 |
+| `--detach <patch>` | Ne plus appliquer cet IPS, appliqué d'après son nom, à sa ROM : montre le nom qu'il prendrait sans le CRC32 qui la désigne (`Jeu (T-Fr) [47e70e08].ips` devient `Jeu (T-Fr).ips`), pour que la prochaine simulation le propose de nouveau. Le patch est désigné par son nom ou son chemin dans le dossier des patchs, sans tenir compte des majuscules ; répétable. Un nom qu'aucun IPS appliqué d'après son nom ne porte est refusé (code 2), avec les noms possibles |
+| `-y`, `--yes` | Avec `--name-from-notes` ou `--detach`, renomme ces IPS dans le dossier des patchs. Sans lui, le code de sortie est 6 |
 
 La liste donne, pour chaque patch non appliqué, sa raison et, pour un IPS sans CRC32, les ROMs proposées d'après son
 nom avec le nom qu'il prendrait. Une ROM proposée n'est jamais prise d'office : renommez le patch vous-même, ou
@@ -155,7 +159,8 @@ Avec un dossier des patchs, une ligne du bilan compte les versions patchées et 
   et `--purge --yes` purge la destination même quand cette option est cochée.
 * `undo` se contente d'afficher le tri à annuler tant que `--yes` n'est pas ajouté. Après une annulation incomplète
   (fichier verrouillé, emplacement d'origine occupé), `undo --yes` reprend les seules opérations restantes.
-* `patches --name-from-notes` ne renomme rien sans `--yes`, et ne touche qu'au nom des IPS du dossier des patchs.
+* `patches --name-from-notes` et `patches --detach` ne renomment rien sans `--yes`, et ne touchent qu'au nom des IPS du
+  dossier des patchs.
 * `quarantine --empty` exige `--yes`, et ne touche qu'à la quarantaine d'une destination marquée par RomSieve : le
   contenu supprimé ne pourra plus être remis en place par l'annulation des tris qui l'ont purgé.
 * **Ctrl+C** arrête l'exécution proprement : le fichier en cours d'écriture est supprimé.
@@ -166,11 +171,11 @@ Avec un dossier des patchs, une ligne du bilan compte les versions patchées et 
 |---|---|
 | 0 | Succès |
 | 1 | Erreur inattendue (un rapport d'erreur est enregistré dans `crashes/` à côté des réglages, et son chemin affiché) |
-| 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT, format d'export non pris en charge, `dat --output` sur le DAT lu) |
+| 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT, format d'export non pris en charge, `dat --output` sur le DAT lu, `patches --detach` d'un patch qui n'est pas un IPS appliqué d'après son nom) |
 | 3 | Configuration invalide (fichier de réglages ou profil absent ou illisible, source, DAT ou destination introuvable, dossier ou archive de DAT refusé, dossiers qui se chevauchent) |
 | 4 | Terminé, mais des fichiers sont en erreur (dont un tri arrêté par une destination pleine ou un journal impossible à écrire), un export a échoué (ou `dat` n'a gardé aucun jeu), des opérations n'ont pas pu être annulées ou des éléments de la quarantaine n'ont pas pu être supprimés |
 | 5 | Interrompu (Ctrl+C) |
-| 6 | Confirmation requise (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, `quarantine --empty` ou `patches --name-from-notes` sans `--yes`) |
+| 6 | Confirmation requise (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, `quarantine --empty`, `patches --name-from-notes` ou `patches --detach` sans `--yes`) |
 | 7 | Rien à annuler |
 
 Par exemple, dans un script :
