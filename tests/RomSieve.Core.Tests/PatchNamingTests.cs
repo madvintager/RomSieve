@@ -8,10 +8,9 @@ using static RomSieve.Core.Tests.Fixtures.PatchTestEncoder;
 namespace RomSieve.Core.Tests;
 
 /// <summary>
-/// The CRC32 of its origin written in the name of an IPS, or replaced, or removed to detach the patch from its ROM
-/// (<see cref="PatchNamingService"/>): the new name, each refusal before anything changes, a renaming that goes on after
-/// a refusal, the log, the patch applied at the next simulation under the same patched name, and a patch detached
-/// proposed again.
+/// The CRC32 of its origin written in the name of an IPS, or replaced, for other tools (<see cref="PatchNamingService"/>):
+/// the new name, each refusal before anything changes, a renaming that goes on after a refusal, the log, the undoing,
+/// and the patch applied at the next simulation under the same patched name.
 /// </summary>
 public sealed class PatchNamingTests : IDisposable
 {
@@ -179,113 +178,6 @@ public sealed class PatchNamingTests : IDisposable
         File.Exists(path).Should().BeTrue();
     }
 
-    // =========================================================================
-    // Detaching a patch from its ROM
-    // =========================================================================
-
-    [Theory]
-    [InlineData("Game [47e70e08].ips", "Game.ips")]
-    [InlineData("Game (T-Fr) [47E70E08].ips", "Game (T-Fr).ips")]
-    [InlineData("Game [!] [47e70e08] (Hack).ips", "Game [!] (Hack).ips")]
-    [InlineData("Game (CRC32 47e70e08).ips", "Game.ips")]
-    [InlineData("Game (CRC: 47e70e08).IPS32", "Game.IPS32")]
-    [InlineData("Game - 0x47e70e08.ips", "Game.ips")]
-    [InlineData("Game_47e70e08.ips", "Game.ips")]
-    [InlineData("sub/Game [47e70e08].ips", "Game.ips")]
-    [InlineData("Game (T-Fr).ips", "Game (T-Fr).ips")]
-    public void NameWithoutCrc_ShouldRemoveTheCrcAndWhatItLeaves(string name, string expected)
-    {
-        var result = _naming.NameWithoutCrc(name);
-
-        result.Should().Be(expected);
-        PatchMatcher.NameGivesCrc(result!).Should().BeFalse();
-    }
-
-    [Theory]
-    [InlineData("47e70e08.ips")]
-    [InlineData("[47e70e08] - .ips")]
-    public void NameWithoutCrc_ShouldBeNull_WhenOnlyACrcMadeTheName(string name) =>
-        _naming.NameWithoutCrc(name).Should().BeNull();
-
-    [Fact]
-    public async Task ADetachedIps_ShouldBeProposedAgainAtTheNextSimulation()
-    {
-        _temp.WriteBytes("src/Game (Japan).sfc", Japan);
-        var dat = _temp.WriteText("dat/snes.dat", $"""
-            <?xml version="1.0"?><datafile><header><name>Nintendo - SNES</name><homepage>No-Intro</homepage></header>
-            <game name="Game (Japan)"><description>Game (Japan)</description><rom name="Game (Japan).sfc" size="{Japan.Length}" crc="{Crc(Japan):x8}"/></game></datafile>
-            """);
-        var path = WriteIps($"Game (Japan) (T-En) [{Crc(Japan):x8}].ips");
-        var config = new SortConfig
-        {
-            SourceDir = _temp.GetFilePath("src"),
-            DestinationDir = _temp.CreateSubdirectory("dst"),
-            DatFile = dat,
-            NamingConvention = NamingConvention.NoIntro,
-            PatchDir = _patches
-        };
-        var before = await _services.Processor.ExecuteAsync(config, isDryRun: true);
-        before.Items.Single(it => it.Patch is not null).Patch!.CrcSource.Should().Be(PatchCrcSource.FileName);
-
-        var result = (await _naming.RenameAsync(_patches, [new PatchRename(new PatchFile(path), null)], (level, message) => _log.Add((level, message)))).Single();
-
-        result.NewPath.Should().Be(Path.Combine(_patches, "Game (Japan) (T-En).ips"));
-        File.ReadAllBytes(result.NewPath!).Should().Equal(IpsDiff(Japan, Translated), "only the name changes");
-        _log.Should().ContainSingle().Which.Should().Match<(LogLevel Level, LocalizedMessage Message)>(
-            l => l.Level == LogLevel.Info && l.Message.Key == "log.patch_detached");
-
-        var after = await _services.Processor.ExecuteAsync(config, isDryRun: true);
-        after.Items.Should().NotContain(it => it.Patch != null);
-        var unapplied = after.UnappliedPatches.Should().ContainSingle().Subject;
-        unapplied.Reason.Key.Should().Be("reason.patch_no_crc");
-        unapplied.Suggestions.Should().ContainSingle().Which.Origin.DisplayName.Should().Be("Game (Japan).sfc");
-    }
-
-    [Fact]
-    public async Task APatchWhoseNameGivesNoRom_ShouldNotBeDetached()
-    {
-        var path = WriteIps("Game (T-Fr).ips");
-
-        var result = (await _naming.RenameAsync(_patches, [new PatchRename(new PatchFile(path), null)], (_, _) => { })).Single();
-
-        RefusalKey(result).Should().Be("reason.patch_rename_no_rom");
-        File.Exists(path).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task APatchNamedOnlyByItsCrc_ShouldNotBeDetached()
-    {
-        var path = WriteIps("47e70e08.ips");
-
-        var result = (await _naming.RenameAsync(_patches, [new PatchRename(new PatchFile(path), null)], (_, _) => { })).Single();
-
-        RefusalKey(result).Should().Be("reason.patch_rename_nothing_left");
-        File.Exists(path).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task ADetachedName_AlreadyTaken_ShouldNotBeOverwritten()
-    {
-        var path = WriteIps("Game [47e70e08].ips");
-        var taken = _temp.WriteText("patches/Game.ips", "another file");
-
-        var result = (await _naming.RenameAsync(_patches, [new PatchRename(new PatchFile(path), null)], (_, _) => { })).Single();
-
-        RefusalKey(result).Should().Be("reason.patch_rename_taken");
-        File.Exists(path).Should().BeTrue();
-        File.ReadAllText(taken).Should().Be("another file");
-    }
-
-    [Fact]
-    public async Task APatchInAnArchive_ShouldNotBeDetached()
-    {
-        var zip = _temp.WriteBytes("patches/patches.zip", [0x50, 0x4b, 0x05, 0x06, .. new byte[18]]);
-
-        var result = (await _naming.RenameAsync(_patches, [new PatchRename(new PatchFile(zip, "Game [47e70e08].ips"), null)], (_, _) => { })).Single();
-
-        RefusalKey(result).Should().Be("reason.patch_rename_in_archive");
-    }
-
     [Theory]
     [InlineData("Game.ups")]
     [InlineData("Game.ips")]
@@ -357,20 +249,6 @@ public sealed class PatchNamingTests : IDisposable
             (LogLevel.Info, "log.patch_rename_undone"));
         _log[1].Message.Args["new"].Should().Be("Game (T-Fr) [47e70e08].ips");
         _log[1].Message.Args["old"].Should().Be("Game (T-Fr).ips");
-    }
-
-    [Fact]
-    public async Task ADetaching_ShouldBeUndone_SoThatThePatchDesignatesItsRomAgain()
-    {
-        var path = WriteIps("Game (CRC32 47e70e08).ips");
-        var detaching = (await _naming.RenameAsync(_patches, [new PatchRename(new PatchFile(path), null)], (_, _) => { })).Single();
-        detaching.NewPath.Should().Be(Path.Combine(_patches, "Game.ips"));
-
-        var undo = await UndoAsync(detaching);
-
-        undo.IsUndone.Should().BeTrue();
-        File.Exists(path).Should().BeTrue("the old name comes back as it was, not rebuilt");
-        File.Exists(detaching.NewPath).Should().BeFalse();
     }
 
     [Fact]

@@ -13,8 +13,9 @@ namespace RomSieve.Cli;
 /// Command line of RomSieve: <c>run</c> (simulation by default, real sort with <c>--execute</c>), <c>undo</c>
 /// (undo of the last real sort), <c>dat</c> (filtered DAT of the catalog alone, without source), <c>quarantine</c> (size of the quarantine of the purges of a destination, emptied
 /// with <c>--empty --yes</c>), <c>profiles</c> (list of the configuration profiles) and <c>patches</c> (the patches of a
-/// simulation, the CRC32 of their readme written in the name of the IPS with <c>--name-from-notes --yes</c>, and an IPS
-/// that stops applying to its ROM with <c>--detach --yes</c>). The options come from
+/// simulation, the choices of the user recorded with <c>--link --rom</c>, <c>--ignore</c> and <c>--auto</c> plus
+/// <c>--yes</c>, and the CRC32 of their readme written in the name of the IPS with <c>--name-from-notes --yes</c>). The
+/// options come from
 /// <c>config.json</c> or from a profile saved by the interface, read by <see cref="SortSettingsSerializer"/> as
 /// the interface reads them; the messages are translated (<c>--lang</c>).
 /// </summary>
@@ -45,7 +46,10 @@ public sealed class CliApplication
     private readonly Option<bool> _patchOnlyOption = new("--patch-only");
     private readonly Option<bool> _noPatchesOption = new("--no-patches");
     private readonly Option<bool> _nameFromNotesOption = new("--name-from-notes");
-    private readonly Option<string[]> _detachOption = new("--detach") { AllowMultipleArgumentsPerToken = false };
+    private readonly Option<string?> _linkOption = new("--link");
+    private readonly Option<string?> _romOption = new("--rom");
+    private readonly Option<string[]> _ignoreOption = new("--ignore") { AllowMultipleArgumentsPerToken = false };
+    private readonly Option<string[]> _autoOption = new("--auto") { AllowMultipleArgumentsPerToken = false };
     private readonly Option<string?> _categoriesOption = new("--categories");
     private readonly Option<string?> _ratingsOption = new("--ratings");
     private readonly Option<string?> _modeOption = new("--mode");
@@ -164,8 +168,14 @@ public sealed class CliApplication
         _patchOnlyOption.Description = Tr("cli.option_patch_only");
         _noPatchesOption.Description = Tr("cli.option_no_patches");
         _nameFromNotesOption.Description = Tr("cli.option_name_from_notes");
-        _detachOption.Description = Tr("cli.option_detach");
-        _detachOption.HelpName = Tr("cli.help_patch");
+        _linkOption.Description = Tr("cli.option_link");
+        _linkOption.HelpName = Tr("cli.help_patch");
+        _romOption.Description = Tr("cli.option_rom");
+        _romOption.HelpName = Tr("cli.help_rom");
+        _ignoreOption.Description = Tr("cli.option_ignore");
+        _ignoreOption.HelpName = Tr("cli.help_patch");
+        _autoOption.Description = Tr("cli.option_auto");
+        _autoOption.HelpName = Tr("cli.help_patch");
         _categoriesOption.Description = Tr("cli.option_categories");
         _categoriesOption.HelpName = Tr("cli.help_file");
         _ratingsOption.Description = Tr("cli.option_ratings");
@@ -218,7 +228,8 @@ public sealed class CliApplication
         var patches = new Command("patches", Tr("cli.command_patches"))
         {
             _profileOption, _sourceOption, _destinationOption, _datOption, _datRecursiveOption, _datOnlyOption, _datMirrorOption,
-            _chdOption, _patchesOption, _categoriesOption, _ratingsOption, _nameFromNotesOption, _detachOption, _yesOption
+            _chdOption, _patchesOption, _categoriesOption, _ratingsOption, _nameFromNotesOption, _linkOption, _romOption, _ignoreOption,
+            _autoOption, _yesOption
         };
         patches.SetAction((parseResult, cancellationToken) => PatchesAsync(parseResult, cancellationToken));
 
@@ -645,16 +656,32 @@ public sealed class CliApplication
 
     /// <summary>
     /// Simulates the run of the options (as <c>run</c> without <c>--execute</c>, nothing written) and lists its patches:
-    /// those left out with their reason and the origins proposed for an IPS without CRC32, then the IPS applied thanks to
-    /// their readme, and those applied from their name. With <c>--name-from-notes</c>, shows the CRC32 the IPS applied
-    /// thanks to their readme would get in their name and, with <c>--yes</c>, writes it (<see cref="IPatchNamingService"/>):
-    /// other tools then apply them too. With <c>--detach</c>, an IPS applied from its name stops applying
-    /// to its ROM: the CRC32 is removed from its name (with <c>--yes</c>), and the next simulation proposes it again. A
-    /// suggestion is never taken: the user names such a patch, or chooses its ROM in the window of the interface.
+    /// those left out with their reason and the ROMs proposed for an IPS, those applied with their ROM and what designates
+    /// it, and those set aside. Then records the choices asked for (<see cref="IPatchLinkService"/>): <c>--link</c> with
+    /// <c>--rom</c> applies an IPS to a ROM, <c>--ignore</c> sets a patch aside, <c>--auto</c> forgets the choice of a patch;
+    /// shown without <c>--yes</c>, recorded with it, no file changed. With <c>--name-from-notes</c>, shows the CRC32 the IPS
+    /// applied thanks to their readme would get in their name and, with <c>--yes</c>, writes it
+    /// (<see cref="IPatchNamingService"/>): other tools then apply them too. A suggestion is never taken.
     /// </summary>
     private async Task<int> PatchesAsync(ParseResult parseResult, CancellationToken cancellationToken)
     {
         var quiet = parseResult.GetValue(_quietOption);
+        var linkName = parseResult.GetValue(_linkOption);
+        var romName = parseResult.GetValue(_romOption);
+        var ignoreNames = parseResult.GetValue(_ignoreOption) ?? [];
+        var autoNames = parseResult.GetValue(_autoOption) ?? [];
+        var nameFromNotes = parseResult.GetValue(_nameFromNotesOption);
+        if ((linkName is null) != (romName is null))
+        {
+            return Fail(ExitCodes.InvalidArguments, Tr("cli.patches_link_needs_rom"));
+        }
+
+        var choosing = linkName is not null || ignoreNames.Length > 0 || autoNames.Length > 0;
+        if (choosing && nameFromNotes)
+        {
+            return Fail(ExitCodes.InvalidArguments, Tr("cli.patches_choices_and_names"));
+        }
+
         var (prepared, prepareError) = await PrepareRunAsync(
             parseResult,
             quiet,
@@ -682,10 +709,10 @@ public sealed class CliApplication
             return Fail(ExitCodes.InvalidConfiguration, Tr("log.patches_ignored_mame"));
         }
 
-        // The lines of the simulation itself would bury the list: only its errors are shown
+        // The lines of the simulation itself would bury the list: only its errors and warnings about the choices are shown
         var log = new SynchronousProgress<LogMessage>(message =>
         {
-            if (message.Level == LogLevel.Error)
+            if (message.Level == LogLevel.Error || message.Message.Key.StartsWith("log.patch_link", StringComparison.Ordinal))
             {
                 WriteLine($"[{message.Level.ToTag()}] {_localization.Format(message.Message)}");
             }
@@ -693,23 +720,12 @@ public sealed class CliApplication
         var processor = services.GetRequiredService<ISortProcessorService>();
         var result = await processor.ExecuteAsync(config, isDryRun: true, logProgress: log, cancellationToken: cancellationToken);
 
-        var naming = services.GetRequiredService<IPatchNamingService>();
-        var byNote = result.Items.Select(it => it.Patch)
-            .OfType<PatchedVersion>()
-            .Where(p => p.CrcSource == PatchCrcSource.Notes)
-            .DistinctBy(p => p.File)
-            .ToList();
-        var byName = result.Items.Select(it => it.Patch)
-            .OfType<PatchedVersion>()
-            .Where(p => p.CrcSource == PatchCrcSource.FileName)
-            .DistinctBy(p => p.File)
-            .ToList();
+        var applied = result.Items.Select(it => it.Patch).OfType<PatchedVersion>().DistinctBy(p => p.File).ToList();
         WriteLine(_localization.Format(LocalizedMessage.Create(
             "cli.patches_summary",
             ("patched", LocalizedMessage.Count("patches.count_patched", result.Stats.PatchedCount)),
             ("unapplied", LocalizedMessage.Count("patches.count_unapplied", result.UnappliedPatches.Count)),
-            ("by_note", LocalizedMessage.Count("patches.count_by_note", byNote.Count)),
-            ("by_name", LocalizedMessage.Count("patches.count_by_name", byName.Count)))));
+            ("ignored", LocalizedMessage.Count("patches.count_ignored", result.IgnoredPatches.Count)))));
 
         string Describe(PatchFile patch) => patch.ArchiveMember is { } member
             ? $"{member} ({Path.GetFileName(patch.SourcePath)})"
@@ -720,11 +736,7 @@ public sealed class CliApplication
             WriteLine("  " + Tr("cli.patches_unapplied", ("name", Describe(unapplied.File)), ("reason", _localization.Format(unapplied.Reason))));
             foreach (var suggestion in unapplied.Suggestions)
             {
-                WriteLine("    " + Tr(
-                    "cli.patches_suggestion",
-                    ("origin", suggestion.Origin.DisplayName),
-                    ("form", FormText(suggestion)),
-                    ("name", naming.NameWithCrc(unapplied.File.DisplayName, suggestion.Crc32))));
+                WriteLine("    " + Tr("cli.patches_suggestion", ("origin", suggestion.Origin.DisplayName), ("form", FormText(suggestion))));
             }
         }
 
@@ -733,52 +745,40 @@ public sealed class CliApplication
             WriteLine(Tr("cli.patches_suggestions_hint"));
         }
 
-        foreach (var version in byNote)
+        foreach (var version in applied)
         {
             WriteLine("  " + Tr(
-                "cli.patches_by_note",
+                "cli.patches_applied",
                 ("name", Describe(version.File)),
                 ("origin", version.Origin.DisplayName),
-                ("note", version.Note?.DisplayName ?? string.Empty)));
+                ("source", version.CrcSource switch
+                {
+                    PatchCrcSource.Recorded => Tr("cli.patches_source_recorded"),
+                    PatchCrcSource.Notes => Tr("cli.patches_source_note", ("note", version.Note?.DisplayName ?? string.Empty)),
+                    PatchCrcSource.Link => Tr("cli.patches_source_link"),
+                    _ => Tr("cli.patches_source_name")
+                })));
         }
 
-        foreach (var version in byName)
+        foreach (var ignored in result.IgnoredPatches)
         {
-            WriteLine("  " + Tr("cli.patches_by_name", ("name", Describe(version.File)), ("origin", version.Origin.DisplayName)));
+            WriteLine("  " + Tr("cli.patches_ignored", ("name", Describe(ignored.File))));
         }
 
-        var nameFromNotes = parseResult.GetValue(_nameFromNotesOption);
-        var detachNames = parseResult.GetValue(_detachOption) ?? [];
-        if (!nameFromNotes && detachNames.Length == 0)
+        if (choosing)
+        {
+            return await ChoosePatchesAsync(parseResult, services, config, result, applied, Describe, cancellationToken);
+        }
+
+        if (!nameFromNotes)
         {
             return ExitCodes.Success;
         }
 
-        // --detach: an IPS applied from its name, by its name or its path in the patch folder, whatever the case
-        var detached = new List<PatchedVersion>();
-        foreach (var name in detachNames)
-        {
-            var version = byName.FirstOrDefault(p =>
-                string.Equals(p.File.DisplayName, name, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(Describe(p.File), name, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(Describe(p.File).Replace('\\', '/'), name.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
-            if (version is null)
-            {
-                return Fail(ExitCodes.InvalidArguments, Tr(
-                    "cli.patches_detach_unknown",
-                    ("name", name),
-                    ("names", byName.Count == 0 ? "-" : string.Join(", ", byName.Select(p => Describe(p.File))))));
-            }
-
-            if (!detached.Contains(version))
-            {
-                detached.Add(version);
-            }
-        }
-
         // A patch in an archive is never renamed: the archive is never modified
-        var toName = nameFromNotes ? byNote : [];
-        foreach (var version in toName.Concat(detached).Where(p => p.File.ArchiveMember is not null))
+        var naming = services.GetRequiredService<IPatchNamingService>();
+        var byNote = applied.Where(p => p.CrcSource == PatchCrcSource.Notes).ToList();
+        foreach (var version in byNote.Where(p => p.File.ArchiveMember is not null))
         {
             WriteLine($"[{LogLevel.Skip.ToTag()}] " + Tr(
                 "log.patch_rename_refused",
@@ -786,9 +786,7 @@ public sealed class CliApplication
                 ("reason", Tr("reason.patch_rename_in_archive"))));
         }
 
-        var renames = toName.Where(p => p.File.ArchiveMember is null).Select(p => new PatchRename(p.File, p.SourceCrc32))
-            .Concat(detached.Where(p => p.File.ArchiveMember is null).Select(p => new PatchRename(p.File, null)))
-            .ToList();
+        var renames = byNote.Where(p => p.File.ArchiveMember is null).Select(p => new PatchRename(p.File, p.SourceCrc32)).ToList();
         if (renames.Count == 0)
         {
             WriteLine(Tr("cli.patches_nothing_to_name"));
@@ -797,14 +795,7 @@ public sealed class CliApplication
 
         foreach (var rename in renames)
         {
-            var newName = naming.NewName(rename) ?? rename.Patch.DisplayName;
-            WriteLine("  " + (rename.IsDetach
-                ? Tr(
-                    "cli.patches_detach_planned",
-                    ("origin", detached.First(p => p.File == rename.Patch).Origin.DisplayName),
-                    ("old", Describe(rename.Patch)),
-                    ("new", newName))
-                : Tr("cli.patches_rename_planned", ("old", Describe(rename.Patch)), ("new", newName))));
+            WriteLine("  " + Tr("cli.patches_rename_planned", ("old", Describe(rename.Patch)), ("new", naming.NameWithCrc(rename.Patch.DisplayName, rename.Crc32))));
         }
 
         if (!parseResult.GetValue(_yesOption))
@@ -823,6 +814,203 @@ public sealed class CliApplication
             ("renamed", LocalizedMessage.Count("patches.count_renamed", results.Count - refused)),
             ("refused", LocalizedMessage.Count("patches.count_refused", refused)))));
         return refused == 0 ? ExitCodes.Success : ExitCodes.CompletedWithErrors;
+    }
+
+    /// <summary>A patch of the simulation, whatever became of it, with what a choice needs.</summary>
+    private sealed record SimulatedPatch(PatchFile File, PatchKey? Key, PatchFormat? Format);
+
+    /// <summary>
+    /// The choices of <c>--link --rom</c>, <c>--ignore</c> and <c>--auto</c>, for the patches of the simulation (by name
+    /// or path in the patch folder, whatever the case): checked, shown, then recorded in one step with <c>--yes</c>. A
+    /// mistake (unknown or ambiguous patch or ROM, a ROM for a UPS or a BPS, a ROM of two forms given by name, a choice to
+    /// forget that is not recorded, a patch named twice) is refused before anything is recorded (code 2).
+    /// </summary>
+    private async Task<int> ChoosePatchesAsync(
+        ParseResult parseResult,
+        IServiceProvider services,
+        SortConfig config,
+        SortExecutionResult result,
+        IReadOnlyList<PatchedVersion> applied,
+        Func<PatchFile, string> describe,
+        CancellationToken cancellationToken)
+    {
+        var patches = result.UnappliedPatches.Select(u => new SimulatedPatch(u.File, u.Key, u.Format))
+            .Concat(applied.Select(p => new SimulatedPatch(p.File, p.Key, p.Format)))
+            .Concat(result.IgnoredPatches.Select(i => new SimulatedPatch(i.File, i.Key, i.Format)))
+            .DistinctBy(p => p.File)
+            .ToList();
+        var linkService = services.GetRequiredService<IPatchLinkService>();
+        var recorded = linkService.Load().Links;
+        static string Slashes(string path) => path.Replace('\\', '/');
+
+        string? error = null;
+        SimulatedPatch? Find(string option, string name)
+        {
+            // Its path in the patch folder first, then its name, which several patches may share
+            var byPath = patches.Where(p => string.Equals(Slashes(describe(p.File)), Slashes(name), StringComparison.OrdinalIgnoreCase)).ToList();
+            var found = byPath.Count > 0 ? byPath : patches.Where(p => string.Equals(p.File.DisplayName, name, StringComparison.OrdinalIgnoreCase)).ToList();
+            var names = patches.Count == 0 ? "-" : string.Join(", ", patches.Select(p => describe(p.File)));
+            if (found.Count == 0)
+            {
+                error = Tr("cli.patches_unknown", ("option", option), ("name", name), ("names", names));
+                return null;
+            }
+
+            if (found.Count > 1)
+            {
+                error = Tr("cli.patches_ambiguous", ("option", option), ("name", name), ("names", string.Join(", ", found.Select(p => describe(p.File)))));
+                return null;
+            }
+
+            if (found[0].Key is null)
+            {
+                error = Tr("cli.patches_unreadable", ("name", describe(found[0].File)));
+                return null;
+            }
+
+            return found[0];
+        }
+
+        var changes = new List<(SimulatedPatch Patch, PatchLink? Link)>();
+        bool Add(SimulatedPatch patch, PatchLink? link)
+        {
+            if (changes.Any(c => c.Patch.File == patch.File))
+            {
+                error = Tr("cli.patches_twice", ("name", describe(patch.File)));
+                return false;
+            }
+
+            changes.Add((patch, link));
+            return true;
+        }
+
+        if (parseResult.GetValue(_linkOption) is { } linkName)
+        {
+            if (Find("--link", linkName) is not { } patch)
+            {
+                return Fail(ExitCodes.InvalidArguments, error!);
+            }
+
+            if (patch.Format is not (PatchFormat.Ips or PatchFormat.Ips32))
+            {
+                return Fail(ExitCodes.InvalidArguments, Tr("cli.patches_link_not_ips", ("name", describe(patch.File))));
+            }
+
+            var (form, romError) = await FindRomFormAsync(parseResult.GetValue(_romOption)!, linkService, config, result, cancellationToken);
+            if (form is null)
+            {
+                return Fail(ExitCodes.InvalidArguments, romError!);
+            }
+
+            Add(patch, PatchLink.ToOrigin(patch.File.DisplayName, form.Crc32, form.Origin.DisplayName));
+        }
+
+        foreach (var name in parseResult.GetValue(_ignoreOption) ?? [])
+        {
+            if (Find("--ignore", name) is not { } patch || !Add(patch, PatchLink.Ignore(patch.File.DisplayName)))
+            {
+                return Fail(ExitCodes.InvalidArguments, error!);
+            }
+        }
+
+        foreach (var name in parseResult.GetValue(_autoOption) ?? [])
+        {
+            if (Find("--auto", name) is not { } patch)
+            {
+                return Fail(ExitCodes.InvalidArguments, error!);
+            }
+
+            if (!recorded.ContainsKey(patch.Key!.Value))
+            {
+                return Fail(ExitCodes.InvalidArguments, Tr("cli.patches_auto_none", ("name", describe(patch.File))));
+            }
+
+            if (!Add(patch, null))
+            {
+                return Fail(ExitCodes.InvalidArguments, error!);
+            }
+        }
+
+        foreach (var (patch, link) in changes)
+        {
+            WriteLine("  " + Tr("cli.patches_choice_planned", ("name", describe(patch.File)), ("choice", ChoiceText(link))));
+        }
+
+        if (!parseResult.GetValue(_yesOption))
+        {
+            return Fail(ExitCodes.ConfirmationRequired, Tr("cli.patches_choices_require_yes"));
+        }
+
+        var saved = await linkService.UpdateAsync(
+            [.. changes.Select(c => new KeyValuePair<PatchKey, PatchLink?>(c.Patch.Key!.Value, c.Link))],
+            (level, message) => WriteLine($"[{level.ToTag()}] {_localization.Format(message)}"),
+            cancellationToken);
+        if (!saved)
+        {
+            return ExitCodes.CompletedWithErrors;
+        }
+
+        WriteLine(_localization.Format(LocalizedMessage.Count("cli.patches_choices_saved", changes.Count)));
+        return ExitCodes.Success;
+    }
+
+    /// <summary>What a choice does, as the log of the interface says it.</summary>
+    private string ChoiceText(PatchLink? link) => link?.Kind switch
+    {
+        PatchLinkKind.Origin => Tr("patches.choice_origin", ("origin", link.OriginName ?? string.Empty)),
+        PatchLinkKind.Ignored => Tr("patches.choice_ignored"),
+        _ => Tr("patches.choice_automatic")
+    };
+
+    /// <summary>
+    /// The form of a ROM of the simulation that <c>--rom</c> designates: a CRC32 of eight hexadecimal digits (the form of
+    /// that CRC32, with or without a copier header), or a name, whatever the case, of a ROM with a single form. A ROM may
+    /// be the origin of a patch only (<see cref="PatchMatcher.IsPatchOrigin"/>, never a file of a game in several files).
+    /// </summary>
+    private async Task<(PatchOriginSuggestion? Form, string? Error)> FindRomFormAsync(
+        string rom,
+        IPatchLinkService linkService,
+        SortConfig config,
+        SortExecutionResult result,
+        CancellationToken cancellationToken)
+    {
+        var origins = result.Items
+            .Where(it => PatchMatcher.IsPatchOrigin(it) && it.RelatedItems.Count == 0 && !it.IsMultiMedia)
+            .ToList();
+        var detectHeaders = config.Filters.DetectCopierHeaders;
+        if (rom.Length == 8 && uint.TryParse(rom, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var crc))
+        {
+            foreach (var origin in origins)
+            {
+                var forms = await linkService.GetOriginFormsAsync(origin, detectHeaders, cancellationToken);
+                if (forms.FirstOrDefault(f => f.Crc32 == crc) is { } form)
+                {
+                    return (form, null);
+                }
+            }
+
+            return (null, Tr("cli.patches_rom_unknown", ("rom", rom)));
+        }
+
+        var named = origins.Where(it => string.Equals(it.DisplayName, rom, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (named.Count == 0)
+        {
+            return (null, Tr("cli.patches_rom_unknown", ("rom", rom)));
+        }
+
+        if (named.Count > 1)
+        {
+            var crcs = string.Join(", ", named.Select(it => it.Crc32.ToUpperInvariant()));
+            return (null, Tr("cli.patches_rom_ambiguous", ("rom", rom), ("crcs", crcs)));
+        }
+
+        var romForms = await linkService.GetOriginFormsAsync(named[0], detectHeaders, cancellationToken);
+        return romForms.Count switch
+        {
+            0 => (null, Tr("cli.patches_rom_unknown", ("rom", rom))),
+            1 => (romForms[0], null),
+            _ => (null, Tr("cli.patches_rom_two_forms", ("rom", rom), ("forms", string.Join(", ", romForms.Select(FormText)))))
+        };
     }
 
     /// <summary>The form of a suggestion: with or without its copier header, or its CRC32 alone.</summary>

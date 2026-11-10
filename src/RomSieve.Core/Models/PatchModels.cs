@@ -193,15 +193,11 @@ public sealed record PatchedVersion(
 
 /// <summary>
 /// The CRC32 of its origin to write in the name of an IPS (<see cref="Abstractions.IPatchNamingService.RenameAsync"/>):
-/// <c>Game (T-Fr).ips</c> becomes <c>Game (T-Fr) [47e70e08].ips</c>, and the CRC32 a name already gives is replaced.
-/// Without <paramref name="Crc32"/>, the CRC32 the name gives is removed: the patch is detached from its ROM, and the
-/// next simulation proposes it again.
+/// <c>Game (T-Fr).ips</c> becomes <c>Game (T-Fr) [47e70e08].ips</c>, and the CRC32 a name already gives is replaced:
+/// other tools then apply the patch to that ROM too. RomSieve itself follows the choice of the user
+/// (<see cref="PatchLink"/>), which no renaming is needed for.
 /// </summary>
-public sealed record PatchRename(PatchFile Patch, uint? Crc32)
-{
-    /// <summary>Whether the patch is detached from its ROM rather than given one.</summary>
-    public bool IsDetach => Crc32 is null;
-}
+public sealed record PatchRename(PatchFile Patch, uint Crc32);
 
 /// <summary>
 /// What became of a <see cref="PatchRename"/>: the new path of the patch, or why it was left as it was

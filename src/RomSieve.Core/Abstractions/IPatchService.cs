@@ -95,30 +95,17 @@ public interface IPatchNamingService
 {
     /// <summary>
     /// The name of a patch with the CRC32 of its origin before its extension: <c>Game (T-Fr).ips</c> becomes
-    /// <c>Game (T-Fr) [47e70e08].ips</c>. A CRC32 the name already gives is replaced (<see cref="NameWithoutCrc"/>). The
-    /// label of the patched version does not change: the CRC32 of the origin is removed from it
-    /// (<see cref="Services.PatchMatcher.PatchedName"/>).
+    /// <c>Game (T-Fr) [47e70e08].ips</c>. A CRC32 the name already gives is replaced
+    /// (<see cref="Services.PatchMatcher.BaseNameWithoutCrc"/>). The label of the patched version does not change: the
+    /// CRC32 of the origin is removed from it (<see cref="Services.PatchMatcher.PatchedName"/>).
     /// </summary>
     string NameWithCrc(string fileName, uint crc);
 
     /// <summary>
-    /// The name of a patch without the CRC32 it gives (<see cref="Services.PatchMatcher.BaseNameWithoutCrc"/>):
-    /// <c>Game (T-Fr) [47e70e08].ips</c> becomes <c>Game (T-Fr).ips</c>. A name that gives none is returned as it is;
-    /// <see langword="null"/> when nothing but a CRC32 made it.
-    /// </summary>
-    string? NameWithoutCrc(string fileName);
-
-    /// <summary>
-    /// The name <paramref name="rename"/> gives its patch: <see cref="NameWithCrc"/>, or <see cref="NameWithoutCrc"/> to
-    /// detach it.
-    /// </summary>
-    string? NewName(PatchRename rename);
-
-    /// <summary>
     /// Renames each patch of <paramref name="renames"/> in its folder, after checking it is still an IPS or an IPS32 of
     /// <paramref name="patchDir"/>, on the disk (never in an archive), not a link, and that its new name is free and
-    /// differs from the current one (a patch detached must have a CRC32 in its name, and something else). A refusal or a failure leaves the patch as it was and goes on with the
-    /// others. Each result is said to <paramref name="log"/>.
+    /// differs from the current one. A refusal or a failure leaves the patch as it was and goes on with the others. Each
+    /// result is said to <paramref name="log"/>.
     /// </summary>
     Task<IReadOnlyList<PatchRenameResult>> RenameAsync(
         string patchDir,

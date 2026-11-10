@@ -6,7 +6,7 @@ using RomSieve.Core.Models;
 namespace RomSieve.Core.Services;
 
 /// <summary>
-/// Writes the CRC32 of its origin in the name of an IPS, replaces it, or removes it to detach the patch from its ROM
+/// Writes the CRC32 of its origin in the name of an IPS, or replaces the one it gave, for other tools
 /// (<see cref="IPatchNamingService"/>). Every check comes before the renaming, which never overwrites anything
 /// (<see cref="File.Move(string, string, bool)"/> without overwrite).
 /// </summary>
@@ -29,17 +29,6 @@ public sealed class PatchNamingService : IPatchNamingService
             : $"{baseName} [{crcText}]{Path.GetExtension(name)}";
     }
 
-    public string? NameWithoutCrc(string fileName)
-    {
-        var name = Path.GetFileName(fileName);
-        var baseName = PatchMatcher.BaseNameWithoutCrc(Path.GetFileNameWithoutExtension(name));
-        return baseName.Length == 0 ? null : baseName + Path.GetExtension(name);
-    }
-
-    public string? NewName(PatchRename rename) => rename.Crc32 is { } crc
-        ? NameWithCrc(rename.Patch.DisplayName, crc)
-        : NameWithoutCrc(rename.Patch.DisplayName);
-
     public async Task<IReadOnlyList<PatchRenameResult>> RenameAsync(
         string patchDir,
         IReadOnlyList<PatchRename> renames,
@@ -56,7 +45,7 @@ public sealed class PatchNamingService : IPatchNamingService
                 result.IsRenamed ? LogLevel.Info : LogLevel.Warn,
                 result.IsRenamed
                     ? LocalizedMessage.Create(
-                        rename.IsDetach ? "log.patch_detached" : "log.patch_renamed",
+                        "log.patch_renamed",
                         ("old", rename.Patch.DisplayName),
                         ("new", Path.GetFileName(result.NewPath!)))
                     : LocalizedMessage.Create("log.patch_rename_refused", ("name", rename.Patch.DisplayName), ("reason", result.Refusal!)));
@@ -76,30 +65,15 @@ public sealed class PatchNamingService : IPatchNamingService
             return new PatchRenameResult(rename, null, refusal);
         }
 
-        // A patch is detached from the ROM its name gives; a CRC32 its name gives is replaced by the one chosen
-        if (rename.IsDetach && !PatchMatcher.NameGivesCrc(patch.DisplayName))
-        {
-            return Refused("reason.patch_rename_no_rom");
-        }
-
+        // A CRC32 the name gives is replaced by the one chosen
         var path = patch.SourcePath;
         var currentName = Path.GetFileName(path);
-        var newName = rename.Crc32 is { } crc ? NameWithCrc(currentName, crc) : NameWithoutCrc(currentName);
-        if (newName is null)
-        {
-            // Nothing but a CRC32 made the name: no name would be left
-            return Refused("reason.patch_rename_nothing_left");
-        }
+        var newName = NameWithCrc(currentName, rename.Crc32);
 
         // The same CRC32 written again (whatever its case): the name already designates that ROM
         if (string.Equals(newName, currentName, StringComparison.OrdinalIgnoreCase))
         {
             return Refused("reason.patch_rename_unchanged");
-        }
-
-        if (rename.IsDetach && PatchMatcher.NameGivesCrc(newName))
-        {
-            return Refused("reason.patch_rename_unsafe", ("name", newName));
         }
 
         var newPath = Path.Combine(Path.GetDirectoryName(path) ?? string.Empty, newName);
