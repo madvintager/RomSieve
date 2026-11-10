@@ -1304,7 +1304,7 @@ public sealed class SortProcessorServiceTests : IDisposable
         items.Count(i => i.Status == FileStatus.Unmatched).Should().Be(1);
 
         // 3. Isolated test of FileTransferExecutor (in dry run)
-        var executor = new FileTransferExecutor(config, isDryRun: true, Organizer, Filter, I18n, _services.OpticalCompanionService, Checksum);
+        var executor = new FileTransferExecutor(config, isDryRun: true, Organizer, Filter, I18n, _services.OpticalCompanionService, Checksum, _services.Patches);
         var (ok, err) = await executor.PrepareDestinationAsync();
         ok.Should().BeTrue();
         err.Should().BeNull();

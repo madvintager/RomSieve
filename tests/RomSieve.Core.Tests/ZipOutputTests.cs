@@ -227,7 +227,7 @@ public sealed class ZipOutputTests : IDisposable
         config.VerifyCopies = true;
         var executor = new FileTransferExecutor(
             config, isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
-            _services.OpticalCompanionService, _services.ChecksumService)
+            _services.OpticalCompanionService, _services.ChecksumService, _services.Patches)
         {
             AfterTargetWritten = path =>
             {
@@ -282,7 +282,7 @@ public sealed class ZipOutputTests : IDisposable
         config.VerifyCopies = true;
         var executor = new FileTransferExecutor(
             config, isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
-            _services.OpticalCompanionService, _services.ChecksumService)
+            _services.OpticalCompanionService, _services.ChecksumService, _services.Patches)
         {
             AfterTargetWritten = path =>
             {
@@ -310,7 +310,7 @@ public sealed class ZipOutputTests : IDisposable
         var source = Source("Big Game (1990)(Ocean).adf", ArchiveFormatTests.Pattern("BIG---", 4 * 1024 * 1024));
         var executor = new FileTransferExecutor(
             Config(), isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
-            _services.OpticalCompanionService, _services.ChecksumService)
+            _services.OpticalCompanionService, _services.ChecksumService, _services.Patches)
         {
             // The disk fills up in the middle of the compressed data
             WrapTargetStream = stream => new FailingStream(stream, FailingStream.DiskFull) { FailAfterBytesWritten = 5000 }

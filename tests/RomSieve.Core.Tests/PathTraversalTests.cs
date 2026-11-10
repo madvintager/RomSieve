@@ -297,7 +297,7 @@ public sealed class PathTraversalTests : IDisposable
 
     private FileTransferExecutor CreateExecutor(SortConfig config, bool isDryRun = false) =>
         new(config, isDryRun, _services.Organizer, _services.FilterService, _services.I18n,
-            _services.OpticalCompanionService, _services.ChecksumService, (level, message) => _executorLogs.Add(new LogMessage(level, message)));
+            _services.OpticalCompanionService, _services.ChecksumService, _services.Patches, (level, message) => _executorLogs.Add(new LogMessage(level, message)));
 
     [Theory]
     [InlineData(TransferMode.Copy, false, false)]

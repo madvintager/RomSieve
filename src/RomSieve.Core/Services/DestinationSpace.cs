@@ -13,21 +13,35 @@ public static class DestinationSpace
     /// Bytes the transfers of <paramref name="items"/> write on the volume of the destination: the files the sort
     /// writes (kept items and isolated non-conforming ones, with their companion files; before compression in ZIP
     /// mode), except links, which take no room, and files moved within the volume, which are only renamed. A member of
-    /// an archive is extracted, even in Move mode. Files already in the destination are counted: the result is the most
-    /// the sort may write.
+    /// an archive is extracted, even in Move mode. A patched version is a copy in every mode, and its origin, when it is
+    /// the member of an archive, is first extracted next to it. Files already in the destination are counted: the result
+    /// is the most the sort may write.
     /// </summary>
     public static long GetRequiredBytes(IEnumerable<ProcessItem> items, SortConfig config, IReadOnlyList<string> volumeRoots)
     {
-        if (config.TransferMode is TransferMode.HardLink or TransferMode.SymbolicLink || string.IsNullOrWhiteSpace(config.DestinationDir))
+        if (string.IsNullOrWhiteSpace(config.DestinationDir))
         {
             return 0;
         }
 
+        var links = config.TransferMode is TransferMode.HardLink or TransferMode.SymbolicLink;
         var destination = Path.GetFullPath(config.DestinationDir);
         var ignoreCase = OperatingSystem.IsWindows();
         long total = 0;
         foreach (var item in items.Where(SelectionFilter.IsWritten))
         {
+            // A patched version is written whatever the mode, after its origin is extracted when it is in an archive
+            if (item.Patch is { } patch)
+            {
+                total += item.FileSize + (patch.Origin.ArchiveMember is null ? 0 : patch.Origin.FileSize);
+                continue;
+            }
+
+            if (links)
+            {
+                continue;
+            }
+
             if (item.PreservesSourceArchive(config))
             {
                 var isRenamed = config.TransferMode == TransferMode.Move &&

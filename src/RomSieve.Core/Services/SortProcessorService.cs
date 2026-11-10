@@ -277,6 +277,7 @@ public sealed class SortProcessorService : ISortProcessorService
                 _i18n,
                 _opticalService,
                 _checksumService,
+                _patchService,
                 Log,
                 journal,
                 _crcCache)

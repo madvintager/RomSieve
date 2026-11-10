@@ -78,7 +78,7 @@ public sealed class TransferFailureTests : IDisposable
         var journal = await _journalService.BeginAsync(config);
         var executor = new FileTransferExecutor(
             config, isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
-            _services.OpticalCompanionService, _services.ChecksumService, (_, message) => _logs.Add(message), journal, crcCache)
+            _services.OpticalCompanionService, _services.ChecksumService, _services.Patches, (_, message) => _logs.Add(message), journal, crcCache)
         {
             VolumeRoots = sameVolume ? [Path.GetPathRoot(_temp.Path)!] : [],
             WrapSourceStream = wrapSource,

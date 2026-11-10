@@ -11,7 +11,7 @@ namespace RomSieve.Core.Tests;
 /// they record (UPS, BPS) or the one their name gives (IPS), with and without copier header, an origin the 1G1R leaves
 /// out, an origin or a patch in an archive, the patches left without patched version and why, the patch folder inside
 /// the source, the option to write the patched versions only, a lot of DATs, the recalculation of a game and a partial
-/// sort.
+/// sort. The writing of the patched versions is tested by <see cref="PatchTransferTests"/>.
 /// </summary>
 public sealed class PatchMatchingTests : IDisposable
 {
@@ -516,7 +516,7 @@ public sealed class PatchMatchingTests : IDisposable
     }
 
     // =========================================================================
-    // Lot of DATs, recalculation, partial sort, real sort
+    // Lot of DATs, recalculation, partial sort
     // =========================================================================
 
     [Fact]
@@ -569,20 +569,6 @@ public sealed class PatchMatchingTests : IDisposable
         PatchedVersion(partial).IsOutsideSelection.Should().BeFalse();
         PatchedVersion(partial).Status.Should().Be(FileStatus.Valid);
         Named(partial, "Other (USA).sfc").IsOutsideSelection.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task ARealSort_ShouldWriteNoPatchedVersionYet()
-    {
-        // Until the patched versions have a transfer of their own, nothing is written for them, least of all the patch
-        var dat = WriteJapanAndUsa();
-        _temp.WriteBytes("patches/Game (Japan) (T-En).bps", BpsLinear(Japan, Translated));
-
-        var result = await _services.Processor.ExecuteAsync(Config(dat), isDryRun: false);
-
-        PatchedVersion(result).Status.Should().Be(FileStatus.Error);
-        Directory.EnumerateFiles(_dst, "*(T-En)*", SearchOption.AllDirectories).Should().BeEmpty();
-        File.Exists(Path.Combine(_src, "Game (Japan).sfc")).Should().BeTrue();
     }
 
     // =========================================================================

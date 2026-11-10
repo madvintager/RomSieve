@@ -42,6 +42,11 @@ public enum JournalOperationKind
 /// <param name="TimestampUtc">Time of the operation.</param>
 /// <param name="ReplacedExistingFile">Whether the operation overwrote a file that already existed at the target path.</param>
 /// <param name="OriginalContentBase64">Original bytes of a descriptor rewritten during a move, needed to restore it.</param>
+/// <param name="PatchPath">
+/// Patch applied to <paramref name="SourcePath"/> to write a patched version (recorded as a <see cref="JournalOperationKind.Copy"/>
+/// or, in ZIP mode, a <see cref="JournalOperationKind.ZipArchive"/>, whose undo already deletes a file the sort created):
+/// for information only, the undo does not read it. A published RomSieve ignores it.
+/// </param>
 public sealed record JournalOperation(
     JournalOperationKind Kind,
     string TargetPath,
@@ -51,7 +56,8 @@ public sealed record JournalOperation(
     string? Crc = null,
     DateTime TimestampUtc = default,
     bool ReplacedExistingFile = false,
-    string? OriginalContentBase64 = null);
+    string? OriginalContentBase64 = null,
+    string? PatchPath = null);
 
 /// <summary>
 /// Summary of a journal file.

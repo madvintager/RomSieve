@@ -227,7 +227,7 @@ public sealed class NoIntroDatAnd1G1RTests
         };
 
         var executor = new FileTransferExecutor(config, isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
-            _services.OpticalCompanionService, _services.ChecksumService);
+            _services.OpticalCompanionService, _services.ChecksumService, _services.Patches);
         var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var stats = new ProcessStats();
 

@@ -1443,5 +1443,8 @@
   "reason.patch_orphan": "Ninguna ROM identificada con el CRC32 {crc} en el origen",
   "reason.patch_source_size_mismatch": "La ROM con el CRC32 {crc} no tiene el tamaño que espera el parche ({size} bytes)",
   "reason.patch_ambiguous": "El nombre del parche da los CRC32 de varias ROM del origen ({crc})",
-  "reason.patch_multi_file": "La ROM original, {origin}, forma parte de un juego en varios archivos"
+  "reason.patch_multi_file": "La ROM original, {origin}, forma parte de un juego en varios archivos",
+  "log.patched_written_as_copies": "Las versiones parcheadas se escriben como copias: un enlace no puede contener datos modificados.",
+  "reason.patch_failed": "Parche no aplicado: {error}",
+  "log.patch_failed": "Parche no aplicado a {name}: {error}"
 }

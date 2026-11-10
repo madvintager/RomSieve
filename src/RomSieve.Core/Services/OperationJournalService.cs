@@ -46,6 +46,9 @@ internal sealed class JournalRecord
     public bool? ReplacedExistingFile { get; set; }
     public string? OriginalContent { get; set; }
 
+    /// <summary>Patch of a patched version (<see cref="JournalOperation.PatchPath"/>); absent for any other operation.</summary>
+    public string? Patch { get; set; }
+
     // End and undo markers
     public bool? Completed { get; set; }
     public int? Undone { get; set; }
@@ -68,7 +71,8 @@ internal sealed class JournalRecord
         Size = op.Size,
         Crc = op.Crc,
         ReplacedExistingFile = op.ReplacedExistingFile ? true : null,
-        OriginalContent = op.OriginalContentBase64
+        OriginalContent = op.OriginalContentBase64,
+        Patch = op.PatchPath
     };
 
     public JournalOperation? ToOperation() =>
@@ -82,7 +86,8 @@ internal sealed class JournalRecord
                 Crc,
                 TimestampUtc,
                 ReplacedExistingFile == true,
-                OriginalContent)
+                OriginalContent,
+                Patch)
             : null;
 }
 

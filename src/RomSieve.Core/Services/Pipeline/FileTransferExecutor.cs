@@ -21,7 +21,17 @@ public sealed partial class FileTransferExecutor
     private readonly IRomFilterService _filterService;
     private readonly IOpticalCompanionService _opticalService;
     private readonly IChecksumService _checksumService;
+    private readonly IPatchService _patchService;
     private readonly ILocalizationService _i18n;
+
+    /// <summary>
+    /// Targets of the origins of patched versions, reserved before their patched versions resolve their own, so that an
+    /// origin keeps its name when a patched version has the same: resolved once, used when the origin is transferred.
+    /// </summary>
+    private readonly Dictionary<ProcessItem, (string Candidate, TargetSet Set)> _reservedTargets = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>Whether the log already said that the patched versions are copies in a link mode.</summary>
+    private bool _patchedCopiesNoted;
     private const int CopyBufferSize = 1024 * 1024;
 
     private readonly Action<LogLevel, LocalizedMessage> _log;
@@ -197,11 +207,13 @@ public sealed partial class FileTransferExecutor
         ILocalizationService i18n,
         IOpticalCompanionService opticalService,
         IChecksumService checksumService,
+        IPatchService patchService,
         Action<LogLevel, LocalizedMessage>? logCallback = null,
         OperationJournalWriter? journal = null,
         ICrcCacheService? crcCache = null)
     {
         _checksumService = checksumService;
+        _patchService = patchService;
         _config = config;
         _isDryRun = isDryRun;
         _organizer = organizer;
@@ -571,21 +583,32 @@ public sealed partial class FileTransferExecutor
         }
 
         var displayName = item.DisplayName;
-        var targetFilename = !string.IsNullOrEmpty(item.TargetFilename) ? item.TargetFilename : displayName;
-        if (item.PreservesSourceArchive(_config))
+        string candidateTarget;
+        TargetSet set;
+        if (_reservedTargets.Remove(item, out var reserved))
         {
-            item.PreservesArchive = true;
-            targetFilename = Path.ChangeExtension(targetFilename, Path.GetExtension(item.ArchivePath));
-            foreach (var rel in item.RelatedItems)
-            {
-                rel.PreservesArchive = true;
-            }
+            // An origin whose patched version, written before it, reserved its target
+            (candidateTarget, set) = reserved;
         }
-        var candidateTarget = _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item));
+        else
+        {
+            candidateTarget = TargetOf(item);
+            CollisionMode? collisionMode = null;
+            if (item.Patch is { } patch)
+            {
+                // A patched version named as its origin, which keeps its name: renamed whatever the mode, the modes being
+                // about what the destination already holds, not about losing one of the two files the sort writes
+                ReserveOriginTarget(patch.Origin, claimedPaths);
+                if (_reservedTargets.TryGetValue(patch.Origin, out var origin) && IsSameTarget(origin.Set.PrimaryTarget, candidateTarget))
+                {
+                    collisionMode = CollisionMode.Rename;
+                }
+            }
+
+            set = ResolveItemSet(item, candidateTarget, claimedPaths, collisionMode);
+        }
 
         item.TargetPath = candidateTarget;
-
-        var set = ResolveItemSet(item, candidateTarget, claimedPaths);
         item.FinalTargetPath = set.PrimaryTarget;
 
         if (set.Skipped)
@@ -637,7 +660,9 @@ public sealed partial class FileTransferExecutor
                 return;
             }
 
-            await TransferPrimaryAsync(item, set, cancellationToken).ConfigureAwait(false);
+            await (item.Patch is null
+                ? TransferPrimaryAsync(item, set, cancellationToken)
+                : TransferPatchedAsync(item, set.PrimaryTarget, cancellationToken)).ConfigureAwait(false);
             if (item.Status == FileStatus.Valid)
             {
                 var relDisp = Path.GetRelativePath(destDir, set.PrimaryTarget);
@@ -657,9 +682,7 @@ public sealed partial class FileTransferExecutor
     /// </summary>
     private bool RejectsUnsafeNames(ProcessItem item, ProcessStats stats)
     {
-        var unsafeName = item.RelatedItems.Prepend(item)
-            .SelectMany(it => new[] { it.DisplayName, it.TargetFilename })
-            .FirstOrDefault(name => !string.IsNullOrEmpty(name) && !PathOrganizerService.IsSafeRelativeName(name));
+        var unsafeName = FindUnsafeName(item);
         if (unsafeName is null)
         {
             return false;
@@ -677,6 +700,49 @@ public sealed partial class FileTransferExecutor
         stats.ErrorCount++;
         _log(LogLevel.Error, LocalizedMessage.Create("log.unsafe_name", ("source", item.ArchivePath ?? item.SourcePath), ("name", unsafeName)));
         return true;
+    }
+
+    /// <summary>The first name of an item or of its companions that would write out of its folder, or <see langword="null"/>.</summary>
+    private static string? FindUnsafeName(ProcessItem item) =>
+        item.RelatedItems.Prepend(item)
+            .SelectMany(it => new[] { it.DisplayName, it.TargetFilename })
+            .FirstOrDefault(name => !string.IsNullOrEmpty(name) && !PathOrganizerService.IsSafeRelativeName(name));
+
+    /// <summary>
+    /// Target of a kept item, before any collision: the folders of the pattern, then its DAT name or its own. A preserved
+    /// single-game archive is marked as such, with its companions, and keeps the extension of the archive.
+    /// </summary>
+    private string TargetOf(ProcessItem item)
+    {
+        var targetFilename = !string.IsNullOrEmpty(item.TargetFilename) ? item.TargetFilename : item.DisplayName;
+        if (item.PreservesSourceArchive(_config))
+        {
+            item.PreservesArchive = true;
+            targetFilename = Path.ChangeExtension(targetFilename, Path.GetExtension(item.ArchivePath));
+            foreach (var rel in item.RelatedItems)
+            {
+                rel.PreservesArchive = true;
+            }
+        }
+
+        return _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item));
+    }
+
+    /// <summary>
+    /// Resolves the target of the origin of a patched version before the patched version resolves its own: written
+    /// before its origin (a move leaves the source after it), the patched version would otherwise take the name of an
+    /// origin that has the same. Only for an origin the sort writes, whose names are safe (an unsafe one is refused when
+    /// its turn comes, without target).
+    /// </summary>
+    private void ReserveOriginTarget(ProcessItem origin, ISet<string> claimedPaths)
+    {
+        if (origin.Status != FileStatus.Valid || _reservedTargets.ContainsKey(origin) || FindUnsafeName(origin) is not null)
+        {
+            return;
+        }
+
+        var candidate = TargetOf(origin);
+        _reservedTargets[origin] = (candidate, ResolveItemSet(origin, candidate, claimedPaths));
     }
 
     /// <summary>
@@ -711,13 +777,18 @@ public sealed partial class FileTransferExecutor
             ? relItem.TargetFilename
             : Path.GetFileName(relItem.DisplayName);
 
-    private TargetSet ResolveItemSet(ProcessItem item, string candidateTarget, ISet<string> claimedPaths)
+    /// <summary>Whether two targets are the same file for the collisions of a run (case ignored).</summary>
+    private static bool IsSameTarget(string first, string second) =>
+        string.Equals(PathOrganizerService.NormalizeCollisionKey(first), PathOrganizerService.NormalizeCollisionKey(second), StringComparison.Ordinal);
+
+    /// <param name="collisionMode">Mode of a collision, when the item does not follow the one of the run.</param>
+    private TargetSet ResolveItemSet(ProcessItem item, string candidateTarget, ISet<string> claimedPaths, CollisionMode? collisionMode = null)
     {
-        var collisionMode = GetCollisionMode(item);
+        var mode = collisionMode ?? GetCollisionMode(item);
         if (UsesZip(item) || item.PreservesSourceArchive(_config))
         {
             // The companions go into the archive of their item: only the archive itself may collide
-            var (zipPaths, zipSkipped) = _organizer.ResolveSetCollision([candidateTarget], collisionMode, claimedPaths);
+            var (zipPaths, zipSkipped) = _organizer.ResolveSetCollision([candidateTarget], mode, claimedPaths);
             return new TargetSet(zipPaths[0], item.RelatedItems.Select(_ => zipPaths[0]).ToList(), zipSkipped);
         }
 
@@ -725,7 +796,7 @@ public sealed partial class FileTransferExecutor
         var candidates = new List<string>(item.RelatedItems.Count + 1) { candidateTarget };
         candidates.AddRange(item.RelatedItems.Select(rel => Path.Combine(parent, GetRelatedTargetName(rel))));
 
-        var (finalPaths, skipped) = _organizer.ResolveSetCollision(candidates, collisionMode, claimedPaths);
+        var (finalPaths, skipped) = _organizer.ResolveSetCollision(candidates, mode, claimedPaths);
         return new TargetSet(finalPaths[0], finalPaths.Skip(1).ToList(), skipped);
     }
 
@@ -780,13 +851,21 @@ public sealed partial class FileTransferExecutor
             .OrderBy(m => m.EntryName, TorrentZipWriter.NameComparer)
             .ToList();
 
+        // A patched version is written first next to its archive, which then holds it as any other file
+        string? patchedData = null;
         try
         {
-            RefusePatchedVersion(item);
             var parentDir = Path.GetDirectoryName(zipPath);
             if (!string.IsNullOrEmpty(parentDir))
             {
                 Directory.CreateDirectory(parentDir);
+            }
+
+            if (item.Patch is not null)
+            {
+                patchedData = DestinationGuard.CreateReplacementPath(zipPath);
+                var result = await WritePatchedAsync(item, zipPath, patchedData, cancellationToken).ConfigureAwait(false);
+                item.Crc32 = FormatCrc(result.Crc32);
             }
 
             var replacedExistingFile = File.Exists(zipPath);
@@ -804,7 +883,9 @@ public sealed partial class FileTransferExecutor
                 foreach (var (entryName, source) in ordered)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    await using var sourceStream = WrapSource(OpenSource(source));
+                    await using var sourceStream = ReferenceEquals(source, item) && patchedData is not null
+                        ? new FileStream(_organizer.FormatWindowsExtendedPath(patchedData), FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan)
+                        : WrapSource(OpenSource(source));
                     var expectedSize = sourceStream.CanSeek ? sourceStream.Length : source.FileSize;
                     var crc = await writer.AddEntryAsync(entryName, sourceStream, expectedSize, cancellationToken).ConfigureAwait(false);
                     crcs.Add(FormatCrc(crc));
@@ -823,19 +904,26 @@ public sealed partial class FileTransferExecutor
                 zipCrc = await CopyStreamAsync(written, Stream.Null, cancellationToken).ConfigureAwait(false);
             }
 
+            var origin = item.Patch?.Origin;
             await RecordAsync(new JournalOperation(
                 JournalOperationKind.ZipArchive,
                 zipPath,
-                item.ArchivePath ?? item.SourcePath,
-                item.ArchiveMember,
+                origin?.SourcePath ?? item.ArchivePath ?? item.SourcePath,
+                origin is null ? item.ArchiveMember : origin.ArchiveMember,
                 new FileInfo(zipPath).Length,
                 zipCrc,
-                ReplacedExistingFile: replacedExistingFile)).ConfigureAwait(false);
+                ReplacedExistingFile: replacedExistingFile,
+                PatchPath: PatchPathOf(item))).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             CleanupPartial();
             throw;
+        }
+        catch (PatchException ex)
+        {
+            CleanupPartial();
+            FailPatched(item, ex);
         }
         catch (Exception ex)
         {
@@ -858,6 +946,95 @@ public sealed partial class FileTransferExecutor
                 _log(LogLevel.Error, LocalizedMessage.Create("log.transfer_error", ("name", item.DisplayName), ("error", ex.Message)));
                 NoteFailure(item, ex);
             }
+        }
+        finally
+        {
+            DeleteTemporary(patchedData);
+        }
+    }
+
+    // =========================================================================
+    // Patched versions
+    // =========================================================================
+
+    /// <summary>
+    /// Writes a patched version (<see cref="ProcessItem.Patch"/>) to <paramref name="targetPath"/>: a copy whatever the
+    /// transfer mode, since a link cannot hold modified data, and a move never takes its origin, transferred on its own
+    /// after it. The result is written under a temporary name, checked (the CRC32 of the source and, for UPS and BPS,
+    /// of the result, by <see cref="IPatchService.ApplyAsync"/>; the copy re-read with <see cref="SortConfig.VerifyCopies"/>),
+    /// put in place, then journaled as a copy, whose undo deletes the file if it did not change since.
+    /// </summary>
+    private async Task TransferPatchedAsync(ProcessItem item, string targetPath, CancellationToken cancellationToken)
+    {
+        if (_config.TransferMode is TransferMode.HardLink or TransferMode.SymbolicLink && !_patchedCopiesNoted)
+        {
+            _patchedCopiesNoted = true;
+            _log(LogLevel.Info, LocalizedMessage.Create("log.patched_written_as_copies"));
+        }
+
+        if (IsOutsideDestination(item, targetPath) || _isDryRun)
+        {
+            return;
+        }
+
+        try
+        {
+            var parentDir = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrEmpty(parentDir))
+            {
+                Directory.CreateDirectory(parentDir);
+            }
+
+            var replacedExistingFile = File.Exists(targetPath);
+            var writePath = GetWritePath(targetPath);
+            _currentTargetInProgress = writePath;
+            var result = await WritePatchedAsync(item, targetPath, writePath, cancellationToken).ConfigureAwait(false);
+            var crc = FormatCrc(result.Crc32);
+            await VerifyTargetAsync(_organizer.FormatWindowsExtendedPath(writePath), crc, cancellationToken).ConfigureAwait(false);
+            ReplaceTarget(writePath, targetPath);
+
+            // Complete but not journaled yet: removed if what follows fails, the origin being untouched
+            _currentTargetInProgress = targetPath;
+            item.Crc32 = crc;
+            var origin = item.Patch!.Origin;
+            var operation = new JournalOperation(
+                JournalOperationKind.Copy,
+                targetPath,
+                origin.SourcePath,
+                origin.ArchiveMember,
+                result.Size,
+                crc,
+                ReplacedExistingFile: replacedExistingFile,
+                PatchPath: PatchPathOf(item));
+            _currentTargetInProgress = null;
+            await RecordAsync(operation).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            CleanupPartial();
+            throw;
+        }
+        catch (PatchException ex)
+        {
+            CleanupPartial();
+            FailPatched(item, ex);
+        }
+        catch (CopyVerificationException ex)
+        {
+            CleanupPartial();
+            item.Status = FileStatus.Error;
+            item.StatusReason = LocalizedMessage.Create("reason.copy_verification_failed", ("expected", ex.ExpectedCrc), ("actual", ex.ActualCrc));
+            item.ErrorMessage = ex.Message;
+            _log(LogLevel.Error, LocalizedMessage.Create(
+                "log.copy_verification_failed", ("name", item.DisplayName), ("expected", ex.ExpectedCrc), ("actual", ex.ActualCrc)));
+        }
+        catch (Exception ex)
+        {
+            CleanupPartial();
+            item.Status = FileStatus.Error;
+            item.ErrorMessage = ex.Message;
+            _log(LogLevel.Error, LocalizedMessage.Create("log.transfer_error", ("name", item.DisplayName), ("error", ex.Message)));
+            NoteFailure(item, ex);
         }
     }
 
@@ -893,15 +1070,91 @@ public sealed partial class FileTransferExecutor
     }
 
     /// <summary>
-    /// A patched version is not written yet: its source is its patch, which a copy would write under the name of the
-    /// target. Until its own transfer exists (step 3 of <c>PlanPatch.md</c>), a real sort puts it in error; the
-    /// option that gives the patch folder is not in the configuration before then.
+    /// Applies the patch of <paramref name="item"/> to its origin, read only, and writes the result to
+    /// <paramref name="writePath"/>. An origin in an archive is first extracted next to <paramref name="targetPath"/>
+    /// (a patch reads its source anywhere, which a compressed member does not allow), then deleted in every case: no
+    /// size limit, no memory taken, and a file a stopped sort leaves is cleaned like any replacement of the target. The
+    /// CRC32 of the data read must be the one the patch was matched by: a file changed since is refused, even for an IPS.
     /// </summary>
-    private static void RefusePatchedVersion(ProcessItem item)
+    private async Task<PatchResult> WritePatchedAsync(ProcessItem item, string targetPath, string writePath, CancellationToken cancellationToken)
     {
-        if (item.Patch is not null)
+        var version = item.Patch!;
+        var origin = version.Origin;
+        byte[] patch;
+        await using (var patchStream = WrapSource(version.File.ArchiveMember is { } member
+                         ? _checksumService.OpenArchiveMember(version.File.SourcePath, member)
+                         : new FileStream(version.File.SourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize, FileOptions.Asynchronous)))
         {
-            throw new NotSupportedException("Patched versions are not written yet.");
+            patch = await _patchService.ReadPatchAsync(patchStream, cancellationToken).ConfigureAwait(false);
+        }
+
+        string? extracted = null;
+        try
+        {
+            string sourcePath;
+            if (!string.IsNullOrEmpty(origin.ArchivePath) && !string.IsNullOrEmpty(origin.ArchiveMember))
+            {
+                extracted = DestinationGuard.CreateReplacementPath(targetPath);
+                await using (var memberStream = _checksumService.OpenArchiveMember(origin.ArchivePath, origin.ArchiveMember))
+                await using (var copy = new FileStream(_organizer.FormatWindowsExtendedPath(extracted), FileMode.Create, FileAccess.Write, FileShare.None, CopyBufferSize, useAsync: true))
+                {
+                    await CopyStreamAsync(WrapSource(memberStream), copy, cancellationToken).ConfigureAwait(false);
+                }
+
+                sourcePath = extracted;
+            }
+            else
+            {
+                sourcePath = origin.SourcePath;
+            }
+
+            await using var source = WrapSource(new FileStream(_organizer.FormatWindowsExtendedPath(sourcePath), FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize, FileOptions.Asynchronous));
+            await using var target = WrapTarget(new FileStream(_organizer.FormatWindowsExtendedPath(writePath), FileMode.Create, FileAccess.ReadWrite, FileShare.None, CopyBufferSize, useAsync: true));
+            var result = await _patchService.ApplyAsync(patch, source, version.SourceOffset, version.SourceLength, target, cancellationToken).ConfigureAwait(false);
+            await target.FlushAsync(cancellationToken).ConfigureAwait(false);
+            if (result.SourceCrc32 != version.SourceCrc32)
+            {
+                throw PatchErrors.SourceCrc(version.SourceCrc32, result.SourceCrc32);
+            }
+
+            return result;
+        }
+        finally
+        {
+            DeleteTemporary(extracted);
+        }
+    }
+
+    /// <summary>A patched version in error: its patch refused it, and why (<c>patch.error_*</c>).</summary>
+    private void FailPatched(ProcessItem item, PatchException exception)
+    {
+        item.Status = FileStatus.Error;
+        item.StatusReason = LocalizedMessage.Create("reason.patch_failed", ("error", exception.Reason));
+        item.ErrorMessage = exception.Message;
+        _log(LogLevel.Error, LocalizedMessage.Create("log.patch_failed", ("name", item.DisplayName), ("error", exception.Reason)));
+    }
+
+    /// <summary>The patch of a patched version, for the journal: its file, or the member of its archive after the archive.</summary>
+    private static string? PatchPathOf(ProcessItem item) =>
+        item.Patch?.File is { } file
+            ? file.ArchiveMember is { } member ? Path.Combine(file.SourcePath, member) : file.SourcePath
+            : null;
+
+    /// <summary>Deletes a temporary file of a transfer, best effort: one left behind is removed by a later sort.</summary>
+    private void DeleteTemporary(string? path)
+    {
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(_organizer.FormatWindowsExtendedPath(path));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Named as a replacement of the target: the next write of the same target removes it
         }
     }
 
@@ -1177,7 +1430,6 @@ public sealed partial class FileTransferExecutor
 
         try
         {
-            RefusePatchedVersion(item);
             var parentDir = Path.GetDirectoryName(targetPath);
             if (!string.IsNullOrEmpty(parentDir))
             {

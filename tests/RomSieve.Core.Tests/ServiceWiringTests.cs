@@ -35,7 +35,7 @@ public sealed class ServiceWiringTests
         foreach (var constructor in typeof(FileTransferExecutor).GetConstructors())
         {
             var parameters = constructor.GetParameters();
-            foreach (var service in new[] { typeof(IChecksumService), typeof(IRomFilterService), typeof(IOpticalCompanionService) })
+            foreach (var service in new[] { typeof(IChecksumService), typeof(IRomFilterService), typeof(IOpticalCompanionService), typeof(IPatchService) })
             {
                 parameters.Should().Contain(p => p.ParameterType == service && !p.IsOptional, $"{service.Name} is given, never created");
             }

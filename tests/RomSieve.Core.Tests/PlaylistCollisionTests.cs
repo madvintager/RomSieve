@@ -122,7 +122,7 @@ public sealed class PlaylistCollisionTests : IDisposable
             FinalTargetPath = Path.Combine(_dst, name)
         }).ToList();
         var executor = new FileTransferExecutor(config, isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
-            _services.OpticalCompanionService, _services.ChecksumService, (level, message) => _logs.Add(new LogMessage(level, message)));
+            _services.OpticalCompanionService, _services.ChecksumService, _services.Patches, (level, message) => _logs.Add(new LogMessage(level, message)));
 
         // The token is cancelled once the playlist has claimed its target, just before it is written
         using var cts = new CancellationTokenSource();

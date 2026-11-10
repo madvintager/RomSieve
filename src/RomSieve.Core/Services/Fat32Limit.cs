@@ -19,22 +19,19 @@ public static class Fat32Limit
     /// <summary>
     /// Files the sort writes to the destination (kept items and isolated non-conforming items, with their companion tracks) that are
     /// too large for FAT32, largest first. In ZIP mode, an item and its companions form one archive, whose size is
-    /// only known before compression. Links take no space of their own and cannot be created on FAT32: none is listed.
+    /// only known before compression. Links take no space of their own and cannot be created on FAT32: none is listed,
+    /// but the patched versions, written as copies whatever the mode.
     /// </summary>
     public static IReadOnlyList<OversizedOutputFile> FindOversizedOutputFiles(
         IEnumerable<ProcessItem> items,
         TransferMode transferMode,
         bool? preserveArchives = null)
     {
-        if (transferMode is TransferMode.HardLink or TransferMode.SymbolicLink)
-        {
-            return [];
-        }
-
+        var links = transferMode is TransferMode.HardLink or TransferMode.SymbolicLink;
         var oversized = new List<OversizedOutputFile>();
         foreach (var item in items)
         {
-            if (!SelectionFilter.IsWritten(item))
+            if (!SelectionFilter.IsWritten(item) || (links && item.Patch is null))
             {
                 continue;
             }

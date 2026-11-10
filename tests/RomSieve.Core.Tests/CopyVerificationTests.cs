@@ -48,7 +48,7 @@ public sealed class CopyVerificationTests : IDisposable
 
         var executor = new FileTransferExecutor(
             config, isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
-            _services.OpticalCompanionService, _services.ChecksumService, (_, message) => _logs.Add(message), journal)
+            _services.OpticalCompanionService, _services.ChecksumService, _services.Patches, (_, message) => _logs.Add(message), journal)
         {
             VolumeRoots = [],
             AfterTargetWritten = path =>
