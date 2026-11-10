@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPathOrganizerService, PathOrganizerService>();
         services.AddSingleton<IOpticalCompanionService, OpticalCompanionService>();
         services.AddSingleton<IPatchService, PatchService>();
+        services.AddSingleton<IPatchNamingService, PatchNamingService>();
         services.AddSingleton<IOperationJournalService>(sp => new OperationJournalService(
             OperationJournalService.GetJournalDirectory(sp.GetRequiredService<IConfigurationService>().GetDefaultConfigPath()),
             sp.GetRequiredService<IChecksumService>(),

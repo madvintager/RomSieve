@@ -161,6 +161,21 @@ public sealed record PatchedVersion(
     public long TargetSize => Header.TargetSizeFor(SourceLength);
 }
 
+/// <summary>
+/// The CRC32 of its origin to write in the name of an IPS (<see cref="Abstractions.IPatchNamingService.RenameAsync"/>):
+/// <c>Game (T-Fr).ips</c> becomes <c>Game (T-Fr) [47e70e08].ips</c>.
+/// </summary>
+public sealed record PatchRename(PatchFile Patch, uint Crc32);
+
+/// <summary>
+/// What became of a <see cref="PatchRename"/>: the new path of the patch, or why it was left as it was
+/// (<c>reason.patch_rename_*</c>).
+/// </summary>
+public sealed record PatchRenameResult(PatchRename Request, string? NewPath, LocalizedMessage? Refusal)
+{
+    public bool IsRenamed => NewPath is not null;
+}
+
 /// <summary>What applying a patch wrote: the size and CRC32 of the result, and the CRC32 of the source it read.</summary>
 public sealed record PatchResult(long Size, uint Crc32, uint SourceCrc32);
 

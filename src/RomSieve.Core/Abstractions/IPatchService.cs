@@ -45,3 +45,31 @@ public interface IPatchService
         Stream target,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Writes the CRC32 of its origin in the name of an IPS, the way igir and RomSieve read it, so that the patch applies at
+/// the next sort, in RomSieve as elsewhere. The only write of RomSieve outside a destination: an explicit action, out of
+/// any sort, on a file of the patch folder alone. A renaming loses nothing and is undone by hand, so it is not journaled
+/// with the sorts; each one has its line in the log.
+/// </summary>
+public interface IPatchNamingService
+{
+    /// <summary>
+    /// The name of a patch with the CRC32 of its origin before its extension: <c>Game (T-Fr).ips</c> becomes
+    /// <c>Game (T-Fr) [47e70e08].ips</c>. The label of the patched version does not change: the CRC32 of the origin is
+    /// removed from it (<see cref="Services.PatchMatcher.PatchedName"/>).
+    /// </summary>
+    string NameWithCrc(string fileName, uint crc);
+
+    /// <summary>
+    /// Renames each patch of <paramref name="renames"/> in its folder, after checking it is still an IPS or an IPS32 of
+    /// <paramref name="patchDir"/>, on the disk (never in an archive), neither a link nor a name that already gives a
+    /// CRC32, and that its new name is free. A refusal or a failure leaves the patch as it was and goes on with the
+    /// others. Each result is said to <paramref name="log"/>.
+    /// </summary>
+    Task<IReadOnlyList<PatchRenameResult>> RenameAsync(
+        string patchDir,
+        IReadOnlyList<PatchRename> renames,
+        Action<LogLevel, LocalizedMessage> log,
+        CancellationToken cancellationToken = default);
+}

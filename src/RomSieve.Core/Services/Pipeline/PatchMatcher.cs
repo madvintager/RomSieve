@@ -309,6 +309,9 @@ public sealed partial class PatchMatcher
     /// <summary>The name of a patch without its folders nor its extension.</summary>
     private static string BaseName(string patchName) => Path.GetFileNameWithoutExtension(Path.GetFileName(patchName));
 
+    /// <summary>Whether the name of a patch gives a CRC32, as an IPS is matched by (<see cref="CrcTokenRegex"/>).</summary>
+    public static bool NameGivesCrc(string patchName) => CrcTokens(BaseName(patchName)).Any();
+
     // =========================================================================
     // The texts that come with a patch
     // =========================================================================
