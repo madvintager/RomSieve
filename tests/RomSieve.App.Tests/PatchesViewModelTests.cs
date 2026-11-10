@@ -154,6 +154,10 @@ public sealed class PatchesViewModelTests : IDisposable
             ["Le nom du patch commence par le nom de cette ROM", "Le nom du patch commence par le titre de cette ROM"],
             "each ROM proposed says why");
         ips.Origins.Should().OnlyContain(o => o.HasReason);
+        ips.Origins.Select(o => o.StatusLabel).Should().Equal(
+            ["Exclu", "Retenu"],
+            "a ROM the 1G1R leaves out is proposed too, and says so: a translation is often made for it");
+        ips.Origins[0].StatusTip.Should().Contain("Game (USA).sfc", "the tooltip says why the simulation left it out");
         ips.Origins.Should().OnlyContain(o => !o.HasFolder, "a ROM at the root of the source shows no folder");
         ips.HasLocation.Should().BeFalse("it lies at the root of the patch folder");
         (ips.IsToMatch, ips.IsApplied, ips.IsUnfixable, ips.IsNeutral).Should().Be((true, false, false, false));

@@ -225,25 +225,35 @@
                          SelectedItem="{Binding SelectedRow.SelectedOrigin, Mode=TwoWay, FallbackValue={x:Null}}">
                   <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:PatchOriginOptionViewModel">
-                      <!-- Its folder under its name: two files of the same name tell apart; then why it is proposed -->
-                      <RadioButton IsHitTestVisible="False"
-                                   IsChecked="{Binding $parent[ListBoxItem].IsSelected}"
-                                   AutomationProperties.Name="{Binding Label}"
-                                   ToolTip.Tip="{Binding Location}">
-                        <StackPanel>
-                          <TextBlock TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Text="{Binding Label}" />
-                          <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
-                                     TextWrapping="NoWrap"
-                                     TextTrimming="PathSegmentEllipsis"
-                                     Text="{Binding Folder}"
-                                     IsVisible="{Binding HasFolder}" />
-                          <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
-                                     FontStyle="Italic"
-                                     TextWrapping="Wrap"
-                                     Text="{Binding Reason}"
-                                     IsVisible="{Binding HasReason}" />
-                        </StackPanel>
-                      </RadioButton>
+                      <!-- Its folder under its name: two files of the same name tell apart; then why it is proposed. Its status
+                           in the simulation on the right, out of the radio button, whose content takes no pointer: its
+                           tooltip gives the reason -->
+                      <DockPanel>
+                        <TextBlock DockPanel.Dock="Right"
+                                   Margin="8,0,0,0"
+                                   VerticalAlignment="Top"
+                                   Foreground="{DynamicResource HintForegroundBrush}"
+                                   Text="{Binding StatusLabel}"
+                                   ToolTip.Tip="{Binding StatusTip}" />
+                        <RadioButton IsHitTestVisible="False"
+                                     IsChecked="{Binding $parent[ListBoxItem].IsSelected}"
+                                     AutomationProperties.Name="{Binding Label}"
+                                     ToolTip.Tip="{Binding Location}">
+                          <StackPanel>
+                            <TextBlock TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Text="{Binding Label}" />
+                            <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
+                                       TextWrapping="NoWrap"
+                                       TextTrimming="PathSegmentEllipsis"
+                                       Text="{Binding Folder}"
+                                       IsVisible="{Binding HasFolder}" />
+                            <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
+                                       FontStyle="Italic"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding Reason}"
+                                       IsVisible="{Binding HasReason}" />
+                          </StackPanel>
+                        </RadioButton>
+                      </DockPanel>
                     </DataTemplate>
                   </ListBox.ItemTemplate>
                 </ListBox>
@@ -259,13 +269,18 @@
                            SelectedItem="{Binding SelectedSearchResult, Mode=TwoWay}">
                     <ListBox.ItemTemplate>
                       <DataTemplate x:DataType="vm:PatchOriginOptionViewModel">
-                        <Grid ColumnDefinitions="Auto,8,*">
+                        <!-- Its status in the simulation on the right, its reason in the tooltip -->
+                        <Grid ColumnDefinitions="Auto,8,*,8,Auto">
                           <TextBlock TextWrapping="NoWrap" Text="{Binding Label}" />
                           <TextBlock Grid.Column="2"
                                      Foreground="{DynamicResource HintForegroundBrush}"
                                      TextWrapping="NoWrap"
                                      TextTrimming="CharacterEllipsis"
                                      Text="{Binding Location}" />
+                          <TextBlock Grid.Column="4"
+                                     Foreground="{DynamicResource HintForegroundBrush}"
+                                     Text="{Binding StatusLabel}"
+                                     ToolTip.Tip="{Binding StatusTip}" />
                         </Grid>
                       </DataTemplate>
                     </ListBox.ItemTemplate>

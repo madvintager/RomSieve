@@ -6,11 +6,13 @@ using RomSieve.Core.Services;
 namespace RomSieve.App.ViewModels;
 
 /// <summary>
-/// An identified file a patch may be meant for, in the list of the ROMs of a patch or in the search, with why it is
-/// proposed (<paramref name="reason"/>, already translated: the window is modal, the language cannot change while it is
-/// open).
+/// An identified file a patch may be meant for, in the list of the ROMs of a patch or in the search, with what the
+/// simulation made of it (<paramref name="status"/>: kept, excluded, duplicate, and why) and why it is proposed
+/// (<paramref name="reason"/>), both already translated: the window is modal, the language cannot change while it is
+/// open. A file left out by the 1G1R or a filter may be proposed: a translation is often made for a release the 1G1R
+/// leaves out.
 /// </summary>
-public sealed class PatchOriginOptionViewModel(ProcessItem origin, string sourceDir, string? reason = null)
+public sealed class PatchOriginOptionViewModel(ProcessItem origin, string sourceDir, (string Label, string Reason) status, string? reason = null)
 {
     public ProcessItem Origin { get; } = origin;
 
@@ -20,6 +22,15 @@ public sealed class PatchOriginOptionViewModel(ProcessItem origin, string source
     public string Reason { get; } = reason ?? string.Empty;
 
     public bool HasReason => Reason.Length > 0;
+
+    /// <summary>Its status in the last simulation, as the table shows it: kept, excluded or duplicate.</summary>
+    public string StatusLabel { get; } = status.Label;
+
+    /// <summary>Why the simulation gave it that status, for the tooltip of <see cref="StatusLabel"/>.</summary>
+    public string StatusReason { get; } = status.Reason;
+
+    /// <summary>The tooltip of <see cref="StatusLabel"/>: none without a reason.</summary>
+    public string? StatusTip => StatusReason.Length > 0 ? StatusReason : null;
 
     /// <summary>Where the file is: its archive, or its path.</summary>
     public string Location { get; } = !string.IsNullOrEmpty(origin.ArchivePath) ? origin.ArchivePath : origin.SourcePath;
@@ -297,7 +308,7 @@ public sealed partial class PatchRowViewModel : ObservableObject
         var option = Origins.FirstOrDefault(o => ReferenceEquals(o.Origin, origin));
         if (option is null)
         {
-            option = new PatchOriginOptionViewModel(origin, _owner.SourceDir);
+            option = _owner.Option(origin);
             Origins.Add(option);
             OnPropertyChanged(nameof(HasOrigins));
         }
@@ -307,7 +318,7 @@ public sealed partial class PatchRowViewModel : ObservableObject
 
     internal void AddOrigin(ProcessItem origin, string? reason = null)
     {
-        Origins.Add(new PatchOriginOptionViewModel(origin, _owner.SourceDir, reason));
+        Origins.Add(_owner.Option(origin, reason));
         OnPropertyChanged(nameof(HasOrigins));
     }
 

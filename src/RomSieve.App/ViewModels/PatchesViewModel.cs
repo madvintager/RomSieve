@@ -301,7 +301,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         _searchable = [.. items
             .Where(it => PatchMatcher.IsPatchOrigin(it) && it.RelatedItems.Count == 0 && !it.IsMultiMedia)
             .OrderBy(it => it.DisplayName, StringComparer.CurrentCultureIgnoreCase)
-            .Select(it => new PatchOriginOptionViewModel(it, SourceDir))];
+            .Select(it => Option(it))];
 
         var rows = new List<PatchRowViewModel>();
         foreach (var unapplied in stats?.UnappliedPatches ?? [])
@@ -912,6 +912,24 @@ public sealed partial class PatchesViewModel : ViewModelBase
     internal string NewName(string name, uint crc) => _naming.NameWithCrc(name, crc);
 
     internal string? ClearedName(string name) => _naming.NameWithoutCrc(name);
+
+    /// <summary>
+    /// A file of the last simulation as a ROM to choose, with its status as the table shows it (label and reason), and
+    /// why it is proposed.
+    /// </summary>
+    internal PatchOriginOptionViewModel Option(ProcessItem origin, string? why = null)
+    {
+        var label = Tr(origin.Status switch
+        {
+            FileStatus.Valid => "status.valid",
+            FileStatus.Excluded => "status.excluded",
+            FileStatus.Duplicate => "status.duplicate",
+            FileStatus.Unmatched => "status.unmatched",
+            _ => "status.error"
+        });
+        var reason = origin.StatusReason is { } statusReason ? Format(statusReason) : string.Empty;
+        return new PatchOriginOptionViewModel(origin, SourceDir, (label, reason), why);
+    }
 
     internal Task<IReadOnlyList<PatchOriginSuggestion>> ReadFormsAsync(ProcessItem origin) =>
         _links.GetOriginFormsAsync(origin, _detectCopierHeaders);

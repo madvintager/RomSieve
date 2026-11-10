@@ -282,8 +282,10 @@ A UPS or a BPS designates its own ROM and checks it: no other one is chosen for 
   do not count. The whole name comes before the title alone, then the ROM the sort writes. For a patch whose name or
   readme designates several ROMs, those ROMs; for a patch applied, the ROM it is applied to. Under each ROM, its folder
   in the source tells two files of the same name apart, and a line says why it is proposed ("The name of its archive
-  starts with the title of this ROM", "readme.txt designates this ROM"…). The first one is chosen, but never applied
-  without your click.
+  starts with the title of this ROM", "readme.txt designates this ROM"…). On the right, its status in the simulation
+  (**Valid**, **Excluded**, **Duplicate**, as in the table), with its reason in a tooltip: a ROM 1G1R or a filter leaves
+  out is proposed too, since a translation is often made for it. The first one is chosen, but never applied without your
+  click.
 * A **translation** is not made for a ROM already in its language: when the name of the patch has a translation tag
   (`[tr fr]` in TOSEC, `(T-En)`, `[T+Eng]`), the ROMs already in that language (from their languages, otherwise their
   country) come after the others, and say so. A patch `Game (T-En).ips` thus proposes `Game (Japan)` before
