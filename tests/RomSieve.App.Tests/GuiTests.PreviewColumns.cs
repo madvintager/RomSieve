@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
@@ -82,6 +84,71 @@ public sealed partial class GuiTests
                 vm.PreviewTable.Columns[7].IsVisible = false;
                 Settle(window);
                 grid.Columns[8].ActualWidth.Should().BeGreaterThan(targetWidth, "the target path gets the room of a hidden column");
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>
+    /// The target path fills the room left by the other columns, and dragging the edge of its header widens it beyond:
+    /// the table scrolls horizontally, and the column keeps that width while the window grows, until the room exceeds it.
+    /// </summary>
+    [Fact]
+    public async Task PreviewTable_TargetPath_ShouldBeWidenedBeyondTheRoom_WithAHorizontalScrollBar()
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var (_, window) = ShowFinishedRun(CreateLargeItemSet().Take(80).ToList(), streamRows: false);
+            try
+            {
+                var grid = window.FindControl<DataGrid>("TablePreview")!;
+                var column = grid.Columns[PreviewTableViewModel.TargetColumnIndex];
+                var presenter = grid.GetVisualDescendants().OfType<DataGridRowsPresenter>().Single();
+                var horizontal = grid.GetVisualDescendants().OfType<ScrollBar>().Single(b => b.Name == "PART_HorizontalScrollbar");
+                double VisibleColumnsWidth() => grid.Columns.Where(c => c.IsVisible).Sum(c => c.ActualWidth);
+
+                // At first, the column fills the room, in pixels, and nothing scrolls
+                column.Width.IsAbsolute.Should().BeTrue("a star column cannot grow past the room");
+                VisibleColumnsWidth().Should().BeApproximately(presenter.Bounds.Width, 0.5);
+                horizontal.IsVisible.Should().BeFalse();
+                window.TargetColumnSizer!.UserWidth.Should().BeNull();
+
+                // Drag of the right edge of its header, 300 px to the right
+                var room = column.ActualWidth;
+                var header = grid.GetVisualDescendants().OfType<DataGridColumnHeader>().Single(h => Equals(h.Content, column.Header));
+                var edge = header.TranslatePoint(new Point(header.Bounds.Width - 1, header.Bounds.Height / 2), window)!.Value;
+                window.MouseMove(edge);
+                window.MouseDown(edge, MouseButton.Left);
+                window.MouseMove(edge + new Point(150, 0), RawInputModifiers.LeftMouseButton);
+                window.MouseMove(edge + new Point(300, 0), RawInputModifiers.LeftMouseButton);
+                window.MouseUp(edge + new Point(300, 0), MouseButton.Left);
+                Settle(window);
+                column.ActualWidth.Should().BeApproximately(room + 300, 1, "the column grows past the room");
+                horizontal.IsVisible.Should().BeTrue("the table scrolls horizontally to show the whole column");
+                horizontal.Maximum.Should().BeApproximately(300, 1);
+
+                // A wider window keeps the width chosen by the user, until the room exceeds it
+                var width = window.Width;
+                window.Width = width + 200;
+                Settle(window);
+                column.ActualWidth.Should().BeApproximately(room + 300, 1);
+                window.Width = width + 400;
+                Settle(window);
+                column.ActualWidth.Should().BeApproximately(room + 400, 1, "the column fills the room again");
+                horizontal.IsVisible.Should().BeFalse();
+                window.Width = width;
+                Settle(window);
+                column.ActualWidth.Should().BeApproximately(room + 300, 1, "the width chosen by the user is kept");
+
+                // Narrowed back within the room, the column fills it again
+                column.Width = new DataGridLength(room - 50);
+                Settle(window);
+                column.ActualWidth.Should().BeApproximately(room, 1);
+                window.TargetColumnSizer.UserWidth.Should().BeNull();
+                horizontal.IsVisible.Should().BeFalse();
             }
             finally
             {

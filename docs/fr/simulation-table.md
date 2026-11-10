@@ -27,7 +27,8 @@ compagnes d'un set optique, ou le détail d'un CHD.
 
 Le bouton **Colonnes**, à droite de la recherche, affiche ou masque chaque colonne sauf **Nom d'origine** et
 **Statut** ; **Colonnes par défaut** rétablit le choix initial. Le **Chemin cible calculé** prend la largeur libérée.
-Votre choix est conservé d'une session à l'autre.
+Votre choix est conservé d'une session à l'autre. Pour lire un long chemin sans agrandir la fenêtre, élargissez sa
+colonne en tirant le bord droit de son en-tête : la table défile alors horizontalement.
 
 ## Fichiers associes
 

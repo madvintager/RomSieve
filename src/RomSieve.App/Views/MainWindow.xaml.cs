@@ -11,6 +11,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using RomSieve.App.Abstractions;
+using RomSieve.App.Controls;
 using RomSieve.App.Services;
 using RomSieve.App.ViewModels;
 using RomSieve.Core.Abstractions;
@@ -75,6 +76,9 @@ public partial class MainWindow : Window
     }
 
     public MainViewModel ViewModel => (DataContext as MainViewModel) ?? _initialViewModel;
+
+    /// <summary>Width of the target path column of the preview table: the room left, or wider as the user chose.</summary>
+    internal FillingColumnSizer? TargetColumnSizer { get; private set; }
 
     protected override void OnDataContextChanged(EventArgs e)
     {
@@ -156,6 +160,8 @@ public partial class MainWindow : Window
             // The column of related files is declared last, so that the indexes of the other columns did not change:
             // it is shown after the disk column
             tablePreview.Columns[PreviewTableViewModel.RelatedColumnIndex].DisplayIndex = RelatedColumnDisplayIndex;
+            // The target path fills the room left by the other columns, and the user can widen it beyond (horizontal scroll)
+            TargetColumnSizer = new FillingColumnSizer(tablePreview, tablePreview.Columns[PreviewTableViewModel.TargetColumnIndex]);
             tablePreview.ContextRequested += OnTablePreviewContextRequested;
             tablePreview.Sorting += OnTablePreviewSorting;
             tablePreview.TemplateApplied += (_, _) => Dispatcher.UIThread.Post(UpdatePreviewSortIndicators, DispatcherPriority.Loaded);

@@ -27,7 +27,8 @@ of a CHD.
 
 The **Columns** button, at the right of the search box, shows or hides every column but **Source Name** and
 **Status**; **Default Columns** restores the initial choice. The **Calculated Target Path** takes the room left free.
-Your choice is kept from one session to the next.
+Your choice is kept from one session to the next. To read a long path without enlarging the window, widen its column
+by dragging the right edge of its header: the table then scrolls horizontally.
 
 ## Related files
 

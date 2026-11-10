@@ -58,6 +58,9 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
     public static readonly IReadOnlyList<string> ColumnIds =
         ["source", "crc32", "title", "disk", "publisher", "date", "languages", "country", "target", "status", "related", "dat"];
 
+    /// <summary>Index of the column of the calculated target path.</summary>
+    public const int TargetColumnIndex = 8;
+
     /// <summary>Index of the column of related files (tracks, CHDs).</summary>
     public const int RelatedColumnIndex = 10;
 

@@ -3851,7 +3851,8 @@
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[5]}" Binding="{Binding Date}" Width="85" IsVisible="{Binding PreviewTable.Columns[5].IsVisible}" />
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[6]}" Binding="{Binding LanguagesDisplay}" Width="110" IsVisible="{Binding PreviewTable.Columns[6].IsVisible}" />
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[7]}" Binding="{Binding CountriesDisplay}" Width="135" IsVisible="{Binding PreviewTable.Columns[7].IsVisible}" />
-                  <!-- The target path takes the room left by the other columns -->
+                  <!-- The target path takes the room left by the other columns, and can be widened beyond it
+                       (FillingColumnSizer, which turns its width into pixels): the table then scrolls horizontally -->
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[8]}" Binding="{Binding TargetPathDisplay}" Width="*" MinWidth="200" CanUserSort="False" IsVisible="{Binding PreviewTable.Columns[8].IsVisible}" />
                   <DataGridTemplateColumn Header="{Binding PreviewColumnHeaders[9]}" Width="140" CanUserResize="True" CanUserSort="True" SortMemberPath="StatusDisplay">
                     <DataGridTemplateColumn.CellTemplate>
