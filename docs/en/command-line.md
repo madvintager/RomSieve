@@ -13,6 +13,7 @@ and only **simulates** unless you add `--execute`.
 | `romsieve-cli dat` | Writes the filtered DAT of the catalog (`--output`), without reading the source |
 | `romsieve-cli quarantine` | Shows the quarantine of the purges of the destination; empties it with `--empty --yes` |
 | `romsieve-cli profiles` | Lists the saved profiles |
+| `romsieve-cli patches` | Simulates the sort and lists its [patches](patches.md): not applied, with the ROMs proposed, and IPS applied thanks to their readme; with `--name-from-notes --yes`, writes the CRC32 in the name of the latter |
 | `romsieve-cli --help` | Shows the help (also `run --help`...) |
 | `romsieve-cli --version` | Shows the version |
 
@@ -41,6 +42,11 @@ romsieve-cli run --dat "No-Intro Love Pack (PC XML).zip" --dat-only "Nintendo - 
 # Complete a non-empty destination, or purge it first (its content is set aside in _purged/)
 romsieve-cli run --execute --append
 romsieve-cli run --execute --purge --yes
+
+# The patches of a simulation, then the CRC32 written in the name of the IPS applied thanks to their readme
+romsieve-cli patches --patches /roms/patches
+romsieve-cli patches --patches /roms/patches --name-from-notes          # shows the new names
+romsieve-cli patches --patches /roms/patches --name-from-notes --yes    # renames
 
 # Undo the last real sort
 romsieve-cli undo           # shows what would be undone
@@ -74,6 +80,23 @@ romsieve-cli dat --dat /dats/No-Intro -o /dats/No-Intro-1G1R      # a lot: a fol
 `dat` reads neither the source nor the destination: see [Exports](exports.md) for what the filtered DAT holds. When
 the settings keep no game, no file is written and the exit code is 4.
 
+## Options of `patches`
+
+`patches` takes the options of `run` that choose what is simulated (`--profile`, `--source`, `--destination`, `--dat`,
+`--dat-recursive`, `--dat-only`, `--dir-dat-mirror`, `--chd`, `--patches`, `--categories`, `--ratings`), without writing
+anything into the destination. It requires a folder of the patches and a DAT (code 3 otherwise), and refuses a MAME
+sort.
+
+| Option | Role |
+|---|---|
+| `--name-from-notes` | Shows the name each IPS applied thanks to its readme would take, with the CRC32 of its ROM (`Hack.ips` becomes `Hack [47e70e08].ips`). An IPS stored in an archive is not renamed |
+| `-y`, `--yes` | With `--name-from-notes`, renames these IPS in the folder of the patches. Without it, the exit code is 6 |
+
+The list gives, for each patch not applied, its reason and, for an IPS without CRC32, the ROMs proposed from its name
+with the name it would take. A ROM proposed is never taken on its own: rename the patch yourself, or choose its ROM in
+the **Patches** window of the interface (see [Naming an IPS](patches.md#naming-an-ips)). A renaming refused (a name
+already taken, for example) gives the code 4.
+
 ## Options of `run`
 
 | Option | Role |
@@ -95,7 +118,7 @@ the settings keep no game, no file is written and the exit code is 4.
 | `--preserve-archives` | Preserves single-game source archives without extracting them (copy, move, hardlink, symlink modes) |
 | `--append` | Completes a non-empty destination |
 | `--purge` | Purges a non-empty destination first (requires `--execute` and `--yes`) |
-| `-y`, `--yes` | Confirms a purge or an undo |
+| `-y`, `--yes` | Confirms a purge or an undo (and, with `patches`, a renaming) |
 | `--force-foreign-purge` | Allows purging a folder without the `.romsieve` marker |
 | `--report <file>` | Exports the report (`.json` or `.csv`) |
 | `--miss-list <file>` | Exports the missing ROMs (`.txt` or `.csv`, requires a DAT) |
@@ -133,6 +156,8 @@ With a folder of the patches, a line of the summary counts the patched versions 
   `--purge --yes` purges the destination even when this option is checked.
 * `undo` only shows the sort to undo until `--yes` is added. After an incomplete undo (a locked file, an occupied
   original place), `undo --yes` resumes the operations left only.
+* `patches --name-from-notes` renames nothing without `--yes`, and only touches the name of the IPS of the folder of
+  the patches.
 * `quarantine --empty` requires `--yes`, and only touches the quarantine of a destination marked by RomSieve: the
   deleted content can no longer be put back by undoing the sorts that purged it.
 * **Ctrl+C** stops the run cleanly: the file being written is removed.
@@ -147,7 +172,7 @@ With a folder of the patches, a line of the summary counts the patched versions 
 | 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder or archive of DATs refused, overlapping folders) |
 | 4 | Finished, but some files are in error (including a sort stopped by a full destination or a journal that cannot be written), an export failed (or `dat` kept no game), some operations could not be undone or some items of the quarantine could not be deleted |
 | 5 | Cancelled (Ctrl+C) |
-| 6 | Confirmation required (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, or `quarantine --empty` without `--yes`) |
+| 6 | Confirmation required (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, `quarantine --empty` or `patches --name-from-notes` without `--yes`) |
 | 7 | Nothing to undo |
 
 For instance, in a script:

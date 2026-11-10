@@ -12,7 +12,8 @@ namespace RomSieve.Cli;
 /// <summary>
 /// Command line of RomSieve: <c>run</c> (simulation by default, real sort with <c>--execute</c>), <c>undo</c>
 /// (undo of the last real sort), <c>dat</c> (filtered DAT of the catalog alone, without source), <c>quarantine</c> (size of the quarantine of the purges of a destination, emptied
-/// with <c>--empty --yes</c>) and <c>profiles</c> (list of the configuration profiles). The options come from
+/// with <c>--empty --yes</c>), <c>profiles</c> (list of the configuration profiles) and <c>patches</c> (the patches of a
+/// simulation, and the CRC32 of their readme written in the name of the IPS with <c>--name-from-notes --yes</c>). The options come from
 /// <c>config.json</c> or from a profile saved by the interface, read by <see cref="SortSettingsSerializer"/> as
 /// the interface reads them; the messages are translated (<c>--lang</c>).
 /// </summary>
@@ -41,6 +42,7 @@ public sealed class CliApplication
     private readonly Option<string?> _chdOption = new("--chd");
     private readonly Option<string?> _patchesOption = new("--patches");
     private readonly Option<bool> _patchOnlyOption = new("--patch-only");
+    private readonly Option<bool> _nameFromNotesOption = new("--name-from-notes");
     private readonly Option<string?> _categoriesOption = new("--categories");
     private readonly Option<string?> _ratingsOption = new("--ratings");
     private readonly Option<string?> _modeOption = new("--mode");
@@ -157,6 +159,7 @@ public sealed class CliApplication
         _patchesOption.Description = Tr("cli.option_patches");
         _patchesOption.HelpName = Tr("cli.help_directory");
         _patchOnlyOption.Description = Tr("cli.option_patch_only");
+        _nameFromNotesOption.Description = Tr("cli.option_name_from_notes");
         _categoriesOption.Description = Tr("cli.option_categories");
         _categoriesOption.HelpName = Tr("cli.help_file");
         _ratingsOption.Description = Tr("cli.option_ratings");
@@ -205,9 +208,16 @@ public sealed class CliApplication
         var profiles = new Command("profiles", Tr("cli.command_profiles"));
         profiles.SetAction(ListProfiles);
 
+        var patches = new Command("patches", Tr("cli.command_patches"))
+        {
+            _profileOption, _sourceOption, _destinationOption, _datOption, _datRecursiveOption, _datOnlyOption, _datMirrorOption,
+            _chdOption, _patchesOption, _categoriesOption, _ratingsOption, _nameFromNotesOption, _yesOption
+        };
+        patches.SetAction((parseResult, cancellationToken) => PatchesAsync(parseResult, cancellationToken));
+
         var root = new RootCommand(Tr("cli.description"))
         {
-            _configOption, _langOption, _quietOption, run, undo, dat, quarantine, profiles
+            _configOption, _langOption, _quietOption, run, undo, dat, quarantine, profiles, patches
         };
 
         // System.CommandLine does not translate the description of its help option in every language
@@ -251,67 +261,19 @@ public sealed class CliApplication
             return Fail(ExitCodes.InvalidArguments, Tr("cli.miss_list_extension", ("path", missListPath)));
         }
 
-        var configPath = GetConfigPath(parseResult);
-        var (settings, settingsError) = await LoadSettingsAsync(parseResult, configPath, quiet);
-        if (settings is null)
+        var (prepared, prepareError) = await PrepareRunAsync(
+            parseResult,
+            quiet,
+            settings => (missListPath is not null || fixDatPath is not null) && string.IsNullOrWhiteSpace(settings.DatFile)
+                ? Fail(ExitCodes.InvalidArguments, Tr("cli.export_requires_dat"))
+                : null);
+        if (prepared is null)
         {
-            return settingsError;
+            return prepareError;
         }
 
-        ApplyOverrides(parseResult, settings);
-
-        // The folders of the DATs are mirrored under the folder of each DAT: without it, there is nothing to mirror
-        if (parseResult.GetValue(_datMirrorOption))
-        {
-            if (!settings.FolderPerDat)
-            {
-                return Fail(ExitCodes.InvalidArguments, Tr("cli.mirror_requires_folder_per_dat"));
-            }
-
-            settings.DatFolderMirror = true;
-        }
-
-        if (string.IsNullOrWhiteSpace(settings.SourceDir))
-        {
-            return Fail(ExitCodes.InvalidConfiguration, Tr("cli.no_source"));
-        }
-
-        if (string.IsNullOrWhiteSpace(settings.DestinationDir))
-        {
-            return Fail(ExitCodes.InvalidConfiguration, Tr("cli.no_destination"));
-        }
-
-        if ((missListPath is not null || fixDatPath is not null) && string.IsNullOrWhiteSpace(settings.DatFile))
-        {
-            return Fail(ExitCodes.InvalidArguments, Tr("cli.export_requires_dat"));
-        }
-
-        var config = SortSettingsSerializer.ToSortConfig(settings);
-        if (!Directory.Exists(config.SourceDir))
-        {
-            return Fail(ExitCodes.InvalidConfiguration, Tr("log.source_dir_not_found", ("path", config.SourceDir)));
-        }
-
-        // A folder holds a lot of DATs, or the DATs of several MAME software lists
-        if (config.DatFile is not null && !File.Exists(config.DatFile) && !Directory.Exists(config.DatFile))
-        {
-            return Fail(ExitCodes.InvalidConfiguration, Tr("log.dat_file_not_found", ("path", config.DatFile)));
-        }
-
-        using var services = BuildServices(configPath);
-        if (ChooseLotDats(parseResult, settings, services.GetRequiredService<IDatService>(), out _) is { } lotError)
-        {
-            return lotError;
-        }
-
-        // The DATs chosen by --dat-only
-        config = SortSettingsSerializer.ToSortConfig(settings);
-        var overlapKey = SortConfigValidator.GetErrorKey(config, IsMameRun(config, services.GetRequiredService<IDatService>()));
-        if (overlapKey is not null)
-        {
-            return Fail(ExitCodes.InvalidConfiguration, Tr(overlapKey));
-        }
-
+        using var services = prepared.Services;
+        var config = prepared.Config;
         var processor = services.GetRequiredService<ISortProcessorService>();
 
         // A real sort never writes into a non-empty destination without being told on the command line to complete or
@@ -364,6 +326,95 @@ public sealed class CliApplication
 
         var exportsOk = await ExportAsync(processor, result, reportPath, missListPath, fixDatPath, cancellationToken);
         return result.Stats.ErrorCount > 0 || !exportsOk ? ExitCodes.CompletedWithErrors : ExitCodes.Success;
+    }
+
+    /// <summary>A run made ready by <see cref="PrepareRunAsync"/>: its options, and the services that run it (disposed by the caller).</summary>
+    private sealed record PreparedRun(SortConfig Config, ServiceProvider Services);
+
+    /// <summary>
+    /// The options of a run (<c>run</c>, <c>patches</c>), from the configuration or a profile and the options of the
+    /// command, checked as the interface checks them before anything is read or written: source and destination given and
+    /// found, DAT found, DATs of a lot chosen, no overlap (<see cref="SortConfigValidator"/>). <paramref name="check"/> adds
+    /// the checks of the command, after those of the source and the destination. On a refusal, the message is written and
+    /// its exit code returned.
+    /// </summary>
+    private async Task<(PreparedRun? Run, int Error)> PrepareRunAsync(
+        ParseResult parseResult,
+        bool quiet,
+        Func<SortSettings, int?>? check = null)
+    {
+        var configPath = GetConfigPath(parseResult);
+        var (settings, settingsError) = await LoadSettingsAsync(parseResult, configPath, quiet);
+        if (settings is null)
+        {
+            return (null, settingsError);
+        }
+
+        ApplyOverrides(parseResult, settings);
+
+        // The folders of the DATs are mirrored under the folder of each DAT: without it, there is nothing to mirror
+        if (parseResult.GetValue(_datMirrorOption))
+        {
+            if (!settings.FolderPerDat)
+            {
+                return (null, Fail(ExitCodes.InvalidArguments, Tr("cli.mirror_requires_folder_per_dat")));
+            }
+
+            settings.DatFolderMirror = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.SourceDir))
+        {
+            return (null, Fail(ExitCodes.InvalidConfiguration, Tr("cli.no_source")));
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.DestinationDir))
+        {
+            return (null, Fail(ExitCodes.InvalidConfiguration, Tr("cli.no_destination")));
+        }
+
+        if (check?.Invoke(settings) is { } checkError)
+        {
+            return (null, checkError);
+        }
+
+        var config = SortSettingsSerializer.ToSortConfig(settings);
+        if (!Directory.Exists(config.SourceDir))
+        {
+            return (null, Fail(ExitCodes.InvalidConfiguration, Tr("log.source_dir_not_found", ("path", config.SourceDir))));
+        }
+
+        // A folder holds a lot of DATs, or the DATs of several MAME software lists
+        if (config.DatFile is not null && !File.Exists(config.DatFile) && !Directory.Exists(config.DatFile))
+        {
+            return (null, Fail(ExitCodes.InvalidConfiguration, Tr("log.dat_file_not_found", ("path", config.DatFile))));
+        }
+
+        var services = BuildServices(configPath);
+        try
+        {
+            if (ChooseLotDats(parseResult, settings, services.GetRequiredService<IDatService>(), out _) is { } lotError)
+            {
+                services.Dispose();
+                return (null, lotError);
+            }
+
+            // The DATs chosen by --dat-only
+            config = SortSettingsSerializer.ToSortConfig(settings);
+            var overlapKey = SortConfigValidator.GetErrorKey(config, IsMameRun(config, services.GetRequiredService<IDatService>()));
+            if (overlapKey is not null)
+            {
+                services.Dispose();
+                return (null, Fail(ExitCodes.InvalidConfiguration, Tr(overlapKey)));
+            }
+        }
+        catch
+        {
+            services.Dispose();
+            throw;
+        }
+
+        return (new PreparedRun(config, services), ExitCodes.Success);
     }
 
     /// <summary>
@@ -566,6 +617,152 @@ public sealed class CliApplication
             ("files", result.DeletedFiles),
             ("size", SizeFormatting.Format(_localization, result.DeletedBytes))));
         return result.Errors.Count == 0 ? ExitCodes.Success : ExitCodes.CompletedWithErrors;
+    }
+
+    /// <summary>
+    /// Simulates the run of the options (as <c>run</c> without <c>--execute</c>, nothing written) and lists its patches:
+    /// those left out with their reason and the origins proposed for an IPS without CRC32, then the IPS applied thanks to
+    /// their readme. With <c>--name-from-notes</c>, shows the CRC32 those IPS would get in their name and, with
+    /// <c>--yes</c>, writes it (<see cref="IPatchNamingService"/>): other tools, such as igir, then apply them too. A
+    /// suggestion is never taken: the user names such a patch, or chooses its ROM in the window of the interface.
+    /// </summary>
+    private async Task<int> PatchesAsync(ParseResult parseResult, CancellationToken cancellationToken)
+    {
+        var quiet = parseResult.GetValue(_quietOption);
+        var (prepared, prepareError) = await PrepareRunAsync(
+            parseResult,
+            quiet,
+            settings => string.IsNullOrWhiteSpace(settings.PatchDir)
+                ? Fail(ExitCodes.InvalidConfiguration, Tr("cli.no_patch_dir"))
+                : string.IsNullOrWhiteSpace(settings.DatFile)
+                    ? Fail(ExitCodes.InvalidConfiguration, Tr("log.patches_need_dat"))
+                    : null);
+        if (prepared is null)
+        {
+            return prepareError;
+        }
+
+        using var services = prepared.Services;
+        var config = prepared.Config;
+        var patchDir = config.PatchDir!;
+        if (!Directory.Exists(patchDir))
+        {
+            return Fail(ExitCodes.InvalidConfiguration, Tr("log.patch_dir_not_found", ("path", patchDir)));
+        }
+
+        if (IsMameRun(config, services.GetRequiredService<IDatService>()))
+        {
+            return Fail(ExitCodes.InvalidConfiguration, Tr("log.patches_ignored_mame"));
+        }
+
+        // The lines of the simulation itself would bury the list: only its errors are shown
+        var log = new SynchronousProgress<LogMessage>(message =>
+        {
+            if (message.Level == LogLevel.Error)
+            {
+                WriteLine($"[{message.Level.ToTag()}] {_localization.Format(message.Message)}");
+            }
+        });
+        var processor = services.GetRequiredService<ISortProcessorService>();
+        var result = await processor.ExecuteAsync(config, isDryRun: true, logProgress: log, cancellationToken: cancellationToken);
+
+        var naming = services.GetRequiredService<IPatchNamingService>();
+        var byNote = result.Items.Select(it => it.Patch)
+            .OfType<PatchedVersion>()
+            .Where(p => p.CrcSource == PatchCrcSource.Notes)
+            .DistinctBy(p => p.File)
+            .ToList();
+        WriteLine(Tr(
+            "cli.patches_summary",
+            ("patched", result.Stats.PatchedCount),
+            ("unapplied", result.UnappliedPatches.Count),
+            ("by_note", byNote.Count)));
+
+        string Describe(PatchFile patch) => patch.ArchiveMember is { } member
+            ? $"{member} ({Path.GetFileName(patch.SourcePath)})"
+            : Path.GetRelativePath(patchDir, patch.SourcePath);
+
+        foreach (var unapplied in result.UnappliedPatches)
+        {
+            WriteLine("  " + Tr("cli.patches_unapplied", ("name", Describe(unapplied.File)), ("reason", _localization.Format(unapplied.Reason))));
+            foreach (var suggestion in unapplied.Suggestions)
+            {
+                WriteLine("    " + Tr(
+                    "cli.patches_suggestion",
+                    ("origin", suggestion.Origin.DisplayName),
+                    ("form", FormText(suggestion)),
+                    ("name", naming.NameWithCrc(unapplied.File.DisplayName, suggestion.Crc32))));
+            }
+        }
+
+        if (result.UnappliedPatches.Any(u => u.Suggestions.Count > 0))
+        {
+            WriteLine(Tr("cli.patches_suggestions_hint"));
+        }
+
+        foreach (var version in byNote)
+        {
+            WriteLine("  " + Tr(
+                "cli.patches_by_note",
+                ("name", Describe(version.File)),
+                ("origin", version.Origin.DisplayName),
+                ("note", version.Note?.DisplayName ?? string.Empty)));
+        }
+
+        if (!parseResult.GetValue(_nameFromNotesOption))
+        {
+            return ExitCodes.Success;
+        }
+
+        // A patch in an archive is never renamed: the archive is never modified
+        foreach (var version in byNote.Where(p => p.File.ArchiveMember is not null))
+        {
+            WriteLine($"[{LogLevel.Skip.ToTag()}] " + Tr(
+                "log.patch_rename_refused",
+                ("name", Describe(version.File)),
+                ("reason", Tr("reason.patch_rename_in_archive"))));
+        }
+
+        var renames = byNote.Where(p => p.File.ArchiveMember is null).Select(p => new PatchRename(p.File, p.SourceCrc32)).ToList();
+        if (renames.Count == 0)
+        {
+            WriteLine(Tr("cli.patches_nothing_to_name"));
+            return ExitCodes.Success;
+        }
+
+        foreach (var rename in renames)
+        {
+            WriteLine("  " + Tr(
+                "cli.patches_rename_planned",
+                ("old", Describe(rename.Patch)),
+                ("new", naming.NameWithCrc(rename.Patch.DisplayName, rename.Crc32))));
+        }
+
+        if (!parseResult.GetValue(_yesOption))
+        {
+            return Fail(ExitCodes.ConfirmationRequired, Tr("cli.patches_rename_requires_yes"));
+        }
+
+        var results = await naming.RenameAsync(
+            patchDir,
+            renames,
+            (level, message) => WriteLine($"[{level.ToTag()}] {_localization.Format(message)}"),
+            cancellationToken);
+        var refused = results.Count(r => !r.IsRenamed);
+        WriteLine(Tr("cli.patches_renamed", ("renamed", results.Count - refused), ("refused", refused)));
+        return refused == 0 ? ExitCodes.Success : ExitCodes.CompletedWithErrors;
+    }
+
+    /// <summary>The form of a suggestion: with or without its copier header, or its CRC32 alone.</summary>
+    private string FormText(PatchOriginSuggestion suggestion)
+    {
+        var crc = suggestion.Crc32.ToString("X8", CultureInfo.InvariantCulture);
+        return suggestion.WithCopierHeader switch
+        {
+            true => Tr("patches.form_with_header", ("crc", crc)),
+            false => Tr("patches.form_without_header", ("crc", crc)),
+            null => Tr("patches.form_single", ("crc", crc))
+        };
     }
 
     private int ListProfiles(ParseResult parseResult)

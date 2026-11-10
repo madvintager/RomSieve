@@ -217,3 +217,6 @@ the sort.
 
 `--patches <folder>` gives the folder of the patches, and `--patch-only` only writes the patched versions (see
 [Command line](command-line.md)). The summary counts the patched versions and the patches not applied.
+
+`romsieve-cli patches` simulates the sort and lists its patches not applied, with the ROMs proposed for an IPS without
+CRC32, then the IPS applied thanks to their readme; `--name-from-notes --yes` writes the CRC32 in the name of the latter.

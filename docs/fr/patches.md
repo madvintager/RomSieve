@@ -222,3 +222,6 @@ modifiée depuis le tri.
 
 `--patches <dossier>` donne le dossier des patchs, et `--patch-only` n'écrit que les versions patchées (voir
 [Ligne de commande](command-line.md)). Le bilan compte les versions patchées et les patchs non appliqués.
+
+`romsieve-cli patches` simule le tri et liste ses patchs non appliqués, avec les ROMs proposées pour un IPS sans CRC32,
+puis les IPS appliqués grâce à leur readme ; `--name-from-notes --yes` écrit le CRC32 dans le nom de ces derniers.

@@ -131,5 +131,82 @@ public sealed class CliPatchTests : IDisposable
         var result = await RunAsync("run", "--help");
 
         result.Output.Should().Contain("--patches").And.Contain("--patch-only");
+        (await RunAsync("--help")).Output.Should().Contain("patches");
+        (await RunAsync("patches", "--help")).Output.Should().Contain("--name-from-notes").And.Contain("--yes");
+    }
+
+    // =========================================================================
+    // The patches command
+    // =========================================================================
+
+    /// <summary>An IPS applied thanks to its readme, in a folder of its own.</summary>
+    private string WriteIpsWithReadme()
+    {
+        _temp.WriteText("patches/hack/readme.txt", $"File/ROM CRC32: {Crc(Usa):X8}");
+        return _temp.WriteBytes("patches/hack/Hack.ips", IpsDiff(Usa, UsaHack));
+    }
+
+    [Fact]
+    public async Task Patches_ShouldListThePatchesLeftOut_WithTheRomsProposed_AndWriteNothing()
+    {
+        var ips = _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", IpsDiff(Japan, Translated));
+        WriteIpsWithReadme();
+
+        var result = await RunAsync("patches", "--patches", _patches);
+
+        result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
+        result.Output.Should().Contain("3 patched versions, 2 patches not applied, 1 IPS applied thanks to their readme.");
+        result.Output.Should().Contain("Not applied, Game (Japan) (T-Fr).ips: Neither the name of the IPS patch");
+        result.Output.Should().Contain($"ROM proposed: Game (Japan).sfc, CRC32 {Crc(Japan):X8}; new name: Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips");
+        result.Output.Should().Contain("A ROM proposed is never taken on its own");
+        result.Output.Should().Contain($"Applied thanks to its readme, {Path.Combine("hack", "Hack.ips")}: to Game (USA).sfc (readme.txt)");
+        result.Output.Should().NotContain("[PLANNED]", "the lines of the simulation are not shown");
+        DestinationFiles().Should().BeEmpty();
+        File.Exists(ips).Should().BeTrue("a ROM proposed is never taken");
+    }
+
+    [Fact]
+    public async Task Patches_NameFromNotes_ShouldShowTheNewNames_AndRenameOnlyWithYes()
+    {
+        var ips = WriteIpsWithReadme();
+        var renamed = Path.Combine(_patches, "hack", $"Hack [{Crc(Usa):x8}].ips");
+
+        var shown = await RunAsync("patches", "--patches", _patches, "--name-from-notes");
+
+        shown.ExitCode.Should().Be(ExitCodes.ConfirmationRequired);
+        shown.Output.Should().Contain($"To rename: {Path.Combine("hack", "Hack.ips")} -> Hack [{Crc(Usa):x8}].ips");
+        shown.Error.Should().Contain("Add --yes to rename these patches.");
+        File.Exists(ips).Should().BeTrue();
+
+        var done = await RunAsync("patches", "--patches", _patches, "--name-from-notes", "--yes");
+
+        done.ExitCode.Should().Be(ExitCodes.Success, done.Error);
+        done.Output.Should().Contain("Patch renamed: Hack.ips becomes").And.Contain("1 patches renamed, 0 refused.");
+        File.Exists(ips).Should().BeFalse();
+        File.Exists(renamed).Should().BeTrue();
+
+        // The CRC32 in its name now applies it, without its readme
+        var again = await RunAsync("patches", "--patches", _patches, "--name-from-notes");
+        again.ExitCode.Should().Be(ExitCodes.Success, again.Error);
+        again.Output.Should().Contain("3 patched versions, 1 patches not applied, 0 IPS applied thanks to their readme.");
+        again.Output.Should().Contain("No IPS applied thanks to its readme is to be named.");
+    }
+
+    [Fact]
+    public async Task Patches_WithoutPatchFolder_ShouldBeRefused()
+    {
+        var result = await RunAsync("patches");
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidConfiguration);
+        result.Error.Should().Contain("No folder of the patches");
+    }
+
+    [Fact]
+    public async Task Patches_IntoThePatchFolder_ShouldBeRefusedLikeASort()
+    {
+        var result = await RunAsync("patches", "--patches", _patches, "--destination", Path.Combine(_patches, "sorted"));
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidConfiguration);
+        result.Error.Should().Contain("inside the folder of the patches");
     }
 }

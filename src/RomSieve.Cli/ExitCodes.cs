@@ -21,7 +21,7 @@ public static class ExitCodes
     /// <summary>The run was cancelled (Ctrl+C).</summary>
     public const int Cancelled = 5;
 
-    /// <summary>A destructive operation needs a confirmation: <c>--yes</c> (also to empty the quarantine), or <c>--append</c> / <c>--purge --yes</c> for a non-empty destination.</summary>
+    /// <summary>A destructive operation needs a confirmation: <c>--yes</c> (also to empty the quarantine or to rename patches), or <c>--append</c> / <c>--purge --yes</c> for a non-empty destination.</summary>
     public const int ConfirmationRequired = 6;
 
     /// <summary>There is no sort to undo.</summary>

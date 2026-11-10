@@ -77,6 +77,7 @@ romsieve-cli run --report report.json --miss-list missing.txt
 romsieve-cli run --profile "Amiga 1G1R" --execute
 romsieve-cli run --dat /dats/No-Intro --dat-recursive --execute
 romsieve-cli run --patches /roms/patches --patch-only --execute
+romsieve-cli patches --patches /roms/patches --name-from-notes --yes
 romsieve-cli undo --yes
 ```
 
