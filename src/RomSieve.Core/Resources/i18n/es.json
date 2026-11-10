@@ -1494,7 +1494,7 @@
   "reason.patch_rename_taken": "Ya existe un archivo con el nombre {name}",
   "reason.patch_rename_failed": "No se pudo renombrar el parche: {error}",
   "patches.window_title": "Parches",
-  "patches.hint": "Elija la ROM de cada parche. RomSieve lo recuerda; sus archivos no se modifican.",
+  "patches.hint": "Elija la ROM de cada parche. RomSieve lo recuerda. Sus archivos no se modifican.",
   "patches.hint_tooltip": "Un UPS o un BPS designa su propia ROM. Un IPS no: RomSieve la busca en su nombre (el CRC32 de la ROM, por ejemplo [47e70e08]) o en su readme. « Aplicar a esta ROM » guarda su elección, que pasa antes que el nombre y el readme; « No aplicar este parche » lo descarta, sea cual sea su formato. Sus elecciones se guardan junto a la configuración de RomSieve y siguen al parche si se renombra o se mueve. Las ROM propuestas vienen del nombre del parche: compruébelas. El parche solo se renombra si usted lo pide (« Escribir la ROM en el nombre del archivo »).",
   "patches.group_to_match": "Por asociar ({count})",
   "patches.group_applied": "Aplicados ({count})",

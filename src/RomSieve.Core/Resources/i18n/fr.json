@@ -1494,7 +1494,7 @@
   "reason.patch_rename_taken": "Un fichier porte déjà le nom {name}",
   "reason.patch_rename_failed": "Renommage impossible : {error}",
   "patches.window_title": "Patchs",
-  "patches.hint": "Choisissez la ROM de chaque patch. RomSieve s'en souvient ; vos fichiers ne sont pas modifiés.",
+  "patches.hint": "Choisissez la ROM de chaque patch. RomSieve s'en souvient. Vos fichiers ne sont pas modifiés.",
   "patches.hint_tooltip": "Un UPS ou un BPS désigne lui-même sa ROM. Un IPS ne le fait pas : RomSieve la cherche dans son nom (le CRC32 de la ROM, par exemple [47e70e08]) ou dans son readme. « Appliquer à cette ROM » enregistre votre choix, qui passe avant le nom et le readme ; « Ne pas appliquer ce patch » l'écarte, quel que soit son format. Vos choix sont gardés à côté de la configuration de RomSieve et suivent le patch s'il est renommé ou déplacé. Les ROMs proposées viennent du nom du patch : vérifiez-les. Le patch lui-même n'est renommé que si vous le demandez (« Écrire la ROM dans le nom du fichier »).",
   "patches.group_to_match": "À associer ({count})",
   "patches.group_applied": "Appliqués ({count})",
