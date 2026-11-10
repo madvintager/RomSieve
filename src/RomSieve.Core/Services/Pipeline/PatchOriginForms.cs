@@ -10,7 +10,7 @@ namespace RomSieve.Core.Services;
 /// The forms of the data of an identified file a patch may expect, with and without its copier header: the form it was
 /// identified in (<see cref="ProcessItem.CopierHeaderSize"/> bytes skipped), and the other one, read again on demand.
 /// Shared by the matching of the patches (<see cref="PatchMatcher"/>) and the choice of an origin by the user
-/// (<see cref="PatchNamingService.GetOriginFormsAsync"/>).
+/// (<see cref="PatchLinkService.GetOriginFormsAsync"/>).
 /// </summary>
 internal static class PatchOriginForms
 {

@@ -29,6 +29,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IOpticalCompanionService, OpticalCompanionService>();
         services.AddSingleton<IPatchService, PatchService>();
         services.AddSingleton<IPatchNamingService, PatchNamingService>();
+        services.AddSingleton<IPatchLinkService>(sp => new PatchLinkService(
+            PatchLinkService.PathNextTo(sp.GetRequiredService<IConfigurationService>().GetDefaultConfigPath()),
+            sp.GetRequiredService<IChecksumService>(),
+            sp.GetRequiredService<ICrcCacheService>()));
         services.AddSingleton<IOperationJournalService>(sp => new OperationJournalService(
             OperationJournalService.GetJournalDirectory(sp.GetRequiredService<IConfigurationService>().GetDefaultConfigPath()),
             sp.GetRequiredService<IChecksumService>(),

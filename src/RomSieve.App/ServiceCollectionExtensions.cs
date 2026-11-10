@@ -51,12 +51,16 @@ public static class AppServiceCollectionExtensions
 
         if (!string.IsNullOrEmpty(configFilePath))
         {
-            // The CRC cache and the journals live next to the configuration file in use
+            // The CRC cache, the journals and the choices for the patches live next to the configuration file in use
             // (isolated configurations, such as those of the tests, keep an isolated cache and isolated journals)
             services.Replace(ServiceDescriptor.Singleton<ICrcCacheService>(_ => new CrcCacheService(
                 Path.Combine(Path.GetDirectoryName(Path.GetFullPath(configFilePath)) ?? string.Empty, "crc_cache.json"))));
             services.Replace(ServiceDescriptor.Singleton<IOperationJournalService>(sp => new OperationJournalService(
                 OperationJournalService.GetJournalDirectory(configFilePath),
+                sp.GetRequiredService<IChecksumService>(),
+                sp.GetRequiredService<ICrcCacheService>())));
+            services.Replace(ServiceDescriptor.Singleton<IPatchLinkService>(sp => new PatchLinkService(
+                PatchLinkService.PathNextTo(configFilePath),
                 sp.GetRequiredService<IChecksumService>(),
                 sp.GetRequiredService<ICrcCacheService>())));
         }
@@ -75,6 +79,7 @@ public static class AppServiceCollectionExtensions
             provider.GetRequiredService<IUpdateCheckService>(),
             provider.GetRequiredService<IDialogService>(),
             provider.GetRequiredService<IPatchNamingService>(),
+            provider.GetRequiredService<IPatchLinkService>(),
             configFilePath);
     }
 }

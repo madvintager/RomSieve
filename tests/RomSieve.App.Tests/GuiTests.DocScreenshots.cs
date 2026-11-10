@@ -197,7 +197,12 @@ public sealed partial class GuiTests
                         var patchesVm = new PatchesViewModel(
                             vm.Localization,
                             new HeadlessDialogService(),
-                            new PatchNamingService(core.Patches, core.ChecksumService, core.CrcCache),
+                            new PatchNamingService(core.Patches),
+                            new PatchLinkService(
+                                // In the temporary folder of the collection, next to the patches
+                                Path.Combine(Path.GetDirectoryName(patches)!, PatchLinkService.FileName),
+                                core.ChecksumService,
+                                core.CrcCache),
                             () => patchResult.Items,
                             () => patchResult.Stats,
                             () => patchConfig,

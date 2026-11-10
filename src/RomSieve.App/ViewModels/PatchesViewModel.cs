@@ -92,6 +92,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
     private readonly ILocalizationService _localization;
     private readonly IDialogService _dialogService;
     private readonly IPatchNamingService _naming;
+    private readonly IPatchLinkService _links;
     private readonly Func<IReadOnlyList<ProcessItem>> _lastItems;
     private readonly Func<ProcessStats?> _lastStats;
     private readonly Func<SortConfig?> _lastConfig;
@@ -111,6 +112,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         ILocalizationService localization,
         IDialogService dialogService,
         IPatchNamingService naming,
+        IPatchLinkService links,
         Func<IReadOnlyList<ProcessItem>> lastItems,
         Func<ProcessStats?> lastStats,
         Func<SortConfig?> lastConfig,
@@ -121,6 +123,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         _localization = localization;
         _dialogService = dialogService;
         _naming = naming;
+        _links = links;
         _lastItems = lastItems;
         _lastStats = lastStats;
         _lastConfig = lastConfig;
@@ -711,7 +714,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
     internal string NewName(string name, uint crc) => _naming.NameWithCrc(name, crc);
 
     internal Task<IReadOnlyList<PatchOriginSuggestion>> ReadFormsAsync(ProcessItem origin) =>
-        _naming.GetOriginFormsAsync(origin, _detectCopierHeaders);
+        _links.GetOriginFormsAsync(origin, _detectCopierHeaders);
 
     internal string FormLabel(PatchOriginSuggestion form) => form.WithCopierHeader switch
     {

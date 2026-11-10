@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security.Cryptography;
 
 namespace RomSieve.Core.Models;
 
@@ -190,6 +191,66 @@ public sealed record PatchRenameResult(PatchRename Request, string? NewPath, Loc
 public sealed record PatchUndoResult(PatchRenameResult Renaming, LocalizedMessage? Refusal)
 {
     public bool IsUndone => Refusal is null;
+}
+
+/// <summary>
+/// What identifies a patch in its associations (<see cref="Abstractions.IPatchLinkService"/>): its content, so that the
+/// choice of the user follows the patch when it is renamed, moved, or put into an archive, whatever the folder of the
+/// patches or the profile. Two copies of the same patch share their choice.
+/// </summary>
+/// <param name="Sha1">SHA-1 of the bytes of the patch, 40 lowercase hexadecimal digits.</param>
+/// <param name="Size">Size of the patch.</param>
+public readonly record struct PatchKey(string Sha1, long Size)
+{
+    /// <summary>The key of a patch read whole in memory: the only way it is computed.</summary>
+    public static PatchKey Of(ReadOnlySpan<byte> patch) =>
+        new(Convert.ToHexStringLower(SHA1.HashData(patch)), patch.Length);
+
+    /// <summary>Whether <paramref name="sha1"/> is written the way <see cref="Of"/> writes it.</summary>
+    public static bool IsValidSha1(string? sha1) =>
+        sha1 is { Length: 40 } && sha1.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f');
+}
+
+/// <summary>What the user chose for a patch (<see cref="PatchLink"/>).</summary>
+public enum PatchLinkKind
+{
+    /// <summary>The patch applies to the ROM the user chose (an IPS or an IPS32, which records none).</summary>
+    Origin,
+
+    /// <summary>The patch does not apply, whatever designates its ROM.</summary>
+    Ignored
+}
+
+/// <summary>
+/// The choice of the user for a patch, kept by RomSieve rather than in the name of the file
+/// (<see cref="Abstractions.IPatchLinkService"/>). It comes before what the patch records, its name and its readme.
+/// </summary>
+/// <param name="Kind">The ROM chosen, or the patch set aside.</param>
+/// <param name="PatchName">Name of the patch when the choice was made, to show a choice whose patch is not found.</param>
+/// <param name="OriginCrc32">
+/// For <see cref="PatchLinkKind.Origin"/>: CRC32 of the form of the ROM the patch applies to (with or without its copier
+/// header), as a CRC32 in the name of an IPS designates it.
+/// </param>
+/// <param name="OriginName">For <see cref="PatchLinkKind.Origin"/>: name of the ROM, to say which one is missing.</param>
+public sealed record PatchLink(PatchLinkKind Kind, string PatchName, uint? OriginCrc32 = null, string? OriginName = null)
+{
+    /// <summary>The patch applies to the form of a ROM whose CRC32 is <paramref name="crc32"/>.</summary>
+    public static PatchLink ToOrigin(string patchName, uint crc32, string originName) =>
+        new(PatchLinkKind.Origin, patchName, crc32, originName);
+
+    /// <summary>The patch does not apply.</summary>
+    public static PatchLink Ignore(string patchName) => new(PatchLinkKind.Ignored, patchName);
+}
+
+/// <summary>
+/// The associations read at one moment (<see cref="Abstractions.IPatchLinkService.Load"/>), the same for a whole
+/// simulation, and what prevented reading or keeping the file, to say in the log.
+/// </summary>
+/// <param name="Links">The choice of the user for each patch.</param>
+/// <param name="Warning">Why the file was set aside or cannot be written; <see langword="null"/> when all is well.</param>
+public sealed record PatchLinkSnapshot(IReadOnlyDictionary<PatchKey, PatchLink> Links, LocalizedMessage? Warning)
+{
+    public static PatchLinkSnapshot Empty { get; } = new(new Dictionary<PatchKey, PatchLink>(), null);
 }
 
 /// <summary>What applying a patch wrote: the size and CRC32 of the result, and the CRC32 of the source it read.</summary>

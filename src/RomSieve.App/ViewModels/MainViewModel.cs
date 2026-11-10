@@ -62,6 +62,7 @@ public sealed partial class MainViewModel : ViewModelBase
         IUpdateCheckService updateService,
         IDialogService dialogService,
         IPatchNamingService patchNaming,
+        IPatchLinkService patchLinks,
         string? configFilePath = null)
     {
         _processorService = processorService ?? throw new ArgumentNullException(nameof(processorService));
@@ -189,6 +190,7 @@ public sealed partial class MainViewModel : ViewModelBase
             _localization,
             _dialogService,
             patchNaming ?? throw new ArgumentNullException(nameof(patchNaming)),
+            patchLinks ?? throw new ArgumentNullException(nameof(patchLinks)),
             () => Execution.LastItems,
             () => Execution.LastStats,
             () => Execution.LastExecutedConfig,

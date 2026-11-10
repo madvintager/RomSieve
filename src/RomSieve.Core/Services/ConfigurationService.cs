@@ -103,7 +103,14 @@ public sealed class ConfigurationService : IConfigurationService
         }
     }
 
-    public string? PreserveUnreadableConfig(string path)
+    public string? PreserveUnreadableConfig(string path) => PreserveUnreadableFile(path);
+
+    /// <summary>
+    /// Copies a file that cannot be read next to itself (<c>name.unreadable-yyyyMMdd-HHmmss.ext</c>), never over an
+    /// earlier copy. Returns the path of the copy; <see langword="null"/> when it could not be made. Shared by
+    /// <c>config.json</c> and <c>patch_links.json</c> (<see cref="PatchLinkService"/>).
+    /// </summary>
+    internal static string? PreserveUnreadableFile(string path)
     {
         try
         {

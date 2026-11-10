@@ -13,37 +13,10 @@ namespace RomSieve.Core.Services;
 public sealed class PatchNamingService : IPatchNamingService
 {
     private readonly IPatchService _patchService;
-    private readonly IChecksumService _checksumService;
-    private readonly ICrcCacheService _crcCache;
 
-    public PatchNamingService(IPatchService patchService, IChecksumService checksumService, ICrcCacheService crcCache)
+    public PatchNamingService(IPatchService patchService)
     {
         _patchService = patchService;
-        _checksumService = checksumService;
-        _crcCache = crcCache;
-    }
-
-    public async Task<IReadOnlyList<PatchOriginSuggestion>> GetOriginFormsAsync(
-        ProcessItem origin,
-        bool detectCopierHeaders,
-        CancellationToken cancellationToken = default)
-    {
-        if (PatchOriginForms.IdentifiedForm(origin) is not { } identified)
-        {
-            return [];
-        }
-
-        var forms = new List<(long Offset, long Size, uint Crc32)> { identified };
-        if (detectCopierHeaders
-            && await PatchOriginForms.OtherFormAsync(origin, _ => true, _checksumService, _crcCache, cancellationToken).ConfigureAwait(false) is { } other)
-        {
-            forms.Add(other);
-        }
-
-        var largest = forms.Max(f => f.Size);
-        return [.. forms
-            .OrderBy(f => f.Offset)
-            .Select(f => new PatchOriginSuggestion(origin, f.Crc32, f.Offset, forms.Count > 1 ? f.Size == largest : null))];
     }
 
     public string NameWithCrc(string fileName, uint crc)

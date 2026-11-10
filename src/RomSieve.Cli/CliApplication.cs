@@ -1082,6 +1082,10 @@ public sealed class CliApplication
                 OperationJournalService.GetJournalDirectory(configPath),
                 sp.GetRequiredService<IChecksumService>(),
                 sp.GetRequiredService<ICrcCacheService>())));
+            services.Replace(ServiceDescriptor.Singleton<IPatchLinkService>(sp => new PatchLinkService(
+                PatchLinkService.PathNextTo(configPath),
+                sp.GetRequiredService<IChecksumService>(),
+                sp.GetRequiredService<ICrcCacheService>())));
         }
 
         return services.BuildServiceProvider();

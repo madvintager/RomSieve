@@ -47,6 +47,45 @@ public interface IPatchService
 }
 
 /// <summary>
+/// The choice of the user for each patch (<see cref="PatchLink"/>: the ROM it applies to, or set aside), kept in
+/// <c>patch_links.json</c> next to the configuration file in use, and never in the folder of the patches: choosing
+/// changes no file of the user. A patch is known by its content (<see cref="PatchKey"/>). The file is read again at each
+/// <see cref="Load"/>, so that a choice made by the command line is seen by the interface, and written in one step. A
+/// file that cannot be read is never lost: it is copied aside before being emptied or, failing that, left as it is
+/// and never written; a file of a newer format is left as it is and never written.
+/// </summary>
+public interface IPatchLinkService
+{
+    /// <summary>Path of <c>patch_links.json</c>.</summary>
+    string FilePath { get; }
+
+    /// <summary>The associations as the file holds them now, and what prevented reading or keeping it.</summary>
+    PatchLinkSnapshot Load();
+
+    /// <summary>
+    /// Sets the choice of each patch of <paramref name="changes"/> (<see langword="null"/>: back to the automatic
+    /// choice), reading the file again first so that a choice made elsewhere meanwhile is kept, then writing it in one
+    /// step. Returns <see langword="false"/>, saying why to <paramref name="log"/>, when the file cannot be written:
+    /// nothing is changed then.
+    /// </summary>
+    Task<bool> UpdateAsync(
+        IReadOnlyCollection<KeyValuePair<PatchKey, PatchLink?>> changes,
+        Action<LogLevel, LocalizedMessage> log,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The forms of the data of <paramref name="origin"/> an IPS may expect, to choose the one it applies to: the form it
+    /// was identified in and, with <paramref name="detectCopierHeaders"/>, the other one (with or without its copier
+    /// header), read again from the source. The whole file first; <see cref="PatchOriginSuggestion.WithCopierHeader"/>
+    /// tells them apart when there are two. Empty for a file without CRC32.
+    /// </summary>
+    Task<IReadOnlyList<PatchOriginSuggestion>> GetOriginFormsAsync(
+        ProcessItem origin,
+        bool detectCopierHeaders,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Writes the CRC32 of its origin in the name of an IPS, the way RomSieve reads it, so that the patch applies at
 /// the next sort, in RomSieve as elsewhere. The only write of RomSieve outside a destination: an explicit action, out of
 /// any sort, on a file of the patch folder alone. A renaming loses nothing and is undone by hand, so it is not journaled
@@ -74,17 +113,6 @@ public interface IPatchNamingService
     /// detach it.
     /// </summary>
     string? NewName(PatchRename rename);
-
-    /// <summary>
-    /// The forms of the data of <paramref name="origin"/> an IPS may expect, to choose the CRC32 to write: the form it was
-    /// identified in and, with <paramref name="detectCopierHeaders"/>, the other one (with or without its copier header),
-    /// read again from the source. The whole file first; <see cref="PatchOriginSuggestion.WithCopierHeader"/> tells them
-    /// apart when there are two. Empty for a file without CRC32.
-    /// </summary>
-    Task<IReadOnlyList<PatchOriginSuggestion>> GetOriginFormsAsync(
-        ProcessItem origin,
-        bool detectCopierHeaders,
-        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Renames each patch of <paramref name="renames"/> in its folder, after checking it is still an IPS or an IPS32 of

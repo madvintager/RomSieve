@@ -78,7 +78,8 @@ public sealed class PatchesViewModelTests : IDisposable
     private PatchesViewModel CreateWindow(Func<bool>? isRunning = null) => new(
         _services.I18n,
         _dialogs,
-        new PatchNamingService(_services.Patches, _services.ChecksumService, _services.CrcCache),
+        new PatchNamingService(_services.Patches),
+        new PatchLinkService(_temp.GetFilePath(PatchLinkService.FileName), _services.ChecksumService, _services.CrcCache),
         () => _result?.Items ?? [],
         () => _result?.Stats,
         () => _config,
