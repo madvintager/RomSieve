@@ -177,6 +177,7 @@ public sealed partial class PatchMatcher
             items.AddRange(ordered);
         }
 
+        SuggestOriginsByName(candidates);
         _unapplied.Sort((a, b) =>
         {
             var byPath = string.CompareOrdinal(a.File.SourcePath, b.File.SourcePath);
@@ -290,7 +291,8 @@ public sealed partial class PatchMatcher
         return null;
     }
 
-    private void Refuse(PatchFile patch, LocalizedMessage reason) => _unapplied.Add(new UnappliedPatch(patch, reason));
+    private void Refuse(PatchFile patch, LocalizedMessage reason, IReadOnlyList<PatchOriginSuggestion>? suggestions = null) =>
+        _unapplied.Add(new UnappliedPatch(patch, reason) { Suggestions = suggestions ?? [] });
 
     /// <summary>
     /// The CRC32 in a file name, as igir reads it in the name of a patch that records none: 8 hexadecimal digits, after an
@@ -464,14 +466,14 @@ public sealed partial class PatchMatcher
         var candidates = new List<Candidate>();
         foreach (var item in items)
         {
-            if (!IsOrigin(item))
+            if (!IsPatchOrigin(item))
             {
                 continue;
             }
 
             var isMultiFile = item.RelatedItems.Count > 0 || item.IsMultiMedia;
             AddIdentifiedForm(candidates, item, isMultiFile);
-            foreach (var related in item.RelatedItems.Where(IsOrigin))
+            foreach (var related in item.RelatedItems.Where(IsPatchOrigin))
             {
                 AddIdentifiedForm(candidates, related, isMultiFile: true);
             }
@@ -480,7 +482,11 @@ public sealed partial class PatchMatcher
         return candidates;
     }
 
-    private static bool IsOrigin(ProcessItem item) =>
+    /// <summary>
+    /// Whether a file may be the origin of a patch: identified in the DAT, whatever its status but <c>Unmatched</c> and
+    /// <c>Error</c>, and neither a patched version, a CHD, a whole archive (a MAME set) nor a CHD matched by its name.
+    /// </summary>
+    public static bool IsPatchOrigin(ProcessItem item) =>
         item.Patch is null
         && !string.IsNullOrEmpty(item.DatGameName)
         && item.Status is not (FileStatus.Unmatched or FileStatus.Error)
@@ -541,16 +547,25 @@ public sealed partial class PatchMatcher
         if (byCrc.Select(b => b.Best.Item).Distinct(ReferenceEqualityComparer.Instance).Count() > 1)
         {
             var crcs = string.Join(", ", byCrc.Select(b => FormatCrc(b.Crc)));
-            Refuse(patch.File, patch.CrcSource == PatchCrcSource.Notes
-                ? LocalizedMessage.Create("reason.patch_ambiguous_note", ("note", patch.NoteNames), ("crc", crcs))
-                : LocalizedMessage.Create("reason.patch_ambiguous", ("crc", crcs)));
+            var suggestions = byCrc
+                .Where(b => !b.Best.IsMultiFile)
+                .DistinctBy(b => b.Best.Item, ReferenceEqualityComparer.Instance)
+                .Take(MaxSuggestions)
+                .Select(b => new PatchOriginSuggestion(b.Best.Item, b.Best.Crc32, b.Best.Offset))
+                .ToList();
+            Refuse(
+                patch.File,
+                patch.CrcSource == PatchCrcSource.Notes
+                    ? LocalizedMessage.Create("reason.patch_ambiguous_note", ("note", patch.NoteNames), ("crc", crcs))
+                    : LocalizedMessage.Create("reason.patch_ambiguous", ("crc", crcs)),
+                suggestions);
             return (null, false);
         }
 
         // Nor one whose texts give a file with and without its copier header (the name of a patch is the choice of the user)
         if (patch.CrcSource == PatchCrcSource.Notes && byCrc.Select(b => b.Best.Offset).Distinct().Count() > 1)
         {
-            RefuseBothForms(patch, byCrc[0].Best.Item);
+            RefuseBothForms(patch, byCrc.Select(b => b.Best));
             return (null, false);
         }
 
@@ -574,11 +589,22 @@ public sealed partial class PatchMatcher
             .ThenBy(c => c.Offset)
             .First();
 
-    private void RefuseBothForms(ReadPatch patch, ProcessItem origin) =>
-        Refuse(patch.File, LocalizedMessage.Create(
-            "reason.patch_header_form_ambiguous",
-            ("note", patch.NoteNames),
-            ("origin", origin.DisplayName)));
+    /// <summary>
+    /// Refuses a patch whose texts give two forms of the same file, and proposes both: the larger one holds the copier
+    /// header.
+    /// </summary>
+    private void RefuseBothForms(ReadPatch patch, IEnumerable<Candidate> forms)
+    {
+        var distinct = forms.DistinctBy(f => f.Offset).OrderBy(f => f.Offset).ToList();
+        var largest = distinct.Max(f => f.Size);
+        Refuse(
+            patch.File,
+            LocalizedMessage.Create(
+                "reason.patch_header_form_ambiguous",
+                ("note", patch.NoteNames),
+                ("origin", distinct[0].Item.DisplayName)),
+            [.. distinct.Select(f => new PatchOriginSuggestion(f.Item, f.Crc32, f.Offset, WithCopierHeader: f.Size == largest))]);
+    }
 
     /// <summary>
     /// The patches matched by the CRC32 of their texts whose other CRC32 is that of the other form of their origin (with or
@@ -599,7 +625,7 @@ public sealed partial class PatchMatcher
             if (await OtherFormAsync(origin, _ => true, cancellationToken).ConfigureAwait(false) is { } other
                 && patch.SourceCrcs.Contains(other.Crc32))
             {
-                RefuseBothForms(patch, origin.Item);
+                RefuseBothForms(patch, [origin, other]);
                 matched.RemoveAt(i);
             }
         }
@@ -730,7 +756,7 @@ public sealed partial class PatchMatcher
             CrcSource = patch.CrcSource,
             Note = patch.NoteOf?.GetValueOrDefault(origin.Crc32)
         };
-        var originName = !string.IsNullOrEmpty(item.TargetFilename) ? item.TargetFilename : item.DisplayName;
+        var originName = OriginName(item);
         return new ProcessItem
         {
             SourcePath = patch.File.SourcePath,
@@ -752,6 +778,10 @@ public sealed partial class PatchMatcher
             Patch = version
         };
     }
+
+    /// <summary>The name a file is written under (its name in the DAT), with the folders it may hold.</summary>
+    private static string OriginName(ProcessItem item) =>
+        !string.IsNullOrEmpty(item.TargetFilename) ? item.TargetFilename : item.DisplayName;
 
     /// <summary>Label of a patched version that no name of its patch gives one.</summary>
     internal const string DefaultPatchLabel = "patched";
@@ -906,6 +936,80 @@ public sealed partial class PatchMatcher
     private static string Tidy(string text) => CollapseSpaces(text).Trim(LabelTrim);
 
     private static bool IsGeneric(string label) => GenericLabels.Contains(label) || VersionOnlyRegex().IsMatch(label);
+
+    // =========================================================================
+    // Origins proposed for an IPS without CRC32
+    // =========================================================================
+
+    /// <summary>Most origins proposed for a patch left without one (<see cref="UnappliedPatch.Suggestions"/>).</summary>
+    public const int MaxSuggestions = 5;
+
+    /// <summary>
+    /// Proposes origins to each IPS left out for want of a CRC32 (<c>reason.patch_no_crc</c>), never applied. The names
+    /// compared are those <see cref="PatchedName"/> takes its label from, in the same order (<see cref="LabelSources"/>),
+    /// a generic one skipped; the first that gives a file wins. A file fits when the name starts with its name, or with
+    /// its title, as <see cref="Label"/> removes them (<see cref="WithoutPrefix"/>: case and underscores ignored, the end
+    /// of a word required): <c>chrono_trigger_fr.ips</c> designates the files of title <c>Chrono Trigger</c>. Its whole
+    /// name before its title alone, the longest first (<c>Super Mario Bros 3</c> before <c>Super Mario Bros</c>), then
+    /// the one the sort writes, then the first by path. Never a file of a game in several files.
+    /// </summary>
+    private void SuggestOriginsByName(List<Candidate> candidates)
+    {
+        List<(Candidate Form, string Name, string Title)>? origins = null;
+        for (var i = 0; i < _unapplied.Count; i++)
+        {
+            var unapplied = _unapplied[i];
+            if (unapplied.Reason.Key != "reason.patch_no_crc")
+            {
+                continue;
+            }
+
+            origins ??= [.. candidates.Where(c => !c.IsMultiFile).Select(c =>
+            {
+                var name = Path.GetFileNameWithoutExtension(Path.GetFileName(OriginName(c.Item)));
+                return (c, name, TitleOf(name));
+            })];
+            _unapplied[i] = unapplied with { Suggestions = SuggestOrigins(unapplied.File, origins) };
+        }
+    }
+
+    private List<PatchOriginSuggestion> SuggestOrigins(PatchFile patch, List<(Candidate Form, string Name, string Title)> origins)
+    {
+        foreach (var name in LabelSources(patch, FolderLabel(patch)))
+        {
+            if (IsGeneric(Tidy(name)))
+            {
+                continue;
+            }
+
+            var fitting = new List<(Candidate Form, bool WholeName, int Length)>();
+            foreach (var (form, originName, title) in origins)
+            {
+                if (WithoutPrefix(name, originName) is not null)
+                {
+                    fitting.Add((form, true, originName.Length));
+                }
+                else if (WithoutPrefix(name, title) is not null)
+                {
+                    fitting.Add((form, false, title.Length));
+                }
+            }
+
+            if (fitting.Count > 0)
+            {
+                return [.. fitting
+                    .OrderByDescending(f => f.WholeName)
+                    .ThenByDescending(f => f.Length)
+                    .ThenByDescending(f => SelectionFilter.IsReleaseWritten(f.Form.Item))
+                    .ThenBy(f => f.Form.Item.SourcePath, StringComparer.Ordinal)
+                    .ThenBy(f => f.Form.Item.ArchiveMember, StringComparer.Ordinal)
+                    .Take(MaxSuggestions)
+                    .Select(f => new PatchOriginSuggestion(f.Form.Item, f.Form.Crc32, f.Form.Offset))];
+            }
+        }
+
+        return [];
+    }
 
     private static string FormatCrc(uint crc) => crc.ToString("x8", CultureInfo.InvariantCulture);
 }

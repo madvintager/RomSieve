@@ -104,8 +104,31 @@ public enum PatchCrcSource
     Notes
 }
 
-/// <summary>A patch of the patch folder that gives no patched version, and why (<c>reason.patch_*</c>).</summary>
-public sealed record UnappliedPatch(PatchFile File, LocalizedMessage Reason);
+/// <summary>
+/// A patch of the patch folder that gives no patched version, and why (<c>reason.patch_*</c>), with the origins it may be
+/// meant for (<see cref="Suggestions"/>), never applied.
+/// </summary>
+public sealed record UnappliedPatch(PatchFile File, LocalizedMessage Reason)
+{
+    /// <summary>
+    /// Origins proposed to the user, best first: those whose name or title starts a name of an IPS without CRC32, the
+    /// files its CRC32 designate when they are several, or the two forms of a file a readme gives with and without its
+    /// copier header. Empty for any other reason.
+    /// </summary>
+    public IReadOnlyList<PatchOriginSuggestion> Suggestions { get; init; } = [];
+}
+
+/// <summary>
+/// An origin proposed for a patch left without one (<see cref="UnappliedPatch.Suggestions"/>): a file identified in the
+/// DAT, and the form of its data the patch would apply to.
+/// </summary>
+/// <param name="Origin">The identified file.</param>
+/// <param name="Crc32">CRC32 of the form: the one to write in the name of the patch.</param>
+/// <param name="Offset">Bytes of the file skipped before that form (a copier header).</param>
+/// <param name="WithCopierHeader">
+/// For the two forms of the same file: whether this one holds the copier header; <see langword="null"/> otherwise.
+/// </param>
+public sealed record PatchOriginSuggestion(ProcessItem Origin, uint Crc32, long Offset, bool? WithCopierHeader = null);
 
 /// <summary>
 /// What makes a <see cref="ProcessItem"/> a patched version (<see cref="ProcessItem.Patch"/>): its patch, what the patch

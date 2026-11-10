@@ -182,7 +182,11 @@ public sealed class PatchMatchingTests : IDisposable
 
         var (result, _) = await SimulateAsync(Config(dat));
 
-        result.UnappliedPatches.Should().ContainSingle().Which.Reason.Key.Should().Be("reason.patch_ambiguous");
+        var unapplied = result.UnappliedPatches.Should().ContainSingle().Which;
+        unapplied.Reason.Key.Should().Be("reason.patch_ambiguous");
+        unapplied.Suggestions.Select(s => (s.Origin.DisplayName, s.Crc32)).Should().Equal(
+            [("Game (Japan).sfc", Crc(Japan)), ("Game (USA).sfc", Crc(Usa))],
+            "the files its CRC32 designate are proposed, in the order of its name");
     }
 
     [Fact]
@@ -196,6 +200,7 @@ public sealed class PatchMatchingTests : IDisposable
         var unapplied = result.UnappliedPatches.Should().ContainSingle().Which;
         unapplied.Reason.Key.Should().Be("reason.patch_orphan");
         unapplied.File.DisplayName.Should().Be("Other Game (T-En).bps");
+        unapplied.Suggestions.Should().BeEmpty("a patch that records its origin is never matched by its name");
     }
 
     [Fact]
@@ -911,9 +916,13 @@ public sealed class PatchMatchingTests : IDisposable
         var (result, _) = await SimulateAsync(Config(dat));
 
         result.Items.Should().NotContain(it => it.Patch != null);
-        var reason = result.UnappliedPatches.Should().ContainSingle().Which.Reason;
-        reason.Key.Should().Be("reason.patch_header_form_ambiguous");
-        reason.Args["origin"].Should().Be("Game (USA).nes");
+        var unapplied = result.UnappliedPatches.Should().ContainSingle().Which;
+        unapplied.Reason.Key.Should().Be("reason.patch_header_form_ambiguous");
+        unapplied.Reason.Args["origin"].Should().Be("Game (USA).nes");
+        unapplied.Suggestions.Select(s => (s.Crc32, s.Offset, s.WithCopierHeader)).Should().Equal(
+            [(Crc(file), 0L, (bool?)true), (Crc(data), 16L, (bool?)false)],
+            "both forms of the file are proposed, the whole one first");
+        unapplied.Suggestions.Should().OnlyContain(s => s.Origin.DisplayName == "Game (USA).nes");
     }
 
     [Fact]
@@ -956,5 +965,109 @@ public sealed class PatchMatchingTests : IDisposable
     public void NoteCrcs_ShouldReadTheCrcAfterTheWordOnItsLine(string line, uint[] expected)
     {
         PatchMatcher.NoteCrcs($"Game\n{line}\nEnd").Should().Equal(expected);
+    }
+
+    // =========================================================================
+    // Origins proposed for an IPS without CRC32
+    // =========================================================================
+
+    private static IEnumerable<string> Suggested(SortExecutionResult result, string patchName) =>
+        result.UnappliedPatches.Single(u => u.File.DisplayName == patchName).Suggestions.Select(s => s.Origin.DisplayName);
+
+    /// <summary>Releases of their own data, each in the source and in the DAT.</summary>
+    private string WriteReleases(params string[] names) =>
+        WriteDat([.. names.Select((name, i) =>
+        {
+            var data = Data(100 + i, 512);
+            _temp.WriteBytes($"src/{name}.sfc", data);
+            return (name, $"{name}.sfc", data);
+        })]);
+
+    [Fact]
+    public async Task AnIpsWithoutCrc_ShouldProposeTheFilesItsNameStartsWith_AndApplyNone()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", IpsDiff(Japan, Translated));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        result.Items.Should().NotContain(it => it.Patch != null, "a suggestion is never applied");
+        Suggested(result, "Game (Japan) (T-Fr).ips").Should().Equal(
+            ["Game (Japan).sfc", "Game (USA).sfc"],
+            "the file of the whole name comes before the one of the title alone");
+        var suggestion = result.UnappliedPatches.Single().Suggestions[0];
+        suggestion.Crc32.Should().Be(Crc(Japan));
+        suggestion.Offset.Should().Be(0);
+        suggestion.WithCopierHeader.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ANameWithUnderscores_ShouldProposeTheFilesOfItsTitle_TheWrittenOneFirst()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/game_fr.ips", IpsDiff(Japan, Translated));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        Suggested(result, "game_fr.ips").Should().Equal(["Game (USA).sfc", "Game (Japan).sfc"], "the 1G1R keeps the American release");
+    }
+
+    [Fact]
+    public async Task AGenericName_ShouldGiveWayToTheFolderOrTheArchiveOfThePatch()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game Redux/patch.ips", IpsDiff(Usa, Translate(Usa)));
+        WriteZip("patches/Game (Japan) (T-En).zip", ("v1.1.ips", IpsDiff(Japan, Translated)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        Suggested(result, "patch.ips").Should().Equal(["Game (USA).sfc", "Game (Japan).sfc"]);
+        Suggested(result, "v1.1.ips").Should().Equal(["Game (Japan).sfc", "Game (USA).sfc"]);
+    }
+
+    [Fact]
+    public async Task AFolderOfSeveralPatches_ShouldProposeNothing()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game/patch.ips", IpsDiff(Japan, Translated));
+        _temp.WriteBytes("patches/Game/fix.ips", IpsDiff(Usa, Translate(Usa)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        result.UnappliedPatches.Should().HaveCount(2).And.OnlyContain(u => u.Suggestions.Count == 0);
+    }
+
+    [Fact]
+    public async Task TheLongestTitle_ShouldComeFirst()
+    {
+        var dat = WriteReleases("Super Mario Bros (USA)", "Super Mario Bros 3 (USA)", "Super Mario Land (World)");
+        _temp.WriteBytes("patches/Super Mario Bros 3 (T-Fr).ips", IpsDiff(Japan, Translated));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        Suggested(result, "Super Mario Bros 3 (T-Fr).ips").Should().Equal(["Super Mario Bros 3 (USA).sfc", "Super Mario Bros (USA).sfc"]);
+    }
+
+    [Fact]
+    public async Task ATranslatedTitle_ShouldProposeNothing()
+    {
+        // The name of the patch is not that of the release: only the user can tell
+        var dat = WriteReleases("Super Mario Bros. (World)");
+        _temp.WriteBytes("patches/Super Mario Frères.ips", IpsDiff(Japan, Translated));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        Suggested(result, "Super Mario Frères.ips").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TheSuggestions_ShouldBeFiveAtMost()
+    {
+        var dat = WriteReleases([.. Enumerable.Range(1, PatchMatcher.MaxSuggestions + 2).Select(i => $"Game (USA) (Rev {i})")]);
+        _temp.WriteBytes("patches/Game (T-En).ips", IpsDiff(Japan, Translated));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        Suggested(result, "Game (T-En).ips").Should().HaveCount(PatchMatcher.MaxSuggestions);
     }
 }
