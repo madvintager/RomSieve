@@ -3349,15 +3349,14 @@
                              Text="{Binding StatsBanner.UnappliedPatchesText}"
                              Foreground="{DynamicResource SizeWarningForegroundBrush}" />
                 </Button>
-                <!-- Without patches left out: the IPS applied thanks to their readme, whose name may get their CRC32, or
-                     else the IPS applied from their name, which may change ROM or stop applying -->
-                <Button x:Name="BtnPatchesToName"
+                <!-- Without patches left out: « See the patches », to check the ROM of each and the choices -->
+                <Button x:Name="BtnSeePatches"
                         Classes="banner-link"
-                        ToolTip.Tip="{Binding Patches.NamingLinkTooltip}"
-                        IsVisible="{Binding Patches.IsNamingLinkVisible}"
+                        ToolTip.Tip="{Binding I18n[stats.tooltip_patches_open]}"
+                        IsVisible="{Binding Patches.IsOpenLinkVisible}"
                         Command="{Binding Patches.OpenCommand}">
-                  <TextBlock x:Name="LblPatchesToName"
-                             Text="{Binding Patches.NamingLinkText}"
+                  <TextBlock x:Name="LblSeePatches"
+                             Text="{Binding I18n[stats.patches_open]}"
                              Foreground="{DynamicResource HintForegroundBrush}" />
                 </Button>
               </StackPanel>

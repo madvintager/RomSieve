@@ -213,9 +213,12 @@ public sealed class PatchMatchingTests : IDisposable
 
         var (result, _) = await SimulateAsync(Config(dat));
 
-        var reason = result.UnappliedPatches.Should().ContainSingle().Which.Reason;
+        var unapplied = result.UnappliedPatches.Should().ContainSingle().Which;
+        var reason = unapplied.Reason;
         reason.Key.Should().Be("reason.patch_unreadable");
         reason.Args["error"].Should().BeOfType<LocalizedMessage>().Which.Key.Should().Be("patch.error_patch_crc");
+        unapplied.Format.Should().BeNull("a patch that cannot be applied says no format: no ROM can be chosen for it");
+        unapplied.Key.Should().Be(PatchKey.Of(patch), "it can still be set aside");
     }
 
     [Fact]

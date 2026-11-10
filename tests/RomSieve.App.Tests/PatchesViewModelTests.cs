@@ -8,11 +8,12 @@ using static RomSieve.Core.Tests.Fixtures.PatchTestEncoder;
 namespace RomSieve.App.Tests;
 
 /// <summary>
-/// The window of the patches (<see cref="PatchesViewModel"/>), on a real simulation: the list grouped by state, the
-/// ROMs proposed and the forms of their data, the search among the identified files, what applying would rename, the
-/// direct actions (apply, stop applying, undo) and what they say, the actions on a group with their summary checked by
-/// nothing beforehand, the footer, and the command of the banner, which runs a new simulation when the window asks for
-/// one.
+/// The window of the patches (<see cref="PatchesViewModel"/>), on a real simulation: the list of every patch grouped by
+/// state, the ROMs proposed and the forms of their data, the search among the identified files, the choices recorded
+/// without changing a file (apply to a ROM, set aside, back to the automatic choice) and followed by the next simulation,
+/// the ROM written in the name of an IPS for other tools, undo, « Accept all the suggestions » with its summary checked by
+/// nothing beforehand, a choice that cannot be saved, the footer, and the command of the banner, which runs a new
+/// simulation when the window asks for one.
 /// </summary>
 public sealed class PatchesViewModelTests : IDisposable
 {
@@ -33,7 +34,11 @@ public sealed class PatchesViewModelTests : IDisposable
         _patches = _temp.CreateSubdirectory("patches");
     }
 
-    public void Dispose() => _temp.Dispose();
+    public void Dispose()
+    {
+        _temp.Dispose();
+        File.Delete(_services.PatchLinks.FilePath);
+    }
 
     private static byte[] Data(int seed, int size)
     {
@@ -75,11 +80,12 @@ public sealed class PatchesViewModelTests : IDisposable
         _result = await _services.Processor.ExecuteAsync(_config, isDryRun: true);
     }
 
+    /// <summary>The window, on the same choices as the simulations.</summary>
     private PatchesViewModel CreateWindow(Func<bool>? isRunning = null) => new(
         _services.I18n,
         _dialogs,
         new PatchNamingService(_services.Patches),
-        new PatchLinkService(_temp.GetFilePath(PatchLinkService.FileName), _services.ChecksumService, _services.CrcCache),
+        _services.PatchLinks,
         () => _result?.Items ?? [],
         () => _result?.Stats,
         () => _config,
@@ -102,26 +108,38 @@ public sealed class PatchesViewModelTests : IDisposable
     private static IEnumerable<string> ListOf(PatchesViewModel window) =>
         window.ListItems.Select(i => i is PatchGroupViewModel g ? g.Title : ((PatchRowViewModel)i).Name);
 
+    private PatchLink? LinkOf(byte[] patch) => _services.PatchLinks.Load().Links.GetValueOrDefault(PatchKey.Of(patch));
+
+    private async Task ChooseAsync(byte[] patch, PatchLink link) =>
+        (await _services.PatchLinks.UpdateAsync([new(PatchKey.Of(patch), link)], (_, _) => { })).Should().BeTrue();
+
+    private PatchedVersion PatchedVersion() => _result!.Items.Single(it => it.Patch is not null).Patch!;
+
     // =========================================================================
     // The list
     // =========================================================================
 
     [Fact]
-    public async Task TheList_ShouldGroupThePatchesByState()
+    public async Task TheList_ShouldGroupEveryPatchByState()
     {
         WriteJapanAndUsa();
         _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
         _temp.WriteBytes("patches/Other.bps", BpsLinear(Data(9, 64), Data(10, 64)));
+        _temp.WriteBytes("patches/Game (Japan) (T-En).bps", BpsLinear(Japan, Translate(Japan)));
         _temp.WriteBytes("patches/hacks/Hack.ips", IpsDiff(Usa, Translate(Usa)));
         _temp.WriteText("patches/hacks/Hack.txt", $"ROM CRC32: {Crc(Usa):X8}");
         var named = $"Game (T-En) [{Crc(Usa):x8}].ips";
         _temp.WriteBytes($"patches/{named}", IpsDiff(Usa, Translate(Usa)));
+        var aside = BpsLinear(Usa, [.. Usa, .. Ascii("Aside")]);
+        _temp.WriteBytes("patches/Aside.bps", aside);
+        await ChooseAsync(aside, PatchLink.Ignore("Aside.bps"));
 
         var window = await LoadAsync();
 
         ListOf(window).Should().Equal(
             "À associer (1)", "Game (Japan) (T-Fr).ips",
-            "Appliqués (2)", "Hack.ips", named,
+            "Appliqués (3)", "Game (Japan) (T-En).bps", named, "Hack.ips",
+            "Écartés (1)", "Aside.bps",
             "Non réparables (1)", "Other.bps");
         window.SelectedRow.Should().BeSameAs(Row(window, "Game (Japan) (T-Fr).ips"), "the first patch of the list is selected");
         window.SelectedListItem.Should().BeSameAs(window.SelectedRow);
@@ -134,37 +152,55 @@ public sealed class PatchesViewModelTests : IDisposable
         ips.Origins.Select(o => o.Label).Should().Equal("Game (Japan).sfc", "Game (USA).sfc");
         ips.Origins.Should().OnlyContain(o => !o.HasFolder, "a ROM at the root of the source shows no folder");
         ips.HasLocation.Should().BeFalse("it lies at the root of the patch folder");
-        (ips.IsToMatch, ips.IsApplied, ips.IsUnfixable).Should().Be((true, false, false));
+        (ips.IsToMatch, ips.IsApplied, ips.IsUnfixable, ips.IsNeutral).Should().Be((true, false, false, false));
         ips.AccessibleName.Should().StartWith("Game (Japan) (T-Fr).ips, Ce patch ne s'applique à aucune ROM");
         ips.SelectedOrigin!.Label.Should().Be("Game (Japan).sfc", "the first suggestion is chosen, never applied");
         ips.HasSeveralForms.Should().BeFalse();
         ips.CanApply.Should().BeTrue();
-        ips.ApplyLabel.Should().Be("Appliquer à cette ROM");
-        ips.PreviewNewName.Should().Be($"Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips");
-        ips.CanDetach.Should().BeFalse();
-        ips.DetachTooltip.Should().Be("Ce patch n'est appliqué à aucune ROM.");
+        ips.ApplyTooltip.Should().StartWith("Enregistre votre choix");
+        ips.CanIgnore.Should().BeTrue();
+        ips.CanRestoreAutomatic.Should().BeFalse("no choice is recorded for it");
+        ips.CanWriteName.Should().BeFalse("it is applied to no ROM");
+        ips.HasPatchedName.Should().BeFalse();
+
+        var bps = Row(window, "Game (Japan) (T-En).bps");
+        bps.State.Should().Be(PatchRowState.Applied);
+        bps.Source.Should().Be(PatchCrcSource.Recorded);
+        bps.ListSummary.Should().Be("→ Game (Japan).sfc");
+        bps.StatusText.Should().Be("Appliqué à Game (Japan).sfc : le patch désigne lui-même sa ROM et la vérifie");
+        bps.PatchedNameText.Should().Be("Version patchée : Game (Japan) [T-En].sfc");
+        bps.CanChoose.Should().BeFalse("a BPS records its ROM");
+        bps.CanIgnore.Should().BeTrue("any patch can be set aside");
 
         var hack = Row(window, "Hack.ips");
-        hack.State.Should().Be(PatchRowState.AppliedByNote);
         hack.StateMark.Should().Be("✓");
         hack.ListSummary.Should().Be("→ Game (USA).sfc (readme)");
         hack.StatusText.Should().Be("Appliqué à Game (USA).sfc grâce à Hack.txt");
         hack.Location.Should().Be("hacks");
-        hack.HasLocation.Should().BeTrue();
         (hack.IsToMatch, hack.IsApplied, hack.IsUnfixable).Should().Be((false, true, false));
         hack.AccessibleName.Should().Be("Hack.ips → Game (USA).sfc (readme)");
 
         var byName = Row(window, named);
-        byName.ListSummary.Should().Be("→ Game (USA).sfc");
         byName.StatusText.Should().Be("Appliqué à Game (USA).sfc d'après son nom");
+        byName.CanApply.Should().BeFalse("its ROM is chosen");
+        byName.ApplyTooltip.Should().StartWith("Le patch est déjà appliqué à cette ROM");
+        byName.CanWriteName.Should().BeFalse("its name already gives its ROM");
 
-        var bps = Row(window, "Other.bps");
-        bps.State.Should().Be(PatchRowState.Unfixable);
-        bps.StateMark.Should().Be("✗");
-        bps.CanChoose.Should().BeFalse();
-        bps.CanApply.Should().BeFalse();
-        bps.ApplyTooltip.Should().Be("Renommer ce patch ne le réparerait pas : voir sa raison.");
-        bps.StatusText.Should().StartWith("Aucune ROM identifiée");
+        var setAside = Row(window, "Aside.bps");
+        setAside.StateMark.Should().Be("–");
+        setAside.IsNeutral.Should().BeTrue();
+        setAside.StatusText.Should().Be("Ce patch n'est pas appliqué : vous l'avez écarté.");
+        setAside.CanIgnore.Should().BeFalse();
+        setAside.IgnoreTooltip.Should().Be("Ce patch est déjà écarté.");
+        setAside.CanRestoreAutomatic.Should().BeTrue();
+
+        var unfixable = Row(window, "Other.bps");
+        unfixable.State.Should().Be(PatchRowState.Unfixable);
+        unfixable.StateMark.Should().Be("✗");
+        unfixable.CanChoose.Should().BeFalse();
+        unfixable.ApplyTooltip.Should().StartWith("Un UPS ou un BPS désigne lui-même sa ROM");
+        unfixable.StatusText.Should().StartWith("Aucune ROM identifiée");
+        unfixable.CanIgnore.Should().BeTrue("setting it aside silences it");
 
         window.SelectedListItem = window.ListItems[2];
         window.SelectedRow.Should().BeSameAs(ips, "a title of group is never selected");
@@ -190,71 +226,79 @@ public sealed class PatchesViewModelTests : IDisposable
     }
 
     // =========================================================================
-    // The actions on a patch
+    // Applying to a ROM
     // =========================================================================
 
     [Fact]
-    public async Task Apply_ShouldRenameThePatchAndMoveItToTheAppliedOnes_AndUndoShouldBringItBack()
+    public async Task Apply_ShouldRecordTheChoiceWithoutRenaming_TheNextSimulationFollowsIt_AndUndoForgetsIt()
     {
         WriteJapanAndUsa();
-        var path = _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
+        var patch = IpsDiff(Japan, Translate(Japan));
+        var path = _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", patch);
         var window = await LoadAsync();
         var row = window.SelectedRow!;
         window.ApplyCommand.CanExecute(null).Should().BeTrue();
 
         await window.ApplyCommand.ExecuteAsync(null);
 
-        var renamed = Path.Combine(_patches, $"Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips");
-        File.Exists(renamed).Should().BeTrue();
-        File.Exists(path).Should().BeFalse();
-        row.Name.Should().Be(Path.GetFileName(renamed));
-        row.State.Should().Be(PatchRowState.AppliedByName);
-        row.StatusText.Should().Be("Son nom désigne maintenant Game (Japan).sfc : la prochaine simulation l'appliquera.");
-        row.ListSummary.Should().Be("→ Game (Japan).sfc");
+        File.Exists(path).Should().BeTrue("the patch is not renamed");
+        Directory.GetFiles(_patches).Should().ContainSingle();
+        LinkOf(patch).Should().Be(PatchLink.ToOrigin("Game (Japan) (T-Fr).ips", Crc(Japan), "Game (Japan).sfc"));
+        row.State.Should().Be(PatchRowState.Applied);
+        row.Source.Should().Be(PatchCrcSource.Link);
+        row.StatusText.Should().Be("Appliqué à Game (Japan).sfc : votre choix");
+        row.ListSummary.Should().Be("→ Game (Japan).sfc (votre choix)");
         ListOf(window).Should().Equal("Appliqués (1)", row.Name);
         window.SelectedRow.Should().BeSameAs(row, "the patch stays selected in its new group");
-        window.ApplyCommand.CanExecute(null).Should().BeFalse("its name already designates that ROM");
-        row.ApplyTooltip.Should().StartWith("Le patch est déjà appliqué à cette ROM");
+        window.ApplyCommand.CanExecute(null).Should().BeFalse("it is applied to that ROM");
+        row.CanRestoreAutomatic.Should().BeTrue();
         row.CanUndo.Should().BeTrue();
+        row.CanWriteName.Should().BeTrue("its name does not give its ROM, which other tools need");
         window.ModifiedText.Should().Be("1 patch modifié");
-        window.HasModified.Should().BeTrue();
+        _log.Should().ContainSingle(l => l.Message.Key == "log.patch_choice");
+
+        await SimulateAsync();
+        PatchedVersion().Origin.DisplayName.Should().Be("Game (Japan).sfc");
+        PatchedVersion().CrcSource.Should().Be(PatchCrcSource.Link);
 
         await window.UndoCommand.ExecuteAsync(null);
 
-        File.Exists(path).Should().BeTrue();
-        File.Exists(renamed).Should().BeFalse();
-        row.Name.Should().Be("Game (Japan) (T-Fr).ips");
+        LinkOf(patch).Should().BeNull("undoing the choice forgets it");
         row.State.Should().Be(PatchRowState.ToMatch);
         row.StatusText.Should().StartWith("Ce patch ne s'applique à aucune ROM : ni son nom");
         row.CanUndo.Should().BeFalse();
         ListOf(window).Should().Equal("À associer (1)", row.Name);
         window.HasModified.Should().BeFalse();
-        _log.Select(l => l.Message.Key).Should().Equal("log.patch_renamed", "log.patch_rename_undone");
     }
 
     [Fact]
-    public async Task ARefusal_ShouldBeSaidInTheDetail()
+    public async Task AChoiceThatCannotBeSaved_ShouldBeSaidInTheDetail_AndChangeNothing()
     {
         WriteJapanAndUsa();
         _temp.WriteBytes("patches/Game (T-Fr).ips", IpsDiff(Usa, Translate(Usa)));
-        _temp.WriteText($"patches/Game (T-Fr) [{Crc(Usa):x8}].ips", "taken");
         var window = await LoadAsync();
         var row = Row(window, "Game (T-Fr).ips");
         window.SelectedRow = row;
         row.SelectedOrigin!.Label.Should().Be("Game (USA).sfc", "the release the sort writes comes first");
 
+        // A file of choices written by a newer version is never written
+        File.WriteAllText(_services.PatchLinks.FilePath, """{ "version": 99 }""");
         await window.ApplyCommand.ExecuteAsync(null);
 
         row.State.Should().Be(PatchRowState.ToMatch);
-        row.ResultText.Should().Be($"Un fichier porte déjà le nom Game (T-Fr) [{Crc(Usa):x8}].ips");
+        row.ResultText.Should().StartWith("Le fichier de vos choix pour les patchs").And.Contain("version plus récente");
+        row.CanUndo.Should().BeFalse();
         window.HasModified.Should().BeFalse();
+        _log.Should().Contain(l => l.Level == LogLevel.Error && l.Message.Key == "log.patch_links_newer");
+        File.ReadAllText(_services.PatchLinks.FilePath).Should().Be("""{ "version": 99 }""");
     }
 
     [Fact]
     public async Task TheSearch_ShouldGiveAnotherRom_ToAPatchThatCanTakeOne()
     {
         WriteJapanAndUsa(("Super Mario Bros. (World).sfc", Data(3, 512)));
-        _temp.WriteBytes("patches/Super Mario Frères.ips", IpsDiff(Japan, Translate(Japan)));
+        var patch = IpsDiff(Japan, Translate(Japan));
+        _temp.WriteBytes("patches/Super Mario Frères.ips", patch);
         _temp.WriteBytes("patches/Other.bps", BpsLinear(Data(9, 64), Data(10, 64)));
         var window = await LoadAsync();
         var row = Row(window, "Super Mario Frères.ips");
@@ -273,22 +317,22 @@ public sealed class PatchesViewModelTests : IDisposable
         row.Origins.Should().ContainSingle("the ROM found joins those of the patch");
         row.CanApply.Should().BeTrue();
 
-        // Enter in the search takes the first file found, and renames nothing
+        // Enter in the search takes the first file found, and records nothing
         window.OriginSearchText = "game";
         window.ChooseFirstSearchResultCommand.Execute(null);
         await row.FormsLoading;
         row.SelectedOrigin!.Label.Should().Be(window.OriginSearchResults[0].Label);
-        File.Exists(Path.Combine(_patches, "Super Mario Frères.ips")).Should().BeTrue();
+        LinkOf(patch).Should().BeNull();
 
         window.SelectedRow = Row(window, "Other.bps");
         window.OriginSearchText.Should().BeEmpty("the search is that of the selected patch");
-        window.CanSearch.Should().BeFalse("no ROM fixes a BPS");
+        window.CanSearch.Should().BeFalse("no ROM can be chosen for a BPS");
         window.OriginSearchText = "game";
         window.OriginSearchResults.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task ARomWithACopierHeader_ShouldOfferBothFormsOfItsData()
+    public async Task ARomWithACopierHeader_ShouldOfferBothFormsOfItsData_AndRecordTheOneChosen()
     {
         var data = Data(4, 8192);
         var file = (byte[])[.. Ascii("NES\u001a"), .. new byte[12], .. data];
@@ -298,7 +342,8 @@ public sealed class PatchesViewModelTests : IDisposable
         File.WriteAllText(datPath, File.ReadAllText(datPath).Replace(
             "</datafile>",
             $"""<game name="Hero (USA)"><description>Hero (USA)</description><rom name="Hero (USA).nes" size="{data.Length}" crc="{Crc(data):x8}"/></game></datafile>"""));
-        _temp.WriteBytes("patches/Hero (USA) (Hack).ips", IpsDiff(file, Translate(file)));
+        var patch = IpsDiff(data, Translate(data));
+        _temp.WriteBytes("patches/Hero (USA) (Hack).ips", patch);
 
         var window = await LoadAsync();
 
@@ -309,124 +354,176 @@ public sealed class PatchesViewModelTests : IDisposable
         row.HasSeveralForms.Should().BeTrue();
         row.SelectedForm!.Form.Crc32.Should().Be(Crc(file), "the whole file comes first");
         row.SelectedForm = row.Forms[1];
-        row.PreviewNewName.Should().Be($"Hero (USA) (Hack) [{Crc(data):x8}].ips");
         row.SelectedForm = null;
         row.SelectedForm.Should().BeSameAs(row.Forms[1], "an empty choice from the view is ignored");
+
+        await window.ApplyCommand.ExecuteAsync(null);
+
+        LinkOf(patch)!.OriginCrc32.Should().Be(Crc(data));
+        await SimulateAsync();
+        PatchedVersion().SourceOffset.Should().Be(16, "the patch applies to the data after the header");
     }
 
     [Fact]
-    public async Task APatchInAnArchive_ShouldShowItsCrcWithoutBeingRenamed()
+    public async Task APatchInAnArchive_ShouldTakeARom_LikeAnyOther()
     {
         WriteJapanAndUsa();
-        using (var zip = ZipFile.Open(_temp.GetFilePath("patches/Game (Japan) (T-En).zip"), ZipArchiveMode.Create))
-        using (var stream = zip.CreateEntry("patch.ips").Open())
+        var patch = IpsDiff(Japan, Translate(Japan));
+        var zip = _temp.GetFilePath("patches/Game (Japan) (T-En).zip");
+        using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+        using (var stream = archive.CreateEntry("patch.ips").Open())
         {
-            stream.Write(IpsDiff(Japan, Translate(Japan)));
+            stream.Write(patch);
         }
 
+        var before = File.ReadAllBytes(zip);
         var window = await LoadAsync();
 
         var row = window.Rows.Single();
         row.IsInArchive.Should().BeTrue();
         row.Location.Should().Be("Game (Japan) (T-En).zip");
         row.SelectedOrigin!.Label.Should().Be("Game (Japan).sfc");
-        row.CanApply.Should().BeFalse();
-        row.HasPreview.Should().BeFalse();
-        row.ApplyTooltip.Should().Be("Un patch rangé dans une archive ne se renomme pas : extrayez-le d'abord.");
-        row.ArchiveHint.Should().Be($"Dans une archive, qui n'est jamais modifiée : extrayez le patch pour écrire le CRC32 {Crc(Japan):X8} dans son nom");
-        window.ListItems.OfType<PatchGroupViewModel>().Single().HasBatch.Should().BeFalse("a patch in an archive is never renamed");
+        row.CanApply.Should().BeTrue();
+        window.ListItems.OfType<PatchGroupViewModel>().Single().HasBatch.Should().BeTrue();
+
+        await window.ApplyCommand.ExecuteAsync(null);
+
+        row.CanWriteName.Should().BeFalse("an archive is never modified");
+        File.ReadAllBytes(zip).Should().Equal(before);
+        await SimulateAsync();
+        PatchedVersion().File.ArchiveMember.Should().Be("patch.ips");
     }
 
     [Fact]
-    public async Task AnIpsAppliedFromItsName_ShouldApplyToAnotherRomOnceRenamed()
+    public async Task AnIpsAppliedFromItsName_ShouldApplyToAnotherRom_WithoutBeingRenamed()
     {
         WriteJapanAndUsa();
         var path = _temp.WriteBytes($"patches/Game (T-Fr) [{Crc(Japan):x8}].ips", IpsDiff(Japan, Translate(Japan)));
         var window = await LoadAsync();
         var row = window.SelectedRow!;
-        row.State.Should().Be(PatchRowState.AppliedByName);
+        row.Source.Should().Be(PatchCrcSource.FileName);
         row.SelectedForm!.Form.Crc32.Should().Be(Crc(Japan), "its ROM and form stay chosen");
         row.CanApply.Should().BeFalse();
-        row.HasPreview.Should().BeFalse();
         window.CanSearch.Should().BeTrue();
 
         window.OriginSearchText = "usa";
         window.SelectedSearchResult = window.OriginSearchResults.Single();
         await row.FormsLoading;
-        row.PreviewNewName.Should().Be($"Game (T-Fr) [{Crc(Usa):x8}].ips", "the CRC32 of the new ROM replaces the old one");
         await window.ApplyCommand.ExecuteAsync(null);
 
-        File.Exists(path).Should().BeFalse();
-        File.Exists(Path.Combine(_patches, $"Game (T-Fr) [{Crc(Usa):x8}].ips")).Should().BeTrue();
-        row.StatusText.Should().Be("Son nom désigne maintenant Game (USA).sfc : la prochaine simulation l'appliquera.");
+        File.Exists(path).Should().BeTrue();
+        row.StatusText.Should().Be("Appliqué à Game (USA).sfc : votre choix");
+        row.CanWriteName.Should().BeTrue("its name gives another ROM");
+        row.WriteNameTooltip.Should().Contain($"Game (T-Fr) [{Crc(Usa):x8}].ips");
         await SimulateAsync();
-        _result!.Items.Single(it => it.Patch is not null).Patch!.Origin.DisplayName.Should().Be("Game (USA).sfc");
+        PatchedVersion().Origin.DisplayName.Should().Be("Game (USA).sfc", "the choice comes before the name");
     }
 
+    // =========================================================================
+    // Setting aside, and back to the automatic choice
+    // =========================================================================
+
     [Fact]
-    public async Task AnIpsAppliedFromItsName_ShouldStopApplying_AndBeProposedAgain_OrBeUndone()
+    public async Task AnyPatch_ShouldBeSetAside_AndBackToTheAutomaticChoice_ShouldGiveBackWhereItStood()
     {
         WriteJapanAndUsa();
-        var path = _temp.WriteBytes($"patches/Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips", IpsDiff(Japan, Translate(Japan)));
+        var patch = BpsLinear(Japan, Translate(Japan));
+        _temp.WriteBytes("patches/Game (T-En).bps", patch);
         var window = await LoadAsync();
         var row = window.SelectedRow!;
-        row.CanDetach.Should().BeTrue();
-        row.DetachTooltip.Should().StartWith("Retire du nom du patch ce qui désigne sa ROM");
+        row.CanRestoreAutomatic.Should().BeFalse();
 
-        await window.DetachCommand.ExecuteAsync(null);
+        await window.IgnoreCommand.ExecuteAsync(null);
 
-        var detached = Path.Combine(_patches, "Game (Japan) (T-Fr).ips");
-        File.ReadAllBytes(detached).Should().Equal(IpsDiff(Japan, Translate(Japan)));
-        row.State.Should().Be(PatchRowState.ToMatch);
-        row.StatusText.Should().Be("Ce patch ne s'applique plus à aucune ROM : la prochaine simulation vous le proposera de nouveau.");
-        ListOf(window).Should().Equal("À associer (1)", "Game (Japan) (T-Fr).ips");
-        window.DetachCommand.CanExecute(null).Should().BeFalse();
-        row.CanApply.Should().BeTrue("it can be applied again, to its ROM or another one");
-        _log.Last().Message.Key.Should().Be("log.patch_detached");
+        LinkOf(patch)!.Kind.Should().Be(PatchLinkKind.Ignored);
+        row.State.Should().Be(PatchRowState.Ignored);
+        row.HasPatchedName.Should().BeFalse("the patch no longer gives a patched version");
+        ListOf(window).Should().Equal("Écartés (1)", "Game (T-En).bps");
+        window.IgnoreCommand.CanExecute(null).Should().BeFalse();
+        window.RestoreAutomaticCommand.CanExecute(null).Should().BeTrue();
 
-        await window.UndoCommand.ExecuteAsync(null);
-        File.Exists(path).Should().BeTrue();
-        row.State.Should().Be(PatchRowState.AppliedByName);
-        row.StatusText.Should().Be("Appliqué à Game (Japan).sfc d'après son nom");
+        // Without a choice when the window opened, the window knows where the automatic choice puts the patch
+        await window.RestoreAutomaticCommand.ExecuteAsync(null);
 
-        await window.DetachCommand.ExecuteAsync(null);
-        await SimulateAsync();
-        _result!.Items.Should().NotContain(it => it.Patch != null);
-        window.Load();
-        window.Rows.Single().SelectedOrigin!.Label.Should().Be("Game (Japan).sfc", "its name proposes its ROM again");
+        LinkOf(patch).Should().BeNull();
+        row.State.Should().Be(PatchRowState.Applied);
+        row.StatusText.Should().Be("Appliqué à Game (Japan).sfc : le patch désigne lui-même sa ROM et la vérifie");
+        row.PatchedNameText.Should().Be("Version patchée : Game (Japan) [T-En].sfc");
+        window.HasModified.Should().BeFalse();
+        row.CanUndo.Should().BeTrue("each change is undone in turn");
     }
 
     [Fact]
-    public async Task AnIpsAppliedThanksToItsReadme_ShouldGetItsRomInItsName_ButNotStopApplying()
+    public async Task APatchSetAside_ShouldStayOutOfTheNextSimulation_AndComeBackWhenItsChoiceIsForgotten()
+    {
+        WriteJapanAndUsa();
+        var patch = IpsDiff(Japan, Translate(Japan));
+        _temp.WriteBytes($"patches/Game (T-Fr) [{Crc(Japan):x8}].ips", patch);
+        var window = await LoadAsync();
+        await window.IgnoreCommand.ExecuteAsync(null);
+
+        await SimulateAsync();
+        _result!.Items.Should().NotContain(it => it.Patch != null);
+        _result.IgnoredPatches.Should().ContainSingle();
+        window.Load();
+        var row = window.Rows.Single();
+        row.State.Should().Be(PatchRowState.Ignored);
+
+        // A choice recorded when the window opened: the window cannot tell where the automatic choice puts the patch
+        await window.RestoreAutomaticCommand.ExecuteAsync(null);
+
+        row.State.Should().Be(PatchRowState.Automatic);
+        row.StateMark.Should().Be("↺");
+        row.StatusText.Should().Be("Revenu au choix automatique : la prochaine simulation dira à quelle ROM il s'applique.");
+        ListOf(window).Should().Equal("Choix automatique (1)", row.Name);
+        window.ModifiedText.Should().Be("1 patch modifié");
+        await SimulateAsync();
+        PatchedVersion().CrcSource.Should().Be(PatchCrcSource.FileName, "its name designates its ROM again");
+    }
+
+    [Fact]
+    public async Task AnIpsAppliedThanksToItsReadme_ShouldBeSetAside_OrGetItsRomInItsName()
     {
         WriteJapanAndUsa();
         _temp.WriteBytes("patches/a/Hack.ips", IpsDiff(Usa, Translate(Usa)));
         _temp.WriteText("patches/a/readme.txt", $"CRC32: {Crc(Usa):X8}");
         var window = await LoadAsync();
         var row = window.SelectedRow!;
-        row.State.Should().Be(PatchRowState.AppliedByNote);
-        row.ApplyLabel.Should().Be("Écrire la ROM dans le nom");
-        row.ApplyTooltip.Should().StartWith("Écrit dans le nom du patch la ROM que donne son readme");
-        window.DetachCommand.CanExecute(null).Should().BeFalse("its readme would designate its ROM again");
-        row.DetachTooltip.Should().StartWith("Ce patch est appliqué grâce à son readme");
+        row.Source.Should().Be(PatchCrcSource.Notes);
+        row.CanWriteName.Should().BeTrue();
+        row.WriteNameTooltip.Should().StartWith($"Renomme le patch en Hack [{Crc(Usa):x8}].ips");
 
-        await window.ApplyCommand.ExecuteAsync(null);
+        await window.WriteNameCommand.ExecuteAsync(null);
 
-        File.Exists(Path.Combine(_patches, "a", $"Hack [{Crc(Usa):x8}].ips")).Should().BeTrue();
-        row.State.Should().Be(PatchRowState.AppliedByName);
+        var renamed = Path.Combine(_patches, "a", $"Hack [{Crc(Usa):x8}].ips");
+        File.Exists(renamed).Should().BeTrue();
+        row.Name.Should().Be(Path.GetFileName(renamed));
+        row.State.Should().Be(PatchRowState.Applied, "renaming changes nothing else");
+        row.CanWriteName.Should().BeFalse();
+        _log.Should().Contain(l => l.Message.Key == "log.patch_renamed");
+
+        await window.UndoCommand.ExecuteAsync(null);
+        File.Exists(Path.Combine(_patches, "a", "Hack.ips")).Should().BeTrue();
+        row.Name.Should().Be("Hack.ips");
+
+        await window.IgnoreCommand.ExecuteAsync(null);
+        await SimulateAsync();
+        _result!.Items.Should().NotContain(it => it.Patch != null, "its readme no longer applies it");
     }
 
     // =========================================================================
-    // The actions on a group
+    // « Accept all the suggestions »
     // =========================================================================
 
     [Fact]
-    public async Task AcceptingTheSuggestions_ShouldShowASummaryCheckedByNothing_AndRenameOnlyThePatchesChecked()
+    public async Task AcceptingTheSuggestions_ShouldShowASummaryCheckedByNothing_AndRecordOnlyThePatchesChecked()
     {
         WriteJapanAndUsa();
-        _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
-        _temp.WriteBytes("patches/Game (USA) (Hack).ips", IpsDiff(Usa, Translate(Usa)));
-        _temp.WriteBytes("patches/Super Mario Frères.ips", IpsDiff(Japan, Translate(Japan)));
+        var french = IpsDiff(Japan, Translate(Japan));
+        var hack = IpsDiff(Usa, [.. Usa, .. Ascii("Hack")]);
+        _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", french);
+        _temp.WriteBytes("patches/Game (USA) (Hack).ips", hack);
+        _temp.WriteBytes("patches/Super Mario Frères.ips", IpsDiff(Japan, [.. Japan, .. Ascii("Mario")]));
         var window = await LoadAsync();
         var group = window.ListItems.OfType<PatchGroupViewModel>().Single();
         group.HasBatch.Should().BeTrue();
@@ -435,7 +532,6 @@ public sealed class PatchesViewModelTests : IDisposable
         await group.BatchCommand.ExecuteAsync(PatchGroupKind.ToMatch);
 
         window.IsBatchMode.Should().BeTrue();
-        window.BatchTitle.Should().Be("Patchs à associer : cochez ceux à renommer");
         window.BatchEntries.Select(e => (e.Name, e.OriginLabel)).Should().BeEquivalentTo(new[]
         {
             ("Game (Japan) (T-Fr).ips", "Game (Japan).sfc"),
@@ -449,37 +545,19 @@ public sealed class PatchesViewModelTests : IDisposable
         await window.ApplyBatchCommand.ExecuteAsync(null);
 
         window.IsBatchMode.Should().BeFalse();
-        File.Exists(Path.Combine(_patches, $"Game (USA) (Hack) [{Crc(Usa):x8}].ips")).Should().BeTrue();
-        File.Exists(Path.Combine(_patches, "Game (Japan) (T-Fr).ips")).Should().BeTrue("only the patches checked are renamed");
+        LinkOf(hack)!.OriginCrc32.Should().Be(Crc(Usa));
+        LinkOf(french).Should().BeNull("only the patches checked are applied");
+        Directory.GetFiles(_patches).Should().HaveCount(3, "nothing is renamed");
         window.ModifiedText.Should().Be("1 patch modifié");
-        Row(window, $"Game (USA) (Hack) [{Crc(Usa):x8}].ips").CanUndo.Should().BeTrue();
+        Row(window, "Game (USA) (Hack).ips").CanUndo.Should().BeTrue();
     }
 
     [Fact]
-    public async Task TheIpsAppliedByAReadme_ShouldGetTheirRomInTheirNameTogether()
+    public async Task Back_ShouldLeaveTheSummaryWithoutRecordingAnything()
     {
         WriteJapanAndUsa();
-        _temp.WriteBytes("patches/a/Hack.ips", IpsDiff(Usa, Translate(Usa)));
-        _temp.WriteText("patches/a/readme.txt", $"CRC32: {Crc(Usa):X8}");
-        _temp.WriteBytes("patches/Game (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
-        var window = await LoadAsync();
-        var applied = window.ListItems.OfType<PatchGroupViewModel>().Single(g => g.Kind == PatchGroupKind.Applied);
-        applied.BatchLabel.Should().Be("Écrire leur ROM dans leur nom (1)");
-
-        await window.OpenBatchCommand.ExecuteAsync(PatchGroupKind.Applied);
-        window.BatchEntries.Should().ContainSingle().Which.Name.Should().Be("Hack.ips");
-        window.CheckAllBatchCommand.Execute(null);
-        await window.ApplyBatchCommand.ExecuteAsync(null);
-
-        File.Exists(Path.Combine(_patches, "a", $"Hack [{Crc(Usa):x8}].ips")).Should().BeTrue();
-        File.Exists(Path.Combine(_patches, "Game (T-Fr).ips")).Should().BeTrue("only the IPS applied by a readme are in that summary");
-    }
-
-    [Fact]
-    public async Task Back_ShouldLeaveTheSummaryWithoutRenamingAnything()
-    {
-        WriteJapanAndUsa();
-        var path = _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
+        var patch = IpsDiff(Japan, Translate(Japan));
+        _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", patch);
         var window = await LoadAsync();
         await window.OpenBatchCommand.ExecuteAsync(PatchGroupKind.ToMatch);
         window.CheckAllBatchCommand.Execute(null);
@@ -487,7 +565,7 @@ public sealed class PatchesViewModelTests : IDisposable
         window.CloseBatchCommand.Execute(null);
 
         window.IsBatchMode.Should().BeFalse();
-        File.Exists(path).Should().BeTrue();
+        LinkOf(patch).Should().BeNull();
         window.HasModified.Should().BeFalse();
     }
 
@@ -521,41 +599,22 @@ public sealed class PatchesViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task TheBanner_ShouldOpenTheWindow_OnThePatchesAppliedFromTheirName()
-    {
-        WriteJapanAndUsa();
-        _temp.WriteBytes($"patches/Game (T-En) [{Crc(Usa):x8}].ips", IpsDiff(Usa, Translate(Usa)));
-        await SimulateAsync();
-        var window = CreateWindow();
-
-        window.Refresh();
-
-        window.NameMatchedCount.Should().Be(1);
-        window.IsNamingLinkVisible.Should().BeTrue();
-        window.NamingLinkText.Should().Be("Voir les patchs");
-        window.NamingLinkTooltip.Should().StartWith("Ouvre la liste des patchs appliqués d'après leur nom");
-        window.OpenCommand.CanExecute(null).Should().BeTrue();
-    }
-
-    [Fact]
     public async Task TheCommandOfTheBanner_ShouldOpenTheWindow_AndSimulateAgainWhenAsked()
     {
         WriteJapanAndUsa();
         var window = CreateWindow();
         window.OpenCommand.CanExecute(null).Should().BeFalse("before a run, there is nothing to show");
 
-        _temp.WriteBytes("patches/a/Hack.ips", IpsDiff(Usa, Translate(Usa)));
-        _temp.WriteText("patches/a/readme.txt", $"CRC32: {Crc(Usa):X8}");
+        _temp.WriteBytes("patches/Game (T-En).bps", BpsLinear(Usa, Translate(Usa)));
         await SimulateAsync();
         window.Refresh();
-        window.NoteMatchedCount.Should().Be(1);
-        window.IsNamingLinkVisible.Should().BeTrue("no patch is left out");
-        window.NamingLinkText.Should().Be("1 patch à nommer (facultatif)");
+        window.PatchCount.Should().Be(1);
+        window.IsOpenLinkVisible.Should().BeTrue("no patch is left out: « See the patches » opens the window");
         window.OpenCommand.CanExecute(null).Should().BeTrue();
 
         _dialogs.OnShowPatches = shown =>
         {
-            shown.Rows.Should().ContainSingle().Which.Name.Should().Be("Hack.ips");
+            shown.Rows.Should().ContainSingle().Which.Name.Should().Be("Game (T-En).bps");
             return Task.FromResult(false);
         };
         await window.OpenCommand.ExecuteAsync(null);
@@ -566,9 +625,16 @@ public sealed class PatchesViewModelTests : IDisposable
         await window.OpenCommand.ExecuteAsync(null);
         _simulations.Should().Be(2, "« Close and simulate again » runs a new simulation");
 
+        // A patch left out: the text of the patches left out opens the window, the link hides
+        _temp.WriteBytes("patches/Hack.ips", IpsDiff(Japan, Translate(Japan)));
+        await SimulateAsync();
+        window.Refresh();
+        window.PatchCount.Should().Be(2);
+        window.IsOpenLinkVisible.Should().BeFalse();
+
         var running = CreateWindow(isRunning: () => true);
         running.Refresh();
         running.OpenCommand.CanExecute(null).Should().BeFalse("nothing opens during a run");
-        running.IsNamingLinkVisible.Should().BeFalse();
+        running.IsOpenLinkVisible.Should().BeFalse();
     }
 }

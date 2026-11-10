@@ -44,8 +44,9 @@ public sealed partial class PatchMatcher
     private readonly List<UnappliedPatch> _unapplied = [];
     private readonly List<IgnoredPatch> _ignored = [];
 
-    // The key of each patch read, for the patches refused after their reading
+    // The key and the format of each patch read, for the patches refused after their reading
     private readonly Dictionary<PatchFile, PatchKey> _keys = [];
+    private readonly Dictionary<PatchFile, PatchFormat> _formats = [];
 
     /// <param name="links">
     /// The choices of the user (<see cref="IPatchLinkService"/>), read once for the run: a patch set aside gives no
@@ -314,15 +315,17 @@ public sealed partial class PatchMatcher
         _keys[patch] = key;
         var link = _links.GetValueOrDefault(key);
 
+        var format = _patchService.DetectFormat(patch.DisplayName, bytes.AsSpan(0, Math.Min(bytes.Length, PatchService.SignatureLength)));
+
         // Set aside by the user: nothing more is said of it, even of a patch that cannot be applied
         if (link?.Kind == PatchLinkKind.Ignored)
         {
-            _ignored.Add(new IgnoredPatch(patch, key));
+            _ignored.Add(new IgnoredPatch(patch, key, format));
             _log(LogLevel.Info, LocalizedMessage.Create("log.patch_ignored", ("name", patch.DisplayName)));
             return null;
         }
 
-        if (_patchService.DetectFormat(patch.DisplayName, bytes.AsSpan(0, Math.Min(bytes.Length, PatchService.SignatureLength))) is null)
+        if (format is not { } detected)
         {
             Refuse(patch, LocalizedMessage.Create("reason.patch_unreadable", ("error", LocalizedMessage.Create("patch.error_signature"))));
             return null;
@@ -338,6 +341,9 @@ public sealed partial class PatchMatcher
             Refuse(patch, LocalizedMessage.Create("reason.patch_unreadable", ("error", ex.Reason)));
             return null;
         }
+
+        // Only a patch that can be applied says its format: a ROM may be chosen for an IPS that is readable
+        _formats[patch] = detected;
 
         if (header.SourceCrc32 is { } sourceCrc)
         {
@@ -383,7 +389,8 @@ public sealed partial class PatchMatcher
         _unapplied.Add(new UnappliedPatch(patch, reason)
         {
             Suggestions = suggestions ?? [],
-            Key = _keys.TryGetValue(patch, out var key) ? key : null
+            Key = _keys.TryGetValue(patch, out var key) ? key : null,
+            Format = _formats.TryGetValue(patch, out var format) ? format : null
         });
 
     /// <summary>

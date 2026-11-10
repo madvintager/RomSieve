@@ -42,7 +42,7 @@ public sealed class PatchOriginOptionViewModel(ProcessItem origin, string source
     internal string SearchName { get; } = SearchQuery.Normalize(origin.DisplayName);
 }
 
-/// <summary>A form of the data of an origin, with or without its copier header: the CRC32 to write in the name of the patch.</summary>
+/// <summary>A form of the data of an origin, with or without its copier header: the one the patch applies to.</summary>
 public sealed class PatchFormOptionViewModel(PatchOriginSuggestion form, string label)
 {
     public PatchOriginSuggestion Form { get; } = form;
@@ -50,19 +50,22 @@ public sealed class PatchFormOptionViewModel(PatchOriginSuggestion form, string 
     public string Label { get; } = label;
 }
 
-/// <summary>Where a patch stands: what its name (or its readme) does with it, as far as the window knows.</summary>
+/// <summary>Where a patch stands, as far as the window knows: after the last run, then after the choices made in it.</summary>
 public enum PatchRowState
 {
-    /// <summary>Applied to no ROM, and a name that designates one would fix it: an IPS without CRC32 in its name.</summary>
+    /// <summary>Applied to no ROM, and a ROM may be chosen for it: an IPS or an IPS32.</summary>
     ToMatch,
 
-    /// <summary>Applied to the ROM the CRC32 of its name designates.</summary>
-    AppliedByName,
+    /// <summary>Applied to a ROM (<see cref="PatchRowViewModel.Source"/> says what designates it).</summary>
+    Applied,
 
-    /// <summary>Applied to the ROM its readme designates.</summary>
-    AppliedByNote,
+    /// <summary>Set aside by the user: applied to no ROM, whatever designates one.</summary>
+    Ignored,
 
-    /// <summary>Applied to no ROM, and no name would fix it: a UPS or a BPS, a missing ROM, a patch unreadable.</summary>
+    /// <summary>A choice of the user forgotten in the window: the next simulation tells what the patch does.</summary>
+    Automatic,
+
+    /// <summary>Applied to no ROM, and none can be chosen: a UPS or a BPS whose ROM is missing, a patch unreadable.</summary>
     Unfixable
 }
 
@@ -71,55 +74,88 @@ public enum PatchGroupKind
 {
     ToMatch,
     Applied,
+    Automatic,
+    Ignored,
     Unfixable
 }
 
 /// <summary>
-/// A patch of the window of the patches: where it stands, the ROMs it may be meant for and the form of the chosen one,
-/// what applying it would rename, and the renamings done in the window, each undone in turn.
+/// A patch of the window of the patches: where it stands, the ROMs it may be meant for and the form of the chosen one, the
+/// choice of the user recorded for it (<see cref="PatchLink"/>), and the changes made in the window (a choice, or its ROM
+/// written in its name), each undone in turn.
 /// </summary>
 public sealed partial class PatchRowViewModel : ObservableObject
 {
     private readonly PatchesViewModel _owner;
 
-    // Forms already known for an origin: the two a readme gave, or those read once
+    // Forms already known for an origin: the one a readme gave, or those read once
     private readonly Dictionary<ProcessItem, IReadOnlyList<PatchOriginSuggestion>> _knownForms = new(ReferenceEqualityComparer.Instance);
 
-    // The renamings done in the window, the last on top, with where the patch stood before each
-    private readonly Stack<(PatchRenameResult Renaming, Snapshot Before)> _history = new();
+    // The changes made in the window, the last on top: a choice (no renaming), or a renaming, with where the patch stood before
+    private readonly Stack<(PatchRenameResult? Renaming, Snapshot Before)> _history = new();
 
-    private sealed record Snapshot(PatchFile File, PatchRowState State, ProcessItem? Origin, uint? Crc32);
+    /// <summary>Where the patch stands: what a change replaces, and what undoing it gives back.</summary>
+    private sealed record Snapshot(
+        PatchFile File,
+        PatchRowState State,
+        PatchCrcSource? Source,
+        ProcessItem? Origin,
+        uint? Crc32,
+        PatchLink? Link,
+        LocalizedMessage? Reason,
+        string? PatchedName);
+
+    // Where the patch stood when the window opened, given back when the user forgets a choice made in the window
+    private readonly Snapshot _opening;
 
     internal PatchRowViewModel(
         PatchesViewModel owner,
         PatchFile patch,
+        PatchKey? key,
+        PatchFormat? format,
         PatchRowState state,
-        LocalizedMessage? reason,
         string location,
+        PatchLink? link,
+        LocalizedMessage? reason = null,
+        PatchCrcSource? source = null,
         ProcessItem? currentOrigin = null,
         uint? currentCrc32 = null,
-        PatchFile? note = null)
+        PatchFile? note = null,
+        string? patchedName = null)
     {
         _owner = owner;
         OriginalFile = patch;
         _file = patch;
+        Key = key;
+        Format = format;
         _state = state;
-        Reason = reason;
         Location = location;
+        OriginalLink = link;
+        Link = link;
+        Reason = reason;
+        Source = source;
         CurrentOrigin = currentOrigin;
         CurrentCrc32 = currentCrc32;
         Note = note;
+        PatchedName = patchedName;
+        _opening = Take();
     }
 
     /// <summary>The patch when the window opened.</summary>
     public PatchFile OriginalFile { get; }
 
-    /// <summary>The patch as it is now: its name changes with each renaming.</summary>
+    /// <summary>The patch as it is now: its name changes when its ROM is written in it.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Name), nameof(IsModified))]
     private PatchFile _file;
 
     public string Name => File.DisplayName;
+
+    /// <summary>What identifies it in the choices; <see langword="null"/> for a patch that could not be read.</summary>
+    public PatchKey? Key { get; }
+
+    /// <summary>Its format; <see langword="null"/> for a patch that could not be read.</summary>
+    public PatchFormat? Format { get; }
 
     /// <summary>Its folder in the patch folder, or its archive.</summary>
     public string Location { get; }
@@ -131,30 +167,51 @@ public sealed partial class PatchRowViewModel : ObservableObject
     public PatchGroupKind Group => State switch
     {
         PatchRowState.ToMatch => PatchGroupKind.ToMatch,
-        PatchRowState.Unfixable => PatchGroupKind.Unfixable,
-        _ => PatchGroupKind.Applied
+        PatchRowState.Applied => PatchGroupKind.Applied,
+        PatchRowState.Ignored => PatchGroupKind.Ignored,
+        PatchRowState.Automatic => PatchGroupKind.Automatic,
+        _ => PatchGroupKind.Unfixable
     };
 
+    /// <summary>For a patch applied: what designates its ROM (what it records, its name, its readme, or the user).</summary>
+    public PatchCrcSource? Source { get; private set; }
+
     /// <summary>Why the simulation left it out, for a patch left out.</summary>
-    public LocalizedMessage? Reason { get; }
+    public LocalizedMessage? Reason { get; private set; }
 
     /// <summary>The readme that gave its ROM, for a patch applied thanks to it.</summary>
     public PatchFile? Note { get; }
 
-    /// <summary>The ROM its name (or its readme) designates, for a patch applied or renamed in the window.</summary>
+    /// <summary>The ROM it is applied to, or that the user chose in the window.</summary>
     public ProcessItem? CurrentOrigin { get; private set; }
 
-    /// <summary>The CRC32 of the form of <see cref="CurrentOrigin"/> its name (or its readme) gives.</summary>
+    /// <summary>The CRC32 of the form of <see cref="CurrentOrigin"/> it is applied to.</summary>
     public uint? CurrentCrc32 { get; private set; }
 
-    /// <summary>Whether it lies in an archive, which is never modified: its CRC32 is only shown.</summary>
+    /// <summary>The name of its patched version in the last run, as long as nothing changed it.</summary>
+    public string? PatchedName { get; private set; }
+
+    /// <summary>The choice of the user recorded for it when the window opened.</summary>
+    public PatchLink? OriginalLink { get; }
+
+    /// <summary>The choice of the user recorded for it now; <see langword="null"/>: the automatic choice.</summary>
+    public PatchLink? Link { get; private set; }
+
+    /// <summary>Whether it lies in an archive: its ROM can be chosen, but never written in its name.</summary>
     public bool IsInArchive => File.ArchiveMember is not null;
 
-    /// <summary>Whether a ROM can be chosen for it: any IPS but those no name would fix.</summary>
-    public bool CanChoose => State != PatchRowState.Unfixable;
+    /// <summary>Whether a ROM can be chosen for it: an IPS or an IPS32 that could be read (a UPS or a BPS checks its own).</summary>
+    public bool IsIps => Key is not null && Format is PatchFormat.Ips or PatchFormat.Ips32;
 
-    /// <summary>Whether its name changed since the window opened.</summary>
-    public bool IsModified => File != OriginalFile;
+    /// <summary>Whether a ROM can be chosen for it now.</summary>
+    public bool CanChoose => IsIps && State != PatchRowState.Unfixable;
+
+    /// <summary>Whether its choice or its name changed since the window opened.</summary>
+    public bool IsModified => File != OriginalFile || !SameChoice(Link, OriginalLink);
+
+    /// <summary>Two choices that make the same: the same kind and the same ROM (the names are only shown).</summary>
+    internal static bool SameChoice(PatchLink? a, PatchLink? b) =>
+        a is null ? b is null : b is not null && a.Kind == b.Kind && a.OriginCrc32 == b.OriginCrc32;
 
     // -------------------------------------------------------------------------
     // The ROM and its form
@@ -266,7 +323,7 @@ public sealed partial class PatchRowViewModel : ObservableObject
 
         OnPropertyChanged(nameof(HasSeveralForms));
 
-        // A patch applied keeps the form it was applied to, until the user chooses another one
+        // A patch applied keeps the form it is applied to, until the user chooses another one
         SetForm(Forms.FirstOrDefault(f => ReferenceEquals(origin, CurrentOrigin) && f.Form.Crc32 == CurrentCrc32) ?? Forms.FirstOrDefault());
     }
 
@@ -274,46 +331,56 @@ public sealed partial class PatchRowViewModel : ObservableObject
     // What it says
     // -------------------------------------------------------------------------
 
-    /// <summary>The short line of the list under its name: the ROM it is applied to, or nothing.</summary>
-    public string ListSummary => State switch
+    private string OriginName => CurrentOrigin?.DisplayName ?? string.Empty;
+
+    /// <summary>The short line of the list under its name: the ROM it is applied to, and what chose it.</summary>
+    public string ListSummary => State != PatchRowState.Applied ? string.Empty : Source switch
     {
-        PatchRowState.AppliedByName => _owner.Tr("patches.row_applied", ("origin", CurrentOrigin?.DisplayName ?? string.Empty)),
-        PatchRowState.AppliedByNote => _owner.Tr("patches.row_applied_note", ("origin", CurrentOrigin?.DisplayName ?? string.Empty)),
-        _ => string.Empty
+        PatchCrcSource.Notes => _owner.Tr("patches.row_applied_note", ("origin", OriginName)),
+        PatchCrcSource.Link => _owner.Tr("patches.row_applied_link", ("origin", OriginName)),
+        _ => _owner.Tr("patches.row_applied", ("origin", OriginName))
     };
 
     /// <summary>Where it stands, in plain words, for the detail.</summary>
     public string StatusText => State switch
     {
-        PatchRowState.AppliedByName when _history.Count > 0 =>
-            _owner.Tr("patches.state_renamed", ("origin", CurrentOrigin?.DisplayName ?? string.Empty)),
-        PatchRowState.AppliedByName => _owner.Tr("patches.applied_by_name", ("origin", CurrentOrigin?.DisplayName ?? string.Empty)),
-        PatchRowState.AppliedByNote => _owner.Tr(
-            "patches.applied_by_note",
-            ("origin", CurrentOrigin?.DisplayName ?? string.Empty),
-            ("note", Note?.DisplayName ?? string.Empty)),
-        PatchRowState.ToMatch when _history.Count > 0 => _owner.Tr("patches.state_detached"),
+        PatchRowState.Applied => Source switch
+        {
+            PatchCrcSource.Recorded => _owner.Tr("patches.applied_by_recorded", ("origin", OriginName)),
+            PatchCrcSource.Notes => _owner.Tr("patches.applied_by_note", ("origin", OriginName), ("note", Note?.DisplayName ?? string.Empty)),
+            PatchCrcSource.Link => _owner.Tr("patches.applied_by_link", ("origin", OriginName)),
+            _ => _owner.Tr("patches.applied_by_name", ("origin", OriginName))
+        },
+        PatchRowState.Ignored => _owner.Tr("patches.state_ignored"),
+        PatchRowState.Automatic => _owner.Tr("patches.state_automatic"),
         PatchRowState.ToMatch when Reason is null || Reason.Key == "reason.patch_no_crc" => _owner.Tr("patches.state_to_match"),
         _ => Reason is null ? string.Empty : _owner.Format(Reason)
     };
 
-    /// <summary>Whether the state is a warning (applied to no ROM) rather than a confirmation.</summary>
-    public bool IsWarning => State is PatchRowState.ToMatch or PatchRowState.Unfixable;
+    /// <summary>The name of its patched version, as the last run gave it; empty once a change makes it unknown.</summary>
+    public string PatchedNameText => PatchedName is null ? string.Empty : _owner.Tr("patches.patched_name", ("name", PatchedName));
 
-    /// <summary>The mark of its state in the list: to match, applied, or unfixable.</summary>
+    public bool HasPatchedName => PatchedName is not null;
+
+    /// <summary>The mark of its state in the list.</summary>
     public string StateMark => State switch
     {
         PatchRowState.ToMatch => "●",
-        PatchRowState.Unfixable => "✗",
-        _ => "✓"
+        PatchRowState.Applied => "✓",
+        PatchRowState.Ignored => "–",
+        PatchRowState.Automatic => "↺",
+        _ => "✗"
     };
 
     /// <summary>The states as booleans, for the colors of the theme (style classes of the view).</summary>
     public bool IsToMatch => State == PatchRowState.ToMatch;
 
-    public bool IsApplied => State is PatchRowState.AppliedByName or PatchRowState.AppliedByNote;
+    public bool IsApplied => State == PatchRowState.Applied;
 
     public bool IsUnfixable => State == PatchRowState.Unfixable;
+
+    /// <summary>Set aside, or waiting for the next simulation: neither a confirmation nor a warning.</summary>
+    public bool IsNeutral => State is PatchRowState.Ignored or PatchRowState.Automatic;
 
     /// <summary>Whether it lies in a folder of the patch folder, or in an archive: a patch at its root has no place to show.</summary>
     public bool HasLocation => Location.Length > 0;
@@ -329,83 +396,125 @@ public sealed partial class PatchRowViewModel : ObservableObject
     // The actions
     // -------------------------------------------------------------------------
 
-    /// <summary>The form chosen is the one its name already gives: renaming would change nothing.</summary>
+    /// <summary>The ROM and the form chosen are those it is applied to: choosing them would change nothing.</summary>
     private bool IsCurrentFormChosen =>
-        State == PatchRowState.AppliedByName && SelectedForm?.Form.Crc32 == CurrentCrc32 && ReferenceEquals(SelectedOrigin?.Origin, CurrentOrigin);
+        State == PatchRowState.Applied && SelectedForm?.Form.Crc32 == CurrentCrc32 && ReferenceEquals(SelectedOrigin?.Origin, CurrentOrigin);
 
-    /// <summary>The form chosen is the one its readme gives: applying writes it in its name.</summary>
-    private bool IsNoteFormChosen =>
-        State == PatchRowState.AppliedByNote && SelectedForm?.Form.Crc32 == CurrentCrc32 && ReferenceEquals(SelectedOrigin?.Origin, CurrentOrigin);
-
-    /// <summary>Whether « Apply to this ROM » can rename it: a ROM chosen, on the disk, another ROM than its own.</summary>
-    public bool CanApply => CanChoose && !IsInArchive && SelectedForm is not null && !IsCurrentFormChosen;
-
-    public string ApplyLabel => _owner.Tr(IsNoteFormChosen ? "patches.btn_write_rom_in_name" : "patches.btn_apply");
+    /// <summary>Whether « Apply to this ROM » can record the ROM chosen: another ROM than its own.</summary>
+    public bool CanApply => CanChoose && SelectedForm is not null && !IsCurrentFormChosen;
 
     /// <summary>What « Apply to this ROM » does, or why it is greyed out.</summary>
     public string ApplyTooltip =>
         !CanChoose ? _owner.Tr("patches.tooltip_apply_unfixable")
-        : IsInArchive ? _owner.Tr("patches.tooltip_apply_archive")
         : SelectedForm is null ? _owner.Tr("patches.tooltip_apply_no_origin")
         : IsCurrentFormChosen ? _owner.Tr("patches.tooltip_apply_same_origin")
-        : IsNoteFormChosen ? _owner.Tr("patches.tooltip_write_rom_in_name")
         : _owner.Tr("patches.tooltip_apply");
 
-    /// <summary>The name before and after « Apply to this ROM », when it can rename the patch.</summary>
-    public string PreviewNewName => CanApply ? _owner.NewName(Name, SelectedForm!.Form.Crc32) : string.Empty;
+    /// <summary>Whether it can be set aside: any patch that could be read, not set aside yet.</summary>
+    public bool CanIgnore => Key is not null && State != PatchRowState.Ignored;
 
-    public bool HasPreview => CanApply;
+    /// <summary>What « Do not apply this patch » does, or why it is greyed out.</summary>
+    public string IgnoreTooltip =>
+        Key is null ? _owner.Tr("patches.tooltip_no_key")
+        : State == PatchRowState.Ignored ? _owner.Tr("patches.tooltip_ignore_done")
+        : _owner.Tr("patches.tooltip_ignore");
 
-    /// <summary>For a patch in an archive, never renamed: the CRC32 to write in its name once extracted.</summary>
-    public string ArchiveHint => IsInArchive && CanChoose && SelectedForm is { } form
-        ? _owner.Tr("patches.in_archive", ("crc", PatchesViewModel.FormatCrc(form.Form.Crc32)))
-        : string.Empty;
+    /// <summary>Whether a choice of the user is recorded for it, which « Back to the automatic choice » forgets.</summary>
+    public bool CanRestoreAutomatic => Key is not null && Link is not null;
 
-    /// <summary>Whether it can stop applying to its ROM: applied from its name, on the disk.</summary>
-    public bool CanDetach => State == PatchRowState.AppliedByName && !IsInArchive;
+    /// <summary>
+    /// The name its ROM would give it (the CRC32 of the form before its extension), for other tools: an IPS on the disk
+    /// applied to a ROM its name does not give; <see langword="null"/> otherwise.
+    /// </summary>
+    public string? NameWithRom =>
+        IsIps && !IsInArchive && State == PatchRowState.Applied && CurrentCrc32 is { } crc
+        && _owner.NewName(Name, crc) is var newName && !string.Equals(newName, Name, StringComparison.OrdinalIgnoreCase)
+            ? newName
+            : null;
 
-    /// <summary>What « Stop applying to this ROM » does, or why it is greyed out.</summary>
-    public string DetachTooltip =>
-        State == PatchRowState.AppliedByNote ? _owner.Tr("patches.tooltip_detach_note")
-        : State != PatchRowState.AppliedByName ? _owner.Tr("patches.tooltip_detach_unapplied")
-        : IsInArchive ? _owner.Tr("patches.tooltip_apply_archive")
-        : _owner.Tr("patches.tooltip_detach");
+    public bool CanWriteName => NameWithRom is not null;
 
-    /// <summary>Whether a renaming done in the window can be undone.</summary>
+    public string WriteNameTooltip => NameWithRom is { } newName ? _owner.Tr("patches.tooltip_write_rom_in_name", ("name", newName)) : string.Empty;
+
+    /// <summary>Whether a change made in the window can be undone.</summary>
     public bool CanUndo => _history.Count > 0;
 
+    /// <summary>The last change made in the window: a renaming, or <see langword="null"/> for a choice.</summary>
     internal PatchRenameResult? LastRenaming => _history.Count > 0 ? _history.Peek().Renaming : null;
 
-    /// <summary>What a renaming of the window made of the patch: its new name, and the ROM its name now designates.</summary>
-    internal void Renamed(PatchRenameResult renaming, ProcessItem? origin)
+    /// <summary>The choice the last change replaced, which undoing it records again.</summary>
+    internal PatchLink? LinkBeforeLastChange => _history.Count > 0 ? _history.Peek().Before.Link : null;
+
+    private Snapshot Take() => new(File, State, Source, CurrentOrigin, CurrentCrc32, Link, Reason, PatchedName);
+
+    private void Restore(Snapshot snapshot)
     {
-        _history.Push((renaming, new Snapshot(File, State, CurrentOrigin, CurrentCrc32)));
-        File = new PatchFile(renaming.NewPath!);
-        if (renaming.Request.Crc32 is { } crc)
+        File = snapshot.File;
+        State = snapshot.State;
+        Source = snapshot.Source;
+        CurrentOrigin = snapshot.Origin;
+        CurrentCrc32 = snapshot.Crc32;
+        Link = snapshot.Link;
+        Reason = snapshot.Reason;
+        PatchedName = snapshot.PatchedName;
+    }
+
+    /// <summary>A choice recorded: the patch now stands as the choice says.</summary>
+    internal void Chosen(PatchLink? link, ProcessItem? origin)
+    {
+        _history.Push((null, Take()));
+        Link = link;
+        PatchedName = null;
+        Reason = null;
+        switch (link?.Kind)
         {
-            State = PatchRowState.AppliedByName;
-            CurrentOrigin = origin;
-            CurrentCrc32 = crc;
-        }
-        else
-        {
-            State = PatchRowState.ToMatch;
-            CurrentOrigin = null;
-            CurrentCrc32 = null;
+            case PatchLinkKind.Origin:
+                State = PatchRowState.Applied;
+                Source = PatchCrcSource.Link;
+                CurrentOrigin = origin;
+                CurrentCrc32 = link.OriginCrc32;
+                break;
+            case PatchLinkKind.Ignored:
+                State = PatchRowState.Ignored;
+                Source = null;
+                CurrentOrigin = null;
+                CurrentCrc32 = null;
+                break;
+            default:
+                // Without a choice at the opening, the window knows what the automatic choice gives: the opening state
+                if (OriginalLink is null)
+                {
+                    Restore(_opening with { File = File });
+                }
+                else
+                {
+                    State = PatchRowState.Automatic;
+                    Source = null;
+                    CurrentOrigin = null;
+                    CurrentCrc32 = null;
+                }
+
+                break;
         }
 
         ResultText = string.Empty;
         NotifyState();
     }
 
-    /// <summary>The last renaming undone: the patch takes back its name and where it stood before.</summary>
+    /// <summary>Its ROM written in its name: its new name, nothing else changes.</summary>
+    internal void Renamed(PatchRenameResult renaming)
+    {
+        _history.Push((renaming, Take()));
+        File = new PatchFile(renaming.NewPath!);
+        ResultText = string.Empty;
+        NotifyState();
+    }
+
+    /// <summary>The last change undone: the patch stands where it stood before.</summary>
     internal void Undone()
     {
         var (_, before) = _history.Pop();
-        File = before.File;
-        State = before.State;
-        CurrentOrigin = before.Origin;
-        CurrentCrc32 = before.Crc32;
+        Restore(before);
         ResultText = string.Empty;
         NotifyState();
     }
@@ -415,10 +524,11 @@ public sealed partial class PatchRowViewModel : ObservableObject
     {
         foreach (var name in new[]
         {
-            nameof(CanChoose), nameof(ListSummary), nameof(StatusText), nameof(IsWarning), nameof(StateMark), nameof(IsToMatch),
-            nameof(IsApplied), nameof(IsUnfixable), nameof(AccessibleName), nameof(CanApply), nameof(ApplyLabel),
-            nameof(ApplyTooltip), nameof(PreviewNewName), nameof(HasPreview), nameof(ArchiveHint), nameof(CanDetach),
-            nameof(DetachTooltip), nameof(CanUndo), nameof(IsInArchive)
+            nameof(CanChoose), nameof(ListSummary), nameof(StatusText), nameof(StateMark), nameof(IsToMatch), nameof(IsApplied),
+            nameof(IsUnfixable), nameof(IsNeutral), nameof(AccessibleName), nameof(CanApply), nameof(ApplyTooltip),
+            nameof(CanIgnore), nameof(IgnoreTooltip), nameof(CanRestoreAutomatic), nameof(NameWithRom), nameof(CanWriteName),
+            nameof(WriteNameTooltip), nameof(CanUndo), nameof(IsInArchive), nameof(Source), nameof(CurrentOrigin),
+            nameof(Link), nameof(IsModified), nameof(PatchedNameText), nameof(HasPatchedName)
         })
         {
             OnPropertyChanged(name);

@@ -66,6 +66,10 @@
     <Style Selector="TextBlock.mark.unfixable">
       <Setter Property="Foreground" Value="{DynamicResource StatusDuplicateBadgeForegroundBrush}" />
     </Style>
+    <!-- Set aside, or back to the automatic choice: neither a confirmation nor a warning -->
+    <Style Selector="TextBlock.mark.neutral">
+      <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
+    </Style>
   </Window.Styles>
 
   <DockPanel Margin="16,14">
@@ -139,6 +143,7 @@
                            Classes.toMatch="{Binding IsToMatch}"
                            Classes.applied="{Binding IsApplied}"
                            Classes.unfixable="{Binding IsUnfixable}"
+                           Classes.neutral="{Binding IsNeutral}"
                            Text="{Binding StateMark}" />
                 <StackPanel Spacing="1">
                   <TextBlock FontWeight="Bold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Text="{Binding Name}" />
@@ -177,11 +182,18 @@
                            Classes.toMatch="{Binding SelectedRow.IsToMatch, FallbackValue=False}"
                            Classes.applied="{Binding SelectedRow.IsApplied, FallbackValue=False}"
                            Classes.unfixable="{Binding SelectedRow.IsUnfixable, FallbackValue=False}"
+                           Classes.neutral="{Binding SelectedRow.IsNeutral, FallbackValue=False}"
                            Text="{Binding SelectedRow.StateMark, FallbackValue=''}" />
                 <TextBlock x:Name="LblPatchState"
                            TextWrapping="Wrap"
                            Text="{Binding SelectedRow.StatusText, FallbackValue=''}" />
               </DockPanel>
+              <!-- The name of its patched version in the last run, as long as nothing changed it -->
+              <TextBlock x:Name="LblPatchedName"
+                         Margin="16,2,0,0"
+                         Classes="hint"
+                         Text="{Binding SelectedRow.PatchedNameText, FallbackValue=''}"
+                         IsVisible="{Binding SelectedRow.HasPatchedName, FallbackValue=False}" />
 
               <StackPanel IsVisible="{Binding SelectedRow.CanChoose, FallbackValue=False}">
                 <TextBlock Classes="section" Text="{Binding I18n[patches.question]}" />
@@ -274,22 +286,6 @@
                     </ListBox.ItemTemplate>
                   </ListBox>
                 </StackPanel>
-
-                <!-- What applying would rename -->
-                <StackPanel x:Name="PanelPatchPreview"
-                            Margin="0,10,0,0"
-                            IsVisible="{Binding SelectedRow.HasPreview, FallbackValue=False}">
-                  <TextBlock Classes="hint" Text="{Binding I18n[patches.preview_label]}" />
-                  <TextBlock TextWrapping="Wrap" Text="{Binding SelectedRow.Name, FallbackValue=''}" />
-                  <TextBlock TextWrapping="Wrap" FontWeight="Bold">
-                    <Run Text="→ " />
-                    <Run Text="{Binding SelectedRow.PreviewNewName, FallbackValue=''}" />
-                  </TextBlock>
-                </StackPanel>
-                <TextBlock Margin="0,10,0,0"
-                           Classes="hint"
-                           Text="{Binding SelectedRow.ArchiveHint, FallbackValue=''}"
-                           IsVisible="{Binding SelectedRow.ArchiveHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}" />
               </StackPanel>
 
               <TextBlock x:Name="LblPatchResult"
@@ -300,20 +296,28 @@
                          Text="{Binding SelectedRow.ResultText, FallbackValue=''}"
                          IsVisible="{Binding SelectedRow.ResultText, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}" />
 
-              <WrapPanel Margin="0,12,0,0" IsVisible="{Binding SelectedRow.CanChoose, FallbackValue=False}">
+              <!-- The choice of the user: recorded by RomSieve, no file changes -->
+              <WrapPanel Margin="0,12,0,0">
                 <Button x:Name="BtnPatchApply"
                         Margin="0,0,8,4"
                         Classes="accent"
-                        Content="{Binding SelectedRow.ApplyLabel, FallbackValue=''}"
+                        Content="{Binding I18n[patches.btn_apply]}"
                         ToolTip.Tip="{Binding SelectedRow.ApplyTooltip, FallbackValue=''}"
                         ToolTip.ShowOnDisabled="True"
+                        IsVisible="{Binding SelectedRow.CanChoose, FallbackValue=False}"
                         Command="{Binding ApplyCommand}" />
-                <Button x:Name="BtnPatchDetach"
+                <Button x:Name="BtnPatchIgnore"
                         Margin="0,0,8,4"
-                        Content="{Binding I18n[patches.btn_detach]}"
-                        ToolTip.Tip="{Binding SelectedRow.DetachTooltip, FallbackValue=''}"
+                        Content="{Binding I18n[patches.btn_ignore]}"
+                        ToolTip.Tip="{Binding SelectedRow.IgnoreTooltip, FallbackValue=''}"
                         ToolTip.ShowOnDisabled="True"
-                        Command="{Binding DetachCommand}" />
+                        Command="{Binding IgnoreCommand}" />
+                <Button x:Name="BtnPatchAutomatic"
+                        Margin="0,0,8,4"
+                        Content="{Binding I18n[patches.btn_automatic]}"
+                        ToolTip.Tip="{Binding I18n[patches.tooltip_automatic]}"
+                        IsVisible="{Binding SelectedRow.CanRestoreAutomatic, FallbackValue=False}"
+                        Command="{Binding RestoreAutomaticCommand}" />
                 <Button x:Name="BtnPatchUndo"
                         Margin="0,0,8,4"
                         Content="{Binding I18n[patches.btn_undo]}"
@@ -321,12 +325,20 @@
                         IsVisible="{Binding SelectedRow.CanUndo, FallbackValue=False}"
                         Command="{Binding UndoCommand}" />
               </WrapPanel>
+
+              <!-- For other tools only: the one action that renames the patch, never in an archive -->
+              <Button x:Name="BtnPatchWriteName"
+                      Margin="0,8,0,0"
+                      Content="{Binding I18n[patches.btn_write_rom_in_name]}"
+                      ToolTip.Tip="{Binding SelectedRow.WriteNameTooltip, FallbackValue=''}"
+                      IsVisible="{Binding SelectedRow.CanWriteName, FallbackValue=False}"
+                      Command="{Binding WriteNameCommand}" />
             </StackPanel>
           </ScrollViewer>
 
-          <!-- The summary of an action on a group: each patch with its ROM and its new name, nothing checked -->
+          <!-- The summary of « Accept all the suggestions »: each patch with its ROM, nothing checked -->
           <DockPanel x:Name="PanelPatchBatch" IsVisible="{Binding IsBatchMode}">
-            <TextBlock DockPanel.Dock="Top" FontWeight="Bold" TextWrapping="Wrap" Text="{Binding BatchTitle}" />
+            <TextBlock DockPanel.Dock="Top" FontWeight="Bold" TextWrapping="Wrap" Text="{Binding I18n[patches.batch_title_accept]}" />
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
               <Button x:Name="BtnPatchBatchCheckAll" Content="{Binding I18n[patches.btn_batch_check_all]}" Command="{Binding CheckAllBatchCommand}" />
               <Button x:Name="BtnPatchBatchApply" Classes="accent" Content="{Binding ApplyBatchLabel}" Command="{Binding ApplyBatchCommand}" />
@@ -347,15 +359,13 @@
                               IsChecked="{Binding IsChecked, Mode=TwoWay}"
                               AutomationProperties.Name="{Binding Name}" />
                     <StackPanel Spacing="1">
-                      <TextBlock TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
-                        <Run FontWeight="Bold" Text="{Binding Name}" />
-                        <Run Text=" → " />
-                        <Run Text="{Binding OriginLabel}" />
-                      </TextBlock>
+                      <TextBlock FontWeight="Bold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Text="{Binding Name}" />
                       <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
                                  TextWrapping="NoWrap"
-                                 TextTrimming="CharacterEllipsis"
-                                 Text="{Binding NewName}" />
+                                 TextTrimming="CharacterEllipsis">
+                        <Run Text="→ " />
+                        <Run Text="{Binding OriginLabel}" />
+                      </TextBlock>
                     </StackPanel>
                   </DockPanel>
                 </DataTemplate>

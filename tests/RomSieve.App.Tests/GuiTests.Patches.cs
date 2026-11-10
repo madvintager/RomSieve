@@ -84,7 +84,7 @@ public sealed partial class GuiTests
                 Settle(window);
                 window.FindControl<ToggleButton>("ChipPatched")!.IsEffectivelyVisible.Should().BeFalse();
                 window.FindControl<Button>("BtnUnappliedPatches")!.IsEffectivelyVisible.Should().BeFalse();
-                window.FindControl<Button>("BtnPatchesToName")!.IsEffectivelyVisible.Should().BeFalse();
+                window.FindControl<Button>("BtnSeePatches")!.IsEffectivelyVisible.Should().BeFalse();
 
                 vm.StatsBanner.UpdateStats(new ProcessStats
                 {
@@ -169,12 +169,12 @@ public sealed partial class GuiTests
     }
 
     /// <summary>
-    /// An IPS without CRC32: the banner opens the window of the patches, the patch is renamed with the CRC32 of the ROM
-    /// proposed, and « Simulate again » applies it. The texts of the window are not cut in any language at its minimum
+    /// An IPS without CRC32: the banner opens the window of the patches, the ROM proposed is recorded for the patch,
+    /// which keeps its name, and « Simulate again » applies it. The texts of the window are not cut in any language at its minimum
     /// size (measured with the real fonts only, ROMSIEVE_HEADLESS_SKIA=1).
     /// </summary>
     [Fact]
-    public async Task PatchesWindow_FromTheBanner_ShouldRenameAnIpsAndSimulateAgain()
+    public async Task PatchesWindow_FromTheBanner_ShouldApplyAnIpsToItsRomAndSimulateAgain()
     {
         var source = Path.Combine(_tempDir, "ips_src");
         var patches = Path.Combine(_tempDir, "ips_folder");
@@ -222,11 +222,10 @@ public sealed partial class GuiTests
                         patchesWindow.FindControl<ListBox>("ListPatches")!.ItemCount.Should().Be(2, "the title of its group, then the patch");
                         patchesWindow.FindControl<ListBox>("ListPatchOrigins")!.SelectedItem.Should().BeSameAs(shown.Rows[0].Origins[0]);
                         patchesWindow.FindControl<ListBox>("ListPatchForms")!.IsEffectivelyVisible.Should().BeFalse("the ROM has a single form");
-                        patchesWindow.FindControl<StackPanel>("PanelPatchPreview")!.IsEffectivelyVisible.Should().BeTrue();
                         var apply = patchesWindow.FindControl<Button>("BtnPatchApply")!;
                         var again = patchesWindow.FindControl<Button>("BtnPatchesSimulateAgain")!;
                         apply.IsEffectivelyEnabled.Should().BeTrue("a ROM is proposed");
-                        again.IsEffectivelyEnabled.Should().BeFalse("no patch is renamed");
+                        again.IsEffectivelyEnabled.Should().BeFalse("no choice is made");
                         ToolTip.GetShowOnDisabled(again).Should().BeTrue();
 
                         if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
@@ -237,7 +236,7 @@ public sealed partial class GuiTests
                             {
                                 vm.UiLocale = locale;
                                 Settle(patchesWindow);
-                                foreach (var name in new[] { "BtnPatchesSimulateAgain", "BtnPatchesClose", "BtnPatchApply", "BtnPatchDetach" })
+                                foreach (var name in new[] { "BtnPatchesSimulateAgain", "BtnPatchesClose", "BtnPatchApply", "BtnPatchIgnore" })
                                 {
                                     AssertNotTrimmed(patchesWindow.FindControl<Control>(name)!, $"{name} ({locale})");
                                 }
@@ -247,11 +246,14 @@ public sealed partial class GuiTests
                         }
 
                         apply.Content.Should().Be("Appliquer à cette ROM");
+                        patchesWindow.FindControl<Button>("BtnPatchWriteName")!.IsEffectivelyVisible.Should().BeFalse("the patch is applied to no ROM");
                         CaptureLotStep(patchesWindow, "patches");
                         await shown.ApplyCommand.ExecuteAsync(null);
                         Settle(patchesWindow);
                         again.IsEffectivelyEnabled.Should().BeTrue();
                         patchesWindow.FindControl<Button>("BtnPatchUndo")!.IsEffectivelyVisible.Should().BeTrue();
+                        patchesWindow.FindControl<Button>("BtnPatchAutomatic")!.IsEffectivelyVisible.Should().BeTrue();
+                        patchesWindow.FindControl<Button>("BtnPatchWriteName")!.IsEffectivelyVisible.Should().BeTrue("for other tools");
                         patchesWindow.FindControl<TextBlock>("LblPatchesModified")!.Text.Should().Be("1 patch modifié");
                     }
                     finally
@@ -263,8 +265,8 @@ public sealed partial class GuiTests
                 };
 
                 await vm.Patches.OpenCommand.ExecuteAsync(null);
-                File.Exists(Path.Combine(patches, $"Game (T-Fr) [{PatchTestEncoder.Crc(usa):x8}].ips")).Should().BeTrue();
-                vm.AllPreviewItems.Should().ContainSingle(r => r.IsPatched, "the new simulation applies the patch renamed");
+                Directory.GetFiles(patches).Select(Path.GetFileName).Should().Equal("Game (T-Fr).ips");
+                vm.AllPreviewItems.Should().ContainSingle(r => r.IsPatched, "the new simulation follows the choice");
                 vm.StatsBanner.IsUnappliedPatchesVisible.Should().BeFalse();
             }
             finally
@@ -277,7 +279,7 @@ public sealed partial class GuiTests
     /// <summary>
     /// The window of the patches with a patch of each kind: the marks of their states in the colors of the theme, light
     /// and dark; the folder under each ROM proposed; Ctrl+F to the search, and Enter there taking the first file found
-    /// without renaming anything; and, with the real fonts only (ROMSIEVE_HEADLESS_SKIA=1), no text cut at the minimum
+    /// without recording anything; and, with the real fonts only (ROMSIEVE_HEADLESS_SKIA=1), no text cut at the minimum
     /// size in any language: the buttons of the detail, of the groups, of the summary and of the footer, and the titles.
     /// </summary>
     [Fact]
@@ -321,7 +323,7 @@ public sealed partial class GuiTests
             try
             {
                 Settle(patchesWindow);
-                shown.Rows.Select(r => r.State).Should().Contain([PatchRowState.ToMatch, PatchRowState.AppliedByNote, PatchRowState.Unfixable]);
+                shown.Rows.Select(r => r.State).Should().Contain([PatchRowState.ToMatch, PatchRowState.Applied, PatchRowState.Unfixable]);
 
                 // The marks of the states, in the colors of the badges of the table, light then dark
                 var list = patchesWindow.FindControl<ListBox>("ListPatches")!;
@@ -339,7 +341,7 @@ public sealed partial class GuiTests
                 var origins = patchesWindow.FindControl<ListBox>("ListPatchOrigins")!;
                 origins.GetVisualDescendants().OfType<TextBlock>().Should().Contain(t => t.Text == "usa" && t.IsEffectivelyVisible, "its folder in the source");
 
-                // Ctrl+F, a search, Enter: the first file found is chosen, nothing is renamed
+                // Ctrl+F, a search, Enter: the first file found is chosen, nothing is recorded
                 var row = shown.SelectedRow!;
                 row.Name.Should().Be("Game (T-Fr).ips");
                 patchesWindow.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, "f");
@@ -353,12 +355,12 @@ public sealed partial class GuiTests
                 await row.FormsLoading;
                 Settle(patchesWindow);
                 row.SelectedOrigin!.Label.Should().Be("Other (World).sfc");
-                File.Exists(Path.Combine(patches, "Game (T-Fr).ips")).Should().BeTrue("Enter never renames anything");
+                row.Link.Should().BeNull("Enter never records anything");
                 shown.HasModified.Should().BeFalse();
 
                 if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
                 {
-                    // A patch renamed, to show « Undo »
+                    // A choice made, to show « Back to the automatic choice », « Undo » and the ROM written in the name
                     await shown.ApplyCommand.ExecuteAsync(null);
                     patchesWindow.Width = patchesWindow.MinWidth;
                     patchesWindow.Height = patchesWindow.MinHeight;
@@ -366,7 +368,11 @@ public sealed partial class GuiTests
                     {
                         vm.UiLocale = locale;
                         Settle(patchesWindow);
-                        foreach (var name in new[] { "BtnPatchesClose", "BtnPatchesSimulateAgain", "BtnPatchApply", "BtnPatchDetach", "BtnPatchUndo" })
+                        foreach (var name in new[]
+                        {
+                            "BtnPatchesClose", "BtnPatchesSimulateAgain", "BtnPatchApply", "BtnPatchIgnore", "BtnPatchAutomatic", "BtnPatchUndo",
+                            "BtnPatchWriteName"
+                        })
                         {
                             AssertNotTrimmed(patchesWindow.FindControl<Control>(name)!, $"{name} ({locale})");
                         }
@@ -374,7 +380,7 @@ public sealed partial class GuiTests
                         var headers = list.GetVisualDescendants().OfType<Control>()
                             .Where(c => c is Button { IsEffectivelyVisible: true } || (c is TextBlock { FontWeight: FontWeight.Bold } t && t.DataContext is PatchGroupViewModel))
                             .ToList();
-                        headers.OfType<Button>().Should().HaveCount(2, "the patches to match and those applied by a readme have an action");
+                        headers.OfType<Button>().Should().HaveCount(1, "only the patches to match have an action");
                         headers.OfType<TextBlock>().Should().HaveCount(3, "three groups have patches");
                         foreach (var control in headers)
                         {
@@ -472,11 +478,11 @@ public sealed partial class GuiTests
     }
 
     /// <summary>
-    /// An IPS applied from the CRC32 of its name: the table opens the window of the patches on it, « Stop applying to
-    /// this ROM » removes the CRC32 from its name, and « Simulate again » proposes it again among the patches left out.
+    /// An IPS applied from the CRC32 of its name: the table opens the window of the patches on it, « Do not apply this
+    /// patch » sets it aside without renaming it, and « Simulate again » no longer applies it, nor counts it left out.
     /// </summary>
     [Fact]
-    public async Task PatchesWindow_FromTheTable_ShouldStopApplyingAnIpsToItsRom()
+    public async Task PatchesWindow_FromTheTable_ShouldSetAnIpsAside()
     {
         var source = Path.Combine(_tempDir, "detach_src");
         var patches = Path.Combine(_tempDir, "detach_folder");
@@ -508,9 +514,9 @@ public sealed partial class GuiTests
             {
                 vm.Navigation.CurrentStep = WorkflowStep.Results;
                 Settle(window);
-                var link = window.FindControl<Button>("BtnPatchesToName")!;
-                link.IsEffectivelyVisible.Should().BeTrue("the banner opens the patches applied from their name");
-                window.FindControl<TextBlock>("LblPatchesToName")!.Text.Should().Be("Voir les patchs");
+                var link = window.FindControl<Button>("BtnSeePatches")!;
+                link.IsEffectivelyVisible.Should().BeTrue("without patches left out, the banner opens the patches");
+                window.FindControl<TextBlock>("LblSeePatches")!.Text.Should().Be("Voir les patchs");
 
                 vm.SelectedPreviewItem = vm.AllPreviewItems.Single(r => r.IsPatched);
                 vm.CanOpenSelectedPatch.Should().BeTrue();
@@ -528,14 +534,14 @@ public sealed partial class GuiTests
                         await Task.WhenAll(shown.Rows.Select(r => r.FormsLoading));
                         Settle(patchesWindow);
                         shown.SelectedRow!.Name.Should().Be(patchName);
-                        var detach = patchesWindow.FindControl<Button>("BtnPatchDetach")!;
-                        detach.IsEffectivelyEnabled.Should().BeTrue();
-                        ToolTip.GetShowOnDisabled(detach).Should().BeTrue();
+                        var ignore = patchesWindow.FindControl<Button>("BtnPatchIgnore")!;
+                        ignore.IsEffectivelyEnabled.Should().BeTrue();
+                        ToolTip.GetShowOnDisabled(ignore).Should().BeTrue();
                         patchesWindow.FindControl<Button>("BtnPatchApply")!.IsEffectivelyEnabled.Should().BeFalse("its name already designates that ROM");
 
-                        await shown.DetachCommand.ExecuteAsync(null);
+                        await shown.IgnoreCommand.ExecuteAsync(null);
                         Settle(patchesWindow);
-                        detach.IsEffectivelyEnabled.Should().BeFalse();
+                        ignore.IsEffectivelyEnabled.Should().BeFalse();
                         patchesWindow.FindControl<Button>("BtnPatchesSimulateAgain")!.IsEffectivelyEnabled.Should().BeTrue();
                     }
                     finally
@@ -547,9 +553,10 @@ public sealed partial class GuiTests
                 };
 
                 await vm.OpenSelectedPatchCommand.ExecuteAsync(null);
-                File.Exists(Path.Combine(patches, "Game (T-Fr).ips")).Should().BeTrue();
+                File.Exists(Path.Combine(patches, patchName)).Should().BeTrue("the patch is not renamed");
                 vm.AllPreviewItems.Should().NotContain(r => r.IsPatched, "the new simulation no longer applies the patch");
-                vm.StatsBanner.IsUnappliedPatchesVisible.Should().BeTrue("it is proposed again");
+                vm.StatsBanner.IsUnappliedPatchesVisible.Should().BeFalse("a patch set aside is not left out");
+                link.IsEffectivelyVisible.Should().BeTrue("the patch set aside is still in the window");
             }
             finally
             {

@@ -114,7 +114,10 @@ public enum PatchCrcSource
 /// A patch the user set aside (<see cref="PatchLinkKind.Ignored"/>): it gives no patched version, whatever designates its
 /// ROM, and is not counted among the patches not applied, since nothing is wrong with it.
 /// </summary>
-public sealed record IgnoredPatch(PatchFile File, PatchKey Key);
+/// <param name="File">The patch.</param>
+/// <param name="Key">Its key, to take the choice back.</param>
+/// <param name="Format">Its format, from its signature; <see langword="null"/> for a file that is no patch.</param>
+public sealed record IgnoredPatch(PatchFile File, PatchKey Key, PatchFormat? Format);
 
 /// <summary>
 /// A patch of the patch folder that gives no patched version, and why (<c>reason.patch_*</c>), with the origins it may be
@@ -134,6 +137,12 @@ public sealed record UnappliedPatch(PatchFile File, LocalizedMessage Reason)
     /// could not be read.
     /// </summary>
     public PatchKey? Key { get; init; }
+
+    /// <summary>
+    /// The format of the patch, from its signature: only an IPS or an IPS32 may be given a ROM. <see langword="null"/>
+    /// for a patch that could not be read.
+    /// </summary>
+    public PatchFormat? Format { get; init; }
 }
 
 /// <summary>

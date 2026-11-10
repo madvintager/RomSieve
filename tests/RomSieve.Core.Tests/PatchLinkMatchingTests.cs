@@ -266,17 +266,17 @@ public sealed class PatchLinkMatchingTests : IDisposable
     // A patch set aside
     // =========================================================================
 
-    public static TheoryData<string, byte[]> PatchesOfEveryKind => new()
+    public static TheoryData<string, byte[], PatchFormat?> PatchesOfEveryKind => new()
     {
-        { $"Game (T-En) [{Crc(Japan):x8}].ips", IpsDiff(Japan, Translated) },
-        { "Game (T-En).ups", Ups(Japan, Translated) },
-        { "Game (T-En).bps", BpsLinear(Japan, Translated) },
-        { "Game (T-En).ips", Ascii("not a patch at all") }
+        { $"Game (T-En) [{Crc(Japan):x8}].ips", IpsDiff(Japan, Translated), PatchFormat.Ips },
+        { "Game (T-En).ups", Ups(Japan, Translated), PatchFormat.Ups },
+        { "Game (T-En).bps", BpsLinear(Japan, Translated), PatchFormat.Bps },
+        { "Game (T-En).ips", Ascii("not a patch at all"), null }
     };
 
     [Theory]
     [MemberData(nameof(PatchesOfEveryKind))]
-    public async Task APatchSetAside_ShouldGiveNoPatchedVersion_WhateverItIs(string name, byte[] patch)
+    public async Task APatchSetAside_ShouldGiveNoPatchedVersion_WhateverItIs(string name, byte[] patch, PatchFormat? format)
     {
         var dat = WriteJapanAndUsa();
         _temp.WriteBytes($"patches/{name}", patch);
@@ -289,6 +289,7 @@ public sealed class PatchLinkMatchingTests : IDisposable
         var ignored = result.IgnoredPatches.Should().ContainSingle().Which;
         ignored.File.DisplayName.Should().Be(name);
         ignored.Key.Should().Be(PatchKey.Of(patch));
+        ignored.Format.Should().Be(format, "the window offers a ROM to an IPS only");
         result.Stats.IgnoredPatches.Should().Equal(result.IgnoredPatches);
         log.Messages.Should().Contain(m => m.Level == LogLevel.Info && m.Message.Key == "log.patch_ignored");
         log.Messages.Should().ContainSingle(m => m.Message.Key == "log.patches_summary_ignored");
@@ -341,6 +342,7 @@ public sealed class PatchLinkMatchingTests : IDisposable
         var unapplied = result.UnappliedPatches.Should().ContainSingle().Which;
         unapplied.Reason.Key.Should().Be("reason.patch_no_crc");
         unapplied.Key.Should().Be(PatchKey.Of(ips), "a choice can be recorded for it without reading it again");
+        unapplied.Format.Should().Be(PatchFormat.Ips);
         result.IgnoredPatches.Should().BeEmpty();
         log.Messages.Should().ContainSingle(m => m.Message.Key == "log.patches_summary");
         File.Exists(_services.PatchLinks.FilePath).Should().BeFalse("a simulation writes no choice");
