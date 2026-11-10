@@ -55,8 +55,9 @@ convention, filters, 1G1R and folder in the destination. Only the DATs the sourc
 ROM is identified in your collection gives a patched version, written next to the original, or in a folder of its
 own, while the original is never modified.
 UPS and BPS patches are matched by the checksum they record, IPS patches by the CRC32 in their name or in their readme,
-with or without a copier header. For an IPS that gives none, the Patches window proposes ROMs from its name, or lets you
-search one, and writes its CRC32 in the name of the patch. A translation of a Japanese release is applied even when 1G1R
+with or without a copier header. The Patches window shows every patch: choose the ROM of an IPS that gives none (from
+the ROMs its name proposes, or a search), or set aside a patch you do not want. RomSieve remembers your choices, and
+your patch files are only renamed if you ask for it. A translation of a Japanese release is applied even when 1G1R
 keeps another release, and you can write the patched versions only.
 
 **Safe file operations.** RomSieve can copy, move, create hard links or symbolic links, or write one TorrentZip archive per game,
@@ -79,7 +80,7 @@ romsieve-cli run --report report.json --miss-list missing.txt
 romsieve-cli run --profile "Amiga 1G1R" --execute
 romsieve-cli run --dat /dats/No-Intro --dat-recursive --execute
 romsieve-cli run --patches /roms/patches --patch-only --execute
-romsieve-cli patches --patches /roms/patches --name-from-notes --yes
+romsieve-cli patches --patches /roms/patches --link "Game (T-Fr).ips" --rom "Game (Japan).sfc" --yes
 romsieve-cli undo --yes
 ```
 

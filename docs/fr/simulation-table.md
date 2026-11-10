@@ -104,7 +104,8 @@ décochée pendant ce filtre reste affichée, pour pouvoir la recocher, jusqu'au
 Avec un [dossier des patchs](patches.md), la pastille **Patchées** compte les versions patchées ; cliquez dessus pour
 n'afficher qu'elles (elle se combine avec les autres). À droite, « *n* patchs non appliqués » compte les patchs qui
 n'ont donné aucune version patchée, et son infobulle les nomme avec leurs raisons ; un clic ouvre la fenêtre **Patchs**,
-qui écrit dans le nom d'un IPS le CRC32 de sa ROM (voir [Nommer un IPS](patches.md#nommer-un-ips)).
+où vous choisissez la ROM d'un IPS ou écartez un patch (voir [La liste des patchs](patches.md#la-liste-des-patchs)).
+Sans patch non appliqué, **Voir les patchs** ouvre la même fenêtre.
 
 Avec un DAT, le bandeau affiche aussi la **Complétude** de votre collection (ROMs du DAT trouvées / total). Avec un
 lot de DAT, elle réunit tous ses DAT, et son info-bulle détaille chaque DAT où un jeu a été trouvé, puis compte les

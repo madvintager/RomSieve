@@ -76,6 +76,7 @@ sudo pacman -S libx11 libice libsm fontconfig icu openssl
 |---|---|---|
 | Settings (`config.json`) | `%APPDATA%\RomSieve\` | `~/.config/RomSieve/` (or `$XDG_CONFIG_HOME/RomSieve/`) |
 | Named profiles (`profiles/*.json`) | `%APPDATA%\RomSieve\profiles\` | `~/.config/RomSieve/profiles/` |
+| Your choices for the patches (`patch_links.json`) | `%APPDATA%\RomSieve\` | `~/.config/RomSieve/` |
 | Journals of the sorts (`journals/`) | `%APPDATA%\RomSieve\journals\` | `~/.config/RomSieve/journals/` |
 | Logs of the runs (`logs/`) | `%APPDATA%\RomSieve\logs\` | `~/.config/RomSieve/logs/` |
 | Crash reports (`crashes/`) | `%APPDATA%\RomSieve\crashes\` | `~/.config/RomSieve/crashes/` |
@@ -90,6 +91,8 @@ sudo pacman -S libx11 libice libsm fontconfig icu openssl
   longer be undone.
 * The **logs of the runs** keep every line of the log of each simulation, sort or undo started from the interface,
   whose panel only shows the last ones; the end of the run gives the path of its file. RomSieve keeps the last 20.
+* Your **choices for the patches** (the ROM of an IPS, a patch set aside) are made in the
+  [Patches](patches.md#your-choices) window or with `romsieve-cli patches`, and apply to every profile.
 * The **crash reports** are only written after an unexpected error (see [Troubleshooting](troubleshooting.md#reporting-a-problem)).
   You can delete them at any time.
 * The **checksum cache** remembers the CRC32 of each file (invalidated when the file changes), so that a second

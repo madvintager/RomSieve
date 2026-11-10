@@ -78,6 +78,7 @@ sudo pacman -S libx11 libice libsm fontconfig icu openssl
 |---|---|---|
 | Réglages (`config.json`) | `%APPDATA%\RomSieve\` | `~/.config/RomSieve/` (ou `$XDG_CONFIG_HOME/RomSieve/`) |
 | Profils nommés (`profiles/*.json`) | `%APPDATA%\RomSieve\profiles\` | `~/.config/RomSieve/profiles/` |
+| Vos choix pour les patchs (`patch_links.json`) | `%APPDATA%\RomSieve\` | `~/.config/RomSieve/` |
 | Journaux des tris (`journals/`) | `%APPDATA%\RomSieve\journals\` | `~/.config/RomSieve/journals/` |
 | Journaux des exécutions (`logs/`) | `%APPDATA%\RomSieve\logs\` | `~/.config/RomSieve/logs/` |
 | Rapports d'erreur (`crashes/`) | `%APPDATA%\RomSieve\crashes\` | `~/.config/RomSieve/crashes/` |
@@ -93,6 +94,8 @@ sudo pacman -S libx11 libice libsm fontconfig icu openssl
 * Les **journaux des exécutions** gardent toutes les lignes du journal de chaque simulation, tri ou annulation lancé
   depuis l'interface, dont le panneau ne montre que les dernières ; la fin de l'exécution donne le chemin de son
   fichier. RomSieve garde les 20 derniers.
+* Vos **choix pour les patchs** (la ROM d'un IPS, un patch écarté) sont faits dans la fenêtre
+  [Patchs](patches.md#vos-choix) ou par `romsieve-cli patches`, et valent pour tous les profils.
 * Les **rapports d'erreur** ne sont écrits qu'après une erreur inattendue (voir [Dépannage](troubleshooting.md)).
   Vous pouvez les supprimer à tout moment.
 * Le **cache des sommes de contrôle** mémorise le CRC32 de chaque fichier (invalidé si le fichier change) : une

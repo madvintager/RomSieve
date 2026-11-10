@@ -22,10 +22,11 @@ RomSieve manipule des collections de plusieurs téraoctets. Il est conçu pour q
   font exprès certaines archives trouvées sur Internet. Un tel fichier est en erreur dès la simulation, avec la raison
   « Non écrit : le nom … est dangereux ou invalide », et rien n'est écrit pour lui ni pour les autres fichiers de son
   jeu ; les autres fichiers sont triés comme d'habitude. Chaque cible est encore vérifiée juste avant d'être écrite.
-  Seule exception, hors de tout tri : la fenêtre **Patchs** renomme les IPS du dossier des patchs sur lesquels vous
-  cliquez **Appliquer à cette ROM** ou **Ne plus appliquer à cette ROM**, et **Annuler** leur rend leur ancien nom (voir
-  [Nommer un IPS](patches.md#nommer-un-ips)). Rien d'autre n'y change : ni le contenu des patchs, ni les archives, ni un
-  fichier déjà présent.
+  Seule exception, hors de tout tri : la fenêtre **Patchs** renomme l'IPS du dossier des patchs sur lequel vous
+  cliquez **Écrire la ROM dans le nom du fichier (pour d'autres outils)**, et **Annuler** lui rend son ancien nom (voir
+  [Vos choix](patches.md#vos-choix)). Rien d'autre n'y change : ni le contenu des patchs, ni les archives, ni un
+  fichier déjà présent. Vos autres choix pour les patchs ne modifient aucun fichier : ils sont gardés à côté des
+  réglages.
 * **Une purge ne supprime rien** (voir ci-dessous).
 * **Un tri interrompu ne laisse aucun fichier partiel** : **Arrêter** (le bouton **Simuler (Dry-Run)** pendant une
   exécution) supprime le fichier en cours d'écriture, même au milieu d'une grosse copie. Un fichier s'écrit sous un nom

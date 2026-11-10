@@ -13,7 +13,7 @@ and only **simulates** unless you add `--execute`.
 | `romsieve-cli dat` | Writes the filtered DAT of the catalog (`--output`), without reading the source |
 | `romsieve-cli quarantine` | Shows the quarantine of the purges of the destination; empties it with `--empty --yes` |
 | `romsieve-cli profiles` | Lists the saved profiles |
-| `romsieve-cli patches` | Simulates the sort and lists its [patches](patches.md): not applied, with the ROMs proposed, and IPS applied thanks to their readme; with `--name-from-notes --yes`, writes the CRC32 in the name of the latter |
+| `romsieve-cli patches` | Simulates the sort and lists its [patches](patches.md): not applied, with the ROMs proposed, applied, with their ROM, and set aside; saves your choices (`--link --rom`, `--ignore`, `--auto`, with `--yes`); with `--name-from-notes --yes`, writes the CRC32 in the name of the IPS applied thanks to their readme |
 | `romsieve-cli --help` | Shows the help (also `run --help`...) |
 | `romsieve-cli --version` | Shows the version |
 
@@ -46,13 +46,18 @@ romsieve-cli run --dat "No-Intro Love Pack (PC XML).zip" --dat-only "Nintendo - 
 romsieve-cli run --execute --append
 romsieve-cli run --execute --purge --yes
 
-# The patches of a simulation, then the CRC32 written in the name of the IPS applied thanks to their readme
+# The patches of a simulation
 romsieve-cli patches --patches /roms/patches
+
+# Apply an IPS to a ROM, set a patch aside, then forget that choice
+romsieve-cli patches --patches /roms/patches --link "Game (T-Fr).ips" --rom "Game (Japan).sfc"   # shows the choice
+romsieve-cli patches --patches /roms/patches --link "Game (T-Fr).ips" --rom "Game (Japan).sfc" --yes
+romsieve-cli patches --patches /roms/patches --ignore "Game (Hack).bps" --yes
+romsieve-cli patches --patches /roms/patches --auto "Game (Hack).bps" --yes
+
+# The CRC32 written in the name of the IPS applied thanks to their readme, for other tools
 romsieve-cli patches --patches /roms/patches --name-from-notes          # shows the new names
 romsieve-cli patches --patches /roms/patches --name-from-notes --yes    # renames
-
-# Stop applying an IPS to the ROM its name designates, so that it is proposed again
-romsieve-cli patches --patches /roms/patches --detach "Game (T-Fr) [47e70e08].ips" --yes
 
 # Undo the last real sort
 romsieve-cli undo           # shows what would be undone
@@ -95,14 +100,20 @@ sort. It applies the patches even when **Apply the patches** is unchecked in the
 
 | Option | Role |
 |---|---|
-| `--name-from-notes` | Shows the name each IPS applied thanks to its readme would take, with the CRC32 of its ROM (`Hack.ips` becomes `Hack [47e70e08].ips`). An IPS stored in an archive is not renamed |
-| `--detach <patch>` | Stop applying this IPS, applied from its name, to its ROM: shows the name it would take without the CRC32 that designates it (`Game (T-Fr) [47e70e08].ips` becomes `Game (T-Fr).ips`), so that the next simulation proposes it again. The patch is named by its name or its path in the folder of the patches, case ignored; repeatable. A name no IPS applied from its name has is refused (code 2), with the names possible |
-| `-y`, `--yes` | With `--name-from-notes` or `--detach`, renames these IPS in the folder of the patches. Without it, the exit code is 6 |
+| `--link <patch>` | Applies this IPS to the ROM `--rom` gives, whatever its name and its readme say (see [Choosing the ROM of a patch](patches.md#choosing-the-rom-of-a-patch)). One per command; refused for a UPS or a BPS, which designates its own ROM (code 2) |
+| `--rom <ROM>` | The ROM of `--link`: its name, or the CRC32 of the form the patch was made for (8 hexadecimal digits). A ROM with a copier header has two forms: its name is refused (code 2), with its two CRC32 |
+| `--ignore <patch>` | Sets this patch aside, whatever its format: the next simulation does not apply it (see [Not applying a patch](patches.md#not-applying-a-patch)). Repeatable |
+| `--auto <patch>` | Forgets your choice for this patch: it applies again from what it records, its name or its readme. Repeatable; refused for a patch without a choice (code 2) |
+| `--name-from-notes` | Shows the name each IPS applied thanks to its readme would take, with the CRC32 of its ROM (`Hack.ips` becomes `Hack [47e70e08].ips`), for other tools. An IPS stored in an archive is not renamed. Does not go with the choices (code 2) |
+| `-y`, `--yes` | Saves the choices, or renames the IPS of `--name-from-notes`. Without it, the command shows what it would do, and the exit code is 6 |
 
-The list gives, for each patch not applied, its reason and, for an IPS without CRC32, the ROMs proposed from its name
-with the name it would take. A ROM proposed is never taken on its own: rename the patch yourself, or choose its ROM in
-the **Patches** window of the interface (see [Naming an IPS](patches.md#naming-an-ips)). A renaming refused (a name
-already taken, for example) gives the code 4.
+The list gives, for each patch not applied, its reason and the ROMs proposed for an IPS; for each patch applied, its
+ROM and what designates it (the patch itself, its name, its readme or your choice); then the patches set aside. A ROM
+proposed is never taken on its own: choose it with `--link --rom`, or in the **Patches** window of the interface. A
+patch is named by its path in the folder of the patches or by its name, case ignored; an unknown patch, a name several
+patches have, a patch that cannot be read or named twice are refused (code 2), and nothing is saved. Your choices go to
+`patch_links.json`, next to the settings file in use (`--config`): no file of a patch is changed. A choice that cannot
+be saved, or a renaming refused (a name already taken, for example), gives the code 4.
 
 ## Options of `run`
 
@@ -165,7 +176,7 @@ When the patches are applied, a line of the summary counts the patched versions 
   `--purge --yes` purges the destination even when this option is checked.
 * `undo` only shows the sort to undo until `--yes` is added. After an incomplete undo (a locked file, an occupied
   original place), `undo --yes` resumes the operations left only.
-* `patches --name-from-notes` and `patches --detach` rename nothing without `--yes`, and only touch the name of the IPS
+* `patches` saves no choice and renames nothing without `--yes`; `--name-from-notes` only touches the name of the IPS
   of the folder of the patches.
 * `quarantine --empty` requires `--yes`, and only touches the quarantine of a destination marked by RomSieve: the
   deleted content can no longer be put back by undoing the sorts that purged it.
@@ -177,11 +188,11 @@ When the patches are applied, a line of the summary counts the patched versions 
 |---|---|
 | 0 | Success |
 | 1 | Unexpected error (a crash report is saved in `crashes/` next to the settings, and its path printed) |
-| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT, unsupported export format, `dat --output` over the DAT read, `patches --detach` of a patch that is not an IPS applied from its name, `--no-patches` with `--patches`) |
+| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT, unsupported export format, `dat --output` over the DAT read, `patches --link` without `--rom`, of a UPS or a BPS, or of an unknown, ambiguous or two-form ROM, `patches` of an unknown or ambiguous patch, `--auto` without a saved choice, `--name-from-notes` with a choice, `--no-patches` with `--patches`) |
 | 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder or archive of DATs refused, overlapping folders, pattern that starts with `_purged` or `.romsieve`, folder of the patched versions that would leave the destination) |
 | 4 | Finished, but some files are in error (including a sort stopped by a full destination or a journal that cannot be written), an export failed (or `dat` kept no game), some operations could not be undone or some items of the quarantine could not be deleted |
 | 5 | Cancelled (Ctrl+C) |
-| 6 | Confirmation required (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, `quarantine --empty`, `patches --name-from-notes` or `patches --detach` without `--yes`) |
+| 6 | Confirmation required (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, `quarantine --empty`, `patches --link`, `--ignore`, `--auto` or `--name-from-notes` without `--yes`) |
 | 7 | Nothing to undo |
 
 For instance, in a script:

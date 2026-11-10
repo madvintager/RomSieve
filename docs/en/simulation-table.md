@@ -100,8 +100,9 @@ shown, so that you can check it again, until the next change of filter.
 
 With a [folder of the patches](patches.md), the **Patched** chip counts the patched versions; click it to show them
 alone (it combines with the others). On the right, "*n* patches not applied" counts the patches that gave no patched
-version, and its tooltip names them with their reasons; a click opens the **Patches** window, which writes in the name
-of an IPS the CRC32 of its ROM (see [Naming an IPS](patches.md#naming-an-ips)).
+version, and its tooltip names them with their reasons; a click opens the **Patches** window, where you choose the ROM
+of an IPS or set a patch aside (see [The Patches window](patches.md#the-patches-window)). Without patches left out,
+**View the patches** opens the same window.
 
 With a DAT, the banner also shows the **Completion** of your collection (ROMs of the DAT found / total). With a lot of
 DATs, it gathers all its DATs, and its tooltip details each DAT with a game found, then counts the others.
