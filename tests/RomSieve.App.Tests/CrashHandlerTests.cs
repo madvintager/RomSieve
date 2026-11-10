@@ -183,7 +183,7 @@ public sealed class CrashHandlerTests : IDisposable
 
         public Task<bool> ShowDatLotAsync(DatLotViewModel lot) => Task.FromResult(false);
 
-        public Task<bool> ShowPatchesAsync(PatchesViewModel patches) => Task.FromResult(false);
+        public Task ShowPatchesAsync(PatchesViewModel patches) => Task.CompletedTask;
     }
 
     private sealed class FailingDialogService : IDialogService
@@ -212,6 +212,6 @@ public sealed class CrashHandlerTests : IDisposable
 
         public Task<bool> ShowDatLotAsync(DatLotViewModel lot) => Task.FromResult(false);
 
-        public Task<bool> ShowPatchesAsync(PatchesViewModel patches) => Task.FromResult(false);
+        public Task ShowPatchesAsync(PatchesViewModel patches) => Task.CompletedTask;
     }
 }

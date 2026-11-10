@@ -282,15 +282,15 @@ public sealed class AvaloniaDialogService(Func<Window?> ownerProvider) : IDialog
         return await new DatLotWindow { DataContext = lot }.ShowDialog<bool>(owner);
     }
 
-    public async Task<bool> ShowPatchesAsync(PatchesViewModel patches)
+    public async Task ShowPatchesAsync(PatchesViewModel patches)
     {
         var owner = ownerProvider();
         if (owner is null || !owner.IsVisible)
         {
-            return false;
+            return;
         }
 
-        return await new PatchesWindow { DataContext = patches }.ShowDialog<bool>(owner);
+        await new PatchesWindow { DataContext = patches }.ShowDialog(owner);
     }
 
     public async Task OpenUrlAsync(string url)

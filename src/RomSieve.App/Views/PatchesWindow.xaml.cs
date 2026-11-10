@@ -7,8 +7,8 @@ using RomSieve.App.ViewModels;
 namespace RomSieve.App.Views;
 
 /// <summary>
-/// The patches of the last run (<see cref="PatchesViewModel"/>): the renamings happen in the window, which returns true
-/// for « Close and simulate again », false for Close, Escape or the close button.
+/// The patches of the last run (<see cref="PatchesViewModel"/>): the choices and the new simulations happen in the window.
+/// It closes by Close, Escape or the close button, never while a simulation it started runs.
 /// </summary>
 public partial class PatchesWindow : Window
 {
@@ -32,7 +32,16 @@ public partial class PatchesWindow : Window
         base.OnKeyDown(e);
     }
 
-    private void OnSimulateAgainClick(object? sender, RoutedEventArgs e) => Close(true);
+    /// <summary>A simulation the window started is waited for: its results go to the window.</summary>
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        if (DataContext is PatchesViewModel { IsSimulating: true })
+        {
+            e.Cancel = true;
+        }
 
-    private void OnCloseClick(object? sender, RoutedEventArgs e) => Close(false);
+        base.OnClosing(e);
+    }
+
+    private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 }

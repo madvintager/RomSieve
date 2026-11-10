@@ -45,6 +45,12 @@ public sealed partial class GuiTests
                 vm.Directories.PatchDir = Path.Combine(_tempDir, "patches");
                 Settle(window);
                 option.IsEffectivelyEnabled.Should().BeTrue();
+
+                // The window of the patches opens from the card once a simulation found patches
+                var manage = window.FindControl<Button>("BtnManagePatches")!;
+                manage.Command.Should().BeSameAs(vm.Patches.OpenCommand);
+                manage.IsEffectivelyEnabled.Should().BeFalse("no simulation found patches yet");
+                ToolTip.GetShowOnDisabled(manage).Should().BeTrue("its tooltip says when it opens");
                 option.IsChecked = true;
                 vm.Directories.PatchOnly.Should().BeTrue();
 
@@ -55,6 +61,7 @@ public sealed partial class GuiTests
                 Settle(window);
                 vm.Directories.ApplyPatches.Should().BeFalse();
                 option.IsEffectivelyEnabled.Should().BeFalse("nothing patched is written while the patches are off");
+                manage.IsEnabled.Should().BeFalse("no patch is read while the patches are off");
                 option.IsChecked.Should().BeTrue("the option keeps its value");
                 window.FindControl<TextBox>("EditPatchDir")!.IsEffectivelyEnabled.Should().BeTrue();
                 window.FindControl<TextBox>("EditPatchedPattern")!.IsEffectivelyEnabled.Should().BeFalse();
@@ -170,7 +177,7 @@ public sealed partial class GuiTests
 
     /// <summary>
     /// An IPS without CRC32: the banner opens the window of the patches, the ROM proposed is recorded for the patch,
-    /// which keeps its name, and « Simulate again » applies it. The texts of the window are not cut in any language at its minimum
+    /// which keeps its name, and « Simulate again » applies it, the window open on its results. The texts of the window are not cut in any language at its minimum
     /// size (measured with the real fonts only, ROMSIEVE_HEADLESS_SKIA=1).
     /// </summary>
     [Fact]
@@ -255,13 +262,24 @@ public sealed partial class GuiTests
                         patchesWindow.FindControl<Button>("BtnPatchAutomatic")!.IsEffectivelyVisible.Should().BeTrue();
                         patchesWindow.FindControl<Button>("BtnPatchWriteName")!.IsEffectivelyVisible.Should().BeTrue("for other tools");
                         patchesWindow.FindControl<TextBlock>("LblPatchesModified")!.Text.Should().Be("1 patch modifié");
+
+                        // A new simulation, the window open: it shows its results, on the same patch
+                        var row = shown.SelectedRow!;
+                        await shown.SimulateAgainCommand.ExecuteAsync(null);
+                        Settle(patchesWindow);
+                        patchesWindow.IsVisible.Should().BeTrue("the window stays open");
+                        shown.SelectedRow.Should().NotBeSameAs(row, "the window shows the new simulation");
+                        shown.SelectedRow!.Name.Should().Be("Game (T-Fr).ips");
+                        shown.SelectedRow.Source.Should().Be(PatchCrcSource.Link);
+                        shown.SelectedRow.HasPatchedName.Should().BeTrue();
+                        again.IsEffectivelyEnabled.Should().BeFalse("nothing is left to simulate");
+                        patchesWindow.FindControl<TextBlock>("LblPatchesModified")!.Text.Should().BeEmpty();
+                        vm.AllPreviewItems.Should().ContainSingle(r => r.IsPatched, "the table shows the new simulation too");
                     }
                     finally
                     {
                         patchesWindow.Close();
                     }
-
-                    return true;
                 };
 
                 await vm.Patches.OpenCommand.ExecuteAsync(null);
@@ -479,7 +497,8 @@ public sealed partial class GuiTests
 
     /// <summary>
     /// An IPS applied from the CRC32 of its name: the table opens the window of the patches on it, « Do not apply this
-    /// patch » sets it aside without renaming it, and « Simulate again » no longer applies it, nor counts it left out.
+    /// patch » sets it aside without renaming it, and closing the window simulates again, which no longer applies it, nor
+    /// counts it left out.
     /// </summary>
     [Fact]
     public async Task PatchesWindow_FromTheTable_ShouldSetAnIpsAside()
@@ -520,9 +539,12 @@ public sealed partial class GuiTests
 
                 vm.SelectedPreviewItem = vm.AllPreviewItems.Single(r => r.IsPatched);
                 vm.CanOpenSelectedPatch.Should().BeTrue();
+                vm.OpenSelectedPatchText.Should().Be("Changer la ROM de ce patch…");
+                vm.CanIgnoreSelectedPatch.Should().BeTrue();
                 vm.CanOpenPreviewContextMenu.Should().BeTrue();
                 vm.SelectedPreviewItem = vm.AllPreviewItems.Single(r => !r.IsPatched);
                 vm.CanOpenSelectedPatch.Should().BeFalse("only a patched version has a patch");
+                vm.CanIgnoreSelectedPatch.Should().BeFalse();
                 vm.SelectedPreviewItem = vm.AllPreviewItems.Single(r => r.IsPatched);
 
                 dialogs.OnShowPatches = async shown =>
@@ -546,10 +568,9 @@ public sealed partial class GuiTests
                     }
                     finally
                     {
+                        // Closed with a choice not simulated yet: the simulation runs again
                         patchesWindow.Close();
                     }
-
-                    return true;
                 };
 
                 await vm.OpenSelectedPatchCommand.ExecuteAsync(null);

@@ -119,7 +119,7 @@ public sealed partial class GuiTests : IDisposable
 
         public Task<bool> ShowDatLotAsync(DatLotViewModel lot) => Task.FromResult(false);
 
-        public Task<bool> ShowPatchesAsync(PatchesViewModel patches) => Task.FromResult(false);
+        public Task ShowPatchesAsync(PatchesViewModel patches) => Task.CompletedTask;
     }
 
     // =========================================================================
@@ -2152,14 +2152,17 @@ public sealed partial class GuiTests : IDisposable
             var menuReset = (MenuItem)items[1];
             var menuClearAll = (MenuItem)items[2];
             var menuOpenPatch = (MenuItem)items[3];
-            var separator = (Separator)items[4];
-            var menuIsolate = (MenuItem)items[5];
-            var menuClearFilter = (MenuItem)items[6];
+            var menuIgnorePatch = (MenuItem)items[4];
+            var separator = (Separator)items[5];
+            var menuIsolate = (MenuItem)items[6];
+            var menuClearFilter = (MenuItem)items[7];
 
             // When Row 0 is selected (no override, no filter):
             vm.SelectedPreviewItem = vm.AllPreviewItems[0];
             menuOpenPatch.Name.Should().Be("MenuOpenPatch");
             menuOpenPatch.IsVisible.Should().BeFalse("the row is not a patched version");
+            menuIgnorePatch.Name.Should().Be("MenuIgnorePatch");
+            menuIgnorePatch.IsVisible.Should().BeFalse("the row is not a patched version");
             menuForce.IsVisible.Should().BeTrue();
             menuReset.IsVisible.Should().BeFalse();
             menuClearAll.IsVisible.Should().BeFalse();

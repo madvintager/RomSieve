@@ -59,9 +59,8 @@ public interface IDialogService
     Task<bool> ShowDatLotAsync(DatLotViewModel lot);
 
     /// <summary>
-    /// Shows the patches of the last run (left out, or applied thanks to their readme), and returns once the window is
-    /// closed: true when the user asks for a new simulation, false otherwise (or for a window that could not be shown).
-    /// The renamings happen in the window.
+    /// Shows the patches of the last run, and returns once the window is closed (at once for a window that could not be
+    /// shown). The choices, and the simulations they call for, happen in the window.
     /// </summary>
-    Task<bool> ShowPatchesAsync(PatchesViewModel patches);
+    Task ShowPatchesAsync(PatchesViewModel patches);
 }

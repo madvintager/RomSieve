@@ -69,8 +69,9 @@ public sealed partial class PatchBatchEntryViewModel(PatchesViewModel owner, Pat
 /// (<see cref="IPatchLinkService"/>), « Back to the automatic choice » forgets it: none changes a file. « Write the ROM in
 /// the file name » renames an IPS of the disk for other tools (<see cref="IPatchNamingService"/>). « Undo » takes back
 /// the last change of the patch selected. A suggestion is never taken alone: nothing is recorded without a click, and the
-/// summary of « Accept all the suggestions » checks nothing beforehand. « Close and simulate again » runs a new
-/// simulation, which follows the choices.
+/// summary of « Accept all the suggestions » checks nothing beforehand. « Simulate again » runs a new simulation, which
+/// follows the choices, and shows its results in the window, which stays open; closing the window with choices not
+/// simulated yet simulates again too, so that the table always shows what the choices give.
 /// </summary>
 public sealed partial class PatchesViewModel : ViewModelBase
 {
@@ -162,23 +163,36 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
     private bool CanOpen() => !_isRunning() && CountPatches() > 0;
 
-    /// <summary>Opens the window on the last run; closed by « Close and simulate again », runs a new simulation.</summary>
+    /// <summary>Opens the window on the last run, from the banner or the Collection step.</summary>
     [RelayCommand(CanExecute = nameof(CanOpen))]
     private async Task OpenAsync()
     {
         Load();
-        if (await _dialogService.ShowPatchesAsync(this) && !_isRunning())
+        await ShowAsync();
+    }
+
+    /// <summary>
+    /// Shows the window, then simulates again when choices made in it are not simulated yet: the table always shows
+    /// what the choices give, as the sort would.
+    /// </summary>
+    private async Task ShowAsync()
+    {
+        await _dialogService.ShowPatchesAsync(this);
+        if (HasModified && !_isRunning())
         {
             await _simulate();
         }
     }
 
+    /// <summary>Whether the window can open on the patch of a patched version, whatever its format.</summary>
+    public bool CanOpenFor(PatchedVersion? version) => version is not null && !_isRunning();
+
     /// <summary>
-    /// Whether the window can change the ROM of the patch of a patched version: an IPS, wherever it lies. A UPS or a BPS
-    /// records its ROM, which nothing can change.
+    /// The entry of the context menu of the table for a patched version: the ROM of an IPS may change; a UPS or a BPS
+    /// records its own, and is only shown.
     /// </summary>
-    public bool CanOpenFor(PatchedVersion? version) =>
-        version is not null && !_isRunning() && version.Format is PatchFormat.Ips or PatchFormat.Ips32;
+    public string OpenForLabel(PatchedVersion? version) =>
+        Tr(version?.Format is PatchFormat.Ups or PatchFormat.Bps ? "panel4.ctx_show_patch" : "panel4.ctx_open_patch");
 
     /// <summary>Opens the window on the patch of a patched version of the table, selected.</summary>
     public async Task OpenForAsync(PatchedVersion? version)
@@ -190,9 +204,78 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
         Load();
         SelectedRow = Rows.FirstOrDefault(r => r.File == version.File) ?? SelectedRow;
-        if (await _dialogService.ShowPatchesAsync(this) && !_isRunning())
+        await ShowAsync();
+    }
+
+    /// <summary>Whether the patch of a patched version can be set aside from the table.</summary>
+    public bool CanIgnoreFor(PatchedVersion? version) => version is { Key.Sha1: not null } && !_isRunning() && !IsBusy;
+
+    /// <summary>
+    /// Sets aside the patch of a patched version of the table, then simulates again, so that the table no longer shows
+    /// it. The window of the patches takes it back (« Back to the automatic choice »).
+    /// </summary>
+    public async Task IgnoreForAsync(PatchedVersion? version)
+    {
+        if (version is null || !CanIgnoreFor(version))
+        {
+            return;
+        }
+
+        var link = PatchLink.Ignore(version.File.DisplayName);
+        IsBusy = true;
+        try
+        {
+            if (!await _links.UpdateAsync([new(version.Key, link)], _log))
+            {
+                return;
+            }
+
+            LogChoice(version.File.DisplayName, link);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+
+        await _simulate();
+    }
+
+    // -------------------------------------------------------------------------
+    // Simulating again, the window open
+    // -------------------------------------------------------------------------
+
+    /// <summary>A simulation started by the window runs: every action waits for it.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ModifiedText))]
+    private bool _isSimulating;
+
+    private bool CanSimulateAgain() => HasModified && !IsBusy && !_isRunning();
+
+    /// <summary>
+    /// Runs the simulation again, which follows the choices made, and shows its results in the window, which stays open
+    /// on the same patch.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanSimulateAgain))]
+    private async Task SimulateAgainAsync()
+    {
+        var selected = SelectedRow;
+        IsBusy = true;
+        IsSimulating = true;
+        try
         {
             await _simulate();
+        }
+        finally
+        {
+            IsSimulating = false;
+            IsBusy = false;
+        }
+
+        Load();
+        if (selected is not null)
+        {
+            // The same patch, known by its content; a patch that could not be read, by its file
+            SelectedRow = Rows.FirstOrDefault(r => selected.Key is { } key ? r.Key == key : r.File == selected.File) ?? SelectedRow;
         }
     }
 
@@ -483,7 +566,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(CanSearch))]
     [NotifyCanExecuteChangedFor(
         nameof(ApplyCommand), nameof(IgnoreCommand), nameof(RestoreAutomaticCommand), nameof(WriteNameCommand), nameof(UndoCommand),
-        nameof(ApplyBatchCommand), nameof(OpenBatchCommand))]
+        nameof(ApplyBatchCommand), nameof(OpenBatchCommand), nameof(SimulateAgainCommand))]
     private bool _isBusy;
 
     private bool CanApply() => !IsBusy && SelectedRow is { CanApply: true };
@@ -588,7 +671,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
             }
             else
             {
-                Choice(row, row.LinkBeforeLastChange);
+                LogChoice(row.Name, row.LinkBeforeLastChange);
                 row.Undone();
             }
         }
@@ -614,7 +697,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
                     continue;
                 }
 
-                Choice(row, link);
+                LogChoice(row.Name, link);
                 row.Chosen(link, origin);
             }
         }
@@ -643,10 +726,10 @@ public sealed partial class PatchesViewModel : ViewModelBase
     }
 
     /// <summary>A line of the log for each choice recorded, so that the log says what changed.</summary>
-    private void Choice(PatchRowViewModel row, PatchLink? link) =>
+    private void LogChoice(string patchName, PatchLink? link) =>
         _log(LogLevel.Info, LocalizedMessage.Create(
             "log.patch_choice",
-            ("name", row.Name),
+            ("name", patchName),
             ("choice", link?.Kind switch
             {
                 PatchLinkKind.Origin => LocalizedMessage.Create("patches.choice_origin", ("origin", link.OriginName ?? string.Empty)),
@@ -748,18 +831,22 @@ public sealed partial class PatchesViewModel : ViewModelBase
     // The footer
     // -------------------------------------------------------------------------
 
-    /// <summary>Patches whose choice or name changed since the window opened.</summary>
+    /// <summary>Patches whose choice or name changed since the window opened, or since its last simulation.</summary>
     public int ModifiedCount => Rows.Count(r => r.IsModified);
 
     public bool HasModified => ModifiedCount > 0;
 
-    public string ModifiedText => HasModified ? _localization.Format(LocalizedMessage.Count("patches.modified", ModifiedCount)) : string.Empty;
+    public string ModifiedText =>
+        IsSimulating ? Tr("patches.simulating")
+        : HasModified ? _localization.Format(LocalizedMessage.Count("patches.modified", ModifiedCount))
+        : string.Empty;
 
     private void NotifyFooter()
     {
         OnPropertyChanged(nameof(ModifiedCount));
         OnPropertyChanged(nameof(HasModified));
         OnPropertyChanged(nameof(ModifiedText));
+        SimulateAgainCommand.NotifyCanExecuteChanged();
     }
 
     // -------------------------------------------------------------------------

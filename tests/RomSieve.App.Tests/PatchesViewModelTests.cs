@@ -586,16 +586,41 @@ public sealed class PatchesViewModelTests : IDisposable
         var ips = versions.Single(p => p.Format == PatchFormat.Ips);
         var bps = versions.Single(p => p.Format == PatchFormat.Bps);
 
-        window.CanOpenFor(bps).Should().BeFalse("a BPS records its ROM, which nothing can change");
         window.CanOpenFor(null).Should().BeFalse();
         window.CanOpenFor(ips).Should().BeTrue();
+        window.OpenForLabel(ips).Should().Be("Changer la ROM de ce patch…");
+        window.CanOpenFor(bps).Should().BeTrue("the window shows every patch");
+        window.OpenForLabel(bps).Should().Be("Voir ce patch…", "a BPS records its ROM, which nothing can change");
         _dialogs.OnShowPatches = shown =>
         {
             shown.SelectedRow!.Name.Should().Be($"Game (T-En) [{Crc(Usa):x8}].ips");
-            return Task.FromResult(false);
+            return Task.CompletedTask;
         };
         await window.OpenForAsync(ips);
         _dialogs.ShownPatches.Should().ContainSingle();
+        _simulations.Should().Be(1, "nothing changed in the window");
+    }
+
+    [Fact]
+    public async Task APatchSetAsideFromTheTable_ShouldLeaveTheNextSimulation()
+    {
+        WriteJapanAndUsa();
+        var bps = BpsLinear(Usa, Translate(Usa));
+        _temp.WriteBytes("patches/Other.bps", bps);
+        await SimulateAsync();
+        var window = CreateWindow();
+        var version = PatchedVersion();
+        window.CanIgnoreFor(version).Should().BeTrue();
+        window.CanIgnoreFor(null).Should().BeFalse();
+
+        await window.IgnoreForAsync(version);
+
+        LinkOf(bps)!.Kind.Should().Be(PatchLinkKind.Ignored);
+        _simulations.Should().Be(2, "the table shows the patch set aside at once");
+        _result!.Items.Should().NotContain(it => it.Patch != null);
+        _result.IgnoredPatches.Should().ContainSingle();
+        _log.Should().Contain(l => l.Message.Key == "log.patch_choice");
+        CreateWindow(isRunning: () => true).CanIgnoreFor(version).Should().BeFalse("nothing changes during a run");
     }
 
     [Fact]
@@ -615,18 +640,32 @@ public sealed class PatchesViewModelTests : IDisposable
         _dialogs.OnShowPatches = shown =>
         {
             shown.Rows.Should().ContainSingle().Which.Name.Should().Be("Game (T-En).bps");
-            return Task.FromResult(false);
+            return Task.CompletedTask;
         };
         await window.OpenCommand.ExecuteAsync(null);
         _dialogs.ShownPatches.Should().ContainSingle().Which.Should().BeSameAs(window);
-        _simulations.Should().Be(1, "closing the window runs nothing");
+        _simulations.Should().Be(1, "closing the window without a choice runs nothing");
 
-        _dialogs.OnShowPatches = _ => Task.FromResult(true);
+        // A choice made, the window closed without simulating: the simulation runs again
+        _dialogs.OnShowPatches = shown => shown.IgnoreCommand.ExecuteAsync(null);
         await window.OpenCommand.ExecuteAsync(null);
-        _simulations.Should().Be(2, "« Close and simulate again » runs a new simulation");
+        _simulations.Should().Be(2, "the table always shows what the choices give");
+        _result!.IgnoredPatches.Should().ContainSingle();
+
+        // The choice taken back, simulated in the window: closing it runs nothing more
+        _dialogs.OnShowPatches = async shown =>
+        {
+            await shown.RestoreAutomaticCommand.ExecuteAsync(null);
+            shown.SimulateAgainCommand.CanExecute(null).Should().BeTrue();
+            await shown.SimulateAgainCommand.ExecuteAsync(null);
+            shown.HasModified.Should().BeFalse();
+            shown.Rows.Single().State.Should().Be(PatchRowState.Applied, "the window shows the new simulation");
+        };
+        await window.OpenCommand.ExecuteAsync(null);
+        _simulations.Should().Be(3, "one simulation, in the window");
 
         // A patch left out: the text of the patches left out opens the window, the link hides
-        _temp.WriteBytes("patches/Hack.ips", IpsDiff(Japan, Translate(Japan)));
+        _temp.WriteBytes("patches/Hack.ips", IpsDiff(Japan, [.. Japan, .. Ascii("Hack")]));
         await SimulateAsync();
         window.Refresh();
         window.PatchCount.Should().Be(2);

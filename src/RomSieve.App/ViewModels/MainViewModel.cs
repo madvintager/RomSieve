@@ -180,6 +180,8 @@ public sealed partial class MainViewModel : ViewModelBase
             if (e.PropertyName is nameof(PreviewTableViewModel.SelectedPreviewItem) or nameof(PreviewTableViewModel.CanOpenPreviewContextMenu))
             {
                 OnPropertyChanged(nameof(CanOpenSelectedPatch));
+                OnPropertyChanged(nameof(OpenSelectedPatchText));
+                OnPropertyChanged(nameof(CanIgnoreSelectedPatch));
                 OnPropertyChanged(nameof(CanOpenPreviewContextMenu));
             }
         };
@@ -411,17 +413,27 @@ public sealed partial class MainViewModel : ViewModelBase
 
     public bool CanShowPreviewContextMenuSeparator => PreviewTable.CanShowPreviewContextMenuSeparator;
 
-    public bool CanOpenPreviewContextMenu => PreviewTable.CanOpenPreviewContextMenu || CanOpenSelectedPatch;
+    public bool CanOpenPreviewContextMenu => PreviewTable.CanOpenPreviewContextMenu || CanOpenSelectedPatch || CanIgnoreSelectedPatch;
 
     /// <summary>
-    /// Whether the selected row is a patched version whose IPS the window of the patches can apply to another ROM or stop
-    /// applying (<see cref="PatchesViewModel.CanOpenFor"/>).
+    /// Whether the selected row is a patched version, whose patch the window of the patches shows
+    /// (<see cref="PatchesViewModel.CanOpenFor"/>).
     /// </summary>
     public bool CanOpenSelectedPatch => Patches is not null && Patches.CanOpenFor(SelectedPreviewItem?.Item.Patch);
+
+    /// <summary>The entry of the context menu that opens the window: « Change the ROM of this patch… » for an IPS.</summary>
+    public string OpenSelectedPatchText => Patches?.OpenForLabel(SelectedPreviewItem?.Item.Patch) ?? string.Empty;
 
     /// <summary>Opens the window of the patches on the patch of the selected patched version.</summary>
     [RelayCommand]
     private Task OpenSelectedPatchAsync() => Patches.OpenForAsync(SelectedPreviewItem?.Item.Patch);
+
+    /// <summary>Whether the patch of the selected patched version can be set aside from the table.</summary>
+    public bool CanIgnoreSelectedPatch => Patches is not null && Patches.CanIgnoreFor(SelectedPreviewItem?.Item.Patch);
+
+    /// <summary>Sets aside the patch of the selected patched version, then simulates again.</summary>
+    [RelayCommand]
+    private Task IgnoreSelectedPatchAsync() => Patches.IgnoreForAsync(SelectedPreviewItem?.Item.Patch);
 
     // =========================================================================
     // Window state and top bar
@@ -1030,6 +1042,7 @@ public sealed partial class MainViewModel : ViewModelBase
         Updates.RefreshTranslations();
         Export.RefreshTranslations();
         Patches.RefreshTranslations();
+        OnPropertyChanged(nameof(OpenSelectedPatchText));
     }
 
     private void NotifyExportCommandsCanExecuteChanged()

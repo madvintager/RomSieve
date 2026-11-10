@@ -81,28 +81,30 @@
                Text="{Binding I18n[patches.hint]}"
                ToolTip.Tip="{Binding I18n[patches.hint_tooltip]}" />
 
-    <!-- The patches modified on the left; closing, and closing with a new simulation, on the right -->
+    <!-- The patches modified (or the simulation running) on the left; a new simulation, the window open, and closing on
+         the right -->
     <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
       <TextBlock x:Name="LblPatchesModified"
                  DockPanel.Dock="Left"
                  VerticalAlignment="Center"
                  Text="{Binding ModifiedText}" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-        <Button x:Name="BtnPatchesClose"
-                MinWidth="85"
-                HorizontalContentAlignment="Center"
-                IsCancel="True"
-                Content="{Binding I18n[patches.btn_close]}"
-                Click="OnCloseClick" />
         <Button x:Name="BtnPatchesSimulateAgain"
                 Classes="accent"
                 MinWidth="85"
                 HorizontalContentAlignment="Center"
-                IsEnabled="{Binding HasModified}"
                 ToolTip.ShowOnDisabled="True"
-                Content="{Binding I18n[patches.btn_close_and_simulate]}"
-                ToolTip.Tip="{Binding I18n[patches.tooltip_close_and_simulate]}"
-                Click="OnSimulateAgainClick" />
+                Content="{Binding I18n[patches.btn_simulate_again]}"
+                ToolTip.Tip="{Binding I18n[patches.tooltip_simulate_again]}"
+                Command="{Binding SimulateAgainCommand}" />
+        <Button x:Name="BtnPatchesClose"
+                MinWidth="85"
+                HorizontalContentAlignment="Center"
+                IsCancel="True"
+                IsEnabled="{Binding !IsSimulating}"
+                Content="{Binding I18n[patches.btn_close]}"
+                ToolTip.Tip="{Binding I18n[patches.tooltip_close]}"
+                Click="OnCloseClick" />
       </StackPanel>
     </DockPanel>
 
