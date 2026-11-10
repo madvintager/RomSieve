@@ -40,7 +40,7 @@ public sealed class PathTraversalTests : IDisposable
             _services.I18n,
             _services.OpticalCompanionService,
             _services.MameParser, _services.Patches,
-            crcCache,
+            crcCache, _services.PatchLinks,
             journal);
         _src = _temp.CreateSubdirectory("src");
         _dst = _temp.CreateSubdirectory("dst");

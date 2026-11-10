@@ -109,7 +109,8 @@ public sealed class ParallelHashingTests : IDisposable
         _services.I18n,
         _services.OpticalCompanionService,
         _services.MameParser, _services.Patches,
-        new CrcCacheService(_temp.GetFilePath(Path.Combine("cache", cacheName))));
+        new CrcCacheService(_temp.GetFilePath(Path.Combine("cache", cacheName))),
+        _services.PatchLinks);
 
     /// <summary>Runs a simulation and describes everything it produced, paths relative to the test directory.</summary>
     private async Task<string> SimulateAsync(string datPath, int parallelism, string cacheName)

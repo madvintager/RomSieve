@@ -53,7 +53,8 @@ public sealed class Sha1VerificationTests : IDisposable
         _services.I18n,
         _services.OpticalCompanionService,
         _services.MameParser, _services.Patches,
-        new CrcCacheService(cachePath));
+        new CrcCacheService(cachePath),
+        _services.PatchLinks);
 
     private async Task<SortExecutionResult> SimulateAsync(string dat, bool verifySha1, string? cachePath = null) =>
         await CreateProcessor(cachePath ?? _temp.GetFilePath(Path.Combine("cache", Guid.NewGuid().ToString("N") + ".json")))

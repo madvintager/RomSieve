@@ -13,8 +13,11 @@ namespace RomSieve.Core.Services;
 /// after the release selection, so that a patched version stays outside the 1G1R, the multi-disk sets and the filters,
 /// and before the selection of a partial sort, which it follows like any file of its game. The rules:
 /// <list type="bullet">
+/// <item>The choice of the user comes first (<see cref="PatchLink"/>, known by the content of the patch): a patch set
+/// aside gives no patched version (<see cref="Ignored"/>), and the ROM chosen for an IPS comes before its name and its
+/// readme. A UPS or a BPS keeps the ROM it records.</item>
 /// <item>The origin of a UPS or a BPS is the file of the CRC32 and the size of the source it records; that of an IPS,
-/// which records nothing, the file of a CRC32 its name gives (on the file name only) or, when
+/// which records nothing, the ROM the user chose, then the file of a CRC32 its name gives (on the file name only) or, when
 /// its name gives none, the text that comes with it, its readme (<see cref="NotesOf"/>, <see cref="NoteCrcs"/>). A text
 /// that gives the CRC32 of a file with and without its copier header leaves the patch out: an IPS does not tell which
 /// form it expects.</item>
@@ -36,25 +39,39 @@ public sealed partial class PatchMatcher
     private readonly IPatchService _patchService;
     private readonly IChecksumService _checksumService;
     private readonly ICrcCacheService _crcCache;
+    private readonly IReadOnlyDictionary<PatchKey, PatchLink> _links;
     private readonly Action<LogLevel, LocalizedMessage> _log;
     private readonly List<UnappliedPatch> _unapplied = [];
+    private readonly List<IgnoredPatch> _ignored = [];
 
+    // The key of each patch read, for the patches refused after their reading
+    private readonly Dictionary<PatchFile, PatchKey> _keys = [];
+
+    /// <param name="links">
+    /// The choices of the user (<see cref="IPatchLinkService"/>), read once for the run: a patch set aside gives no
+    /// patched version, and the ROM chosen for an IPS comes before its name and its readme.
+    /// </param>
     public PatchMatcher(
         SortConfig config,
         IPatchService patchService,
         IChecksumService checksumService,
         ICrcCacheService crcCache,
+        IReadOnlyDictionary<PatchKey, PatchLink> links,
         Action<LogLevel, LocalizedMessage> log)
     {
         _config = config;
         _patchService = patchService;
         _checksumService = checksumService;
         _crcCache = crcCache;
+        _links = links;
         _log = log;
     }
 
     /// <summary>The patches that gave no patched version, in the order of their paths.</summary>
     public IReadOnlyList<UnappliedPatch> Unapplied => _unapplied;
+
+    /// <summary>The patches the user set aside, in the order of their paths.</summary>
+    public IReadOnlyList<IgnoredPatch> Ignored => _ignored;
 
     /// <summary>A form of the data of a file the patch may expect: the bytes from an offset, their size and CRC32.</summary>
     private sealed record Candidate(ProcessItem Item, long Offset, long Size, uint Crc32, bool IsMultiFile);
@@ -65,11 +82,15 @@ public sealed partial class PatchMatcher
     /// </summary>
     private sealed record ReadPatch(
         PatchFile File,
+        PatchKey Key,
         PatchHeader Header,
         IReadOnlyList<uint> SourceCrcs,
         PatchCrcSource CrcSource,
         IReadOnlyDictionary<uint, PatchFile>? NoteOf = null)
     {
+        /// <summary>For <see cref="PatchCrcSource.Link"/>: the name of the ROM the user chose, to say it is missing.</summary>
+        public string? LinkedOriginName { get; init; }
+
         /// <summary>The names of the texts that gave the CRC32, for a reason.</summary>
         public string NoteNames => NoteOf is null ? string.Empty : string.Join(", ", NoteOf.Values.Distinct().Select(n => n.DisplayName));
     }
@@ -188,10 +209,15 @@ public sealed partial class PatchMatcher
             _log(LogLevel.Warn, LocalizedMessage.Create("log.patch_not_applied", ("name", unapplied.File.DisplayName), ("reason", unapplied.Reason)));
         }
 
-        _log(LogLevel.Info, LocalizedMessage.Create(
-            "log.patches_summary",
-            ("patched", LocalizedMessage.Count("patches.count_patched", matched.Count)),
-            ("unapplied", LocalizedMessage.Count("patches.count_unapplied", _unapplied.Count))));
+        var patchedCount = LocalizedMessage.Count("patches.count_patched", matched.Count);
+        var unappliedCount = LocalizedMessage.Count("patches.count_unapplied", _unapplied.Count);
+        _log(LogLevel.Info, _ignored.Count == 0
+            ? LocalizedMessage.Create("log.patches_summary", ("patched", patchedCount), ("unapplied", unappliedCount))
+            : LocalizedMessage.Create(
+                "log.patches_summary_ignored",
+                ("patched", patchedCount),
+                ("unapplied", unappliedCount),
+                ("ignored", LocalizedMessage.Count("patches.count_ignored", _ignored.Count))));
         return matched.Count;
     }
 
@@ -284,6 +310,18 @@ public sealed partial class PatchMatcher
             return null;
         }
 
+        var key = PatchKey.Of(bytes);
+        _keys[patch] = key;
+        var link = _links.GetValueOrDefault(key);
+
+        // Set aside by the user: nothing more is said of it, even of a patch that cannot be applied
+        if (link?.Kind == PatchLinkKind.Ignored)
+        {
+            _ignored.Add(new IgnoredPatch(patch, key));
+            _log(LogLevel.Info, LocalizedMessage.Create("log.patch_ignored", ("name", patch.DisplayName)));
+            return null;
+        }
+
         if (_patchService.DetectFormat(patch.DisplayName, bytes.AsSpan(0, Math.Min(bytes.Length, PatchService.SignatureLength))) is null)
         {
             Refuse(patch, LocalizedMessage.Create("reason.patch_unreadable", ("error", LocalizedMessage.Create("patch.error_signature"))));
@@ -303,14 +341,25 @@ public sealed partial class PatchMatcher
 
         if (header.SourceCrc32 is { } sourceCrc)
         {
-            return new ReadPatch(patch, header, [sourceCrc], PatchCrcSource.Recorded);
+            // A UPS or a BPS checks its own ROM: a ROM chosen for it is never written, but a file may say otherwise
+            if (link is not null)
+            {
+                _log(LogLevel.Warn, LocalizedMessage.Create("log.patch_link_recorded", ("name", patch.DisplayName)));
+            }
+
+            return new ReadPatch(patch, key, header, [sourceCrc], PatchCrcSource.Recorded);
         }
 
-        // An IPS records no checksum: its name gives the CRC32 of its origin
+        // An IPS records no checksum: the ROM the user chose, then the CRC32 its name gives
+        if (link is { OriginCrc32: { } linkedCrc })
+        {
+            return new ReadPatch(patch, key, header, [linkedCrc], PatchCrcSource.Link) { LinkedOriginName = link.OriginName };
+        }
+
         var crcs = CrcTokens(BaseName(patch.DisplayName)).Select(t => t.Crc).Distinct().ToList();
         if (crcs.Count > 0)
         {
-            return new ReadPatch(patch, header, crcs, PatchCrcSource.FileName);
+            return new ReadPatch(patch, key, header, crcs, PatchCrcSource.FileName);
         }
 
         // A name without CRC32: the texts that come with the patch may give it
@@ -319,6 +368,7 @@ public sealed partial class PatchMatcher
         {
             return new ReadPatch(
                 patch,
+                key,
                 header,
                 [.. fromNotes.Select(f => f.Crc)],
                 PatchCrcSource.Notes,
@@ -330,7 +380,11 @@ public sealed partial class PatchMatcher
     }
 
     private void Refuse(PatchFile patch, LocalizedMessage reason, IReadOnlyList<PatchOriginSuggestion>? suggestions = null) =>
-        _unapplied.Add(new UnappliedPatch(patch, reason) { Suggestions = suggestions ?? [] });
+        _unapplied.Add(new UnappliedPatch(patch, reason)
+        {
+            Suggestions = suggestions ?? [],
+            Key = _keys.TryGetValue(patch, out var key) ? key : null
+        });
 
     /// <summary>
     /// The CRC32 in the name of a patch that records none: 8 hexadecimal digits, after an
@@ -604,9 +658,14 @@ public sealed partial class PatchMatcher
                 var crcs = string.Join(", ", patch.SourceCrcs.Select(FormatCrc));
                 Refuse(patch.File, sizeMismatch && patch.Header.SourceSize is { } expected
                     ? LocalizedMessage.Create("reason.patch_source_size_mismatch", ("crc", crcs), ("size", expected))
-                    : patch.CrcSource == PatchCrcSource.Notes
-                        ? LocalizedMessage.Create("reason.patch_orphan_note", ("note", patch.NoteNames), ("crc", crcs))
-                        : LocalizedMessage.Create("reason.patch_orphan", ("crc", crcs)));
+                    : patch.CrcSource switch
+                    {
+                        PatchCrcSource.Notes => LocalizedMessage.Create("reason.patch_orphan_note", ("note", patch.NoteNames), ("crc", crcs)),
+                        PatchCrcSource.Link => LocalizedMessage.Create(
+                            "reason.patch_link_origin_missing",
+                            ("origin", string.IsNullOrEmpty(patch.LinkedOriginName) ? crcs : patch.LinkedOriginName)),
+                        _ => LocalizedMessage.Create("reason.patch_orphan", ("crc", crcs))
+                    });
             }
 
             return (null, true);
@@ -743,7 +802,8 @@ public sealed partial class PatchMatcher
         var version = new PatchedVersion(patch.File, patch.Header, item, origin.Offset, origin.Size, origin.Crc32)
         {
             CrcSource = patch.CrcSource,
-            Note = patch.NoteOf?.GetValueOrDefault(origin.Crc32)
+            Note = patch.NoteOf?.GetValueOrDefault(origin.Crc32),
+            Key = patch.Key
         };
         var originName = OriginName(item);
         return new ProcessItem
@@ -972,7 +1032,8 @@ public sealed partial class PatchMatcher
         for (var i = 0; i < _unapplied.Count; i++)
         {
             var unapplied = _unapplied[i];
-            if (unapplied.Reason.Key != "reason.patch_no_crc")
+            // A patch without CRC32, or whose ROM chosen by the user is missing: its names may propose another one
+            if (unapplied.Reason.Key is not ("reason.patch_no_crc" or "reason.patch_link_origin_missing"))
             {
                 continue;
             }

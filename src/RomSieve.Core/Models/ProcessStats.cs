@@ -53,6 +53,9 @@ public sealed class ProcessStats
 
     /// <summary>Patches of the patch folder that gave no patched version, and why.</summary>
     public IReadOnlyList<UnappliedPatch> UnappliedPatches { get; set; } = [];
+
+    /// <summary>Patches of the patch folder the user set aside (<see cref="PatchLinkKind.Ignored"/>).</summary>
+    public IReadOnlyList<IgnoredPatch> IgnoredPatches { get; set; } = [];
     public int ErrorCount { get; set; }
     public int ProcessedCount { get; set; }
     public long ProcessedBytes { get; set; }
@@ -127,6 +130,9 @@ public sealed record SortExecutionResult(
 {
     /// <summary>The patches of the patch folder that gave no patched version, and why.</summary>
     public IReadOnlyList<UnappliedPatch> UnappliedPatches { get; init; } = [];
+
+    /// <summary>The patches of the patch folder the user set aside.</summary>
+    public IReadOnlyList<IgnoredPatch> IgnoredPatches { get; init; } = [];
 }
 
 /// <summary>

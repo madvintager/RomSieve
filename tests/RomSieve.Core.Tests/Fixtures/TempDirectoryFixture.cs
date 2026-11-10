@@ -199,6 +199,14 @@ public sealed class CoreTestServices
     public MameDescriptionParser MameParser { get; }
     public PatchService Patches { get; }
     public CrcCacheService CrcCache { get; }
+
+    /// <summary>
+    /// The choices for the patches of these services alone, in a file of the isolated folder written only when a test
+    /// makes a choice: two tests never share their choices (their patches often have the same content), and none
+    /// reads those of the user.
+    /// </summary>
+    public PatchLinkService PatchLinks { get; }
+
     public SortProcessorService Processor { get; }
 
     public CoreTestServices(string locale = "fr")
@@ -215,6 +223,10 @@ public sealed class CoreTestServices
         OpticalCompanionService = new OpticalCompanionService();
         MameParser = new MameDescriptionParser();
         Patches = new PatchService();
+        PatchLinks = new PatchLinkService(
+            System.IO.Path.Combine(IsolatedCrcCacheDirectory.Value, $"patch_links-{Guid.NewGuid():N}.json"),
+            ChecksumService,
+            CrcCache);
         Processor = new SortProcessorService(
             ChecksumService,
             DatService,
@@ -225,6 +237,7 @@ public sealed class CoreTestServices
             OpticalCompanionService,
             MameParser,
             Patches,
-            CrcCache);
+            CrcCache,
+            PatchLinks);
     }
 }

@@ -276,7 +276,8 @@ public sealed class HeaderCacheTests : IDisposable
         _services.I18n,
         _services.OpticalCompanionService,
         _services.MameParser, _services.Patches,
-        new CrcCacheService(_tmp.GetFilePath(Path.Combine("cache", "crc_cache.json"))));
+        new CrcCacheService(_tmp.GetFilePath(Path.Combine("cache", "crc_cache.json"))),
+        _services.PatchLinks);
 
     /// <summary>The real checksum service, counting the archive and CHD headers it reads.</summary>
     private sealed class CountingChecksumService : IChecksumService

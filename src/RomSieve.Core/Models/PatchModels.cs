@@ -102,8 +102,19 @@ public enum PatchCrcSource
     FileName,
 
     /// <summary>A text that comes with the patch gives it, its readme (IPS, IPS32 whose name gives none).</summary>
-    Notes
+    Notes,
+
+    /// <summary>
+    /// The user chose it (<see cref="PatchLink"/>, IPS and IPS32): it comes before the name and the readme of the patch.
+    /// </summary>
+    Link
 }
+
+/// <summary>
+/// A patch the user set aside (<see cref="PatchLinkKind.Ignored"/>): it gives no patched version, whatever designates its
+/// ROM, and is not counted among the patches not applied, since nothing is wrong with it.
+/// </summary>
+public sealed record IgnoredPatch(PatchFile File, PatchKey Key);
 
 /// <summary>
 /// A patch of the patch folder that gives no patched version, and why (<c>reason.patch_*</c>), with the origins it may be
@@ -117,6 +128,12 @@ public sealed record UnappliedPatch(PatchFile File, LocalizedMessage Reason)
     /// copier header. Empty for any other reason.
     /// </summary>
     public IReadOnlyList<PatchOriginSuggestion> Suggestions { get; init; } = [];
+
+    /// <summary>
+    /// The key of the patch, to record a choice for it without reading it again; <see langword="null"/> for a patch that
+    /// could not be read.
+    /// </summary>
+    public PatchKey? Key { get; init; }
 }
 
 /// <summary>
@@ -157,6 +174,9 @@ public sealed record PatchedVersion(
 
     /// <summary>The text that gave <see cref="SourceCrc32"/>, when <see cref="CrcSource"/> is <see cref="PatchCrcSource.Notes"/>.</summary>
     public PatchFile? Note { get; init; }
+
+    /// <summary>The key of the patch, to record a choice for it without reading it again.</summary>
+    public PatchKey Key { get; init; }
 
     /// <summary>Size of the result.</summary>
     public long TargetSize => Header.TargetSizeFor(SourceLength);

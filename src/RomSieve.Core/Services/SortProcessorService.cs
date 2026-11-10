@@ -23,6 +23,7 @@ public sealed class SortProcessorService : ISortProcessorService
     private readonly IOpticalCompanionService _opticalService;
     private readonly IMameDescriptionParser _mameParser;
     private readonly IPatchService _patchService;
+    private readonly IPatchLinkService _patchLinks;
     private readonly ILocalizationService _i18n;
     private readonly IOperationJournalService? _journalService;
 
@@ -51,9 +52,11 @@ public sealed class SortProcessorService : ISortProcessorService
         IMameDescriptionParser mameParser,
         IPatchService patchService,
         ICrcCacheService crcCache,
+        IPatchLinkService patchLinks,
         IOperationJournalService? journalService = null)
     {
         _patchService = patchService;
+        _patchLinks = patchLinks;
         // A null journal service disables the operation journal (and therefore the undo of sorts)
         _journalService = journalService;
         _checksumService = checksumService;
@@ -233,7 +236,7 @@ public sealed class SortProcessorService : ISortProcessorService
             : name => lotIdentifier.ClassifierFor(name)?.GameMatchedRoms);
 
         // The patched versions join the files once the releases are chosen: they stay outside the 1G1R and the filters
-        var unappliedPatches = await MatchPatchesAsync(config, scanner, itemsToProcess, datCatalog, sortsMameSets, progress, Log, cancellationToken)
+        var (unappliedPatches, ignoredPatches) = await MatchPatchesAsync(config, scanner, itemsToProcess, datCatalog, sortsMameSets, progress, Log, cancellationToken)
             .ConfigureAwait(false);
 
         // The selection of a partial sort only filters the transfers: the releases are chosen on the whole collection
@@ -444,6 +447,7 @@ public sealed class SortProcessorService : ISortProcessorService
 
         stats.PatchedCount = processedItems.Count(it => it.Patch is not null && it.Status == FileStatus.Valid);
         stats.UnappliedPatches = unappliedPatches;
+        stats.IgnoredPatches = ignoredPatches;
 
         if (Fat32Limit.CreateLogMessage(Fat32Limit.FindOversizedOutputFiles(processedItems, config))
             is { } fat32Warning)
@@ -481,7 +485,8 @@ public sealed class SortProcessorService : ISortProcessorService
         var journalPath = journal is { OperationCount: > 0 } ? journal.JournalPath : null;
         return new SortExecutionResult(stats, processedItems, missingRoms, datCatalog, journalPath, stopReason)
         {
-            UnappliedPatches = unappliedPatches
+            UnappliedPatches = unappliedPatches,
+            IgnoredPatches = ignoredPatches
         };
     }
 
@@ -490,7 +495,7 @@ public sealed class SortProcessorService : ISortProcessorService
     /// applies the option to write the patched versions only. Neither a sort of MAME sets nor a sort without DAT reads
     /// it: the patches of the sets are not supported, and no file is identified without a DAT.
     /// </summary>
-    private async Task<IReadOnlyList<UnappliedPatch>> MatchPatchesAsync(
+    private async Task<(IReadOnlyList<UnappliedPatch> Unapplied, IReadOnlyList<IgnoredPatch> Ignored)> MatchPatchesAsync(
         SortConfig config,
         SourceScanner scanner,
         List<ProcessItem> items,
@@ -502,32 +507,40 @@ public sealed class SortProcessorService : ISortProcessorService
     {
         if (string.IsNullOrWhiteSpace(config.PatchDir))
         {
-            return [];
+            return ([], []);
         }
 
         if (!config.ApplyPatches)
         {
             log(LogLevel.Info, LocalizedMessage.Create("log.patches_disabled"));
-            return [];
+            return ([], []);
         }
 
         if (sortsMameSets)
         {
             log(LogLevel.Info, LocalizedMessage.Create("log.patches_ignored_mame"));
-            return [];
+            return ([], []);
         }
 
         if (datCatalog is null)
         {
             log(LogLevel.Warn, LocalizedMessage.Create("log.patches_need_dat"));
-            return [];
+            return ([], []);
         }
 
         var patchFolder = scanner.ScanPatchFolder(config.PatchDir, cancellationToken, progress);
-        var matcher = new PatchMatcher(config, _patchService, _checksumService, _crcCache, log);
+
+        // The choices of the user, read once: a choice made during the run does not change it
+        var links = _patchLinks.Load();
+        if (links.Warning is { } warning)
+        {
+            log(LogLevel.Warn, warning);
+        }
+
+        var matcher = new PatchMatcher(config, _patchService, _checksumService, _crcCache, links.Links, log);
         await matcher.MatchAsync(items, patchFolder, cancellationToken, progress).ConfigureAwait(false);
         PatchMatcher.ApplyPatchOnly(items, config.PatchOnly, config.Filters.OneGameOneRom, _filterService);
-        return matcher.Unapplied;
+        return (matcher.Unapplied, matcher.Ignored);
     }
 
     /// <summary>
@@ -1551,7 +1564,8 @@ public sealed class SortProcessorService : ISortProcessorService
             DatMissingCount = baseStats?.DatMissingCount ?? 0,
             DatCompletionPct = baseStats?.DatCompletionPct ?? 0.0,
             PerDat = baseStats?.PerDat,
-            UnappliedPatches = baseStats?.UnappliedPatches ?? []
+            UnappliedPatches = baseStats?.UnappliedPatches ?? [],
+            IgnoredPatches = baseStats?.IgnoredPatches ?? []
         };
 
         foreach (var it in items)
