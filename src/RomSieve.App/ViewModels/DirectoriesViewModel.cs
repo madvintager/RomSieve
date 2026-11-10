@@ -248,6 +248,13 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     [ObservableProperty]
     private bool _patchOnly;
 
+    /// <summary>
+    /// Pattern of the folders of the patched versions, from the root of the destination; empty: next to their original
+    /// ROM (<see cref="SortConfig.PatchedPattern"/>).
+    /// </summary>
+    [ObservableProperty]
+    private string _patchedPattern = string.Empty;
+
     /// <summary>Whether a patch folder is given: the option to write the patched versions only is greyed out otherwise.</summary>
     public bool HasPatchDir => !string.IsNullOrWhiteSpace(PatchDir);
 
@@ -1275,6 +1282,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         settings.ChdDir = ChdDir;
         settings.PatchDir = PatchDir;
         settings.PatchOnly = PatchOnly;
+        settings.PatchedPattern = PatchedPattern;
         settings.MameCategoryFile = MameCategoryFile;
         settings.MameRatingFile = MameRatingFile;
         settings.NamingConvention = SelectedNamingConvention;
@@ -1322,6 +1330,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         ChdDir = settings.ChdDir;
         PatchDir = settings.PatchDir;
         PatchOnly = settings.PatchOnly;
+        PatchedPattern = settings.PatchedPattern;
         MameCategoryFile = settings.MameCategoryFile;
         MameRatingFile = settings.MameRatingFile;
         SelectedNamingConvention = settings.NamingConvention;

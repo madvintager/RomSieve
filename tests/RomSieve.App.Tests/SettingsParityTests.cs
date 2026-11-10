@@ -31,7 +31,11 @@ public sealed class SettingsParityTests
         """{ "dat_recursive": true, "excluded_dats": [" Nintendo - Game Boy ", "nintendo - game boy", "", "Sega - Mega Drive"], "folder_per_dat": false, "dat_folder_mirror": true }""",
         """{ "dat_recursive": "yes", "excluded_dats": "Nintendo - Game Boy", "folder_per_dat": null, "dat_folder_mirror": 1 }""",
         """{ "patch_dir": " C:/patches ", "patch_only": true }""",
-        """{ "patch_dir": 3, "patch_only": "yes" }"""
+        """{ "patch_dir": 3, "patch_only": "yes" }""",
+        """{ "patch_dir": "C:/patches", "patched_pattern": " Patchs/{dat}/{title} " }""",
+        """{ "flat_destination": true, "patched_pattern": "{origin_folder}/Patchs" }""",
+        """{ "patched_pattern": "", "pattern": "{title}" }""",
+        """{ "patched_pattern": 3 }"""
     ];
 
     [Theory]

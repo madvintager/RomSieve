@@ -42,22 +42,28 @@ public sealed class PatchViewModelTests : IDisposable
         vm.Directories.PatchDir.Should().BeEmpty();
         vm.Directories.HasPatchDir.Should().BeFalse("the option is greyed out without a patch folder");
 
+        vm.Directories.PatchedPattern.Should().BeEmpty("the patched versions go next to their original ROM by default");
+
         await vm.Directories.BrowsePatchDirCommand.ExecuteAsync(null);
         vm.Directories.PatchOnly = true;
+        vm.Directories.PatchedPattern = "Patchs/{title}";
 
         vm.Directories.HasPatchDir.Should().BeTrue();
         vm.BuildConfigUnchecked().PatchDir.Should().Be(dialogs.NextPickedFolder);
         vm.BuildConfigUnchecked().PatchOnly.Should().BeTrue();
+        vm.BuildConfigUnchecked().PatchedPattern.Should().Be("Patchs/{title}");
         await vm.SaveConfigurationAsync();
         using (var saved = JsonDocument.Parse(await File.ReadAllTextAsync(path)))
         {
             saved.RootElement.GetProperty("patch_dir").GetString().Should().Be(dialogs.NextPickedFolder);
             saved.RootElement.GetProperty("patch_only").GetBoolean().Should().BeTrue();
+            saved.RootElement.GetProperty("patched_pattern").GetString().Should().Be("Patchs/{title}");
         }
 
         var reloaded = TestMainViewModel.Create(new HeadlessDialogService(), path);
         reloaded.Directories.PatchDir.Should().Be(dialogs.NextPickedFolder);
         reloaded.Directories.PatchOnly.Should().BeTrue();
+        reloaded.Directories.PatchedPattern.Should().Be("Patchs/{title}");
 
         reloaded.Directories.ClearPatchDirCommand.Execute(null);
         reloaded.Directories.PatchDir.Should().BeEmpty();
@@ -95,6 +101,30 @@ public sealed class PatchViewModelTests : IDisposable
         dialogs.ShownMessages.Should().ContainSingle(m => m.Message == _services.I18n.Tr("dialog.error_dest_inside_patches"));
         vm.Execution.LastItems.Should().BeEmpty("nothing runs");
         Directory.Exists(Path.Combine(_temp.Path, "patches", "sorted")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ASimulationWithARefusedPatternOfThePatchedVersions_ShouldBeRefusedBeforeItStarts()
+    {
+        var dialogs = new HeadlessDialogService();
+        var vm = TestMainViewModel.Create(dialogs, _temp.WriteText("config.json", "{}"));
+        vm.Directories.SourceDir = _temp.CreateSubdirectory("src");
+        _temp.WriteText("src/Game (1990)(Ocean).adf", "game");
+        vm.Directories.PatchDir = _temp.CreateSubdirectory("patches");
+        vm.Directories.DestinationDir = Path.Combine(_temp.Path, "out");
+        vm.Directories.PatchedPattern = "../Patchs";
+
+        await vm.Execution.SimulateAsync();
+
+        dialogs.ShownMessages.Should().ContainSingle(m => m.Message == _services.I18n.Tr("dialog.error_patched_pattern_invalid"));
+        vm.Execution.LastItems.Should().BeEmpty("nothing runs");
+
+        // Without a patch folder, the pattern is greyed out and never blocks a run
+        dialogs.ShownMessages.Clear();
+        vm.Directories.PatchDir = string.Empty;
+        await vm.Execution.SimulateAsync();
+        dialogs.ShownMessages.Should().NotContain(m => m.Message == _services.I18n.Tr("dialog.error_patched_pattern_invalid"));
+        vm.Execution.LastItems.Should().NotBeEmpty();
     }
 
     // =========================================================================

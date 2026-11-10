@@ -81,14 +81,29 @@ public static class SortConfigValidator
     /// CHD folder (always read recursively), then the patch folder; <c>null</c> when it overlaps none. Any other run never
     /// reads the CHD folder, which stays in the configuration for the next MAME sort: it is then a folder like any other.
     /// The patch folder is checked whatever the run, even one that does not read it: a purge of a destination that holds
-    /// it would put the patches in quarantine.
+    /// it would put the patches in quarantine. Last, the pattern of the patched versions (<see cref="GetPatchedPatternErrorKey"/>).
     /// </summary>
     public static string? GetErrorKey(SortConfig config, bool isMameRun)
     {
         ArgumentNullException.ThrowIfNull(config);
         return GetErrorKey(GetPathOverlap(config.SourceDir, config.DestinationDir, config.Recursive))
                ?? (isMameRun ? GetChdDirErrorKey(config.ChdDir, config.DestinationDir) : null)
-               ?? GetPatchDirErrorKey(config.PatchDir, config.DestinationDir);
+               ?? GetPatchDirErrorKey(config.PatchDir, config.DestinationDir)
+               ?? GetPatchedPatternErrorKey(config);
+    }
+
+    /// <summary>
+    /// Localization key of the error message of a pattern of the patched versions that would not stay inside the
+    /// destination (<see cref="PathOrganizerService.CheckPatchedPattern"/>), or <c>null</c>. Only with a patch folder: the
+    /// pattern is greyed out without one, and nothing it would write is written. Whatever the run, as the patch folder.
+    /// </summary>
+    public static string? GetPatchedPatternErrorKey(SortConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        return !string.IsNullOrWhiteSpace(config.PatchDir) &&
+               PathOrganizerService.CheckPatchedPattern(config.PatchedPattern) != PatchedPatternProblem.None
+            ? "dialog.error_patched_pattern_invalid"
+            : null;
     }
 
     /// <summary>

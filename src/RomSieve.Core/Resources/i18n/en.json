@@ -1552,6 +1552,7 @@
   "dialog.error_same_patch_dest": "The folder of the patches and the destination are the same.",
   "dialog.error_dest_contains_patches": "The destination contains the folder of the patches: emptying or filling this destination would put the patches at risk. Choose a destination outside this folder.",
   "dialog.error_dest_inside_patches": "The destination is inside the folder of the patches, which is scanned: the sorted files would be scanned again. Choose a destination outside this folder.",
+  "dialog.error_patched_pattern_invalid": "The folder of the patched versions must stay inside the destination: no absolute path, no drive (C:), no \"..\" folder, no forbidden character (< > : \" | ? *), no _purged or .romsieve as first folder; {origin_folder} and {dat_folder} each make up a folder on their own.",
   "nav.state_destination_overlap_patches": "Overlaps the patches",
   "stats.patched": "Patched: {count}",
   "stats.tooltip_filter_patched": "Click to show only the patched versions (combinable with the status filters)",

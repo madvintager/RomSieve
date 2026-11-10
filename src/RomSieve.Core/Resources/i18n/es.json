@@ -1552,6 +1552,7 @@
   "dialog.error_same_patch_dest": "La carpeta de los parches y el destino son idénticos.",
   "dialog.error_dest_contains_patches": "El destino contiene la carpeta de los parches: vaciar o llenar este destino pondría en peligro los parches. Elija un destino fuera de esa carpeta.",
   "dialog.error_dest_inside_patches": "El destino está dentro de la carpeta de los parches, que se analiza: los archivos ordenados se volverían a analizar. Elija un destino fuera de esa carpeta.",
+  "dialog.error_patched_pattern_invalid": "La carpeta de las versiones parcheadas debe quedar dentro del destino: ni ruta absoluta, ni unidad (C:), ni carpeta «..», ni carácter prohibido (< > : \" | ? *), ni _purged o .romsieve como primera carpeta; {origin_folder} y {dat_folder} forman cada uno una carpeta por sí solos.",
   "nav.state_destination_overlap_patches": "Se solapa con los parches",
   "stats.patched": "Parcheadas: {count}",
   "stats.tooltip_filter_patched": "Haga clic para mostrar solo las versiones parcheadas (combinable con los filtros de estado)",

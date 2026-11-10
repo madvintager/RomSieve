@@ -19,6 +19,24 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
     public static readonly IReadOnlyList<string> PatternVariableNames =
         ["title", "letter", "version", "year", "publisher", "country", "language", "system", "chipset", "video", "dump_status", "genre", "category", "dat"];
 
+    /// <summary>
+    /// Variable of the pattern of the patched versions only: the whole folder the original ROM would have in the
+    /// destination (folders of the DAT of a lot, then of the main pattern), worth several folders, or none.
+    /// </summary>
+    public const string OriginFolderVariable = "origin_folder";
+
+    /// <summary>
+    /// Variable of the pattern of the patched versions only: the folders of a lot above the main pattern (the folder of
+    /// the DAT, under the folders of its path when mirrored), worth several folders, or none for a single DAT.
+    /// </summary>
+    public const string DatFolderVariable = "dat_folder";
+
+    /// <summary>Variables of the pattern of the patched versions that stand for whole folders, and must stand alone in one.</summary>
+    public static readonly IReadOnlyList<string> FolderVariableNames = [OriginFolderVariable, DatFolderVariable];
+
+    /// <summary>Characters Windows forbids in a name (the separators apart), refused in the pattern of the patched versions.</summary>
+    private static readonly char[] ForbiddenPatternChars = ['<', '>', ':', '"', '|', '?', '*'];
+
     private readonly ITosecParser _tosecParser;
 
     public PathOrganizerService(ITosecParser tosecParser)
@@ -315,6 +333,61 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
 
         return new PatternCheck(unknown, unbalanced);
     }
+
+    /// <summary>
+    /// Why the pattern of the patched versions (<see cref="SortConfig.PatchedPattern"/>) is refused, read as written:
+    /// it must stay inside the destination (neither rooted, nor on a drive, nor with a <c>..</c> folder), name folders
+    /// that Windows and Linux accept, not start with the quarantine of the purges or the marker of the destination, and
+    /// give <c>{origin_folder}</c> and <c>{dat_folder}</c> a folder of their own. The values of its variables are
+    /// sanitized when the path is built: they cannot bring a problem in. Both separators count under any system.
+    /// </summary>
+    public static PatchedPatternProblem CheckPatchedPattern(string? pattern)
+    {
+        var text = pattern?.Trim() ?? string.Empty;
+        if (text.Length == 0)
+        {
+            return PatchedPatternProblem.None;
+        }
+
+        if (text[0] is '/' or '\\')
+        {
+            return PatchedPatternProblem.Rooted;
+        }
+
+        var segments = text.Split('/', '\\');
+        if (segments.Any(segment => segment.TrimStart() is { Length: > 1 } name && name[1] == ':' && char.IsAsciiLetter(name[0])))
+        {
+            return PatchedPatternProblem.Drive;
+        }
+
+        if (segments.Any(segment => segment.Trim() == ".."))
+        {
+            return PatchedPatternProblem.ParentSegment;
+        }
+
+        if (text.IndexOfAny(ForbiddenPatternChars) >= 0 || text.Any(char.IsControl))
+        {
+            return PatchedPatternProblem.ForbiddenCharacter;
+        }
+
+        // The first folder written: the folder variables may be worth no folder, and leave the next one first
+        var first = segments.FirstOrDefault(segment => !string.IsNullOrWhiteSpace(segment) && !IsFolderVariable(segment));
+        if (first?.Trim().TrimEnd('.', ' ') is { } firstName &&
+            (firstName.Equals(DestinationGuard.QuarantineDirectoryName, StringComparison.OrdinalIgnoreCase) ||
+             firstName.Equals(DestinationGuard.MarkerFileName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return PatchedPatternProblem.ReservedFolder;
+        }
+
+        return segments.Any(segment => !IsFolderVariable(segment) &&
+                                       FolderVariableNames.Any(name => segment.Contains($"{{{name}}}", StringComparison.Ordinal)))
+            ? PatchedPatternProblem.FolderVariableNotAlone
+            : PatchedPatternProblem.None;
+    }
+
+    /// <summary>Whether a folder of a pattern is <c>{origin_folder}</c> or <c>{dat_folder}</c> alone.</summary>
+    private static bool IsFolderVariable(string segment) =>
+        FolderVariableNames.Any(name => segment.Trim() == $"{{{name}}}");
 
     /// <summary>
     /// Language of <c>{language}</c>: the one written in the name, otherwise the language of its first country with a

@@ -1552,6 +1552,7 @@
   "dialog.error_same_patch_dest": "Le dossier des patchs et la destination sont identiques.",
   "dialog.error_dest_contains_patches": "La destination contient le dossier des patchs : vider ou remplir cette destination mettrait en danger les patchs. Choisissez une destination située hors de ce dossier.",
   "dialog.error_dest_inside_patches": "La destination est située à l'intérieur du dossier des patchs, qui est analysé : les fichiers triés seraient analysés à nouveau. Choisissez une destination hors de ce dossier.",
+  "dialog.error_patched_pattern_invalid": "Le dossier des versions patchées doit rester dans la destination : ni chemin absolu, ni lecteur (C:), ni dossier « .. », ni caractère interdit (< > : \" | ? *), ni _purged ou .romsieve comme premier dossier ; {origin_folder} et {dat_folder} forment chacun un dossier à eux seuls.",
   "nav.state_destination_overlap_patches": "Chevauche les patchs",
   "stats.patched": "Patchées : {count}",
   "stats.tooltip_filter_patched": "Cliquer pour n'afficher que les versions patchées (cumulable avec les filtres de statut)",

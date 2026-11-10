@@ -42,6 +42,12 @@ public sealed class SortSettings
     /// <summary>Whether only the patched versions are written, not the original ROMs they replace (<see cref="SortConfig.PatchOnly"/>).</summary>
     public bool PatchOnly { get; set; }
 
+    /// <summary>
+    /// Pattern of the folders of the patched versions, from the root of the destination (<see cref="SortConfig.PatchedPattern"/>);
+    /// empty: next to their original ROM.
+    /// </summary>
+    public string PatchedPattern { get; set; } = string.Empty;
+
     /// <summary>Category file of the MAME machines (MAME runs only); empty: none.</summary>
     public string MameCategoryFile { get; set; } = string.Empty;
 

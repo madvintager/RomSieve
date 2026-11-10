@@ -72,6 +72,14 @@ public sealed class SortConfig
     /// Writes the patched versions only: an original ROM that at least one patched version replaces is not written.
     /// </summary>
     public bool PatchOnly { get; set; }
+
+    /// <summary>
+    /// Pattern of the folders of the patched versions, relative to the root of the destination, with the variables of
+    /// <see cref="Pattern"/> evaluated on the original ROM, and <c>{origin_folder}</c> and <c>{dat_folder}</c> for the
+    /// folders it would have. Empty: next to their original ROM. Checked by
+    /// <see cref="Services.PathOrganizerService.CheckPatchedPattern"/> when a patch folder is given.
+    /// </summary>
+    public string PatchedPattern { get; set; } = string.Empty;
     public NamingConvention NamingConvention { get; set; } = NamingConvention.Auto;
 
     /// <summary>

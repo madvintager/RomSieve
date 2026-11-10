@@ -49,6 +49,9 @@ public static class SortSettingsSerializer
         data["chd_dir"] = s.ChdDir.Trim();
         data["patch_dir"] = s.PatchDir.Trim();
         data["patch_only"] = s.PatchOnly;
+
+        // Unlike the main pattern, an empty one is a choice: next to the original ROM
+        data["patched_pattern"] = s.PatchedPattern.Trim();
         data["mame_category_file"] = s.MameCategoryFile.Trim();
         data["mame_rating_file"] = s.MameRatingFile.Trim();
         data["naming_convention"] = s.NamingConvention.ToConfigString();
@@ -178,6 +181,9 @@ public static class SortSettingsSerializer
             ChdDir = string.IsNullOrWhiteSpace(s.ChdDir) ? null : s.ChdDir.Trim(),
             PatchDir = string.IsNullOrWhiteSpace(s.PatchDir) ? null : s.PatchDir.Trim(),
             PatchOnly = s.PatchOnly,
+
+            // Apart from the main pattern: a flat destination leaves it as it is
+            PatchedPattern = s.PatchedPattern.Trim(),
             MameCategoryFile = string.IsNullOrWhiteSpace(s.MameCategoryFile) ? null : s.MameCategoryFile.Trim(),
             MameRatingFile = string.IsNullOrWhiteSpace(s.MameRatingFile) ? null : s.MameRatingFile.Trim(),
             NamingConvention = s.NamingConvention,
@@ -272,6 +278,7 @@ public static class SortSettingsSerializer
         if (TryGetString(data, "chd_dir", out var chdDir)) s.ChdDir = chdDir;
         if (TryGetString(data, "patch_dir", out var patchDir)) s.PatchDir = patchDir;
         if (TryGetBool(data, "patch_only", out var patchOnly)) s.PatchOnly = patchOnly;
+        if (TryGetString(data, "patched_pattern", out var patchedPattern)) s.PatchedPattern = patchedPattern;
         if (TryGetString(data, "mame_category_file", out var categoryFile)) s.MameCategoryFile = categoryFile;
         if (TryGetString(data, "mame_rating_file", out var ratingFile)) s.MameRatingFile = ratingFile;
         if (TryGetString(data, "naming_convention", out var convention)) s.NamingConvention = EnumExtensions.ParseNamingConvention(convention);
