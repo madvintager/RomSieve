@@ -1,5 +1,12 @@
 # RomSieve
 
+[![CI](https://img.shields.io/github/actions/workflow/status/madvintager/RomSieve/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square)](https://github.com/madvintager/RomSieve/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/madvintager/RomSieve?logo=github&style=flat-square)](https://github.com/madvintager/RomSieve/releases/latest)
+[![License](https://img.shields.io/github/license/madvintager/RomSieve?style=flat-square)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows-blue?style=flat-square)](docs/en/installation.md)
+[![User guide](https://img.shields.io/badge/docs-user%20guide-blue?style=flat-square)](https://madvintager.github.io/RomSieve/guide/)
+[![Languages](https://img.shields.io/badge/languages-EN%20%7C%20FR%20%7C%20ES-blue?style=flat-square)](docs/en/settings-and-profiles.md)
+
 A cross-platform ROM organizer for Linux and Windows. RomSieve audits a collection against its DAT, keeps one release
 per game (1G1R) and rebuilds a clean folder tree, with a full preview before anything is written.
 
