@@ -345,6 +345,11 @@ si ce tri est le dernier.
   appliquent un IPS d'après son nom l'appliqueront aussi. Un patch rangé dans une archive n'est jamais renommé, et rien
   n'est écrasé : un nom déjà pris laisse le patch tel quel, et le détail le dit. **Annuler** lui rend son ancien nom. Le
   CRC32 ajouté n'apparaît pas dans le nom de la version patchée (voir [Choix du nom](#choix-du-nom)).
+* **Retirer la ROM du nom du fichier** fait l'inverse, pour tout IPS du disque dont le nom désigne une ROM, écrit par
+  RomSieve ou par un autre : `Jeu (T-Fr) [47e70e08].ips` redevient `Jeu (T-Fr).ips`. C'est ainsi qu'on revient sur un
+  nom écrit avant une nouvelle simulation, quand **Annuler** ne le peut plus. RomSieve applique le patch comme avant :
+  un patch que seul son nom appliquait reçoit d'abord votre choix pour la même ROM. Pour qu'il ne s'applique plus,
+  écartez-le (voir [Ne pas appliquer un patch](#ne-pas-appliquer-un-patch)).
 
 ## Dans les résultats
 

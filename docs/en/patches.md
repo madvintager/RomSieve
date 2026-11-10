@@ -337,6 +337,11 @@ is the last one.
   name already taken leaves the patch as it was, and the detail says so. **Undo** gives it back its old name. The CRC32
   added does not appear in the name of the patched version (see
   [Name of the patched version](#name-of-the-patched-version)).
+* **Remove the ROM from the file name** does the reverse, for any IPS on the disk whose name designates a ROM, written by
+  RomSieve or by anyone: `Game (T-Fr) [47e70e08].ips` becomes `Game (T-Fr).ips` again. This is how a name written before
+  a new simulation is taken back, when **Undo** no longer can. RomSieve applies the patch as before: a patch only its
+  name applied first gets your choice for the same ROM. For it to apply no more, set it aside (see
+  [Not applying a patch](#not-applying-a-patch)).
 
 ## In the results
 

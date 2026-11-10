@@ -19,14 +19,14 @@ RomSieve manipule des collections de plusieurs téraoctets. Il est conçu pour q
   son [dossier](patches.md#un-dossier-patchs), toujours dans la destination.
 * **Rien n'est écrit hors de la destination.** Un nom de fichier lu dans une archive ou un DAT qui est un chemin absolu
   (`C:/…`, `/home/…`), contient un segment `..` ou un caractère nul pourrait écrire n'importe où sur le disque, ce que
-  font exprès certaines archives trouvées sur Internet. Un tel fichier est en erreur dès la simulation, avec la raison
-  « Non écrit : le nom … est dangereux ou invalide », et rien n'est écrit pour lui ni pour les autres fichiers de son
-  jeu ; les autres fichiers sont triés comme d'habitude. Chaque cible est encore vérifiée juste avant d'être écrite.
-  Seule exception, hors de tout tri : la fenêtre **Patchs** renomme l'IPS du dossier des patchs sur lequel vous
-  cliquez **Écrire la ROM dans le nom du fichier (pour d'autres outils)**, et **Annuler** lui rend son ancien nom (voir
-  [Vos choix](patches.md#vos-choix)). Rien d'autre n'y change : ni le contenu des patchs, ni les archives, ni un
-  fichier déjà présent. Vos autres choix pour les patchs ne modifient aucun fichier : ils sont gardés à côté des
-  réglages.
+  font exprès certaines archives trouvées sur Internet. Un tel fichier est en erreur dès la simulation, avec la raison «
+  Non écrit : le nom … est dangereux ou invalide », et rien n'est écrit pour lui ni pour les autres fichiers de son jeu
+  ; les autres fichiers sont triés comme d'habitude. Chaque cible est encore vérifiée juste avant d'être écrite. Seule
+  exception, hors de tout tri : la fenêtre **Patchs** renomme l'IPS du dossier des patchs sur lequel vous cliquez
+  **Écrire la ROM dans le nom du fichier (pour d'autres outils)** ou **Retirer la ROM du nom du fichier**, et
+  **Annuler** lui rend son ancien nom (voir [Vos choix](patches.md#vos-choix)). Rien d'autre n'y change : ni le contenu
+  des patchs, ni les archives, ni un fichier déjà présent. Vos autres choix pour les patchs ne modifient aucun fichier :
+  ils sont gardés à côté des réglages.
 * **Une purge ne supprime rien** (voir ci-dessous).
 * **Un tri interrompu ne laisse aucun fichier partiel** : **Arrêter** (le bouton **Simuler (Dry-Run)** pendant une
   exécution) supprime le fichier en cours d'écriture, même au milieu d'une grosse copie. Un fichier s'écrit sous un nom

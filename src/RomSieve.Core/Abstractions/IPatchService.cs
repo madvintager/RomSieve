@@ -102,10 +102,17 @@ public interface IPatchNamingService
     string NameWithCrc(string fileName, uint crc);
 
     /// <summary>
+    /// The name of a patch without the CRC32 it gives (<see cref="Services.PatchMatcher.BaseNameWithoutCrc"/>):
+    /// <c>Game (T-Fr) [47e70e08].ips</c> becomes <c>Game (T-Fr).ips</c>. A name that gives none is returned as it is;
+    /// <see langword="null"/> when nothing but a CRC32 made it.
+    /// </summary>
+    string? NameWithoutCrc(string fileName);
+
+    /// <summary>
     /// Renames each patch of <paramref name="renames"/> in its folder, after checking it is still an IPS or an IPS32 of
     /// <paramref name="patchDir"/>, on the disk (never in an archive), not a link, and that its new name is free and
-    /// differs from the current one. A refusal or a failure leaves the patch as it was and goes on with the others. Each
-    /// result is said to <paramref name="log"/>.
+    /// differs from the current one (a name whose CRC32 is removed must give one, and something else). A refusal or a
+    /// failure leaves the patch as it was and goes on with the others. Each result is said to <paramref name="log"/>.
     /// </summary>
     Task<IReadOnlyList<PatchRenameResult>> RenameAsync(
         string patchDir,

@@ -445,6 +445,22 @@ public sealed partial class PatchRowViewModel : ObservableObject
 
     public string WriteNameTooltip => NameWithRom is { } newName ? _owner.Tr("patches.tooltip_write_rom_in_name", ("name", newName)) : string.Empty;
 
+    /// <summary>
+    /// The name it would have without the ROM its name designates, for other tools: an IPS on the disk whose name gives a
+    /// CRC32 (written by RomSieve or by anyone), with something left once it is removed; <see langword="null"/> otherwise.
+    /// What RomSieve does with the patch does not change (<see cref="PatchesViewModel"/> records the choice first when only
+    /// the name applied it).
+    /// </summary>
+    public string? NameWithoutRom =>
+        IsIps && !IsInArchive && PatchMatcher.NameGivesCrc(Name) && _owner.ClearedName(Name) is { } newName
+        && !PatchMatcher.NameGivesCrc(newName)
+            ? newName
+            : null;
+
+    public bool CanClearName => NameWithoutRom is not null;
+
+    public string ClearNameTooltip => NameWithoutRom is { } newName ? _owner.Tr("patches.tooltip_clear_rom_from_name", ("name", newName)) : string.Empty;
+
     /// <summary>Whether a change made in the window can be undone.</summary>
     public bool CanUndo => _history.Count > 0;
 
@@ -536,7 +552,7 @@ public sealed partial class PatchRowViewModel : ObservableObject
             nameof(CanChoose), nameof(ListSummary), nameof(StatusText), nameof(StateMark), nameof(IsToMatch), nameof(IsApplied),
             nameof(IsUnfixable), nameof(IsNeutral), nameof(AccessibleName), nameof(CanApply), nameof(ApplyTooltip),
             nameof(CanIgnore), nameof(IgnoreTooltip), nameof(CanRestoreAutomatic), nameof(NameWithRom), nameof(CanWriteName),
-            nameof(WriteNameTooltip), nameof(CanUndo), nameof(IsInArchive), nameof(Source), nameof(CurrentOrigin),
+            nameof(WriteNameTooltip), nameof(NameWithoutRom), nameof(CanClearName), nameof(ClearNameTooltip), nameof(CanUndo), nameof(IsInArchive), nameof(Source), nameof(CurrentOrigin),
             nameof(Link), nameof(IsModified), nameof(PatchedNameText), nameof(HasPatchedName)
         })
         {

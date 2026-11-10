@@ -470,7 +470,9 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedRow), nameof(CanSearch), nameof(SelectedListItem))]
-    [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(IgnoreCommand), nameof(RestoreAutomaticCommand), nameof(WriteNameCommand), nameof(UndoCommand))]
+    [NotifyCanExecuteChangedFor(
+        nameof(ApplyCommand), nameof(IgnoreCommand), nameof(RestoreAutomaticCommand), nameof(WriteNameCommand), nameof(ClearNameCommand),
+        nameof(UndoCommand))]
     private PatchRowViewModel? _selectedRow;
 
     public bool HasSelectedRow => SelectedRow is not null;
@@ -565,7 +567,8 @@ public sealed partial class PatchesViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanSearch))]
     [NotifyCanExecuteChangedFor(
-        nameof(ApplyCommand), nameof(IgnoreCommand), nameof(RestoreAutomaticCommand), nameof(WriteNameCommand), nameof(UndoCommand),
+        nameof(ApplyCommand), nameof(IgnoreCommand), nameof(RestoreAutomaticCommand), nameof(WriteNameCommand), nameof(ClearNameCommand),
+        nameof(UndoCommand),
         nameof(ApplyBatchCommand), nameof(OpenBatchCommand), nameof(SimulateAgainCommand))]
     private bool _isBusy;
 
@@ -623,6 +626,54 @@ public sealed partial class PatchesViewModel : ViewModelBase
         try
         {
             var result = (await _naming.RenameAsync(_patchDir, [new PatchRename(row.File, crc)], _log)).Single();
+            if (result.IsRenamed)
+            {
+                row.Renamed(result);
+            }
+            else
+            {
+                row.ResultText = _localization.Format(result.Refusal!);
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+            AfterChange();
+        }
+    }
+
+    private bool CanClearName() => !IsBusy && SelectedRow is { CanClearName: true };
+
+    /// <summary>
+    /// Removes from the name of the selected IPS the ROM it designates, for other tools: the inverse of
+    /// <see cref="WriteNameAsync"/>, also after a new simulation, when « Undo » no longer can. What RomSieve does with the
+    /// patch does not change: a patch only its name applied first gets the choice of the user for the same ROM and form.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanClearName))]
+    private async Task ClearNameAsync()
+    {
+        if (SelectedRow is not { } row)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            if (row is { State: PatchRowState.Applied, Source: PatchCrcSource.FileName, Link: null, CurrentOrigin: { } origin, CurrentCrc32: { } crc })
+            {
+                var link = LinkTo(row, origin, crc);
+                if (await SaveAsync([(row, link)]) is { } refusal)
+                {
+                    row.ResultText = refusal;
+                    return;
+                }
+
+                LogChoice(row.Name, link);
+                row.Chosen(link, origin);
+            }
+
+            var result = (await _naming.RenameAsync(_patchDir, [new PatchRename(row.File, null)], _log)).Single();
             if (result.IsRenamed)
             {
                 row.Renamed(result);
@@ -751,6 +802,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         IgnoreCommand.NotifyCanExecuteChanged();
         RestoreAutomaticCommand.NotifyCanExecuteChanged();
         WriteNameCommand.NotifyCanExecuteChanged();
+        ClearNameCommand.NotifyCanExecuteChanged();
         UndoCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanSearch));
     }
@@ -858,6 +910,8 @@ public sealed partial class PatchesViewModel : ViewModelBase
     internal string Format(LocalizedMessage message) => _localization.Format(message);
 
     internal string NewName(string name, uint crc) => _naming.NameWithCrc(name, crc);
+
+    internal string? ClearedName(string name) => _naming.NameWithoutCrc(name);
 
     internal Task<IReadOnlyList<PatchOriginSuggestion>> ReadFormsAsync(ProcessItem origin) =>
         _links.GetOriginFormsAsync(origin, _detectCopierHeaders);

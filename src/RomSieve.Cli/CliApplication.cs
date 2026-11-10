@@ -799,7 +799,7 @@ public sealed class CliApplication
 
         foreach (var rename in renames)
         {
-            WriteLine("  " + Tr("cli.patches_rename_planned", ("old", Describe(rename.Patch)), ("new", naming.NameWithCrc(rename.Patch.DisplayName, rename.Crc32))));
+            WriteLine("  " + Tr("cli.patches_rename_planned", ("old", Describe(rename.Patch)), ("new", naming.NameWithCrc(rename.Patch.DisplayName, rename.Crc32.GetValueOrDefault()))));
         }
 
         if (!parseResult.GetValue(_yesOption))

@@ -487,6 +487,68 @@ public sealed class PatchesViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task TheRomWrittenInTheName_ShouldBeRemoved_AfterANewSimulation_WhenUndoNoLongerCan()
+    {
+        WriteJapanAndUsa();
+        var patch = IpsDiff(Japan, Translate(Japan));
+        var original = _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", patch);
+        var window = await LoadAsync();
+        await window.ApplyCommand.ExecuteAsync(null);
+        await window.WriteNameCommand.ExecuteAsync(null);
+        var named = Path.Combine(_patches, $"Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips");
+        File.Exists(named).Should().BeTrue();
+
+        // A new simulation: the window shows its results, and its history of changes is gone
+        await window.SimulateAgainCommand.ExecuteAsync(null);
+        var row = window.Rows.Single();
+        row.CanUndo.Should().BeFalse();
+        row.Source.Should().Be(PatchCrcSource.Link, "the choice comes before the name");
+        row.CanWriteName.Should().BeFalse("its name already gives its ROM");
+        row.CanClearName.Should().BeTrue();
+        row.ClearNameTooltip.Should().StartWith("Renomme le patch en Game (Japan) (T-Fr).ips");
+
+        await window.ClearNameCommand.ExecuteAsync(null);
+
+        File.Exists(original).Should().BeTrue("the name it had before is back");
+        File.Exists(named).Should().BeFalse();
+        row.CanClearName.Should().BeFalse();
+        LinkOf(patch)!.OriginCrc32.Should().Be(Crc(Japan), "the choice does not change");
+        _log.Should().Contain(l => l.Message.Key == "log.patch_name_cleared");
+        await SimulateAsync();
+        PatchedVersion().Origin.DisplayName.Should().Be("Game (Japan).sfc");
+    }
+
+    [Fact]
+    public async Task RemovingTheRomFromTheName_OfAPatchOnlyItsNameApplied_ShouldKeepItsRomAsAChoice()
+    {
+        WriteJapanAndUsa();
+        var patch = IpsDiff(Japan, Translate(Japan));
+        var named = _temp.WriteBytes($"patches/Game (T-Fr) [{Crc(Japan):x8}].ips", patch);
+        var window = await LoadAsync();
+        var row = window.SelectedRow!;
+        row.Source.Should().Be(PatchCrcSource.FileName);
+        row.ClearNameTooltip.Should().Contain("garde la même ROM");
+
+        await window.ClearNameCommand.ExecuteAsync(null);
+
+        File.Exists(Path.Combine(_patches, "Game (T-Fr).ips")).Should().BeTrue();
+        File.Exists(named).Should().BeFalse();
+        LinkOf(patch)!.OriginCrc32.Should().Be(Crc(Japan), "the ROM its name gave is recorded first");
+        row.Source.Should().Be(PatchCrcSource.Link);
+        await SimulateAsync();
+        PatchedVersion().CrcSource.Should().Be(PatchCrcSource.Link);
+        PatchedVersion().Origin.DisplayName.Should().Be("Game (Japan).sfc", "RomSieve applies it as before");
+
+        // Each change undone in turn: the name, then the choice
+        await window.UndoCommand.ExecuteAsync(null);
+        File.Exists(named).Should().BeTrue();
+        await window.UndoCommand.ExecuteAsync(null);
+        LinkOf(patch).Should().BeNull();
+        row.Source.Should().Be(PatchCrcSource.FileName);
+        window.HasModified.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task AnIpsAppliedThanksToItsReadme_ShouldBeSetAside_OrGetItsRomInItsName()
     {
         WriteJapanAndUsa();

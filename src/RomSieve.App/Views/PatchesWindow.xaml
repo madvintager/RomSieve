@@ -333,13 +333,22 @@
                         Command="{Binding UndoCommand}" />
               </WrapPanel>
 
-              <!-- For other tools only: the one action that renames the patch, never in an archive -->
-              <Button x:Name="BtnPatchWriteName"
-                      Margin="0,8,0,0"
-                      Content="{Binding I18n[patches.btn_write_rom_in_name]}"
-                      ToolTip.Tip="{Binding SelectedRow.WriteNameTooltip, FallbackValue=''}"
-                      IsVisible="{Binding SelectedRow.CanWriteName, FallbackValue=False}"
-                      Command="{Binding WriteNameCommand}" />
+              <!-- For other tools only: the actions that rename the patch, never in an archive; the ROM written in its name,
+                   or removed from it, also after a new simulation, when « Undo » no longer can -->
+              <WrapPanel Margin="0,8,0,0">
+                <Button x:Name="BtnPatchWriteName"
+                        Margin="0,0,8,4"
+                        Content="{Binding I18n[patches.btn_write_rom_in_name]}"
+                        ToolTip.Tip="{Binding SelectedRow.WriteNameTooltip, FallbackValue=''}"
+                        IsVisible="{Binding SelectedRow.CanWriteName, FallbackValue=False}"
+                        Command="{Binding WriteNameCommand}" />
+                <Button x:Name="BtnPatchClearName"
+                        Margin="0,0,8,4"
+                        Content="{Binding I18n[patches.btn_clear_rom_from_name]}"
+                        ToolTip.Tip="{Binding SelectedRow.ClearNameTooltip, FallbackValue=''}"
+                        IsVisible="{Binding SelectedRow.CanClearName, FallbackValue=False}"
+                        Command="{Binding ClearNameCommand}" />
+              </WrapPanel>
             </StackPanel>
           </ScrollViewer>
 
