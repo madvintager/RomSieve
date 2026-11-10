@@ -261,6 +261,10 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
             folders = PatchedFolders(parsed, config, datFolders, folders, dat?.Name);
         }
 
+        // The first name under the destination is never the quarantine of the purges nor the marker, whatever the values
+        // and the names read from a DAT give
+        (folders, fileName) = GuardRoot(folders, fileName);
+
         string[] parts = [config.DestinationDir, .. folders, fileName];
         var target = Path.Combine(parts);
 
@@ -272,15 +276,35 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
     }
 
     /// <summary>
+    /// The first name under the destination (its first folder, or the file at its root), which takes a final <c>_</c>, as
+    /// a reserved name of Windows does, when it would be the quarantine of the purges or the marker of the destination
+    /// (<see cref="IsGuardFolderName"/>): a value of a pattern (a game titled <c>_purged</c> under <c>{title}</c>), a DAT
+    /// of a lot named so with a folder per DAT, or a name read from a DAT at the root. Emptying the quarantine would
+    /// otherwise delete files the sort wrote, and the scan of a former destination would skip them. A pattern that names
+    /// one in its text is refused before any run (<see cref="StartsWithReservedFolder"/>,
+    /// <see cref="CheckPatchedPattern"/>). Any other target is left as it is.
+    /// </summary>
+    private static (IReadOnlyList<string> Folders, string FileName) GuardRoot(IReadOnlyList<string> folders, string fileName)
+    {
+        if (folders.Count > 0)
+        {
+            return IsGuardFolderName(folders[0]) ? ([folders[0] + "_", .. folders.Skip(1)], fileName) : (folders, fileName);
+        }
+
+        // A file name may hold folders (a disk of a MAME set, a software in the folder of its list)
+        var first = fileName.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+        return IsGuardFolderName(first) ? (folders, first + "_" + fileName[first.Length..]) : (folders, fileName);
+    }
+
+    /// <summary>
     /// Folders of a patched version under the destination, from the pattern of the patched versions
     /// (<see cref="SortConfig.PatchedPattern"/>): <c>{origin_folder}</c> is worth the folders of its original ROM
     /// (<paramref name="originFolders"/>), <c>{dat_folder}</c> those of its DAT in a lot (<paramref name="datFolders"/>),
     /// each possibly none; every other folder is expanded as a folder of the main pattern, with the values of the original
     /// ROM. The pattern is refused before any run when it would leave the destination
-    /// (<see cref="CheckPatchedPattern"/>); its values, sanitized, cannot. A value may still name the first folder after
-    /// the quarantine of the purges or the marker of the destination (a game titled <c>_purged</c> under <c>{title}</c>):
-    /// that folder then takes a final <c>_</c>, as a reserved name of Windows does. The folders of <c>{origin_folder}</c>
-    /// and <c>{dat_folder}</c> stay those of the original ROM.
+    /// (<see cref="CheckPatchedPattern"/>); its values, sanitized, cannot. A value that names the quarantine or the marker
+    /// as first folder is guarded as for any target (<see cref="GuardRoot"/>), so that <c>{origin_folder}</c> alone stays
+    /// the folder of the original ROM.
     /// </summary>
     private List<string> PatchedFolders(
         ParsedRomName parsed,
@@ -302,10 +326,7 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
                     folders.AddRange(datFolders);
                     break;
                 default:
-                    var folder = ExpandPart(part, mapping);
-
-                    // Only a folder of this pattern: the folders of the original ROM are those of the main pattern
-                    folders.Add(folders.Count == 0 && IsGuardFolderName(folder) ? folder + "_" : folder);
+                    folders.Add(ExpandPart(part, mapping));
                     break;
             }
         }
@@ -313,10 +334,28 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
         return folders;
     }
 
-    /// <summary>Whether a folder at the root of the destination would be the quarantine of the purges or the marker.</summary>
-    private static bool IsGuardFolderName(string name) =>
-        name.Equals(DestinationGuard.QuarantineDirectoryName, StringComparison.OrdinalIgnoreCase) ||
-        name.Equals(DestinationGuard.MarkerFileName, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Whether a name at the root of the destination would be the quarantine of the purges or the marker, case ignored
+    /// and without the final dots and spaces Windows drops (<c>_purged.</c> is <c>_purged</c>).
+    /// </summary>
+    private static bool IsGuardFolderName(string name)
+    {
+        var trimmed = name.TrimEnd('.', ' ');
+        return trimmed.Equals(DestinationGuard.QuarantineDirectoryName, StringComparison.OrdinalIgnoreCase) ||
+               trimmed.Equals(DestinationGuard.MarkerFileName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Whether the main pattern (<see cref="SortConfig.Pattern"/>) names, in its text, the quarantine of the purges
+    /// (<c>_purged</c>) or the marker of the destination (<c>.romsieve</c>) as its first folder, case ignored, which the
+    /// runs refuse (<see cref="SortConfigValidator.GetPatternErrorKey(string?)"/>). A first folder that holds a variable
+    /// is left to its values, which <see cref="BuildTargetPath"/> guards.
+    /// </summary>
+    public static bool StartsWithReservedFolder(string? pattern)
+    {
+        var parts = PatternParts(pattern);
+        return parts.Length > 0 && !parts[0].Contains('{', StringComparison.Ordinal) && IsGuardFolderName(parts[0].Trim());
+    }
 
     /// <summary>
     /// Folders of the destination above the pattern for the files of <paramref name="dat"/>: none for a single DAT or
@@ -439,7 +478,7 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
 
         // The first folder written: the folder variables may be worth no folder, and leave the next one first
         var first = segments.FirstOrDefault(segment => !string.IsNullOrWhiteSpace(segment) && !IsFolderVariable(segment));
-        if (first?.Trim().TrimEnd('.', ' ') is { } firstName && IsGuardFolderName(firstName))
+        if (first?.Trim() is { } firstName && IsGuardFolderName(firstName))
         {
             return PatchedPatternProblem.ReservedFolder;
         }

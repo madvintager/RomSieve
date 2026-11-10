@@ -215,6 +215,8 @@ public sealed class PatternPreviewViewModelTests : IDisposable
     [InlineData("{title/", "tab1.preview_unbalanced_braces")]
     [InlineData("_unmatched/{title}/", "tab1.preview_unmatched_folder")]
     [InlineData("_Unmatched/", "tab1.preview_unmatched_folder")]
+    [InlineData("_purged/{title}/", "tab1.preview_reserved_folder")]
+    [InlineData(".romsieve", "tab1.preview_reserved_folder")]
     public void InvalidPattern_ShouldBeReportedWithoutException(string pattern, string warningKey)
     {
         var directories = CreateDirectories();

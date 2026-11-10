@@ -58,6 +58,12 @@ L'aperçu signale un modèle qui ne ferait pas ce qu'il dit : une variable incon
 sans paire (elle resterait dans le nom du dossier), ou un modèle qui écrit dans `_unmatched`, le dossier des fichiers
 non conformes. Il signale de même un dossier des versions patchées refusé, et dit pourquoi.
 
+Un modèle dont le premier dossier est `_purged` ou `.romsieve` est **refusé** : ces noms sont réservés à la
+[quarantaine des purges et au marqueur](safety-and-undo.md) de la destination, et vider la quarantaine supprimerait ce
+que le tri y aurait écrit. L'aperçu le signale, une ligne le dit sous l'étape **Sortie** (*Modèle refusé*), et la
+simulation comme le tri sont refusés (code 3 en ligne de commande). Avec **Tout à la racine**, le modèle n'est pas
+utilisé et n'est pas refusé.
+
 ### Variables
 
 | Variable | Contenu | Exemple |
@@ -80,7 +86,9 @@ non conformes. Il signale de même un dossier des versions patchées refusé, et
 | `{dat_folder}` | Versions patchées seulement : le dossier du DAT de la ROM d'origine dans un lot, aucun pour un DAT seul | `Nintendo - Game Boy` |
 
 Une valeur inconnue donne `Unknown` (vide pour `{version}`). Les noms sont débarrassés des caractères interdits par
-Windows ou Linux, et les chemins très longs sont pris en charge sous Windows.
+Windows ou Linux, et les chemins très longs sont pris en charge sous Windows. Le premier dossier sous la destination
+n'est jamais `_purged` ni `.romsieve` : une valeur qui les donnerait (un jeu titré `_purged` sous `{title}`, un DAT d'un
+lot nommé ainsi) prend un `_` final (`_purged_`).
 
 ### Sortie à la racine
 

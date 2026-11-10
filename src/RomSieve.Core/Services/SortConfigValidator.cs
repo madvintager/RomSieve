@@ -81,7 +81,7 @@ public static class SortConfigValidator
     /// CHD folder (always read recursively), then the patch folder; <c>null</c> when it overlaps none. Any other run never
     /// reads the CHD folder, which stays in the configuration for the next MAME sort: it is then a folder like any other.
     /// The patch folder is checked whatever the run, even one that does not read it: a purge of a destination that holds
-    /// it would put the patches in quarantine. Last, the pattern of the patched versions (<see cref="GetPatchedPatternErrorKey(SortConfig)"/>).
+    /// it would put the patches in quarantine. Last, the main pattern (<see cref="GetPatternErrorKey"/>), then the pattern of the patched versions (<see cref="GetPatchedPatternErrorKey(SortConfig)"/>).
     /// </summary>
     public static string? GetErrorKey(SortConfig config, bool isMameRun)
     {
@@ -89,8 +89,18 @@ public static class SortConfigValidator
         return GetErrorKey(GetPathOverlap(config.SourceDir, config.DestinationDir, config.Recursive))
                ?? (isMameRun ? GetChdDirErrorKey(config.ChdDir, config.DestinationDir) : null)
                ?? GetPatchDirErrorKey(config.PatchDir, config.DestinationDir)
+               ?? GetPatternErrorKey(config.Pattern)
                ?? GetPatchedPatternErrorKey(config);
     }
+
+    /// <summary>
+    /// Localization key of the error message of a main pattern (<see cref="SortConfig.Pattern"/>, empty with everything at
+    /// the root) whose text names the quarantine of the purges or the marker of the destination as its first folder
+    /// (<see cref="PathOrganizerService.StartsWithReservedFolder"/>), or <c>null</c>. Whatever the run and the convention:
+    /// emptying the quarantine would delete what the sort wrote there.
+    /// </summary>
+    public static string? GetPatternErrorKey(string? pattern) =>
+        PathOrganizerService.StartsWithReservedFolder(pattern) ? "dialog.error_pattern_reserved_folder" : null;
 
     /// <summary>
     /// Localization key of the error message of a pattern of the patched versions that would not stay inside the

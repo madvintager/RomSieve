@@ -487,6 +487,26 @@ public sealed class CliApplicationTests : IDisposable
     }
 
     [Fact]
+    public async Task APatternIntoTheQuarantine_ShouldBeRefused_UnlessEverythingGoesAtTheRoot()
+    {
+        WriteConfig(s => s.Pattern = "_purged/{title}/");
+
+        var result = await RunAsync("run", "--execute");
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidConfiguration);
+        result.Error.Should().Contain("The pattern cannot start with _purged or .romsieve");
+        Directory.Exists(_destination).Should().BeFalse("nothing is written, not even the marker");
+
+        // The pattern is not used with everything at the root
+        WriteConfig(s =>
+        {
+            s.Pattern = "_purged/{title}/";
+            s.FlatDestination = true;
+        });
+        (await RunAsync("run")).ExitCode.Should().Be(ExitCodes.Success);
+    }
+
+    [Fact]
     public async Task MissingSourceConfigurationOrProfile_ShouldBeInvalidConfigurations()
     {
         WriteConfig(s => s.SourceDir = Path.Combine(_temp.Path, "missing"));

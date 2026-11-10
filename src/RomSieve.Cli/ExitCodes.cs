@@ -12,7 +12,7 @@ public static class ExitCodes
     /// <summary>Invalid arguments: unknown option, missing or invalid value, incompatible options.</summary>
     public const int InvalidArguments = 2;
 
-    /// <summary>Invalid configuration: configuration file or profile missing or unreadable, source, DAT or destination not found, destination overlapping the source, pattern of the patched versions that would leave the destination.</summary>
+    /// <summary>Invalid configuration: configuration file or profile missing or unreadable, source, DAT or destination not found, destination overlapping the source, pattern that starts with the quarantine or the marker, pattern of the patched versions that would leave the destination.</summary>
     public const int InvalidConfiguration = 3;
 
     /// <summary>The run ended, but some files are in error, an export failed, some operations could not be undone, or some items of the quarantine could not be deleted.</summary>

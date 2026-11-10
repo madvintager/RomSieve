@@ -54,6 +54,9 @@ RomSieve offers to **purge** it before the sort:
 * to free the disk space, empty the quarantine once you are satisfied with the result (see below).
 
 The `_purged` folder of a previous purge is never touched by the next one: each purge has its own dated folder.
+A sort never writes into `_purged` nor over the `.romsieve` marker: a pattern that starts with one of them is refused,
+and a folder or a name that would give them at the root of the destination takes a final `_` (see
+[Variables](destination-and-transfers.md#variables)).
 
 The folders and files of the system (`System Volume Information`, `$RECYCLE.BIN`, `lost+found`, `.Trash-1000`,
 `.DS_Store`...) do not count: the root of a USB stick or of a memory card that holds only them is an empty destination,

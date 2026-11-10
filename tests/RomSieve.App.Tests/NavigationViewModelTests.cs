@@ -159,6 +159,42 @@ public sealed class NavigationViewModelTests : IDisposable
     }
 
     [Fact]
+    public void OutputState_ShouldTellAPatternThatWritesIntoTheQuarantine_WithItsReason()
+    {
+        _vm.Directories.SourceDir = _source;
+        _vm.Directories.DestinationDir = _destination;
+        _vm.Directories.FlatDestination = false;
+
+        _vm.Directories.Pattern = "_purged/{title}/";
+        Navigation.OutputEntry.IndicatorTone.Should().Be(StepIndicatorTone.Warning);
+        Navigation.OutputEntry.IndicatorText.Should().Be("Modèle refusé");
+        Navigation.OutputEntry.IndicatorTooltip.Should().Be(_vm.Localization.Tr("dialog.error_pattern_reserved_folder"));
+
+        // Unused with everything at the root, as the run does not refuse it then
+        _vm.Directories.FlatDestination = true;
+        Navigation.OutputEntry.HasIndicator.Should().BeFalse();
+        _vm.Directories.FlatDestination = false;
+        Navigation.OutputEntry.HasIndicator.Should().BeTrue();
+
+        _vm.Directories.Pattern = "{title}/_purged/";
+        Navigation.OutputEntry.HasIndicator.Should().BeFalse("only the first folder of the destination is reserved");
+    }
+
+    [Fact]
+    public async Task ASimulationWithAPatternIntoTheQuarantine_ShouldBeRefusedBeforeItStarts()
+    {
+        _vm.Directories.SourceDir = _source;
+        _vm.Directories.DestinationDir = _destination;
+        _vm.Directories.FlatDestination = false;
+        _vm.Directories.Pattern = ".romsieve/{title}/";
+
+        await _vm.Execution.SimulateAsync();
+
+        _dialogs.ShownMessages.Should().ContainSingle(m => m.Message == _vm.Localization.Tr("dialog.error_pattern_reserved_folder"));
+        _vm.Execution.LastItems.Should().BeEmpty("nothing runs");
+    }
+
+    [Fact]
     public async Task Simulation_ShouldShowTheResultsAndTellWhenTheyAreOutOfDate()
     {
         _vm.Directories.SourceDir = _source;

@@ -451,13 +451,11 @@ public sealed class PatchedPatternTests : IDisposable
             var target = _services.Organizer.BuildTargetPath(parsed, ChronoPatched, config, dat: dat, patched: true);
             PathOrganizerService.IsInsideDirectory(target, config.DestinationDir).Should().BeTrue(target);
 
-            // Never the quarantine nor the marker, unless the original ROM goes there itself, by the main pattern
+            // Never the quarantine nor the marker, for the patched version as for its original ROM
             string[] guards = [DestinationGuard.QuarantineDirectoryName, DestinationGuard.MarkerFileName];
             string FirstFolder(string path) => Path.GetRelativePath(config.DestinationDir, path).Split(Path.DirectorySeparatorChar)[0];
-            if (!guards.Contains(FirstFolder(origin), StringComparer.OrdinalIgnoreCase))
-            {
-                guards.Should().NotContain(FirstFolder(target), target);
-            }
+            guards.Should().NotContain(FirstFolder(origin), origin);
+            guards.Should().NotContain(FirstFolder(target), target);
         }, iter: 2000);
     }
 

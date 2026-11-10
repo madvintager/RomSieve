@@ -59,6 +59,12 @@ The preview warns about a pattern that would not do what it says: an unknown var
 without its pair (it would stay in the folder name), or a pattern that writes into `_unmatched`, the folder of the
 non-conforming files. It also reports a folder of the patched versions that is refused, and says why.
 
+A pattern whose first folder is `_purged` or `.romsieve` is **refused**: these names are reserved to the
+[quarantine of the purges and to the marker](safety-and-undo.md) of the destination, and emptying the quarantine would
+delete what the sort wrote there. The preview reports it, a line says so under the **Output** step (*Pattern refused*),
+and both the simulation and the sort are refused (code 3 on the command line). With **All at the root**, the pattern is
+not used, and not refused.
+
 ### Variables
 
 | Variable | Content | Example |
@@ -81,7 +87,9 @@ non-conforming files. It also reports a folder of the patched versions that is r
 | `{dat_folder}` | Patched versions only: the folder of the DAT of the original ROM in a lot, none for a single DAT | `Nintendo - Game Boy` |
 
 An unknown value gives `Unknown` (empty for `{version}`). The names are cleaned of the characters forbidden by Windows
-or Linux, and very long paths are supported on Windows.
+or Linux, and very long paths are supported on Windows. The first folder under the destination is never `_purged` nor
+`.romsieve`: a value that would give them (a game titled `_purged` under `{title}`, a DAT of a lot named so) takes a
+final `_` (`_purged_`).
 
 ### Output at the root
 

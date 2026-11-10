@@ -58,6 +58,9 @@ propose de la **purger** avant le tri :
 * pour libérer l'espace disque, videz la quarantaine une fois le résultat vérifié (voir ci-dessous).
 
 Le dossier `_purged` d'une purge précédente n'est jamais touché par la suivante : chaque purge a son propre dossier daté.
+Un tri n'écrit jamais dans `_purged` ni sur le marqueur `.romsieve` : un modèle qui commence par l'un d'eux est refusé,
+et un dossier ou un nom qui les donnerait à la racine de la destination prend un `_` final (voir
+[Variables](destination-and-transfers.md#variables)).
 
 Les dossiers et fichiers du système (`System Volume Information`, `$RECYCLE.BIN`, `lost+found`, `.Trash-1000`,
 `.DS_Store`...) ne comptent pas : la racine d'une clé USB ou d'une carte mémoire qui ne contient qu'eux est une

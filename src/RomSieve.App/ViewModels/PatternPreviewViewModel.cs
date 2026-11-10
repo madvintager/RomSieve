@@ -262,6 +262,12 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
             {
                 warnings.Add(_localization.Tr("tab1.preview_unbalanced_braces"));
             }
+
+            // The runs refuse it: emptying the quarantine would delete what the sort wrote there
+            if (PathOrganizerService.StartsWithReservedFolder(settings.Pattern))
+            {
+                warnings.Add(_localization.Tr("tab1.preview_reserved_folder"));
+            }
         }
 
         if (writesInUnmatched)

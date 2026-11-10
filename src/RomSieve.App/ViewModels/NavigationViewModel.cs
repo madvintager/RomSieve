@@ -239,6 +239,8 @@ public sealed partial class NavigationViewModel : ViewModelBase
             case nameof(DirectoriesViewModel.DestinationDir):
             case nameof(DirectoriesViewModel.ChdDir):
             case nameof(DirectoriesViewModel.PatchDir):
+            case nameof(DirectoriesViewModel.Pattern):
+            case nameof(DirectoriesViewModel.FlatDestination):
             case nameof(DirectoriesViewModel.PatchedPattern):
             case nameof(DirectoriesViewModel.IsMameConvention):
                 RefreshOutputIndicator();
@@ -309,6 +311,15 @@ public sealed partial class NavigationViewModel : ViewModelBase
         else if (SortConfigValidator.GetPatchDirErrorKey(_directories.PatchDir, destination) is not null)
         {
             key = "nav.state_destination_overlap_patches";
+        }
+        else if ((_directories.FlatDestination ? null : SortConfigValidator.GetPatternErrorKey(_directories.Pattern)) is { } mainPatternKey)
+        {
+            // The main pattern, which the run refuses (unused with everything at the root): the reason in the tooltip
+            OutputEntry.SetIndicator(
+                StepIndicatorTone.Warning,
+                _localization.Tr("nav.state_pattern_invalid"),
+                _localization.Tr(mainPatternKey));
+            return;
         }
         else if (SortConfigValidator.GetPatchedPatternErrorKey(_directories.PatchDir, _directories.PatchedPattern) is { } patternKey)
         {
