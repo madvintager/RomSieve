@@ -118,10 +118,15 @@ where a file the DAT does not know is always non-conforming.
 
 ## Multi-disc
 
-* **Complete sets only (requires the DAT)**: a game whose disks (or, for No-Intro / Redump, whose media and tracks)
-  are not all present is excluded. With the MAME convention, this group gives way to the **Complete sets only (ROMs and
-  CHDs present)** option of the [MAME machines](#mame-machines) frame. For the software of a MAME list, this option
-  excludes a software whose archive lacks a ROM.
+* **Complete sets only (requires the DAT)**: a game that lacks a disc, or a file the DAT lists for one of its discs (a
+  track, the `.cue`), is excluded, whether it has one disc or several. The reason tells what is missing: "Incomplete
+  multi-disk set (1/2 disks found)" for an absent disc, "Incomplete disc: 1/9 files of the DAT found" for a disc that
+  lacks tracks, "Incomplete game" for a game without a descriptor. The number of discs of a set comes from the DAT: a
+  set that lacks its last disc is incomplete. A file only completes the disc whose name it bears, even when an identical
+  track is on another disc; the ROMs the DAT says were never dumped (`nodump`) do not count, and a CHD linked to its
+  game by **Identify CHDs by their name** stands for its whole disc. With the MAME convention, this group gives way to
+  the **Complete sets only (ROMs and CHDs present)** option of the [MAME machines](#mame-machines) frame. For the
+  software of a MAME list, this option excludes a software whose archive lacks a ROM.
 * **Complete a set with the disks of another dump**: an incomplete set borrows the disk it lacks from another dump of
   the same edition. *(TOSEC)* A set is often incomplete because disk 1 carries a trainer `[t]` or a fix `[f]` that the
   data disks do not: RomSieve completes it with the clean data disks of the same game. *(No-Intro / Redump)* A disc

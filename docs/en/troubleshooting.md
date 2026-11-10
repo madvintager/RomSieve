@@ -20,6 +20,14 @@ with a tag you exclude, while **Also filter files missing from the DAT** is unch
 [Files missing from the DAT](filters.md#files-missing-from-the-dat)). This is the case of a configuration saved by an
 earlier version of RomSieve.
 
+### "Incomplete disc" or "Incomplete game"
+
+With **Complete sets only**, a game is excluded as soon as it lacks a file the DAT lists: the reason gives the number
+of files found out of the number expected, for that disc only. The most common case is a Redump archive that holds a
+single track (`(Track 8).bin`): it lacks the `.cue` and the other tracks, and the disc would not boot. Complete the
+dump, or uncheck the option to keep partial discs (see [Multi-disc](filters.md#multi-disc)). "Incomplete game in the
+destination", further down, is something else: a file that could not be written during the sort.
+
 ### 1G1R did not keep the release I wanted
 
 The tooltip of the excluded release, or the **Selected Row Details** panel, tells which criterion decided (for

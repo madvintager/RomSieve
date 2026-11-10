@@ -21,6 +21,15 @@ même avec un tag que vous excluez, quand **Filtrer aussi les fichiers absents d
 [Fichiers absents du DAT](filters.md#fichiers-absents-du-dat)). C'est le cas d'une configuration enregistrée par une
 version précédente de RomSieve.
 
+### « Disque incomplet » ou « Jeu incomplet »
+
+Avec **Sets complets uniquement**, un jeu est exclu dès qu'il lui manque un fichier que le DAT liste : la raison donne
+le nombre de fichiers trouvés sur le nombre attendu, pour ce disque seulement. Le cas le plus courant est une archive
+Redump qui ne contient qu'une piste (`(Track 8).bin`) : il lui manque le `.cue` et les autres pistes, et le disque ne
+démarrerait pas. Complétez le dump, ou décochez l'option pour garder les disques partiels (voir
+[Multi-disques](filters.md#multi-disques)). « Jeu incomplet dans la destination », plus bas, est autre chose : un
+fichier qui n'a pas pu être écrit pendant le tri.
+
 ### Le 1G1R n'a pas gardé la version que je voulais
 
 L'info-bulle de la version exclue, ou le panneau **Détail de la ligne sélectionnée**, indique le critère qui a décidé

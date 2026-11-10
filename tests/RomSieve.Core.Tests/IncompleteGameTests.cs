@@ -25,12 +25,11 @@ public sealed class IncompleteGameTests : IDisposable
     private static string Crc(byte[] data) => Crc32.HashToUInt32(data).ToString("x8", CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Files of each disc of a two-disc Redump game: its descriptor and two tracks, all different unless the audio
-    /// track is the same on every disc (<paramref name="sharedAudio"/>).
+    /// Files of a Redump disc: its descriptor and two tracks, all different unless the audio track is the same on every
+    /// disc (<paramref name="sharedAudio"/>).
     /// </summary>
-    private static Dictionary<string, byte[]> RedumpDisc(int disc, bool sharedAudio = false)
+    private static Dictionary<string, byte[]> CdImage(string name, bool sharedAudio = false)
     {
-        var name = $"{Game} (Disc {disc})";
         var cue = $"""
             FILE "{name} (Track 1).bin" BINARY
               TRACK 01 MODE2/2352
@@ -42,10 +41,20 @@ public sealed class IncompleteGameTests : IDisposable
         return new Dictionary<string, byte[]>
         {
             [name + ".cue"] = Encoding.ASCII.GetBytes(cue),
-            [name + " (Track 1).bin"] = Encoding.ASCII.GetBytes($"DATA TRACK OF DISC {disc}"),
-            [name + " (Track 2).bin"] = Encoding.ASCII.GetBytes(sharedAudio ? "AUDIO TRACK OF EVERY DISC" : $"AUDIO TRACK OF DISC {disc}")
+            [name + " (Track 1).bin"] = Encoding.ASCII.GetBytes($"DATA TRACK OF {name}"),
+            [name + " (Track 2).bin"] = Encoding.ASCII.GetBytes(sharedAudio ? "AUDIO TRACK OF EVERY DISC" : $"AUDIO TRACK OF {name}")
         };
     }
+
+    /// <summary>A disc of the two-disc Redump game <see cref="Game"/>.</summary>
+    private static Dictionary<string, byte[]> RedumpDisc(int disc, bool sharedAudio = false) =>
+        CdImage($"{Game} (Disc {disc})", sharedAudio);
+
+    private static IEnumerable<(string Name, byte[] Data)> Files(params Dictionary<string, byte[]>[] discs) =>
+        discs.SelectMany(d => d).Select(f => (f.Key, f.Value));
+
+    private static IEnumerable<(string Name, byte[] Data)> Without(Dictionary<string, byte[]> disc, string missing) =>
+        disc.Where(f => !f.Key.Contains(missing, StringComparison.Ordinal)).Select(f => (f.Key, f.Value));
 
     private static string DatOf(IEnumerable<(string Game, Dictionary<string, byte[]> Files)> games, string? noDumpRom = null)
     {
@@ -73,12 +82,13 @@ public sealed class IncompleteGameTests : IDisposable
         return xml.Append("</datafile>").ToString();
     }
 
-    private async Task<SortExecutionResult> SimulateAsync(
+    private SortConfig CreateConfig(
         IEnumerable<(string Game, Dictionary<string, byte[]> Files)> datGames,
         IEnumerable<(string Name, byte[] Data)> sourceFiles,
-        string? noDumpRom = null)
+        string? noDumpRom = null,
+        Action<SortConfig>? configure = null)
     {
-        var src = _temp.CreateSubdirectory("src");
+        var src = _temp.CreateSubdirectory("src_" + Guid.NewGuid().ToString("N")[..8]);
         foreach (var (name, data) in sourceFiles)
         {
             File.WriteAllBytes(Path.Combine(src, name), data);
@@ -87,13 +97,26 @@ public sealed class IncompleteGameTests : IDisposable
         var config = new SortConfig
         {
             SourceDir = src,
-            DestinationDir = _temp.CreateSubdirectory("dst"),
-            DatFile = _temp.WriteText("game.dat", DatOf(datGames, noDumpRom))
+            DestinationDir = _temp.CreateSubdirectory("dst_" + Guid.NewGuid().ToString("N")[..8]),
+            DatFile = _temp.WriteText(Guid.NewGuid().ToString("N")[..8] + ".dat", DatOf(datGames, noDumpRom))
         };
         config.Filters.CompleteMultidiskSetsOnly = true;
         config.Filters.NoIntroCompleteMultimediaSetsOnly = true;
-        return await _services.Processor.ExecuteAsync(config, isDryRun: true);
+        configure?.Invoke(config);
+        return config;
     }
+
+    private Task<SortExecutionResult> SimulateAsync(SortConfig config) => _services.Processor.ExecuteAsync(config, isDryRun: true);
+
+    private Task<SortExecutionResult> SimulateAsync(
+        IEnumerable<(string Game, Dictionary<string, byte[]> Files)> datGames,
+        IEnumerable<(string Name, byte[] Data)> sourceFiles,
+        string? noDumpRom = null,
+        Action<SortConfig>? configure = null) =>
+        SimulateAsync(CreateConfig(datGames, sourceFiles, noDumpRom, configure));
+
+    private static ProcessItem ItemOf(SortExecutionResult result, string displayName) =>
+        result.Items.Single(it => it.DisplayName == displayName);
 
     [Fact]
     public async Task DiscWithMissingTracks_ShouldBeExcludedAsAnIncompleteDisc()
@@ -198,5 +221,196 @@ public sealed class IncompleteGameTests : IDisposable
 
         result.Items.Should().NotBeEmpty();
         result.Items.Should().OnlyContain(it => it.Status == FileStatus.Valid);
+    }
+
+    // =========================================================================
+    // Games of a single disc or of a single entry of the DAT
+    // =========================================================================
+
+    private const string Solo = "Solo Game (Europe)";
+    private const string SoloUsa = "Solo Game (USA)";
+
+    [Fact]
+    public async Task SingleDiscGame_WithOnlyOneTrack_ShouldBeExcludedAsAnIncompleteDisc()
+    {
+        var solo = CdImage(Solo);
+        var track = $"{Solo} (Track 2).bin";
+
+        var result = await SimulateAsync([(Solo, solo)], [(track, solo[track])]);
+
+        var item = result.Items.Single();
+        item.Status.Should().Be(FileStatus.Excluded);
+        _services.I18n.Format(item.StatusReason).Should().Be("Disque incomplet : 1/3 fichiers du DAT trouvés");
+    }
+
+    [Fact]
+    public async Task SingleDiscGame_WithItsDescriptorButNotEveryTrack_ShouldBeExcludedWithItsTracks()
+    {
+        var solo = CdImage(Solo);
+
+        var result = await SimulateAsync([(Solo, solo)], Without(solo, "(Track 2)"));
+
+        var descriptor = ItemOf(result, Solo + ".cue");
+        descriptor.Status.Should().Be(FileStatus.Excluded);
+        _services.I18n.Format(descriptor.StatusReason).Should().Be("Disque incomplet : 2/3 fichiers du DAT trouvés");
+        result.Items.Should().OnlyContain(it => it.Status == FileStatus.Excluded);
+    }
+
+    [Fact]
+    public async Task SingleDiscGame_Complete_ShouldBeKept()
+    {
+        var solo = CdImage(Solo);
+
+        var result = await SimulateAsync([(Solo, solo)], Files(solo));
+
+        ItemOf(result, Solo + ".cue").Status.Should().Be(FileStatus.Valid);
+    }
+
+    [Fact]
+    public async Task IncompleteDisc_WithoutCompleteSetsOnly_ShouldBeKept()
+    {
+        var solo = CdImage(Solo);
+
+        var result = await SimulateAsync([(Solo, solo)], Without(solo, "(Track 2)"), configure: c =>
+        {
+            c.Filters.CompleteMultidiskSetsOnly = false;
+            c.Filters.NoIntroCompleteMultimediaSetsOnly = false;
+        });
+
+        ItemOf(result, Solo + ".cue").Status.Should().Be(FileStatus.Valid);
+    }
+
+    [Fact]
+    public async Task TosecGameMissingAFile_ShouldBeExcludedAsAnIncompleteGame()
+    {
+        const string tosecGame = "Alpha (1990)(Ocean)";
+        var program = "ALPHA PROGRAM DISK"u8.ToArray();
+        var data = "ALPHA DATA DISK"u8.ToArray();
+        var src = _temp.CreateSubdirectory("src_tosec");
+        File.WriteAllBytes(Path.Combine(src, tosecGame + ".adf"), program);
+        var config = new SortConfig
+        {
+            SourceDir = src,
+            DestinationDir = _temp.CreateSubdirectory("dst_tosec"),
+            DatFile = _temp.WriteText("tosec.dat", $"""
+                <?xml version="1.0"?>
+                <datafile>
+                  <header><name>Commodore Amiga - Games - [ADF] (TOSEC)</name><description>TOSEC test DAT</description></header>
+                  <game name="{tosecGame}"><description>{tosecGame}</description>
+                    <rom name="{tosecGame}.adf" size="{program.Length}" crc="{Crc(program)}"/>
+                    <rom name="{tosecGame}(Data).adf" size="{data.Length}" crc="{Crc(data)}"/>
+                  </game>
+                </datafile>
+                """)
+        };
+        config.Filters.CompleteMultidiskSetsOnly = true;
+
+        var result = await SimulateAsync(config);
+
+        var item = result.Items.Single();
+        item.Parsed.Convention.Should().Be(NamingConvention.Tosec);
+        item.Status.Should().Be(FileStatus.Excluded);
+        _services.I18n.Format(item.StatusReason).Should().Be("Jeu incomplet : 1/2 fichiers du DAT trouvés");
+    }
+
+    [Fact]
+    public async Task IncompletePreferredVersion_ShouldLeaveThe1G1RToACompleteOne()
+    {
+        var europe = CdImage(Solo);
+        var usa = CdImage(SoloUsa);
+
+        var result = await SimulateAsync(
+            [(Solo, europe), (SoloUsa, usa)],
+            Without(europe, "(Track 2)").Concat(Files(usa)),
+            configure: c =>
+            {
+                c.Filters.OneGameOneRom = true;
+                c.Filters.PriorityCountries = ["EU", "US"];
+            });
+
+        ItemOf(result, SoloUsa + ".cue").Status.Should().Be(FileStatus.Valid);
+        ItemOf(result, SoloUsa + ".cue").Is1G1RWinner.Should().BeTrue();
+        var europeDisc = ItemOf(result, Solo + ".cue");
+        europeDisc.Status.Should().Be(FileStatus.Excluded);
+        europeDisc.StatusReason!.Key.Should().Be("reason.incomplete_disc");
+    }
+
+    [Fact]
+    public async Task ForcedWinner_ShouldBeKeptEvenWhenItsDiscIsIncomplete()
+    {
+        var europe = CdImage(Solo);
+        var usa = CdImage(SoloUsa);
+        var config = CreateConfig(
+            [(Solo, europe), (SoloUsa, usa)],
+            Without(europe, "(Track 2)").Concat(Files(usa)),
+            configure: c =>
+            {
+                c.Filters.OneGameOneRom = true;
+                c.Filters.PriorityCountries = ["EU", "US"];
+            });
+        var first = await SimulateAsync(config);
+        var europeDisc = ItemOf(first, Solo + ".cue");
+        config.Filters.Manual1G1RWinners[_services.FilterService.SerializeCanonicalGameKey(europeDisc.Parsed)] = europeDisc.DisplayName;
+
+        var result = await SimulateAsync(config);
+
+        ItemOf(result, Solo + ".cue").Status.Should().Be(FileStatus.Valid);
+        ItemOf(result, SoloUsa + ".cue").Status.Should().Be(FileStatus.Excluded);
+    }
+
+    [Fact]
+    public async Task Recalculation_ShouldReproduceTheSimulation_WithTheTracksOfEachDescriptor()
+    {
+        var europe = CdImage(Solo);
+        var usa = CdImage(SoloUsa);
+        var disc1 = RedumpDisc(1);
+        var disc2 = RedumpDisc(2);
+        var config = CreateConfig(
+            [(Solo, europe), (SoloUsa, usa), ($"{Game} (Disc 1)", disc1), ($"{Game} (Disc 2)", disc2)],
+            Without(europe, "(Track 2)").Concat(Files(usa, disc1, disc2)),
+            configure: c =>
+            {
+                c.Filters.OneGameOneRom = true;
+                c.Filters.PriorityCountries = ["EU", "US"];
+            });
+        var result = await SimulateAsync(config);
+        var expected = result.Items.ToDictionary(it => it.DisplayName, it => (it.Status, it.StatusReason?.Key));
+        expected[$"{Game} (Disc 1).cue"].Status.Should().Be(FileStatus.Valid);
+        expected[Solo + ".cue"].Key.Should().Be("reason.incomplete_disc");
+
+        foreach (var game in result.Items.GroupBy(it => it.Parsed.Title))
+        {
+            var gameItems = game.ToList();
+            _services.Processor.RecalculateGameItems(gameItems, config, result.DatCatalog);
+
+            gameItems.Select(it => (it.DisplayName, it.Status, it.StatusReason?.Key)).Should().BeEquivalentTo(
+                gameItems.Select(it => (it.DisplayName, expected[it.DisplayName].Status, expected[it.DisplayName].Key)),
+                because: $"game '{game.Key}' must not change on recalculation");
+        }
+    }
+
+    [Fact]
+    public async Task IncompletePressing_ShouldNotBeBorrowed_WhenAnotherPressingIsComplete()
+    {
+        const string saga = "Saga (Japan)";
+        var disc1 = CdImage($"{saga} (Disc 1)");
+        var firstPressing = CdImage($"{saga} (Disc 2) (4M)");
+        var secondPressing = CdImage($"{saga} (Disc 2) (5M)");
+        var disc3 = CdImage($"{saga} (Disc 3)");
+
+        var result = await SimulateAsync(
+            [
+                ($"{saga} (Disc 1)", disc1), ($"{saga} (Disc 2) (4M)", firstPressing),
+                ($"{saga} (Disc 2) (5M)", secondPressing), ($"{saga} (Disc 3)", disc3)
+            ],
+            Files(disc1, secondPressing, disc3).Concat(Without(firstPressing, "(Track 2)")),
+            configure: c => c.Filters.SmartMultidiskGrouping = true);
+
+        ItemOf(result, $"{saga} (Disc 1).cue").Status.Should().Be(FileStatus.Valid);
+        ItemOf(result, $"{saga} (Disc 3).cue").Status.Should().Be(FileStatus.Valid);
+        ItemOf(result, $"{saga} (Disc 2) (5M).cue").Status.Should().Be(FileStatus.Valid);
+        var partial = ItemOf(result, $"{saga} (Disc 2) (4M).cue");
+        partial.Status.Should().Be(FileStatus.Excluded);
+        partial.StatusReason!.Key.Should().Be("reason.incomplete_disc");
     }
 }

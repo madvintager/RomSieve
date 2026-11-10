@@ -263,14 +263,17 @@ public sealed partial class MultiDiskEvaluator
         {
             foreach (var item in itemsToProcess)
             {
-                // A CHD named after its game stands for the whole disc, whose tracks the DAT lists: it is complete
-                if (item.Status == FileStatus.Valid && !string.IsNullOrEmpty(item.TargetFilename) && !item.IsIdentifiedByName)
+                // A CHD named after its game stands for the whole disc, whose tracks the DAT lists: it is complete. A
+                // MAME set or software has its own completeness (ExcludeIncompleteMameSets)
+                if (item.Status == FileStatus.Valid && !string.IsNullOrEmpty(item.TargetFilename) &&
+                    !item.IsIdentifiedByName && item.MameSet is null)
                 {
                     var game = datCatalog.GetGameForRom(item.TargetFilename, item.DatGameName);
 
-                    // A ROM never dumped has no file in any collection
+                    // Every game of the DAT, of one disc or several: a disc that lacks a track is as unusable as a set
+                    // that lacks a disc. A ROM never dumped has no file in any collection
                     var totalExpected = game?.Roms.Count(r => r.Status != DatRomStatus.NoDump) ?? 0;
-                    if (game is not null && game.IsMultidisk && totalExpected > 1)
+                    if (game is not null && totalExpected > 1)
                     {
                         var foundCount = gameMatchedRoms.TryGetValue(game.Name, out var matchedSet) ? matchedSet.Count : 0;
                         if (foundCount < totalExpected)

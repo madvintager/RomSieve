@@ -120,10 +120,16 @@ avec un DAT MAME ou des listes de logiciels, où un fichier que le DAT ne conna�
 
 ## Multi-disques
 
-* **Sets complets uniquement (nécessite le DAT)** : un jeu dont tous les disques (ou, pour No-Intro / Redump, tous
-  les supports et pistes) ne sont pas présents est exclu. Avec la convention MAME, ce groupe laisse place à l'option
-  **Sets complets uniquement (ROM et CHD présents)** du cadre [Machines MAME](#machines-mame). Pour les logiciels
-  d'une liste MAME, cette option exclut un logiciel dont l'archive n'a pas toutes ses ROMs.
+* **Sets complets uniquement (nécessite le DAT)** : un jeu auquel il manque un disque, ou un fichier que le DAT liste
+  pour l'un de ses disques (une piste, le `.cue`), est exclu, qu'il ait un disque ou plusieurs. La raison dit ce qui
+  manque : « Set multi-disquettes incomplet (1/2 disques trouvés) » pour un disque absent, « Disque incomplet : 1/9
+  fichiers du DAT trouvés » pour un disque auquel il manque des pistes, « Jeu incomplet » pour un jeu sans descripteur.
+  Le nombre de disques d'un set vient du DAT : un set auquel il manque son dernier disque est incomplet. Un fichier ne
+  complète que le disque dont il porte le nom, même quand une piste identique figure sur un autre disque ; les ROMs que
+  le DAT dit jamais dumpées (`nodump`) ne comptent pas, et un CHD rattaché à son jeu par **Identifier les CHD par leur
+  nom** vaut tout son disque. Avec la convention MAME, ce groupe laisse place à l'option **Sets complets uniquement (ROM
+  et CHD présents)** du cadre [Machines MAME](#machines-mame). Pour les logiciels d'une liste MAME, cette option exclut
+  un logiciel dont l'archive n'a pas toutes ses ROMs.
 * **Compléter un set avec les disques d'un autre dump** : un set incomplet emprunte le disque qui lui manque à un autre
   dump de la même édition. *(TOSEC)* Un set est souvent incomplet parce que le disque 1 porte un trainer `[t]` ou un
   correctif `[f]` que les disques de données n'ont pas : RomSieve le complète avec les disques de données propres du

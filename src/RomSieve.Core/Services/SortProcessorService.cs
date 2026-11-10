@@ -1404,17 +1404,27 @@ public sealed class SortProcessorService : ISortProcessorService
                 continue;
             }
 
-            if (datCatalog is not null && !string.IsNullOrEmpty(it.TargetFilename))
+            // The files of a game are the item and those attached to it (the tracks of a descriptor), as the
+            // identification counted them
+            if (datCatalog is not null)
             {
-                var game = datCatalog.GetGameForRom(it.TargetFilename, it.DatGameName);
-                if (game is not null)
+                foreach (var file in it.RelatedItems.Prepend(it))
                 {
-                    if (!gameMatchedRoms.TryGetValue(game.Name, out var set))
+                    if (file.IdentificationFailure != IdentificationFailure.None || string.IsNullOrEmpty(file.TargetFilename))
                     {
-                        set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        gameMatchedRoms[game.Name] = set;
+                        continue;
                     }
-                    set.Add(it.TargetFilename);
+
+                    var game = datCatalog.GetGameForRom(file.TargetFilename, file.DatGameName);
+                    if (game is not null)
+                    {
+                        if (!gameMatchedRoms.TryGetValue(game.Name, out var set))
+                        {
+                            set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            gameMatchedRoms[game.Name] = set;
+                        }
+                        set.Add(file.TargetFilename);
+                    }
                 }
             }
 
