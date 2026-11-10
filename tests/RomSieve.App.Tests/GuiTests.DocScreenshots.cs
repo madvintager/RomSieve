@@ -188,7 +188,6 @@ public sealed partial class GuiTests
                             Dispatcher.UIThread.RunJobs();
                         }
 
-                        patchesVm.Rows[0].IsChecked = true;
                         var patchesWindow = new PatchesWindow { DataContext = patchesVm };
                         patchesWindow.Show();
                         try

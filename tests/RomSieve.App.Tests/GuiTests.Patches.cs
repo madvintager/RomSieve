@@ -193,12 +193,13 @@ public sealed partial class GuiTests
                     {
                         await Task.WhenAll(shown.Rows.Select(r => r.FormsLoading));
                         Settle(patchesWindow);
-                        patchesWindow.FindControl<ListBox>("ListPatches")!.ItemCount.Should().Be(1);
-                        patchesWindow.FindControl<ComboBox>("ComboPatchOrigin")!.SelectedItem.Should().BeSameAs(shown.Rows[0].Origins[0]);
-                        patchesWindow.FindControl<ComboBox>("ComboPatchForm")!.IsEnabled.Should().BeFalse("the ROM has a single form");
-                        var rename = patchesWindow.FindControl<Button>("BtnPatchesRename")!;
+                        patchesWindow.FindControl<ListBox>("ListPatches")!.ItemCount.Should().Be(2, "the title of its group, then the patch");
+                        patchesWindow.FindControl<ListBox>("ListPatchOrigins")!.SelectedItem.Should().BeSameAs(shown.Rows[0].Origins[0]);
+                        patchesWindow.FindControl<ListBox>("ListPatchForms")!.IsEffectivelyVisible.Should().BeFalse("the ROM has a single form");
+                        patchesWindow.FindControl<StackPanel>("PanelPatchPreview")!.IsEffectivelyVisible.Should().BeTrue();
+                        var apply = patchesWindow.FindControl<Button>("BtnPatchApply")!;
                         var again = patchesWindow.FindControl<Button>("BtnPatchesSimulateAgain")!;
-                        rename.IsEffectivelyEnabled.Should().BeFalse("no patch is checked");
+                        apply.IsEffectivelyEnabled.Should().BeTrue("a ROM is proposed");
                         again.IsEffectivelyEnabled.Should().BeFalse("no patch is renamed");
                         ToolTip.GetShowOnDisabled(again).Should().BeTrue();
 
@@ -210,7 +211,7 @@ public sealed partial class GuiTests
                             {
                                 vm.UiLocale = locale;
                                 Settle(patchesWindow);
-                                foreach (var name in new[] { "BtnPatchesCheckNoteMatched", "BtnPatchesRename", "BtnPatchesSimulateAgain", "BtnPatchesClose", "BtnPatchChooseFound", "BtnPatchDetach" })
+                                foreach (var name in new[] { "BtnPatchesSimulateAgain", "BtnPatchesClose", "BtnPatchApply", "BtnPatchDetach" })
                                 {
                                     AssertNotTrimmed(patchesWindow.FindControl<Control>(name)!, $"{name} ({locale})");
                                 }
@@ -219,13 +220,13 @@ public sealed partial class GuiTests
                             vm.UiLocale = "fr";
                         }
 
-                        shown.Rows[0].IsChecked = true;
-                        Settle(patchesWindow);
-                        rename.Content.Should().Be("Renommer (1)");
+                        apply.Content.Should().Be("Appliquer à cette ROM");
                         CaptureLotStep(patchesWindow, "patches");
-                        await shown.RenameCommand.ExecuteAsync(null);
+                        await shown.ApplyCommand.ExecuteAsync(null);
                         Settle(patchesWindow);
                         again.IsEffectivelyEnabled.Should().BeTrue();
+                        patchesWindow.FindControl<Button>("BtnPatchUndo")!.IsEffectivelyVisible.Should().BeTrue();
+                        patchesWindow.FindControl<TextBlock>("LblPatchesModified")!.Text.Should().Be("1 patch modifié");
                     }
                     finally
                     {
@@ -289,7 +290,7 @@ public sealed partial class GuiTests
             try
             {
                 Settle(patchesWindow);
-                var origin = patchesWindow.FindControl<ComboBox>("ComboPatchOrigin")!;
+                var origin = patchesWindow.FindControl<ListBox>("ListPatchOrigins")!;
                 var first = shown.Rows[0];
                 var second = shown.Rows[1];
                 foreach (var row in new[] { second, first, second, first })
@@ -305,8 +306,8 @@ public sealed partial class GuiTests
 
                 first.SelectedOrigin!.Label.Should().Be("Game (USA).sfc");
                 second.SelectedOrigin!.Label.Should().Be("Other (World).sfc");
-                first.CanCheck.Should().BeTrue();
-                second.CanCheck.Should().BeTrue();
+                first.CanApply.Should().BeTrue();
+                second.CanApply.Should().BeTrue();
             }
             finally
             {
@@ -375,9 +376,9 @@ public sealed partial class GuiTests
                         var detach = patchesWindow.FindControl<Button>("BtnPatchDetach")!;
                         detach.IsEffectivelyEnabled.Should().BeTrue();
                         ToolTip.GetShowOnDisabled(detach).Should().BeTrue();
-                        patchesWindow.FindControl<Button>("BtnPatchesRename")!.IsEffectivelyEnabled.Should().BeFalse();
+                        patchesWindow.FindControl<Button>("BtnPatchApply")!.IsEffectivelyEnabled.Should().BeFalse("its name already designates that ROM");
 
-                        await shown.DetachSelectedCommand.ExecuteAsync(null);
+                        await shown.DetachCommand.ExecuteAsync(null);
                         Settle(patchesWindow);
                         detach.IsEffectivelyEnabled.Should().BeFalse();
                         patchesWindow.FindControl<Button>("BtnPatchesSimulateAgain")!.IsEffectivelyEnabled.Should().BeTrue();

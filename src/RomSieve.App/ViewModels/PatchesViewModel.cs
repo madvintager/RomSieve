@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -9,278 +9,71 @@ using RomSieve.Core.Services;
 
 namespace RomSieve.App.ViewModels;
 
-/// <summary>An identified file a patch may be meant for, in the list of the origins of a row.</summary>
-public sealed class PatchOriginOptionViewModel(ProcessItem origin)
+/// <summary>
+/// The title of a group in the list of the patches, with its count and, for two groups, an action on all its patches:
+/// « Accept all the suggestions » for the patches to match, « Write their ROM in their name » for the IPS applied thanks
+/// to their readme.
+/// </summary>
+public sealed class PatchGroupViewModel(PatchesViewModel owner, PatchGroupKind kind) : ObservableObject
 {
+    public PatchGroupKind Kind { get; } = kind;
+
+    public string Title => owner.GroupTitle(Kind);
+
+    /// <summary>Patches the action of the group would show in its summary.</summary>
+    public int BatchCount => owner.BatchEntriesOf(Kind).Count();
+
+    public bool HasBatch => BatchCount > 0;
+
+    public string BatchLabel => Kind == PatchGroupKind.ToMatch
+        ? owner.Tr("patches.batch_accept", ("count", BatchCount))
+        : owner.Tr("patches.batch_note", ("count", BatchCount));
+
+    public string BatchTooltip => owner.Tr(Kind == PatchGroupKind.ToMatch ? "patches.tooltip_batch_accept" : "patches.tooltip_batch_note");
+
+    public IAsyncRelayCommand<PatchGroupKind> BatchCommand => owner.OpenBatchCommand;
+
+    internal void Refresh()
+    {
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(BatchCount));
+        OnPropertyChanged(nameof(HasBatch));
+        OnPropertyChanged(nameof(BatchLabel));
+        OnPropertyChanged(nameof(BatchTooltip));
+    }
+}
+
+/// <summary>A patch in the summary of an action on a group: the ROM it would designate, its new name, and its box.</summary>
+public sealed partial class PatchBatchEntryViewModel(PatchesViewModel owner, PatchRowViewModel row, ProcessItem origin, uint crc32, string newName)
+    : ObservableObject
+{
+    public PatchRowViewModel Row { get; } = row;
+
     public ProcessItem Origin { get; } = origin;
 
-    public string Label { get; } = origin.DisplayName;
+    public uint Crc32 { get; } = crc32;
 
-    /// <summary>Where the file is: its archive, or its path.</summary>
-    public string Location { get; } = !string.IsNullOrEmpty(origin.ArchivePath) ? origin.ArchivePath : origin.SourcePath;
+    public string Name => Row.Name;
 
-    /// <summary>Name normalized for the search, once.</summary>
-    internal string SearchName { get; } = SearchQuery.Normalize(origin.DisplayName);
-}
+    public string OriginLabel { get; } = origin.DisplayName;
 
-/// <summary>A form of the data of an origin, with or without its copier header: the CRC32 to write in the name of the patch.</summary>
-public sealed class PatchFormOptionViewModel(PatchOriginSuggestion form, string label)
-{
-    public PatchOriginSuggestion Form { get; } = form;
+    public string NewName { get; } = newName;
 
-    public string Label { get; } = label;
-}
-
-/// <summary>
-/// Why a patch is in the window: left out by the last simulation, applied thanks to its readme, or applied from the
-/// CRC32 its name gives.
-/// </summary>
-public enum PatchRowKind
-{
-    Unapplied,
-    AppliedByNote,
-    AppliedByName
-}
-
-/// <summary>
-/// A patch of the window of the patches: why it is there, the origins it may be meant for and the form of the chosen one,
-/// whether it is to be renamed, and what became of it.
-/// </summary>
-public sealed partial class PatchRowViewModel : ObservableObject
-{
-    private readonly PatchesViewModel _owner;
-
-    // Forms already known for an origin: the two a readme gave, or those read once
-    private readonly Dictionary<ProcessItem, IReadOnlyList<PatchOriginSuggestion>> _knownForms = new(ReferenceEqualityComparer.Instance);
-
-    internal PatchRowViewModel(
-        PatchesViewModel owner,
-        PatchFile patch,
-        PatchRowKind kind,
-        string status,
-        bool canChoose,
-        string location,
-        uint? currentCrc32 = null)
-    {
-        _owner = owner;
-        Patch = patch;
-        Kind = kind;
-        StatusText = status;
-        CanChoose = canChoose;
-        Location = location;
-        CurrentCrc32 = currentCrc32;
-    }
-
-    public PatchFile Patch { get; }
-
-    public string Name => Patch.DisplayName;
-
-    /// <summary>Its folder in the patch folder, or its archive.</summary>
-    public string Location { get; }
-
-    public PatchRowKind Kind { get; }
-
-    /// <summary>The reason it was not applied, or the readme it was applied thanks to.</summary>
-    public string StatusText { get; }
-
-    /// <summary>
-    /// Whether the user may choose its origin: an IPS left out that a CRC32 in its name fixes, or an IPS applied, which
-    /// may be applied to another ROM.
-    /// </summary>
-    public bool CanChoose { get; }
-
-    /// <summary>For a patch applied: the CRC32 of the form of its ROM it was applied to.</summary>
-    public uint? CurrentCrc32 { get; }
-
-    /// <summary>Whether it lies in an archive, which is never modified: its CRC32 is only shown.</summary>
-    public bool IsInArchive => Patch.ArchiveMember is not null;
-
-    /// <summary>Origins proposed (the suggestions of the simulation), then those the user took from the search.</summary>
-    public ObservableCollection<PatchOriginOptionViewModel> Origins { get; } = [];
-
-    private PatchOriginOptionViewModel? _selectedOrigin;
-
-    /// <summary>
-    /// The origin chosen. A choice is never emptied from outside: the list of the origins, bound to the selected patch,
-    /// writes an empty choice into the patch it leaves when another patch is selected, which would lose its ROM.
-    /// </summary>
-    public PatchOriginOptionViewModel? SelectedOrigin
-    {
-        get => _selectedOrigin;
-        set
-        {
-            if (value is null || !SetProperty(ref _selectedOrigin, value))
-            {
-                return;
-            }
-
-            NotifyChoiceChanged();
-            OnSelectedOriginChanged(value);
-        }
-    }
-
-    /// <summary>The forms of the origin chosen: one, or two with and without its copier header.</summary>
-    public ObservableCollection<PatchFormOptionViewModel> Forms { get; } = [];
-
-    private PatchFormOptionViewModel? _selectedForm;
-
-    /// <summary>
-    /// The form chosen of the origin. As for <see cref="SelectedOrigin"/>, an empty choice from outside is ignored: only a
-    /// new origin empties it, until its forms are read.
-    /// </summary>
-    public PatchFormOptionViewModel? SelectedForm
-    {
-        get => _selectedForm;
-        set
-        {
-            if (value is not null)
-            {
-                SetForm(value);
-            }
-        }
-    }
-
-    private void SetForm(PatchFormOptionViewModel? value)
-    {
-        if (SetProperty(ref _selectedForm, value, nameof(SelectedForm)))
-        {
-            NotifyChoiceChanged();
-        }
-    }
-
-    private void NotifyChoiceChanged()
-    {
-        OnPropertyChanged(nameof(CanCheck));
-        OnPropertyChanged(nameof(NewNameText));
-        OnPropertyChanged(nameof(CheckTooltip));
-    }
-
-    /// <summary>Whether the origin chosen has two forms, to choose from.</summary>
-    public bool HasSeveralForms => Forms.Count > 1;
-
-    /// <summary>Whether the patch is to be renamed.</summary>
+    /// <summary>Whether the patch is to be renamed: never checked beforehand.</summary>
     [ObservableProperty]
     private bool _isChecked;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanCheck), nameof(CheckTooltip), nameof(CanDetach), nameof(DetachTooltip))]
-    private bool _isRenamed;
-
-    /// <summary>What became of the last renaming: its new name, or why it was left as it was.</summary>
-    [ObservableProperty]
-    private string _resultText = string.Empty;
-
-    /// <summary>The forms of the origin are being read (the other form reads the file again).</summary>
-    internal Task FormsLoading { get; private set; } = Task.CompletedTask;
-
-    /// <summary>
-    /// Whether the patch can be checked: on the disk, a form of its origin chosen, not renamed yet, and for a patch applied
-    /// from its name, another ROM than the one its name gives.
-    /// </summary>
-    public bool CanCheck => CanChoose && !IsInArchive && SelectedForm is not null && !IsRenamed && !IsCurrentFormChosen;
-
-    /// <summary>Whether the form chosen is the one the name of the patch already gives: renaming would change nothing.</summary>
-    private bool IsCurrentFormChosen => Kind == PatchRowKind.AppliedByName && SelectedForm?.Form.Crc32 == CurrentCrc32;
-
-    /// <summary>
-    /// Whether the patch can stop applying to its ROM: applied from the CRC32 its name gives, on the disk, not renamed yet.
-    /// A patch applied thanks to its readme cannot: the readme would give its ROM again.
-    /// </summary>
-    public bool CanDetach => Kind == PatchRowKind.AppliedByName && !IsInArchive && !IsRenamed;
-
-    /// <summary>What « Stop applying to this ROM » does, or why it is greyed out.</summary>
-    public string DetachTooltip =>
-        IsRenamed ? ResultText
-        : Kind == PatchRowKind.AppliedByNote ? _owner.Tr("patches.tooltip_detach_note")
-        : Kind == PatchRowKind.Unapplied ? _owner.Tr("patches.tooltip_detach_unapplied")
-        : IsInArchive ? _owner.Tr("patches.tooltip_check_archive")
-        : _owner.Tr("patches.tooltip_detach");
-
-    /// <summary>The name the patch would take, or what to do for a patch in an archive; empty without a form chosen.</summary>
-    public string NewNameText => SelectedForm is not { } form || IsCurrentFormChosen
-        ? string.Empty
-        : IsInArchive
-            ? _owner.Tr("patches.in_archive", ("crc", PatchesViewModel.FormatCrc(form.Form.Crc32)))
-            : _owner.Tr("patches.new_name", ("name", _owner.NewName(this, form.Form.Crc32)));
-
-    /// <summary>Why the box is greyed out, or what it does.</summary>
-    public string CheckTooltip =>
-        IsRenamed ? ResultText
-        : IsInArchive ? _owner.Tr("patches.tooltip_check_archive")
-        : !CanChoose ? _owner.Tr("patches.tooltip_check_no_choice")
-        : SelectedForm is null ? _owner.Tr("patches.tooltip_check_no_origin")
-        : IsCurrentFormChosen ? _owner.Tr("patches.tooltip_check_same_origin")
-        : _owner.Tr("patches.tooltip_check");
-
-    partial void OnIsCheckedChanged(bool value) => _owner.OnRowCheckedChanged();
-
-    private void OnSelectedOriginChanged(PatchOriginOptionViewModel value)
-    {
-        Forms.Clear();
-        SetForm(null);
-        OnPropertyChanged(nameof(HasSeveralForms));
-        FormsLoading = LoadFormsAsync(value.Origin);
-    }
-
-    internal void KnowForms(ProcessItem origin, IReadOnlyList<PatchOriginSuggestion> forms) => _knownForms[origin] = forms;
-
-    /// <summary>Adds an origin to the list (once), and chooses it.</summary>
-    internal void Choose(ProcessItem origin)
-    {
-        var option = Origins.FirstOrDefault(o => ReferenceEquals(o.Origin, origin));
-        if (option is null)
-        {
-            option = new PatchOriginOptionViewModel(origin);
-            Origins.Add(option);
-        }
-
-        SelectedOrigin = option;
-    }
-
-    private async Task LoadFormsAsync(ProcessItem origin)
-    {
-        if (!_knownForms.TryGetValue(origin, out var forms))
-        {
-            forms = await _owner.ReadFormsAsync(origin);
-            _knownForms[origin] = forms;
-        }
-
-        // The user may have chosen another origin meanwhile
-        if (!ReferenceEquals(SelectedOrigin?.Origin, origin))
-        {
-            return;
-        }
-
-        foreach (var form in forms)
-        {
-            Forms.Add(new PatchFormOptionViewModel(form, _owner.FormLabel(form)));
-        }
-
-        OnPropertyChanged(nameof(HasSeveralForms));
-
-        // A patch applied keeps the form it was applied to, until the user chooses another one
-        SelectedForm = Forms.FirstOrDefault(f => f.Form.Crc32 == CurrentCrc32) ?? Forms.FirstOrDefault();
-    }
-
-    internal void MarkRenamed(string newName, bool detached = false)
-    {
-        IsChecked = false;
-        ResultText = _owner.Tr(detached ? "patches.detached" : "patches.renamed", ("name", newName));
-        IsRenamed = true;
-        OnPropertyChanged(nameof(CheckTooltip));
-        OnPropertyChanged(nameof(DetachTooltip));
-    }
+    partial void OnIsCheckedChanged(bool value) => owner.OnBatchCheckedChanged();
 }
 
 /// <summary>
-/// The window of the patches (<c>PatchesWindow</c>), opened from the banner or the table after a simulation: the patches
-/// it left out, the IPS it applied thanks to their readme, and those on the disk it applied from the CRC32 of their name.
-/// For an IPS, the user chooses its origin among the suggestions of the simulation (or the ROM it is applied to) or by a
-/// search among the identified files, and the form of its data; the patches checked are renamed with that CRC32, which
-/// replaces the one their name gave (<see cref="IPatchNamingService"/>), never in an archive. An IPS applied from its
-/// name can also stop applying to its ROM (« Stop applying to this ROM »): the CRC32 is removed from its name, and the
-/// next simulation proposes it again. A suggestion is never taken alone: the user checks each patch. Closing with
-/// « Simulate again » runs a new simulation, which applies them.
+/// The window of the patches (<c>PatchesWindow</c>), opened from the banner or the table after a simulation. A list
+/// grouped by state (to match, applied, unfixable) and the detail of the patch selected: the ROMs proposed then those of
+/// a search, the form of the ROM when it has two, what applying would rename, and direct actions: « Apply to this ROM »
+/// (the CRC32 of the ROM written in the name of the patch, replacing the one it gave), « Stop applying to this ROM » (the
+/// CRC32 removed) and « Undo » (the old name back), through <see cref="IPatchNamingService"/>, never in an archive. A
+/// suggestion is never taken alone: nothing is renamed without a click, and the summary of an action on a group checks
+/// nothing beforehand. « Close and simulate again » runs a new simulation, which takes the patches modified into account.
 /// </summary>
 public sealed partial class PatchesViewModel : ViewModelBase
 {
@@ -305,6 +98,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
     private readonly Func<bool> _isRunning;
     private readonly Func<Task> _simulate;
     private readonly Action<LogLevel, LocalizedMessage> _log;
+    private readonly Dictionary<PatchGroupKind, PatchGroupViewModel> _groups;
 
     private List<PatchOriginOptionViewModel> _searchable = [];
     private string _patchDir = string.Empty;
@@ -331,50 +125,17 @@ public sealed partial class PatchesViewModel : ViewModelBase
         _simulate = simulate;
         _log = log;
         I18n = new UiStringsIndexer(localization);
+        _groups = Enum.GetValues<PatchGroupKind>().ToDictionary(k => k, k => new PatchGroupViewModel(this, k));
     }
 
     /// <summary>Texts of the window, retranslated at a change of language.</summary>
     public UiStringsIndexer I18n { get; }
 
-    /// <summary>The patches of the window: those left out first, then those applied thanks to their readme.</summary>
+    /// <summary>Every patch of the window, in the order of the last run: left out, applied by a readme, applied by their name.</summary>
     public BulkObservableCollection<PatchRowViewModel> Rows { get; } = [];
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSelectedRow), nameof(CanSearch), nameof(DetachTooltip))]
-    [NotifyCanExecuteChangedFor(nameof(DetachSelectedCommand))]
-    private PatchRowViewModel? _selectedRow;
-
-    public bool HasSelectedRow => SelectedRow is not null;
-
-    /// <summary>What « Stop applying to this ROM » does for the selected patch, or why it is greyed out.</summary>
-    public string DetachTooltip => SelectedRow?.DetachTooltip ?? string.Empty;
-
-    /// <summary>Whether the search can give an origin to the selected patch.</summary>
-    public bool CanSearch => SelectedRow is { CanChoose: true, IsRenamed: false };
-
-    /// <summary>A search among the identified files of the last simulation, for the selected patch.</summary>
-    [ObservableProperty]
-    private string _originSearchText = string.Empty;
-
-    public BulkObservableCollection<PatchOriginOptionViewModel> OriginSearchResults { get; } = [];
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ChooseSearchResultCommand))]
-    private PatchOriginOptionViewModel? _selectedSearchResult;
-
-    /// <summary>A renaming is running.</summary>
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RenameCommand), nameof(DetachSelectedCommand))]
-    private bool _isRenaming;
-
-    /// <summary>A patch was renamed since the window opened: a new simulation applies it.</summary>
-    [ObservableProperty]
-    private bool _hasRenamed;
-
-    /// <summary>Label of the button that renames the patches checked, with their number.</summary>
-    public string RenameLabel => Tr("patches.btn_rename", ("count", CheckedCount));
-
-    public int CheckedCount => Rows.Count(r => r.IsChecked && r.CanCheck);
+    /// <summary>The list shown: the title of each group that has patches (<see cref="PatchGroupViewModel"/>), then its patches.</summary>
+    public BulkObservableCollection<object> ListItems { get; } = [];
 
     // -------------------------------------------------------------------------
     // The banner
@@ -418,6 +179,17 @@ public sealed partial class PatchesViewModel : ViewModelBase
         !_isRunning()
         && ((_lastStats()?.UnappliedPatches.Count ?? 0) > 0 || NoteMatchedItems(_lastItems()).Any() || NameMatchedItems(_lastItems()).Any());
 
+    /// <summary>Opens the window on the last run; closed by « Close and simulate again », runs a new simulation.</summary>
+    [RelayCommand(CanExecute = nameof(CanOpen))]
+    private async Task OpenAsync()
+    {
+        Load();
+        if (await _dialogService.ShowPatchesAsync(this) && !_isRunning())
+        {
+            await _simulate();
+        }
+    }
+
     /// <summary>
     /// Whether the window holds the patch of a patched version: an IPS applied thanks to its readme, or from its name on
     /// the disk. A UPS or a BPS records its ROM, which nothing can change.
@@ -436,18 +208,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         }
 
         Load();
-        SelectedRow = Rows.FirstOrDefault(r => r.Patch == version.File) ?? SelectedRow;
-        if (await _dialogService.ShowPatchesAsync(this) && !_isRunning())
-        {
-            await _simulate();
-        }
-    }
-
-    /// <summary>Opens the window on the last run; closed by « Simulate again », runs a new simulation.</summary>
-    [RelayCommand(CanExecute = nameof(CanOpen))]
-    private async Task OpenAsync()
-    {
-        Load();
+        SelectedRow = Rows.FirstOrDefault(r => r.File == version.File) ?? SelectedRow;
         if (await _dialogService.ShowPatchesAsync(this) && !_isRunning())
         {
             await _simulate();
@@ -455,10 +216,10 @@ public sealed partial class PatchesViewModel : ViewModelBase
     }
 
     // -------------------------------------------------------------------------
-    // The rows
+    // The list
     // -------------------------------------------------------------------------
 
-    /// <summary>Fills the window from the last run: its patches left out, then the IPS applied thanks to their readme.</summary>
+    /// <summary>Fills the window from the last run: its patches left out, then the IPS applied by a readme, then by their name.</summary>
     public void Load()
     {
         var config = _lastConfig();
@@ -474,7 +235,12 @@ public sealed partial class PatchesViewModel : ViewModelBase
         foreach (var unapplied in _lastStats()?.UnappliedPatches ?? [])
         {
             var canChoose = ChoosableReasons.Contains(unapplied.Reason.Key) && !PatchMatcher.NameGivesCrc(unapplied.File.DisplayName);
-            var row = new PatchRowViewModel(this, unapplied.File, PatchRowKind.Unapplied, _localization.Format(unapplied.Reason), canChoose, LocationOf(unapplied.File));
+            var row = new PatchRowViewModel(
+                this,
+                unapplied.File,
+                canChoose ? PatchRowState.ToMatch : PatchRowState.Unfixable,
+                unapplied.Reason,
+                LocationOf(unapplied.File));
             if (canChoose)
             {
                 foreach (var group in unapplied.Suggestions.GroupBy(s => s.Origin, ReferenceEqualityComparer.Instance))
@@ -488,7 +254,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
                         row.KnowForms(origin, forms);
                     }
 
-                    row.Origins.Add(new PatchOriginOptionViewModel(origin));
+                    row.AddOrigin(origin);
                 }
 
                 row.SelectedOrigin = row.Origins.FirstOrDefault();
@@ -499,16 +265,17 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
         foreach (var version in NoteMatchedItems(items))
         {
-            var origin = version.Origin;
             var row = new PatchRowViewModel(
                 this,
                 version.File,
-                PatchRowKind.AppliedByNote,
-                Tr("patches.applied_by_note", ("origin", origin.DisplayName), ("note", version.Note?.DisplayName ?? string.Empty)),
-                canChoose: true,
-                LocationOf(version.File));
-            row.KnowForms(origin, [new PatchOriginSuggestion(origin, version.SourceCrc32, version.SourceOffset)]);
-            row.Origins.Add(new PatchOriginOptionViewModel(origin));
+                PatchRowState.AppliedByNote,
+                null,
+                LocationOf(version.File),
+                version.Origin,
+                version.SourceCrc32,
+                version.Note);
+            row.KnowForms(version.Origin, [new PatchOriginSuggestion(version.Origin, version.SourceCrc32, version.SourceOffset)]);
+            row.AddOrigin(version.Origin);
             row.SelectedOrigin = row.Origins[0];
             rows.Add(row);
         }
@@ -516,25 +283,32 @@ public sealed partial class PatchesViewModel : ViewModelBase
         // The IPS applied from their name: their ROM first, with its forms, so that the user may choose another one
         foreach (var version in NameMatchedItems(items))
         {
-            var origin = version.Origin;
             var row = new PatchRowViewModel(
                 this,
                 version.File,
-                PatchRowKind.AppliedByName,
-                Tr("patches.applied_by_name", ("origin", origin.DisplayName)),
-                canChoose: true,
+                PatchRowState.AppliedByName,
+                null,
                 LocationOf(version.File),
+                version.Origin,
                 version.SourceCrc32);
-            row.Origins.Add(new PatchOriginOptionViewModel(origin));
+            row.AddOrigin(version.Origin);
             row.SelectedOrigin = row.Origins[0];
             rows.Add(row);
         }
 
+        // The action on the patches to match counts those whose ROM is chosen: their forms are read after the window opens
+        foreach (var row in rows)
+        {
+            row.PropertyChanged += OnRowPropertyChanged;
+        }
+
         Rows.ReplaceAll(rows);
-        HasRenamed = false;
+        IsBatchMode = false;
+        BatchEntries.ReplaceAll([]);
         OriginSearchText = string.Empty;
-        SelectedRow = Rows.FirstOrDefault();
-        OnRowCheckedChanged();
+        Regroup();
+        SelectedRow = ListItems.OfType<PatchRowViewModel>().FirstOrDefault();
+        NotifyFooter();
     }
 
     /// <summary>The patched versions of the run whose CRC32 a readme gave, one per patch.</summary>
@@ -571,62 +345,112 @@ public sealed partial class PatchesViewModel : ViewModelBase
         return relative == "." ? string.Empty : relative;
     }
 
-    internal void OnRowCheckedChanged()
+    private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        OnPropertyChanged(nameof(CheckedCount));
-        OnPropertyChanged(nameof(RenameLabel));
-        RenameCommand.NotifyCanExecuteChanged();
-    }
-
-    partial void OnSelectedRowChanged(PatchRowViewModel? value)
-    {
-        OriginSearchText = string.Empty;
-        OriginSearchResults.ReplaceAll([]);
-    }
-
-    private bool CanDetachSelected() => !IsRenaming && SelectedRow is { CanDetach: true };
-
-    /// <summary>
-    /// Stops applying the selected patch to its ROM: the CRC32 its name gives is removed, and the next simulation
-    /// proposes it again. The patched version a sort already wrote stays where it is.
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanDetachSelected))]
-    private async Task DetachSelectedAsync()
-    {
-        if (SelectedRow is not { } row)
+        if (e.PropertyName == nameof(PatchRowViewModel.SelectedForm))
         {
-            return;
+            _groups[PatchGroupKind.ToMatch].Refresh();
+        }
+    }
+
+    /// <summary>Lays the list out again: each group that has patches, its title then its patches; the selection stays.</summary>
+    private void Regroup()
+    {
+        var items = new List<object>();
+        foreach (var kind in Enum.GetValues<PatchGroupKind>())
+        {
+            var group = _groups[kind];
+            var rows = Rows.Where(r => r.Group == kind).ToList();
+            if (rows.Count > 0)
+            {
+                items.Add(group);
+                items.AddRange(rows);
+            }
+
+            group.Refresh();
         }
 
-        IsRenaming = true;
-        try
+        var selected = SelectedRow;
+        ListItems.ReplaceAll(items);
+        if (selected is not null)
         {
-            var results = await _naming.RenameAsync(_patchDir, [new PatchRename(row.Patch, null)], _log);
-            if (results[0].NewPath is { } newPath)
+            OnPropertyChanged(nameof(SelectedListItem));
+        }
+    }
+
+    internal string GroupTitle(PatchGroupKind kind)
+    {
+        var count = Rows.Count(r => r.Group == kind);
+        return kind switch
+        {
+            PatchGroupKind.ToMatch => Tr("patches.group_to_match", ("count", count)),
+            PatchGroupKind.Applied => Tr("patches.group_applied", ("count", count)),
+            _ => Tr("patches.group_unfixable", ("count", count))
+        };
+    }
+
+    // -------------------------------------------------------------------------
+    // The patch selected
+    // -------------------------------------------------------------------------
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedRow), nameof(CanSearch), nameof(SelectedListItem))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(DetachCommand), nameof(UndoCommand))]
+    private PatchRowViewModel? _selectedRow;
+
+    public bool HasSelectedRow => SelectedRow is not null;
+
+    /// <summary>The item selected in the list: a patch; a title of group is not selected, the patch selected stays.</summary>
+    public object? SelectedListItem
+    {
+        get => SelectedRow;
+        set
+        {
+            if (value is PatchRowViewModel row)
             {
-                row.MarkRenamed(Path.GetFileName(newPath), detached: true);
-                HasRenamed = true;
+                SelectedRow = row;
             }
             else
             {
-                row.ResultText = _localization.Format(results[0].Refusal!);
+                // Back to the patch selected: a title is never selected
+                OnPropertyChanged();
             }
-        }
-        finally
-        {
-            IsRenaming = false;
-            AfterRenaming();
         }
     }
 
-    /// <summary>What a renaming changes in the window: the boxes, the search and « Stop applying to this ROM ».</summary>
-    private void AfterRenaming()
+    partial void OnSelectedRowChanged(PatchRowViewModel? oldValue, PatchRowViewModel? newValue)
     {
-        OnRowCheckedChanged();
-        OnPropertyChanged(nameof(CanSearch));
-        OnPropertyChanged(nameof(DetachTooltip));
-        DetachSelectedCommand.NotifyCanExecuteChanged();
+        if (oldValue is not null)
+        {
+            oldValue.PropertyChanged -= OnSelectedRowPropertyChanged;
+        }
+
+        if (newValue is not null)
+        {
+            newValue.PropertyChanged += OnSelectedRowPropertyChanged;
+        }
+
+        OriginSearchText = string.Empty;
+        OriginSearchResults.ReplaceAll([]);
+        OnPropertyChanged(nameof(HasSearchResults));
     }
+
+    private void OnSelectedRowPropertyChanged(object? sender, PropertyChangedEventArgs e) => NotifyActions();
+
+    /// <summary>Whether the search can give a ROM to the selected patch.</summary>
+    public bool CanSearch => SelectedRow is { CanChoose: true } && !IsBusy;
+
+    /// <summary>A search among the identified files of the last simulation, for the selected patch.</summary>
+    [ObservableProperty]
+    private string _originSearchText = string.Empty;
+
+    public BulkObservableCollection<PatchOriginOptionViewModel> OriginSearchResults { get; } = [];
+
+    public bool HasSearchResults => OriginSearchResults.Count > 0;
+
+    /// <summary>A file found by the search: chosen, it joins the ROMs of the selected patch and becomes its choice.</summary>
+    [ObservableProperty]
+    private PatchOriginOptionViewModel? _selectedSearchResult;
 
     partial void OnOriginSearchTextChanged(string value)
     {
@@ -634,63 +458,229 @@ public sealed partial class PatchesViewModel : ViewModelBase
         OriginSearchResults.ReplaceAll(query.IsEmpty || !CanSearch
             ? []
             : _searchable.Where(o => query.Matches(o.SearchName)).Take(MaxSearchResults));
-        SelectedSearchResult = OriginSearchResults.FirstOrDefault();
+        OnPropertyChanged(nameof(HasSearchResults));
     }
 
-    private bool CanChooseSearchResult() => SelectedSearchResult is not null && CanSearch;
-
-    /// <summary>Takes the file found by the search as the origin of the selected patch.</summary>
-    [RelayCommand(CanExecute = nameof(CanChooseSearchResult))]
-    private void ChooseSearchResult()
+    partial void OnSelectedSearchResultChanged(PatchOriginOptionViewModel? value)
     {
-        if (SelectedRow is { } row && SelectedSearchResult is { } found)
+        if (value is not null && CanSearch)
         {
-            row.Choose(found.Origin);
+            SelectedRow!.Choose(value.Origin);
         }
     }
 
-    /// <summary>Checks the IPS applied thanks to their readme, so that other tools apply them too.</summary>
-    [RelayCommand]
-    private void CheckNoteMatched()
+    // -------------------------------------------------------------------------
+    // The actions on the patch selected
+    // -------------------------------------------------------------------------
+
+    /// <summary>A renaming (or its undoing) is running.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSearch))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(DetachCommand), nameof(UndoCommand), nameof(ApplyBatchCommand), nameof(OpenBatchCommand))]
+    private bool _isBusy;
+
+    private bool CanApply() => !IsBusy && SelectedRow is { CanApply: true };
+
+    /// <summary>Writes the CRC32 of the ROM chosen in the name of the selected patch.</summary>
+    [RelayCommand(CanExecute = nameof(CanApply))]
+    private async Task ApplyAsync()
     {
-        foreach (var row in Rows.Where(r => r.Kind == PatchRowKind.AppliedByNote && r.CanCheck))
+        if (SelectedRow is { SelectedForm: { } form, SelectedOrigin: { } origin } row)
         {
-            row.IsChecked = true;
+            await RenameAsync([(row, new PatchRename(row.File, form.Form.Crc32), origin.Origin)]);
         }
     }
 
-    private bool CanRename() => !IsRenaming && CheckedCount > 0;
+    private bool CanDetach() => !IsBusy && SelectedRow is { CanDetach: true };
 
-    /// <summary>Writes the CRC32 of the form chosen in the name of each patch checked.</summary>
-    [RelayCommand(CanExecute = nameof(CanRename))]
-    private async Task RenameAsync()
+    /// <summary>
+    /// Stops applying the selected patch to its ROM: the CRC32 its name gives is removed, and the next simulation
+    /// proposes it again. The patched version a sort already wrote stays where it is.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanDetach))]
+    private async Task DetachAsync()
     {
-        var rows = Rows.Where(r => r.IsChecked && r.CanCheck).ToList();
-        IsRenaming = true;
+        if (SelectedRow is { } row)
+        {
+            await RenameAsync([(row, new PatchRename(row.File, null), null)]);
+        }
+    }
+
+    private bool CanUndo() => !IsBusy && SelectedRow is { CanUndo: true };
+
+    /// <summary>Gives back to the selected patch the name it had before its last renaming in the window.</summary>
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private async Task UndoAsync()
+    {
+        if (SelectedRow is not { LastRenaming: { } renaming } row)
+        {
+            return;
+        }
+
+        IsBusy = true;
         try
         {
-            var results = await _naming.RenameAsync(
-                _patchDir,
-                [.. rows.Select(r => new PatchRename(r.Patch, r.SelectedForm!.Form.Crc32))],
-                _log);
-            for (var i = 0; i < rows.Count; i++)
+            var result = await _naming.UndoAsync(_patchDir, renaming, _log);
+            if (result.IsUndone)
             {
-                if (results[i].NewPath is { } newPath)
+                row.Undone();
+            }
+            else
+            {
+                row.ResultText = _localization.Format(result.Refusal!);
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+            AfterChange();
+        }
+    }
+
+    /// <summary>Renames patches, each with the ROM its name will designate (none to detach it), and says what became of each.</summary>
+    private async Task RenameAsync(IReadOnlyList<(PatchRowViewModel Row, PatchRename Rename, ProcessItem? Origin)> renames)
+    {
+        IsBusy = true;
+        try
+        {
+            var results = await _naming.RenameAsync(_patchDir, [.. renames.Select(r => r.Rename)], _log);
+            for (var i = 0; i < renames.Count; i++)
+            {
+                if (results[i].IsRenamed)
                 {
-                    rows[i].MarkRenamed(Path.GetFileName(newPath));
-                    HasRenamed = true;
+                    renames[i].Row.Renamed(results[i], renames[i].Origin);
                 }
                 else
                 {
-                    rows[i].ResultText = _localization.Format(results[i].Refusal!);
+                    renames[i].Row.ResultText = _localization.Format(results[i].Refusal!);
                 }
             }
         }
         finally
         {
-            IsRenaming = false;
-            AfterRenaming();
+            IsBusy = false;
+            AfterChange();
         }
+    }
+
+    /// <summary>What a renaming changes: the groups, the footer and the actions.</summary>
+    private void AfterChange()
+    {
+        Regroup();
+        NotifyFooter();
+        NotifyActions();
+    }
+
+    private void NotifyActions()
+    {
+        ApplyCommand.NotifyCanExecuteChanged();
+        DetachCommand.NotifyCanExecuteChanged();
+        UndoCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanSearch));
+    }
+
+    // -------------------------------------------------------------------------
+    // The actions on a group
+    // -------------------------------------------------------------------------
+
+    /// <summary>The summary of an action on a group replaces the detail of the patch selected.</summary>
+    [ObservableProperty]
+    private bool _isBatchMode;
+
+    [ObservableProperty]
+    private PatchGroupKind _batchKind;
+
+    public string BatchTitle => Tr(BatchKind == PatchGroupKind.ToMatch ? "patches.batch_title_accept" : "patches.batch_title_note");
+
+    public BulkObservableCollection<PatchBatchEntryViewModel> BatchEntries { get; } = [];
+
+    public int BatchCheckedCount => BatchEntries.Count(e => e.IsChecked);
+
+    public string ApplyBatchLabel => Tr("patches.btn_batch_apply", ("count", BatchCheckedCount));
+
+    /// <summary>
+    /// The patches an action on a group would rename: those to match, on the disk, with the ROM chosen for each; or the
+    /// IPS applied thanks to their readme, on the disk, with the ROM of their readme.
+    /// </summary>
+    internal IEnumerable<(PatchRowViewModel Row, ProcessItem Origin, uint Crc32)> BatchEntriesOf(PatchGroupKind kind) => kind switch
+    {
+        PatchGroupKind.ToMatch => Rows
+            .Where(r => r.State == PatchRowState.ToMatch && !r.IsInArchive && r.SelectedOrigin is not null && r.SelectedForm is not null)
+            .Select(r => (r, r.SelectedOrigin!.Origin, r.SelectedForm!.Form.Crc32)),
+        PatchGroupKind.Applied => Rows
+            .Where(r => r.State == PatchRowState.AppliedByNote && !r.IsInArchive && r.CurrentOrigin is not null && r.CurrentCrc32 is not null)
+            .Select(r => (r, r.CurrentOrigin!, r.CurrentCrc32!.Value)),
+        _ => []
+    };
+
+    /// <summary>Shows the summary of an action on a group, nothing checked.</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenBatch))]
+    private async Task OpenBatchAsync(PatchGroupKind kind)
+    {
+        // The forms of the ROMs proposed are read when the window opens
+        await Task.WhenAll(Rows.Select(r => r.FormsLoading));
+        BatchKind = kind;
+        BatchEntries.ReplaceAll(BatchEntriesOf(kind).Select(e => new PatchBatchEntryViewModel(this, e.Row, e.Origin, e.Crc32, NewName(e.Row.Name, e.Crc32))));
+        IsBatchMode = true;
+        OnPropertyChanged(nameof(BatchTitle));
+        OnBatchCheckedChanged();
+    }
+
+    private bool CanOpenBatch(PatchGroupKind kind) => !IsBusy;
+
+    /// <summary>Checks every patch of the summary.</summary>
+    [RelayCommand]
+    private void CheckAllBatch()
+    {
+        foreach (var entry in BatchEntries)
+        {
+            entry.IsChecked = true;
+        }
+    }
+
+    private bool CanApplyBatch() => !IsBusy && BatchCheckedCount > 0;
+
+    /// <summary>Renames the patches checked in the summary, then goes back to the detail.</summary>
+    [RelayCommand(CanExecute = nameof(CanApplyBatch))]
+    private async Task ApplyBatchAsync()
+    {
+        var entries = BatchEntries.Where(e => e.IsChecked).ToList();
+        await RenameAsync([.. entries.Select(e => (e.Row, new PatchRename(e.Row.File, e.Crc32), (ProcessItem?)e.Origin))]);
+        CloseBatch();
+    }
+
+    /// <summary>Back to the detail of the patch selected, nothing renamed.</summary>
+    [RelayCommand]
+    private void CloseBatch()
+    {
+        IsBatchMode = false;
+        BatchEntries.ReplaceAll([]);
+        OnBatchCheckedChanged();
+    }
+
+    internal void OnBatchCheckedChanged()
+    {
+        OnPropertyChanged(nameof(BatchCheckedCount));
+        OnPropertyChanged(nameof(ApplyBatchLabel));
+        ApplyBatchCommand.NotifyCanExecuteChanged();
+    }
+
+    // -------------------------------------------------------------------------
+    // The footer
+    // -------------------------------------------------------------------------
+
+    /// <summary>Patches whose name changed since the window opened.</summary>
+    public int ModifiedCount => Rows.Count(r => r.IsModified);
+
+    public bool HasModified => ModifiedCount > 0;
+
+    public string ModifiedText => HasModified ? _localization.Format(LocalizedMessage.Count("patches.modified", ModifiedCount)) : string.Empty;
+
+    private void NotifyFooter()
+    {
+        OnPropertyChanged(nameof(ModifiedCount));
+        OnPropertyChanged(nameof(HasModified));
+        OnPropertyChanged(nameof(ModifiedText));
     }
 
     // -------------------------------------------------------------------------
@@ -699,7 +689,9 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
     internal string Tr(string key, params (string Name, object? Value)[] args) => _localization.Tr(key, args);
 
-    internal string NewName(PatchRowViewModel row, uint crc) => _naming.NameWithCrc(row.Patch.DisplayName, crc);
+    internal string Format(LocalizedMessage message) => _localization.Format(message);
+
+    internal string NewName(string name, uint crc) => _naming.NameWithCrc(name, crc);
 
     internal Task<IReadOnlyList<PatchOriginSuggestion>> ReadFormsAsync(ProcessItem origin) =>
         _naming.GetOriginFormsAsync(origin, _detectCopierHeaders);
@@ -718,7 +710,17 @@ public sealed partial class PatchesViewModel : ViewModelBase
         I18n.NotifyUpdated();
         OnPropertyChanged(nameof(NamingLinkText));
         OnPropertyChanged(nameof(NamingLinkTooltip));
-        OnPropertyChanged(nameof(RenameLabel));
-        OnPropertyChanged(nameof(DetachTooltip));
+        OnPropertyChanged(nameof(BatchTitle));
+        OnPropertyChanged(nameof(ApplyBatchLabel));
+        NotifyFooter();
+        foreach (var group in _groups.Values)
+        {
+            group.Refresh();
+        }
+
+        foreach (var row in Rows)
+        {
+            row.NotifyState();
+        }
     }
 }
