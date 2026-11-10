@@ -112,7 +112,7 @@ public sealed partial class GuiTests
                     "LblChdDir", "EditChdDir", "BtnBrowseChdDir",
                     "LblMameCategoryFile", "EditMameCategoryFile", "BtnBrowseMameCategoryFile",
                     "LblMameRatingFile", "EditMameRatingFile", "BtnBrowseMameRatingFile",
-                    "LblPatchDir", "EditPatchDir", "BtnBrowsePatchDir", "ChkPatchOnly"
+                    "LblPatchDir", "EditPatchDir", "BtnBrowsePatchDir", "BtnManagePatches"
                 })
                 {
                     var control = window.FindControl<Control>(name)!;

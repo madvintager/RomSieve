@@ -218,7 +218,7 @@ public sealed partial class GuiTests
                 BoundsIn(window, edit).Top.Should().BeGreaterThan(BoundsIn(window, window.FindControl<TextBox>("EditPattern")!).Bottom);
                 BoundsIn(window, edit).Bottom.Should().BeLessThan(BoundsIn(window, window.FindControl<CheckBox>("ChkRestoreArticles")!).Top);
                 window.FindControl<WrapPanel>("PanelTreeOptions")!.Children.Select(c => c.Name)
-                    .Should().Equal("ChkRestoreArticles", "ChkFolderPerDat", "ChkDatFolderMirror");
+                    .Should().Equal(["ChkPatchOnly", "ChkRestoreArticles", "ChkFolderPerDat", "ChkDatFolderMirror"], "writing the patched versions only comes first, under their folder");
                 edit.Watermark.Should().Be(vm.Localization.Tr("tab1.patched_pattern_placeholder"));
 
                 // Without a folder of the patches: greyed out, never hidden, the tooltip saying when it applies; no line

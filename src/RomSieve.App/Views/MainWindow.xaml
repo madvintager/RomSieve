@@ -1386,8 +1386,9 @@
             </Border>
 
             <!-- Patches (IPS, IPS32, UPS, BPS) applied to the identified ROMs: whether they are applied, their folder, read
-                 in addition to the source, and whether only the patched versions are written. Always shown, whatever the
-                 convention -->
+                 in addition to the source, and their window. Always shown, whatever the convention. What is written of
+                 them is chosen in the Output step: their folder, and whether only the patched versions are written -->
+
             <Border x:Name="CardPatches" Classes="settings-card">
               <StackPanel Spacing="8">
                 <!-- The box that turns the patches on or off sits next to the title, so that the folder stays in the
@@ -1424,8 +1425,6 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="6" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="16" />
-                    <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
 
                   <TextBlock x:Name="LblPatchDir" Classes="form-label" Text="{Binding I18n[tab1.lbl_patch_dir]}" />
@@ -1450,13 +1449,6 @@
                           ToolTip.Tip="{Binding I18n[tab1.tooltip_patch_dir]}"
                           FontSize="11"
                           Command="{Binding Directories.BrowsePatchDirCommand}" />
-                  <CheckBox x:Name="ChkPatchOnly"
-                            Grid.Column="6"
-                            Content="{Binding I18n[tab1.chk_patch_only]}"
-                            ToolTip.Tip="{Binding I18n[tab1.tooltip_patch_only]}"
-                            ToolTip.ShowOnDisabled="True"
-                            IsEnabled="{Binding Directories.UsesPatches}"
-                            IsChecked="{Binding Directories.PatchOnly, Mode=TwoWay}" />
                 </Grid>
               </StackPanel>
             </Border>
@@ -3158,14 +3150,23 @@
                   </StackPanel>
 
                   <!-- The other options of the tree, on one line so that the step needs no scrolling at its default size.
-                       Also at the root: the subfolder of a multi-disk game is named after its title. A lot of DATs: a folder
-                       per DAT above the pattern, under the folders of its path when mirrored; greyed out for a single DAT,
-                       their tooltip saying when they apply -->
+                       First, under the folder of the patched versions, whether a game with a patched version is written in
+                       that form only: greyed out like that folder, without patches. Also at the root: the subfolder of a
+                       multi-disk game is named after its title. A lot of DATs: a folder per DAT above the pattern, under the
+                       folders of its path when mirrored; greyed out for a single DAT, their tooltip saying when they apply -->
                   <WrapPanel x:Name="PanelTreeOptions"
                              Grid.Row="8"
                              Grid.Column="2"
                              Grid.ColumnSpan="3"
                              Orientation="Horizontal">
+                    <CheckBox x:Name="ChkPatchOnly"
+                              Margin="0,0,20,0"
+                              FontSize="11"
+                              Content="{Binding I18n[tab1.chk_patch_only]}"
+                              ToolTip.Tip="{Binding I18n[tab1.tooltip_patch_only]}"
+                              ToolTip.ShowOnDisabled="True"
+                              IsEnabled="{Binding Directories.UsesPatches}"
+                              IsChecked="{Binding Directories.PatchOnly, Mode=TwoWay}" />
                     <CheckBox x:Name="ChkRestoreArticles"
                               Margin="0,0,20,0"
                               FontSize="11"

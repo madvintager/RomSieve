@@ -1571,7 +1571,7 @@
   "tab1.chk_patch_only": "Escribir solo las versiones parcheadas",
   "tab1.btn_manage_patches": "Gestionar parches…",
   "tab1.tooltip_manage_patches": "Abre la lista de los parches de la última simulación: la ROM de cada uno y sus elecciones. En gris antes de una simulación que haya encontrado parches, o mientras no se apliquen los parches.",
-  "tab1.tooltip_patch_only": "Un juego que tiene una versión parcheada solo se escribe de esa forma: la ROM conservada por el 1G1R no se escribe, aunque el parche se hiciera para otra versión del juego (sin el 1G1R, solo se sustituye la ROM original del parche). En modo Mover, la ROM sustituida se queda en el origen. Sin carpeta de los parches, o con «Aplicar los parches» desmarcada, la opción no tiene efecto.",
+  "tab1.tooltip_patch_only": "Un juego que tiene una versión parcheada solo se escribe de esa forma: la ROM conservada por el 1G1R no se escribe, aunque el parche se hiciera para otra versión del juego (sin el 1G1R, solo se sustituye la ROM original del parche). En modo Mover, la ROM sustituida se queda en el origen. Sin carpeta de los parches, o con «Aplicar los parches» desmarcada (paso Colección), la opción no tiene efecto.",
   "dialog.browse_patch_title": "Seleccione la carpeta de los parches",
   "dialog.error_same_patch_dest": "La carpeta de los parches y el destino son idénticos.",
   "dialog.error_dest_contains_patches": "El destino contiene la carpeta de los parches: vaciar o llenar este destino pondría en peligro los parches. Elija un destino fuera de esa carpeta.",

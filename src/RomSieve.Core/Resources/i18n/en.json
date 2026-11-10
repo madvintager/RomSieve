@@ -1571,7 +1571,7 @@
   "tab1.chk_patch_only": "Write the patched versions only",
   "tab1.btn_manage_patches": "Manage patches…",
   "tab1.tooltip_manage_patches": "Opens the list of the patches of the last simulation: the ROM of each, and your choices. Greyed out before a simulation that found patches, or while the patches are not applied.",
-  "tab1.tooltip_patch_only": "A game that has a patched version is only written in that form: the ROM the 1G1R kept is not written, even when the patch was made for another release of the game (without the 1G1R, only the original ROM of the patch is replaced). In Move mode, the ROM replaced stays in the source. Without a folder of the patches, or with “Apply the patches” unchecked, the option has no effect.",
+  "tab1.tooltip_patch_only": "A game that has a patched version is only written in that form: the ROM the 1G1R kept is not written, even when the patch was made for another release of the game (without the 1G1R, only the original ROM of the patch is replaced). In Move mode, the ROM replaced stays in the source. Without a folder of the patches, or with “Apply the patches” unchecked (Collection step), the option has no effect.",
   "dialog.browse_patch_title": "Select the folder of the patches",
   "dialog.error_same_patch_dest": "The folder of the patches and the destination are the same.",
   "dialog.error_dest_contains_patches": "The destination contains the folder of the patches: emptying or filling this destination would put the patches at risk. Choose a destination outside this folder.",

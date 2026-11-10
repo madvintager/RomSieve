@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
@@ -13,8 +14,8 @@ using RomSieve.Core.Tests.Fixtures;
 namespace RomSieve.App.Tests;
 
 /// <summary>
-/// The patches in the window: the card of the Collection step, always shown, whose option is greyed out without a
-/// patch folder, and the chip and the count of the banner, shown only when the run has some.
+/// The patches in the window: the card of the Collection step, always shown, the option of the Output step greyed out
+/// without a patch folder, and the chip and the count of the banner, shown only when the run has some.
 /// </summary>
 public sealed partial class GuiTests
 {
@@ -36,7 +37,13 @@ public sealed partial class GuiTests
                     window.FindControl<Border>("CardPatches")!.IsEffectivelyVisible.Should().BeTrue($"nothing hides with {convention}");
                 }
 
+                // Writing the patched versions only is a choice of the output: under their folder, in the Output step
                 var option = window.FindControl<CheckBox>("ChkPatchOnly")!;
+                option.GetLogicalAncestors().OfType<Control>().Select(c => c.Name).Should().Contain(["CardPattern", "PageOutput"])
+                    .And.NotContain("PageCollection");
+                vm.Navigation.CurrentStep = WorkflowStep.Output;
+                Settle(window);
+                option.IsEffectivelyVisible.Should().BeTrue();
                 vm.Directories.PatchDir = string.Empty;
                 Settle(window);
                 option.IsEffectivelyEnabled.Should().BeFalse("the option has no effect without a patch folder");

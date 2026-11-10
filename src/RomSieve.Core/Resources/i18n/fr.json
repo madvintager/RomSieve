@@ -1571,7 +1571,7 @@
   "tab1.chk_patch_only": "N'écrire que les versions patchées",
   "tab1.btn_manage_patches": "Gérer les patchs…",
   "tab1.tooltip_manage_patches": "Ouvre la liste des patchs de la dernière simulation : la ROM de chacun, et vos choix. Grisé avant une simulation qui a trouvé des patchs, ou quand les patchs ne sont pas appliqués.",
-  "tab1.tooltip_patch_only": "Un jeu qui a une version patchée n'est écrit que sous cette forme : la ROM retenue par le 1G1R n'est pas écrite, même si le patch a été fait pour une autre version du jeu (sans le 1G1R, seule la ROM d'origine du patch est remplacée). En mode Déplacer, la ROM remplacée reste dans la source. Sans dossier des patchs, ou si « Appliquer les patchs » est décoché, l'option est sans effet.",
+  "tab1.tooltip_patch_only": "Un jeu qui a une version patchée n'est écrit que sous cette forme : la ROM retenue par le 1G1R n'est pas écrite, même si le patch a été fait pour une autre version du jeu (sans le 1G1R, seule la ROM d'origine du patch est remplacée). En mode Déplacer, la ROM remplacée reste dans la source. Sans dossier des patchs, ou si « Appliquer les patchs » est décoché (étape Collection), l'option est sans effet.",
   "dialog.browse_patch_title": "Sélectionnez le dossier des patchs",
   "dialog.error_same_patch_dest": "Le dossier des patchs et la destination sont identiques.",
   "dialog.error_dest_contains_patches": "La destination contient le dossier des patchs : vider ou remplir cette destination mettrait en danger les patchs. Choisissez une destination située hors de ce dossier.",
