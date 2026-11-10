@@ -15,8 +15,8 @@ by its checksum (CRC32), which needs a [DAT file](naming-conventions-and-dats.md
 
 | Format | Extension | Original ROM found by | Checks |
 |---|---|---|---|
-| **IPS** | `.ips` | the CRC32 written in the name of the patch (see [Matching](#matching)) | none: the format records no checksum |
-| **IPS32** | `.ips` or `.ips32` | the CRC32 written in the name of the patch | none |
+| **IPS** | `.ips` | the CRC32 written in the name of the patch, or in its readme (see [Matching](#matching)) | none: the format records no checksum |
+| **IPS32** | `.ips` or `.ips32` | the CRC32 written in the name of the patch, or in its readme | none |
 | **UPS** | `.ups` | the CRC32 and the size it records | CRC32 of the patch, of the original ROM and of the result |
 | **BPS** | `.bps` | the CRC32 and the size it records | CRC32 of the patch, of the original ROM and of the result |
 
@@ -31,7 +31,8 @@ software of MAME software lists are never patched.
 In the **Collection** step, the **Patches** card has the **Folder of the patches** field, with its **Browse...** button.
 It is always shown, whatever the convention.
 
-* The folder is read with its **subfolders**. Only the `.ips`, `.ips32`, `.ups` and `.bps` files are read.
+* The folder is read with its **subfolders**. Only the `.ips`, `.ips32`, `.ups` and `.bps` files are read, and the
+  `.txt` and `.nfo` texts that may give the original ROM of an IPS (see [Matching](#matching)).
 * The patches stored in ZIP, 7z or RAR **archives** of the folder are read too.
 * The folder may be inside the source: its files are not sorted as files of the collection. If it is the source
   itself, only the patches are set aside, and your ROMs are sorted as usual.
@@ -50,13 +51,38 @@ out in favour of the American release.
 * A **UPS** or a **BPS** designates its original ROM by the CRC32 and the size it records.
 * An **IPS** records nothing: its name must give the CRC32 of the original ROM, as 8 hexadecimal digits, between
   brackets, between parentheses or apart from the rest of the name (`Game (Japan) (T-En) [47E70E08].ips`,
-  `(0x47e70e08)`). This is the rule of igir. An IPS without a CRC32 in its name is not applied.
+  `(0x47e70e08)`). This is the rule of igir.
+* An IPS whose name gives no CRC32 takes it from its **readme**, if it has one. Most patches give it, in the form
+  romhacking.net uses (`File/ROM CRC32: 47E70E08`) or another (`CRC32 : 0x47e70e08`). See
+  [Readme of an IPS](#readme-of-an-ips).
+* An IPS without a CRC32, neither in its name nor in its readme, is not applied.
 * A ROM with a **copier header** (iNES for the NES, 512-byte header for the Super Nintendo, Lynx header) is looked for
   in both forms, with and without its header: a patch made for either finds its ROM. The patch applies to the form it
   expects, and the result is written as the patch produces it.
 * When several files of the source have the same CRC32, the patch applies to the one the sort writes, otherwise to the
   first in the order of the paths.
 * Several patches for the same ROM each give their own patched version.
+
+### Readme of an IPS
+
+A readme is a `.txt` or `.nfo` text file of at most 1 MB, stored next to the patch: in the same folder of the folder of
+the patches, or in the same archive, at the same place. A readme on the disk never comes with a patch stored in an
+archive, nor the reverse.
+
+* A readme with the name of the patch (`Game (T-Fr).txt` for `Game (T-Fr).ips`, case ignored) is its own.
+* Otherwise, the readmes of a folder or an archive that holds **a single patch** are its own.
+* In a folder of several patches, a readme with the name of none comes with none: it does not tell which patch it is
+  about.
+
+RomSieve only reads the lines where the word **CRC** appears, and on them the CRC32 that follow it. A readme often also
+gives the CRC32 of the patched result: it designates no ROM of the source, and it is ignored. The name of the patch
+always prevails over its readme, and a UPS or a BPS, which records its original ROM itself, never reads its own.
+
+A readme sometimes gives the CRC32 of a ROM **with and without its copier header**, on two lines (for example
+`File CRC32` and `ROM CRC32`). An IPS does not tell which of the two forms it expects: RomSieve does not apply it. The
+readme usually tells which form the patch was made for. Then write the CRC32 of that form in the name of the patch.
+
+The detail panel of a patched version names the readme that gave the CRC32.
 
 ## The patched version
 
@@ -126,9 +152,12 @@ A patch that gives no patched version has its line in the log, with its reason:
 | Reason | What to do |
 |---|---|
 | No identified ROM with this CRC32 in the source | The original ROM is missing, or the DAT does not identify it |
-| The name of an IPS patch must give the CRC32 of the original ROM | Add the CRC32 to the name of the patch, for example `[1a2b3c4d]` |
+| Neither the name of the IPS patch nor a text that comes with it gives the CRC32 of the original ROM | Add the CRC32 to the name of the patch, for example `[1a2b3c4d]` |
+| No identified ROM in the source for the CRC32 given by a readme | The original ROM is missing, or the DAT does not identify it |
 | Unreadable patch | The file is truncated, damaged, or of another format |
 | The name of the patch gives the CRC32 of several ROMs of the source | Only keep in the name the CRC32 of the right ROM |
+| A readme gives the CRC32 of several ROMs of the source | Write in the name of the patch the CRC32 of the right ROM |
+| A readme gives the CRC32 of a ROM with and without its copier header | Write in the name of the patch the CRC32 of the form it was made for |
 | The original ROM is part of a game in several files | A `.cue` and its tracks, or a game on several disks: these games are not patched |
 | The ROM does not have the size the patch expects | It is not the ROM the patch was made for |
 

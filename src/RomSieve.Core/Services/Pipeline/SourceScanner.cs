@@ -92,10 +92,12 @@ public sealed class SourceScanner
     /// <summary>
     /// Patches of the patch folder (<see cref="SortConfig.PatchDir"/>), read recursively: the files with the extension
     /// of a patch (<see cref="PatchService.Extensions"/>), and the members with such an extension of its ZIP, 7z and
-    /// RAR archives. Their signature is read later, with the rest of the patch (<see cref="PatchMatcher"/>). In the order
-    /// of their paths, then of their members.
+    /// RAR archives. Their signature is read later, with the rest of the patch (<see cref="PatchMatcher"/>). The texts that
+    /// may come with them (<see cref="PatchService.NoteExtensions"/>, at most <see cref="PatchService.MaxNoteSize"/>
+    /// bytes), on the disk and in the same archives, are listed too: they are only read for a patch that gives no CRC32.
+    /// In the order of their paths, then of their members.
     /// </summary>
-    public List<PatchFile> ScanPatchFolder(
+    public PatchFolderContent ScanPatchFolder(
         string patchDir,
         CancellationToken cancellationToken = default,
         IProgress<SortProgress>? progress = null)
@@ -103,13 +105,14 @@ public sealed class SourceScanner
         if (!Directory.Exists(patchDir))
         {
             _log(LogLevel.Warn, LocalizedMessage.Create("log.patch_dir_not_found", ("path", patchDir)));
-            return [];
+            return new PatchFolderContent([], []);
         }
 
         ReportStep(progress, LocalizedMessage.Create("progress.listing_patches", ("count", 0)));
         var sw = Stopwatch.StartNew();
         var lastReportMs = 0L;
         var patches = new List<PatchFile>();
+        var notes = new List<PatchFile>();
         var skips = new FileTreeSkips();
         foreach (var path in FileTree.EnumerateFiles(patchDir, recursive: true, skips))
         {
@@ -129,6 +132,13 @@ public sealed class SourceScanner
             {
                 patches.Add(new PatchFile(path));
             }
+            else if (PatchService.HasNoteExtension(path))
+            {
+                if (IsSmallNote(path))
+                {
+                    notes.Add(new PatchFile(path));
+                }
+            }
             else if (_checksumService.IsSupportedArchive(path))
             {
                 try
@@ -136,6 +146,9 @@ public sealed class SourceScanner
                     var members = _headerCache?.GetArchiveMembers(path, _checksumService) ?? _checksumService.GetArchiveMembers(path);
                     patches.AddRange(members
                         .Where(m => PatchService.HasPatchExtension(m.MemberName))
+                        .Select(m => new PatchFile(path, m.MemberName)));
+                    notes.AddRange(members
+                        .Where(m => PatchService.HasNoteExtension(m.MemberName) && m.Size <= PatchService.MaxNoteSize)
                         .Select(m => new PatchFile(path, m.MemberName)));
                 }
                 catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
@@ -146,13 +159,29 @@ public sealed class SourceScanner
         }
 
         ReportSkips(skips);
-        patches.Sort((a, b) =>
-        {
-            var byPath = string.CompareOrdinal(a.SourcePath, b.SourcePath);
-            return byPath != 0 ? byPath : string.CompareOrdinal(a.ArchiveMember, b.ArchiveMember);
-        });
+        patches.Sort(ComparePatchFiles);
+        notes.Sort(ComparePatchFiles);
         _log(LogLevel.Info, LocalizedMessage.Create("log.patch_dir_scanned", ("count", patches.Count), ("path", patchDir)));
-        return patches;
+        return new PatchFolderContent(patches, notes);
+    }
+
+    private static int ComparePatchFiles(PatchFile a, PatchFile b)
+    {
+        var byPath = string.CompareOrdinal(a.SourcePath, b.SourcePath);
+        return byPath != 0 ? byPath : string.CompareOrdinal(a.ArchiveMember, b.ArchiveMember);
+    }
+
+    /// <summary>Whether a text of the patch folder is small enough to be a readme (<see cref="PatchService.MaxNoteSize"/>).</summary>
+    private static bool IsSmallNote(string path)
+    {
+        try
+        {
+            return new FileInfo(path).Length <= PatchService.MaxNoteSize;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     /// <summary>

@@ -15,8 +15,8 @@ la trouve pour vous par sa somme de contrôle (CRC32), ce qui demande un [fichie
 
 | Format | Extension | ROM d'origine trouvée par | Contrôles |
 |---|---|---|---|
-| **IPS** | `.ips` | le CRC32 écrit dans le nom du patch (voir [Rapprochement](#rapprochement)) | aucun : le format n'enregistre aucune somme de contrôle |
-| **IPS32** | `.ips` ou `.ips32` | le CRC32 écrit dans le nom du patch | aucun |
+| **IPS** | `.ips` | le CRC32 écrit dans le nom du patch, ou dans son readme (voir [Rapprochement](#rapprochement)) | aucun : le format n'enregistre aucune somme de contrôle |
+| **IPS32** | `.ips` ou `.ips32` | le CRC32 écrit dans le nom du patch, ou dans son readme | aucun |
 | **UPS** | `.ups` | le CRC32 et la taille qu'il enregistre | CRC32 du patch, de la ROM d'origine et du résultat |
 | **BPS** | `.bps` | le CRC32 et la taille qu'il enregistre | CRC32 du patch, de la ROM d'origine et du résultat |
 
@@ -31,7 +31,8 @@ d'arcade MAME et les logiciels des listes MAME ne sont jamais patchés.
 Dans l'étape **Collection**, le cadre **Patchs** a le champ **Dossier des patchs**, avec son bouton **Parcourir...**. Il
 est toujours affiché, quelle que soit la convention.
 
-* Le dossier est lu avec ses **sous-dossiers**. Seuls les fichiers `.ips`, `.ips32`, `.ups` et `.bps` sont lus.
+* Le dossier est lu avec ses **sous-dossiers**. Seuls les fichiers `.ips`, `.ips32`, `.ups` et `.bps` sont lus, et les
+  textes `.txt` et `.nfo` qui peuvent donner la ROM d'origine d'un IPS (voir [Rapprochement](#rapprochement)).
 * Les patchs rangés dans des **archives** ZIP, 7z ou RAR du dossier sont lus aussi.
 * Le dossier peut se trouver dans la source : ses fichiers ne sont pas triés comme des fichiers de la collection. S'il
   est la source elle-même, seuls les patchs sont mis de côté, et vos ROMs sont triées comme d'habitude.
@@ -50,13 +51,39 @@ que le 1G1R écarte au profit de la version américaine.
 * Un **UPS** ou un **BPS** désigne sa ROM d'origine par le CRC32 et la taille qu'il enregistre.
 * Un **IPS** n'enregistre rien : son nom doit donner le CRC32 de la ROM d'origine, en 8 chiffres hexadécimaux, entre
   crochets, entre parenthèses ou séparé du reste du nom (`Jeu (Japan) (T-En) [47E70E08].ips`, `(0x47e70e08)`). C'est la
-  règle d'igir. Un IPS sans CRC32 dans son nom n'est pas appliqué.
+  règle d'igir.
+* Un IPS dont le nom ne donne aucun CRC32 le prend dans son **readme**, s'il en a un. La plupart des patchs le donnent,
+  sous la forme qu'emploie romhacking.net (`File/ROM CRC32: 47E70E08`) ou une autre (`CRC32 : 0x47e70e08`). Voir
+  [Readme des IPS](#readme-des-ips).
+* Un IPS sans CRC32, ni dans son nom ni dans son readme, n'est pas appliqué.
 * Une ROM avec un **en-tête copieur** (iNES pour la NES, en-tête de 512 octets pour la Super Nintendo, en-tête Lynx)
   est cherchée sous ses deux formes, avec et sans en-tête : un patch fait pour l'une ou pour l'autre trouve sa ROM. Le
   patch s'applique à la forme qu'il attend, et le résultat est écrit tel que le patch le produit.
 * Si plusieurs fichiers de la source ont le même CRC32, le patch s'applique à celui que le tri écrit, sinon au premier
   dans l'ordre des chemins.
 * Plusieurs patchs pour une même ROM donnent chacun leur version patchée.
+
+### Readme des IPS
+
+Un readme est un fichier texte `.txt` ou `.nfo` d'au plus 1 Mo, rangé à côté du patch : dans le même dossier du dossier
+des patchs, ou dans la même archive, au même endroit. Un readme sur le disque n'accompagne jamais un patch rangé dans
+une archive, ni l'inverse.
+
+* Un readme qui porte le nom du patch (`Jeu (T-Fr).txt` pour `Jeu (T-Fr).ips`, sans tenir compte des majuscules) est
+  le sien.
+* Sinon, les readme d'un dossier ou d'une archive qui ne contient **qu'un seul patch** sont les siens.
+* Dans un dossier de plusieurs patchs, un readme qui ne porte le nom d'aucun n'en accompagne aucun : il ne dit pas de
+  quel patch il parle.
+
+RomSieve ne lit que les lignes où figure le mot **CRC**, et sur elles les CRC32 qui le suivent. Un readme donne souvent
+aussi le CRC32 du résultat patché : il ne désigne aucune ROM de la source, et il est ignoré. Le nom du patch l'emporte
+toujours sur son readme, et un UPS ou un BPS, qui enregistre lui-même sa ROM d'origine, ne lit jamais le sien.
+
+Un readme donne parfois le CRC32 d'une ROM **avec et sans son en-tête copieur**, sur deux lignes (par exemple
+`File CRC32` et `ROM CRC32`). Un IPS ne dit pas laquelle des deux formes il attend : RomSieve ne l'applique pas. Le
+readme dit en général pour quelle forme le patch a été fait. Écrivez alors le CRC32 de cette forme dans le nom du patch.
+
+Le panneau de détail d'une version patchée nomme le readme qui a donné le CRC32.
 
 ## La version patchée
 
@@ -128,9 +155,12 @@ Un patch qui ne donne aucune version patchée a sa ligne dans le journal, avec s
 | Raison | Ce qu'il faut faire |
 |---|---|
 | Aucune ROM identifiée de ce CRC32 dans la source | La ROM d'origine manque, ou elle n'est pas identifiée par le DAT |
-| Le nom d'un patch IPS doit donner le CRC32 de la ROM d'origine | Ajoutez le CRC32 au nom du patch, par exemple `[1a2b3c4d]` |
+| Ni le nom du patch IPS ni un texte qui l'accompagne ne donnent le CRC32 de la ROM d'origine | Ajoutez le CRC32 au nom du patch, par exemple `[1a2b3c4d]` |
+| Aucune ROM identifiée dans la source pour les CRC32 que donne un readme | La ROM d'origine manque, ou elle n'est pas identifiée par le DAT |
 | Patch illisible | Le fichier est tronqué, abîmé, ou d'un autre format |
 | Le nom du patch donne les CRC32 de plusieurs ROMs de la source | Ne gardez dans le nom que le CRC32 de la bonne ROM |
+| Un readme donne les CRC32 de plusieurs ROMs de la source | Écrivez dans le nom du patch le CRC32 de la bonne ROM |
+| Un readme donne le CRC32 d'une ROM avec et sans son en-tête copieur | Écrivez dans le nom du patch le CRC32 de la forme pour laquelle il a été fait |
 | La ROM d'origine fait partie d'un jeu en plusieurs fichiers | Un `.cue` et ses pistes, ou un jeu en plusieurs disques : ces jeux ne sont pas patchés |
 | La ROM n'a pas la taille que le patch attend | Ce n'est pas la ROM pour laquelle le patch a été fait |
 

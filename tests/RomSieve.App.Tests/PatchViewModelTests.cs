@@ -153,6 +153,18 @@ public sealed class PatchViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task AnIpsMatchedByItsReadme_ShouldNameTheReadmeInTheDetail()
+    {
+        _temp.WriteBytes("patches/Game (USA) (Hack).ips", PatchTestEncoder.IpsDiff(Usa, [.. Usa, .. "Hack"u8.ToArray()]));
+        _temp.WriteText("patches/Game (USA) (Hack).txt", $"ROM CRC32: {PatchTestEncoder.Crc(Usa):X8}");
+
+        var (table, _) = await SimulateAsync();
+
+        Row(table, "Game (USA) (Hack).ips").DetailPatchText.Should().Be(
+            $"Game (USA) (Hack).ips (IPS), appliqué à Game (USA).sfc (CRC32 {PatchTestEncoder.Crc(Usa):X8}, lu dans Game (USA) (Hack).txt)");
+    }
+
+    [Fact]
     public async Task TheGroupedView_ShouldShowThePatchedVersionUnderTheKeptRelease()
     {
         var (table, _) = await SimulateAsync();
@@ -212,7 +224,7 @@ public sealed class PatchViewModelTests : IDisposable
         banner.UnappliedPatchesText.Should().Be("12 patchs non appliqués");
         var lines = banner.UnappliedPatchesTooltip.Split(Environment.NewLine);
         lines.Should().HaveCount(1 + StatsBannerViewModel.MaxListedUnappliedPatches + 1);
-        lines[1].Should().StartWith("patch01.ips : Le nom d'un patch IPS doit donner");
+        lines[1].Should().StartWith("patch01.ips : Ni le nom du patch IPS ni un texte qui l'accompagne");
         lines[^1].Should().Be("… et 2 autres (voir le journal)");
         StatsBannerViewModel.IsStatusFilterKey(StatsBannerViewModel.PatchedFilterKey).Should().BeFalse();
     }

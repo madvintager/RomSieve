@@ -515,9 +515,9 @@ public sealed class SortProcessorService : ISortProcessorService
             return [];
         }
 
-        var patches = scanner.ScanPatchFolder(config.PatchDir, cancellationToken, progress);
+        var patchFolder = scanner.ScanPatchFolder(config.PatchDir, cancellationToken, progress);
         var matcher = new PatchMatcher(config, _patchService, _checksumService, _crcCache, log);
-        await matcher.MatchAsync(items, patches, cancellationToken, progress).ConfigureAwait(false);
+        await matcher.MatchAsync(items, patchFolder, cancellationToken, progress).ConfigureAwait(false);
         PatchMatcher.ApplyPatchOnly(items, config.PatchOnly);
         return matcher.Unapplied;
     }

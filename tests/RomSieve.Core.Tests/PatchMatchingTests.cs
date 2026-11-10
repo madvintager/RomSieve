@@ -683,4 +683,278 @@ public sealed class PatchMatchingTests : IDisposable
         result.Items.Where(it => it.Patch is not null).Select(it => it.TargetFilename)
             .Should().BeEquivalentTo("Game (Japan) [Redux].sfc", "Game (USA) [patch].sfc");
     }
+
+    // =========================================================================
+    // The texts that come with an IPS
+    // =========================================================================
+
+    /// <summary>
+    /// A readme in the form romhacking.net writes its "ROM / ISO Information" block, with the SHA-1 and the CRC32 of the
+    /// original ROM, a date of 8 digits, and the CRC32 of the patched result.
+    /// </summary>
+    private static string Readme(uint originCrc, uint? patchedCrc = null) =>
+        $"""
+        Game - English translation
+        Released 20210222
+
+        ROM / ISO Information:
+          Database match: Game (Japan)
+          Database: No-Intro: Nintendo - Super Nintendo Entertainment System (v. 20210222-050638)
+          File/ROM SHA-1: 4BEB8E5A4E1CE8B8D2D0BC2E4F7F0A4B1E3C9D21
+          File/ROM CRC32: {originCrc:X8}
+        {(patchedCrc is { } crc ? $"Patched ROM CRC32: {crc:X8}" : string.Empty)}
+        """;
+
+    private string WriteZip(string relativePath, params (string Member, byte[] Data)[] members)
+    {
+        var path = Path.GetFullPath(_temp.GetFilePath(relativePath));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var zip = ZipFile.Open(path, ZipArchiveMode.Create);
+        foreach (var (member, data) in members)
+        {
+            using var stream = zip.CreateEntry(member).Open();
+            stream.Write(data);
+        }
+
+        return path;
+    }
+
+    [Fact]
+    public async Task AnIpsWithAReadmeOfItsName_ShouldFindItsOriginByTheCrcOfTheReadme()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (Japan) (T-En).ips", IpsDiff(Japan, Translated));
+        _temp.WriteText("patches/Game (Japan) (T-En).txt", Readme(Crc(Japan), patchedCrc: Crc(Translated)));
+        _temp.WriteBytes("patches/Other (USA) (T-Fr).bps", BpsLinear(Usa, Translate(Usa)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        var patched = result.Items.Single(it => it.Patch?.Format == PatchFormat.Ips);
+        patched.Patch!.Origin.DisplayName.Should().Be("Game (Japan).sfc");
+        patched.Patch.CrcSource.Should().Be(PatchCrcSource.Notes);
+        patched.Patch.Note!.DisplayName.Should().Be("Game (Japan) (T-En).txt");
+        patched.TargetFilename.Should().Be("Game (Japan) [T-En].sfc");
+        result.UnappliedPatches.Should().BeEmpty("the CRC32 of the patched result and the date match no file, and are ignored");
+    }
+
+    [Fact]
+    public async Task AFrenchReadmeInUtf8_ShouldGiveTheCrcOfItsLine()
+    {
+        // The form of a French translation: UTF-8 without byte order mark, the CRC32 on a line of its own, and other lines
+        // that name the CRC32 without giving one, or give 8 digits without the word
+        _temp.WriteBytes("src/Golvellius (USA, Europe).sms", Usa);
+        var dat = WriteDat(("Golvellius (USA, Europe)", "Golvellius (USA, Europe).sms", Usa));
+        _temp.WriteBytes("patches/Golvellius (USA, Europe)_Fr-1.1-Clem/Golvellius (USA, Europe)_Fr-1.1-Clem.ips", IpsDiff(Usa, Translate(Usa)));
+        _temp.WriteText(
+            "patches/Golvellius (USA, Europe)_Fr-1.1-Clem/lisezmoi.txt",
+            $"""
+            traduction depuis le japonais de Golvellius sur Master System par Clem version 1.1
+
+            ---- utilisation du patch
+            - CRC32 de la rom à rechercher : {Crc(Usa):X8}
+            - c'est la version américaine/européenne du jeu : Golvellius (US, EU).sms
+            - pour voir le CRC32 d'un fichier, installer 7-Zip et faire un clic droit 7Zip>CRC-SHA>CRC-32
+            - code d'invincibilité 77383400
+            """,
+            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        var patched = PatchedVersion(result);
+        patched.Patch!.Note!.DisplayName.Should().Be("lisezmoi.txt");
+        patched.TargetFilename.Should().Be("Golvellius (USA, Europe) [Fr-1.1-Clem].sms");
+        result.UnappliedPatches.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AnIpsAloneInItsFolder_ShouldTakeAnyReadmeOfTheFolder()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game Redux/patch.ips", IpsDiff(Usa, Translate(Usa)));
+        _temp.WriteText("patches/Game Redux/readme.TXT", Readme(Crc(Usa)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        var patched = PatchedVersion(result);
+        patched.Patch!.Origin.DisplayName.Should().Be("Game (USA).sfc");
+        patched.Patch.Note!.DisplayName.Should().Be("readme.TXT");
+        patched.TargetFilename.Should().Be("Game (USA) [Redux].sfc");
+    }
+
+    [Fact]
+    public async Task AReadmeAmongSeveralPatches_ShouldComeWithNone()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (T-En).ips", IpsDiff(Japan, Translated));
+        _temp.WriteBytes("patches/Game (Hack).ips", IpsDiff(Usa, Translate(Usa)));
+        _temp.WriteText("patches/readme.txt", Readme(Crc(Japan)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        result.Items.Should().NotContain(it => it.Patch != null);
+        result.UnappliedPatches.Select(u => u.Reason.Key).Should().Equal("reason.patch_no_crc", "reason.patch_no_crc");
+    }
+
+    [Fact]
+    public async Task AReadmeOfItsName_ShouldComeWithItsPatchAmongOthers()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (T-En).ips", IpsDiff(Japan, Translated));
+        _temp.WriteBytes("patches/Game (Hack).ips", IpsDiff(Usa, Translate(Usa)));
+        _temp.WriteText("patches/game (t-en).nfo", Readme(Crc(Japan)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        PatchedVersion(result).Patch!.File.DisplayName.Should().Be("Game (T-En).ips");
+        result.UnappliedPatches.Should().ContainSingle().Which.File.DisplayName.Should().Be("Game (Hack).ips");
+    }
+
+    [Fact]
+    public async Task AReadmeInTheArchiveOfItsPatch_ShouldGiveTheCrc()
+    {
+        var dat = WriteJapanAndUsa();
+        var zip = WriteZip(
+            "patches/Game (T-En).zip",
+            ("Game (T-En)/Game.ips", IpsDiff(Japan, Translated)),
+            ("Game (T-En)/Readme.nfo", Ascii(Readme(Crc(Japan)))));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        var version = PatchedVersion(result).Patch!;
+        version.Origin.DisplayName.Should().Be("Game (Japan).sfc");
+        version.Note.Should().Be(new PatchFile(zip, "Game (T-En)/Readme.nfo"));
+    }
+
+    [Fact]
+    public async Task AReadmeOnTheDisk_ShouldNotComeWithAPatchInAnArchive()
+    {
+        var dat = WriteJapanAndUsa();
+        WriteZip("patches/translation.zip", ("Game.ips", IpsDiff(Japan, Translated)));
+        _temp.WriteText("patches/readme.txt", Readme(Crc(Japan)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        result.UnappliedPatches.Should().ContainSingle().Which.Reason.Key.Should().Be("reason.patch_no_crc");
+    }
+
+    [Fact]
+    public async Task TheNameOfAnIps_ShouldPrevailOverItsReadme()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes($"patches/Game (T-En) [{Crc(Japan):x8}].ips", IpsDiff(Japan, Translated));
+        _temp.WriteText("patches/readme.txt", Readme(Crc(Usa)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        var version = PatchedVersion(result).Patch!;
+        version.Origin.DisplayName.Should().Be("Game (Japan).sfc");
+        version.CrcSource.Should().Be(PatchCrcSource.FileName);
+        version.Note.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AUps_ShouldNotReadItsReadme()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (T-En).ups", Ups(Japan, Translated));
+        _temp.WriteText("patches/Game (T-En).txt", Readme(Crc(Usa)));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        var version = PatchedVersion(result).Patch!;
+        version.Origin.DisplayName.Should().Be("Game (Japan).sfc");
+        version.CrcSource.Should().Be(PatchCrcSource.Recorded);
+        version.Note.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AReadmeThatGivesTwoRoms_ShouldLeaveThePatchOut()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (T-En).ips", IpsDiff(Japan, Translated));
+        _temp.WriteText("patches/Game (T-En).txt", $"CRC32 (Japan): {Crc(Japan):X8}\nCRC32 (USA): {Crc(Usa):X8}\n");
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        var reason = result.UnappliedPatches.Should().ContainSingle().Which.Reason;
+        reason.Key.Should().Be("reason.patch_ambiguous_note");
+        reason.Args["note"].Should().Be("Game (T-En).txt");
+    }
+
+    [Fact]
+    public async Task AReadmeThatGivesNoRomOfTheSource_ShouldLeaveThePatchOut()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (T-En).ips", IpsDiff(Japan, Translated));
+        _temp.WriteText("patches/Game (T-En).txt", Readme(0x12345678));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        var reason = result.UnappliedPatches.Should().ContainSingle().Which.Reason;
+        reason.Key.Should().Be("reason.patch_orphan_note");
+        reason.Args["note"].Should().Be("Game (T-En).txt");
+        reason.Args["crc"].Should().Be("12345678");
+    }
+
+    [Theory]
+    [InlineData(false)] // the DAT gives the data without the header: the classification removes it
+    [InlineData(true)] // the DAT gives the whole file
+    public async Task AReadmeThatGivesAFileWithAndWithoutItsHeader_ShouldLeaveThePatchOut(bool datGivesTheWholeFile)
+    {
+        var data = Data(3, 8192);
+        var file = WithInesHeader(data);
+        _temp.WriteBytes("src/Game (USA).nes", file);
+        var dat = WriteDat(("Game (USA)", "Game (USA).nes", datGivesTheWholeFile ? file : data));
+        _temp.WriteBytes("patches/Game (Hack).ips", IpsDiff(data, Translate(data)));
+        _temp.WriteText("patches/Game (Hack).txt", $"File CRC32: {Crc(file):X8}\nROM CRC32: {Crc(data):X8}\n");
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        result.Items.Should().NotContain(it => it.Patch != null);
+        var reason = result.UnappliedPatches.Should().ContainSingle().Which.Reason;
+        reason.Key.Should().Be("reason.patch_header_form_ambiguous");
+        reason.Args["origin"].Should().Be("Game (USA).nes");
+    }
+
+    [Fact]
+    public async Task AReadmeThatGivesOneFormOfAFileWithAHeader_ShouldGiveThatForm()
+    {
+        var data = Data(3, 8192);
+        var file = WithInesHeader(data);
+        _temp.WriteBytes("src/Game (USA).nes", file);
+        var dat = WriteDat(("Game (USA)", "Game (USA).nes", data));
+        _temp.WriteBytes("patches/Game (Hack).ips", IpsDiff(file, Translate(file)));
+        _temp.WriteText("patches/Game (Hack).txt", $"File CRC32: {Crc(file):X8}\n");
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        var version = PatchedVersion(result).Patch!;
+        version.SourceOffset.Should().Be(0, "the readme gives the CRC32 of the whole file");
+        version.SourceCrc32.Should().Be(Crc(file));
+    }
+
+    [Fact]
+    public async Task AReadmeTooLarge_ShouldBeIgnored()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (T-En).ips", IpsDiff(Japan, Translated));
+        _temp.WriteText("patches/Game (T-En).txt", Readme(Crc(Japan)) + new string(' ', PatchService.MaxNoteSize));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        result.UnappliedPatches.Should().ContainSingle().Which.Reason.Key.Should().Be("reason.patch_no_crc");
+    }
+
+    [Theory]
+    [InlineData("File/ROM CRC32: 65D0A825", new uint[] { 0x65d0a825 })]
+    [InlineData("CRC32 (no header) : 0x65d0a825\r", new uint[] { 0x65d0a825 })]
+    [InlineData("crc: 65d0a825, sha-1: 4BEB8E5A4E1CE8B8D2D0BC2E4F7F0A4B1E3C9D21", new uint[] { 0x65d0a825 })]
+    [InlineData("Header CRC32 = 12345678 / no header: 9ABCDEF0", new uint[] { 0x12345678, 0x9abcdef0 })]
+    [InlineData("65D0A825 CRC32", new uint[0])] // before the word
+    [InlineData("Released 20210222, version 1.0", new uint[0])] // a line without the word
+    [InlineData("CRC32: 65D0A825F", new uint[0])] // 9 digits
+    public void NoteCrcs_ShouldReadTheCrcAfterTheWordOnItsLine(string line, uint[] expected)
+    {
+        PatchMatcher.NoteCrcs($"Game\n{line}\nEnd").Should().Equal(expected);
+    }
 }

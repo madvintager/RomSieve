@@ -14,7 +14,10 @@ namespace RomSieve.Core.Services;
 /// and before the selection of a partial sort, which it follows like any file of its game. The rules:
 /// <list type="bullet">
 /// <item>The origin of a UPS or a BPS is the file of the CRC32 and the size of the source it records; that of an IPS,
-/// which records nothing, the file of a CRC32 its name gives (the expression of igir, on the file name only).</item>
+/// which records nothing, the file of a CRC32 its name gives (the expression of igir, on the file name only) or, when
+/// its name gives none, the text that comes with it, its readme (<see cref="NotesOf"/>, <see cref="NoteCrcs"/>). A text
+/// that gives the CRC32 of a file with and without its copier header leaves the patch out: an IPS does not tell which
+/// form it expects.</item>
 /// <item>Only a file identified in the DAT is an origin, whatever its status after the 1G1R (a translation often aims
 /// at the Japanese release the 1G1R leaves out); never a CHD, a MAME set or a file of a game in several files.</item>
 /// <item>The CRC32 of a file is looked for with and without its copier header: as identified first, then in its other
@@ -56,21 +59,36 @@ public sealed partial class PatchMatcher
     /// <summary>A form of the data of a file the patch may expect: the bytes from an offset, their size and CRC32.</summary>
     private sealed record Candidate(ProcessItem Item, long Offset, long Size, uint Crc32, bool IsMultiFile);
 
-    /// <summary>A patch read, with the CRC32 its origin must have: one for a UPS or a BPS, those of its name for an IPS.</summary>
-    private sealed record ReadPatch(PatchFile File, PatchHeader Header, IReadOnlyList<uint> SourceCrcs);
+    /// <summary>
+    /// A patch read, with the CRC32 its origin must have: one for a UPS or a BPS, those of its name or of its texts for an
+    /// IPS, where they come from and, for those of its texts, the text of each.
+    /// </summary>
+    private sealed record ReadPatch(
+        PatchFile File,
+        PatchHeader Header,
+        IReadOnlyList<uint> SourceCrcs,
+        PatchCrcSource CrcSource,
+        IReadOnlyDictionary<uint, PatchFile>? NoteOf = null)
+    {
+        /// <summary>The names of the texts that gave the CRC32, for a reason.</summary>
+        public string NoteNames => NoteOf is null ? string.Empty : string.Join(", ", NoteOf.Values.Distinct().Select(n => n.DisplayName));
+    }
 
     /// <summary>
-    /// Reads <paramref name="patches"/>, matches them with the identified files of <paramref name="items"/>, and inserts
-    /// each patched version just before its origin. Returns the number of patched versions.
+    /// Reads the patches of <paramref name="folder"/>, matches them with the identified files of
+    /// <paramref name="items"/>, and inserts each patched version just before its origin. Returns the number of patched
+    /// versions.
     /// </summary>
     public async Task<int> MatchAsync(
         List<ProcessItem> items,
-        IReadOnlyList<PatchFile> patches,
+        PatchFolderContent folder,
         CancellationToken cancellationToken = default,
         IProgress<SortProgress>? progress = null)
     {
         progress?.Report(new SortProgress(0, 0, 0, 0, 0.0, LocalizedMessage.Create("progress.reading_patches")));
+        var patches = folder.Patches;
         CountPatchesByFolder(patches);
+        IndexNotes(folder);
         var read = new List<ReadPatch>();
         foreach (var patch in patches)
         {
@@ -96,6 +114,11 @@ public sealed partial class PatchMatcher
             {
                 left.Add(patch);
             }
+        }
+
+        if (_config.Filters.DetectCopierHeaders)
+        {
+            await RefuseNotesOfBothFormsAsync(matched, cancellationToken).ConfigureAwait(false);
         }
 
         // The other form of each file (with or without its copier header) is only read for the patches left over
@@ -241,18 +264,30 @@ public sealed partial class PatchMatcher
 
         if (header.SourceCrc32 is { } sourceCrc)
         {
-            return new ReadPatch(patch, header, [sourceCrc]);
+            return new ReadPatch(patch, header, [sourceCrc], PatchCrcSource.Recorded);
         }
 
         // An IPS records no checksum: its name gives the CRC32 of its origin, as igir reads it
         var crcs = CrcTokens(BaseName(patch.DisplayName)).Select(t => t.Crc).Distinct().ToList();
-        if (crcs.Count == 0)
+        if (crcs.Count > 0)
         {
-            Refuse(patch, LocalizedMessage.Create("reason.patch_no_crc"));
-            return null;
+            return new ReadPatch(patch, header, crcs, PatchCrcSource.FileName);
         }
 
-        return new ReadPatch(patch, header, crcs);
+        // A name without CRC32: the texts that come with the patch may give it
+        var fromNotes = await ReadNoteCrcsAsync(patch, cancellationToken).ConfigureAwait(false);
+        if (fromNotes.Count > 0)
+        {
+            return new ReadPatch(
+                patch,
+                header,
+                [.. fromNotes.Select(f => f.Crc)],
+                PatchCrcSource.Notes,
+                fromNotes.ToDictionary(f => f.Crc, f => f.Note));
+        }
+
+        Refuse(patch, LocalizedMessage.Create("reason.patch_no_crc"));
+        return null;
     }
 
     private void Refuse(PatchFile patch, LocalizedMessage reason) => _unapplied.Add(new UnappliedPatch(patch, reason));
@@ -271,6 +306,149 @@ public sealed partial class PatchMatcher
 
     /// <summary>The name of a patch without its folders nor its extension.</summary>
     private static string BaseName(string patchName) => Path.GetFileNameWithoutExtension(Path.GetFileName(patchName));
+
+    // =========================================================================
+    // The texts that come with a patch
+    // =========================================================================
+
+    /// <summary>The texts of the patch folder by place (<see cref="PlaceOf"/>).</summary>
+    private readonly Dictionary<string, List<PatchFile>> _notesByPlace = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The patches of each place (<see cref="PlaceOf"/>), every member of an archive counted.</summary>
+    private readonly Dictionary<string, int> _patchesByPlace = new(StringComparer.OrdinalIgnoreCase);
+
+    private void IndexNotes(PatchFolderContent folder)
+    {
+        _notesByPlace.Clear();
+        _patchesByPlace.Clear();
+        foreach (var patch in folder.Patches)
+        {
+            var place = PlaceOf(patch);
+            _patchesByPlace[place] = _patchesByPlace.GetValueOrDefault(place) + 1;
+        }
+
+        foreach (var note in folder.Notes)
+        {
+            var place = PlaceOf(note);
+            if (!_notesByPlace.TryGetValue(place, out var list))
+            {
+                list = [];
+                _notesByPlace[place] = list;
+            }
+
+            list.Add(note);
+        }
+    }
+
+    /// <summary>
+    /// Where a patch or a text lies, for the texts of a patch: its folder on the disk, or its archive and its folder in
+    /// that archive. A text on the disk never comes with a patch in an archive, nor the reverse.
+    /// </summary>
+    private static string PlaceOf(PatchFile file)
+    {
+        if (file.ArchiveMember is not { } member)
+        {
+            return "disk\0" + (Path.GetDirectoryName(file.SourcePath) ?? string.Empty);
+        }
+
+        var segments = member.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        return "archive\0" + file.SourcePath + "\0" + string.Join('/', segments.Take(segments.Length - 1));
+    }
+
+    /// <summary>
+    /// The texts that come with a patch: in its place (<see cref="PlaceOf"/>), those of its name without extension
+    /// (<c>Game (T-Fr).txt</c> for <c>Game (T-Fr).ips</c>, case ignored); without any, every text of a place that holds
+    /// no other patch; otherwise none, as a text among several patches cannot tell which one it describes.
+    /// </summary>
+    private IReadOnlyList<PatchFile> NotesOf(PatchFile patch)
+    {
+        var place = PlaceOf(patch);
+        if (!_notesByPlace.TryGetValue(place, out var notes))
+        {
+            return [];
+        }
+
+        var baseName = BaseName(patch.DisplayName);
+        var own = notes.Where(n => string.Equals(BaseName(n.DisplayName), baseName, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (own.Count > 0)
+        {
+            return own;
+        }
+
+        return _patchesByPlace.GetValueOrDefault(place) == 1 ? notes : [];
+    }
+
+    /// <summary>The CRC32 the texts of a patch give, each with the first text that gives it, in the order of the texts.</summary>
+    private async Task<List<(uint Crc, PatchFile Note)>> ReadNoteCrcsAsync(PatchFile patch, CancellationToken cancellationToken)
+    {
+        var found = new List<(uint Crc, PatchFile Note)>();
+        foreach (var note in NotesOf(patch))
+        {
+            string? text;
+            try
+            {
+                text = await ReadNoteAsync(note, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+            {
+                // A text that cannot be read gives nothing: the patch is not refused for it
+                continue;
+            }
+
+            foreach (var crc in NoteCrcs(text ?? string.Empty))
+            {
+                if (!found.Exists(f => f.Crc == crc))
+                {
+                    found.Add((crc, note));
+                }
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// A text read whole, or <see langword="null"/> beyond <see cref="PatchService.MaxNoteSize"/> (the size an archive
+    /// gives may be false). Latin-1 unless it starts with a byte order mark: only the ASCII of the CRC32 matters.
+    /// </summary>
+    private async Task<string?> ReadNoteAsync(PatchFile note, CancellationToken cancellationToken)
+    {
+        await using Stream stream = note.ArchiveMember is { } member
+            ? _checksumService.OpenArchiveMember(note.SourcePath, member)
+            : new FileStream(note.SourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+        var buffer = new byte[PatchService.MaxNoteSize + 1];
+        var length = await stream.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, cancellationToken).ConfigureAwait(false);
+        if (length > PatchService.MaxNoteSize)
+        {
+            return null;
+        }
+
+        using var reader = new StreamReader(new MemoryStream(buffer, 0, length), System.Text.Encoding.Latin1, detectEncodingFromByteOrderMarks: true);
+        return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The CRC32 a text gives: on each line where the word <c>CRC</c> appears (case ignored), the tokens of 8 hexadecimal
+    /// digits after it, as <see cref="CrcTokenRegex"/> reads them (<c>File/ROM CRC32: 65D0A825</c>,
+    /// <c>CRC32 (no header) : 0x65d0a825</c>). A date or a SHA-1 elsewhere is never taken for a CRC32. A CRC32 of no file of
+    /// the source, like that of the patched result, is ignored when matching.
+    /// </summary>
+    internal static IEnumerable<uint> NoteCrcs(string text)
+    {
+        foreach (var line in text.Split('\n'))
+        {
+            var at = line.IndexOf("CRC", StringComparison.OrdinalIgnoreCase);
+            if (at < 0)
+            {
+                continue;
+            }
+
+            foreach (var (crc, _) in CrcTokens(line[(at + 3)..]))
+            {
+                yield return crc;
+            }
+        }
+    }
 
     // =========================================================================
     // Matching
@@ -351,16 +529,28 @@ public sealed partial class PatchMatcher
                 var crcs = string.Join(", ", patch.SourceCrcs.Select(FormatCrc));
                 Refuse(patch.File, sizeMismatch && patch.Header.SourceSize is { } expected
                     ? LocalizedMessage.Create("reason.patch_source_size_mismatch", ("crc", crcs), ("size", expected))
-                    : LocalizedMessage.Create("reason.patch_orphan", ("crc", crcs)));
+                    : patch.CrcSource == PatchCrcSource.Notes
+                        ? LocalizedMessage.Create("reason.patch_orphan_note", ("note", patch.NoteNames), ("crc", crcs))
+                        : LocalizedMessage.Create("reason.patch_orphan", ("crc", crcs)));
             }
 
             return (null, true);
         }
 
-        // An IPS whose name gives the CRC32 of two different files cannot tell which one it patches
+        // An IPS whose name or texts give the CRC32 of two different files cannot tell which one it patches
         if (byCrc.Select(b => b.Best.Item).Distinct(ReferenceEqualityComparer.Instance).Count() > 1)
         {
-            Refuse(patch.File, LocalizedMessage.Create("reason.patch_ambiguous", ("crc", string.Join(", ", byCrc.Select(b => FormatCrc(b.Crc))))));
+            var crcs = string.Join(", ", byCrc.Select(b => FormatCrc(b.Crc)));
+            Refuse(patch.File, patch.CrcSource == PatchCrcSource.Notes
+                ? LocalizedMessage.Create("reason.patch_ambiguous_note", ("note", patch.NoteNames), ("crc", crcs))
+                : LocalizedMessage.Create("reason.patch_ambiguous", ("crc", crcs)));
+            return (null, false);
+        }
+
+        // Nor one whose texts give a file with and without its copier header (the name of a patch is the choice of the user)
+        if (patch.CrcSource == PatchCrcSource.Notes && byCrc.Select(b => b.Best.Offset).Distinct().Count() > 1)
+        {
+            RefuseBothForms(patch, byCrc[0].Best.Item);
             return (null, false);
         }
 
@@ -384,6 +574,37 @@ public sealed partial class PatchMatcher
             .ThenBy(c => c.Offset)
             .First();
 
+    private void RefuseBothForms(ReadPatch patch, ProcessItem origin) =>
+        Refuse(patch.File, LocalizedMessage.Create(
+            "reason.patch_header_form_ambiguous",
+            ("note", patch.NoteNames),
+            ("origin", origin.DisplayName)));
+
+    /// <summary>
+    /// The patches matched by the CRC32 of their texts whose other CRC32 is that of the other form of their origin (with or
+    /// without its copier header): the block of a readme often gives both, and an IPS does not tell which one it expects.
+    /// They are refused, and taken out of <paramref name="matched"/>. Only the other form of these origins is read.
+    /// </summary>
+    private async Task RefuseNotesOfBothFormsAsync(List<(ReadPatch Patch, Candidate Origin)> matched, CancellationToken cancellationToken)
+    {
+        for (var i = matched.Count - 1; i >= 0; i--)
+        {
+            var (patch, origin) = matched[i];
+            if (patch.CrcSource != PatchCrcSource.Notes || patch.SourceCrcs.All(crc => crc == origin.Crc32))
+            {
+                continue;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (await OtherFormAsync(origin, _ => true, cancellationToken).ConfigureAwait(false) is { } other
+                && patch.SourceCrcs.Contains(other.Crc32))
+            {
+                RefuseBothForms(patch, origin.Item);
+                matched.RemoveAt(i);
+            }
+        }
+    }
+
     /// <summary>
     /// The other form of the data of the files the patches left over may expect: the whole file of a file identified
     /// without its copier header; the data after the copier header of a file identified whole. Read only for a size one of
@@ -399,36 +620,50 @@ public sealed partial class PatchMatcher
         foreach (var candidate in candidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var item = candidate.Item;
-            try
+            if (await OtherFormAsync(candidate, MayFit, cancellationToken).ConfigureAwait(false) is { } other)
             {
-                if (item.CopierHeaderSize > 0)
-                {
-                    if (MayFit(item.FileSize) && string.IsNullOrEmpty(item.ArchiveMember))
-                    {
-                        var crc = _crcCache.Get(item.SourcePath);
-                        if (crc is null)
-                        {
-                            crc = await _checksumService.ComputeFileCrc32Async(item.SourcePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-                            _crcCache.Set(item.SourcePath, crc);
-                        }
-
-                        others.Add(candidate with { Offset = 0, Size = item.FileSize, Crc32 = uint.Parse(crc, NumberStyles.HexNumber, CultureInfo.InvariantCulture) });
-                    }
-                }
-                else if (CopierHeaderSizes.Any(h => item.FileSize > h && MayFit(item.FileSize - h))
-                         && await ReadWithoutHeaderAsync(item, cancellationToken).ConfigureAwait(false) is { } withoutHeader)
-                {
-                    others.Add(candidate with { Offset = withoutHeader.Header, Size = item.FileSize - withoutHeader.Header, Crc32 = withoutHeader.Crc });
-                }
-            }
-            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
-            {
-                // A file that cannot be read again gives no other form
+                others.Add(other);
             }
         }
 
         return others;
+    }
+
+    /// <summary>
+    /// The other form of the data of a file (<see cref="ReadOtherFormsAsync"/>), when <paramref name="mayFit"/> accepts its
+    /// size; <see langword="null"/> without one, or for a file that cannot be read again.
+    /// </summary>
+    private async Task<Candidate?> OtherFormAsync(Candidate candidate, Func<long, bool> mayFit, CancellationToken cancellationToken)
+    {
+        var item = candidate.Item;
+        try
+        {
+            if (item.CopierHeaderSize > 0)
+            {
+                if (mayFit(item.FileSize) && string.IsNullOrEmpty(item.ArchiveMember))
+                {
+                    var crc = _crcCache.Get(item.SourcePath);
+                    if (crc is null)
+                    {
+                        crc = await _checksumService.ComputeFileCrc32Async(item.SourcePath, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        _crcCache.Set(item.SourcePath, crc);
+                    }
+
+                    return candidate with { Offset = 0, Size = item.FileSize, Crc32 = uint.Parse(crc, NumberStyles.HexNumber, CultureInfo.InvariantCulture) };
+                }
+            }
+            else if (CopierHeaderSizes.Any(h => item.FileSize > h && mayFit(item.FileSize - h))
+                     && await ReadWithoutHeaderAsync(item, cancellationToken).ConfigureAwait(false) is { } withoutHeader)
+            {
+                return candidate with { Offset = withoutHeader.Header, Size = item.FileSize - withoutHeader.Header, Crc32 = withoutHeader.Crc };
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            // A file that cannot be read again gives no other form
+        }
+
+        return null;
     }
 
     /// <summary>Sizes of the copier headers <see cref="IChecksumService.DetectCopierHeader"/> finds: iNES, Lynx, SNES.</summary>
@@ -490,7 +725,11 @@ public sealed partial class PatchMatcher
     private ProcessItem CreatePatchedVersion(ReadPatch patch, Candidate origin)
     {
         var item = origin.Item;
-        var version = new PatchedVersion(patch.File, patch.Header, item, origin.Offset, origin.Size, origin.Crc32);
+        var version = new PatchedVersion(patch.File, patch.Header, item, origin.Offset, origin.Size, origin.Crc32)
+        {
+            CrcSource = patch.CrcSource,
+            Note = patch.NoteOf?.GetValueOrDefault(origin.Crc32)
+        };
         var originName = !string.IsNullOrEmpty(item.TargetFilename) ? item.TargetFilename : item.DisplayName;
         return new ProcessItem
         {

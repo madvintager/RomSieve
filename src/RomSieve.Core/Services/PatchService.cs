@@ -27,6 +27,19 @@ public sealed class PatchService : IPatchService
     public static bool HasPatchExtension(string fileName) =>
         Extensions.Contains(Path.GetExtension(fileName), StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Extensions of the texts that may come with a patch and give the CRC32 of its origin, a readme
+    /// (<see cref="Pipeline.PatchMatcher"/>).
+    /// </summary>
+    public static IReadOnlyList<string> NoteExtensions { get; } = [".txt", ".nfo"];
+
+    /// <summary>Whether <paramref name="fileName"/> has the extension of a text that may come with a patch, case ignored.</summary>
+    public static bool HasNoteExtension(string fileName) =>
+        NoteExtensions.Contains(Path.GetExtension(fileName), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Largest text that comes with a patch read, in bytes: a readme is small, a larger text is ignored.</summary>
+    public const int MaxNoteSize = 1024 * 1024;
+
     /// <summary>Number of bytes <see cref="DetectFormat"/> needs to recognize a signature.</summary>
     public const int SignatureLength = 5;
 

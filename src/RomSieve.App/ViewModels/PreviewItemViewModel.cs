@@ -626,25 +626,31 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
     }
 
     /// <summary>
-    /// Checksum of the detail panel: the SHA-1 of a CHD (the global SHA-1 of its header, which identifies it in a DAT),
-    /// otherwise the CRC32 of the file; none for a whole archive (a MAME set) or a file whose CRC was not computed.
-    /// </summary>
-    /// <summary>
     /// Patch line of the detail panel: for a patched version, its patch, the format and the original ROM with the CRC32
-    /// the patch was matched by; for an original ROM, the names of its patched versions; nothing otherwise.
+    /// the patch was matched by, and the text that gave it when it comes from a readme; for an original ROM, the names of
+    /// its patched versions; nothing otherwise.
     /// </summary>
     public static (string Label, string Text) FormatDetailPatch(ProcessItem item, ILocalizationService localization)
     {
         if (item.Patch is { } patch)
         {
+            var crc = patch.SourceCrc32.ToString("X8", CultureInfo.InvariantCulture);
             return (
                 localization.Tr("panel4.detail_patch"),
-                localization.Tr(
-                    "panel4.detail_patch_text",
-                    ("patch", patch.File.DisplayName),
-                    ("format", patch.Format.ToDisplayName()),
-                    ("origin", patch.Origin.DisplayName),
-                    ("crc", patch.SourceCrc32.ToString("X8", CultureInfo.InvariantCulture))));
+                patch.Note is { } note
+                    ? localization.Tr(
+                        "panel4.detail_patch_text_note",
+                        ("patch", patch.File.DisplayName),
+                        ("format", patch.Format.ToDisplayName()),
+                        ("origin", patch.Origin.DisplayName),
+                        ("crc", crc),
+                        ("note", note.DisplayName))
+                    : localization.Tr(
+                        "panel4.detail_patch_text",
+                        ("patch", patch.File.DisplayName),
+                        ("format", patch.Format.ToDisplayName()),
+                        ("origin", patch.Origin.DisplayName),
+                        ("crc", crc)));
         }
 
         return item.PatchedVersions.Count > 0
@@ -653,6 +659,10 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
             : (string.Empty, string.Empty);
     }
 
+    /// <summary>
+    /// Checksum of the detail panel: the SHA-1 of a CHD (the global SHA-1 of its header, which identifies it in a DAT),
+    /// otherwise the CRC32 of the file; none for a whole archive (a MAME set) or a file whose CRC was not computed.
+    /// </summary>
     public static (string Label, string Text) GetDetailChecksum(ProcessItem item)
     {
         if (item.Chd is { Sha1.Length: > 0 } chd)

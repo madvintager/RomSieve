@@ -84,6 +84,26 @@ public sealed record PatchFile(string SourcePath, string? ArchiveMember = null)
     public string DisplayName => ArchiveMember ?? Path.GetFileName(SourcePath);
 }
 
+/// <summary>
+/// What the patch folder holds (<see cref="Services.SourceScanner.ScanPatchFolder"/>): its patches, and the texts that
+/// may come with them (<see cref="Services.PatchService.NoteExtensions"/>, a readme), each a file or the member of an
+/// archive, in the order of their paths, then of their members.
+/// </summary>
+public sealed record PatchFolderContent(IReadOnlyList<PatchFile> Patches, IReadOnlyList<PatchFile> Notes);
+
+/// <summary>Where the CRC32 a patch is matched with its origin by comes from.</summary>
+public enum PatchCrcSource
+{
+    /// <summary>The patch records it (UPS, BPS).</summary>
+    Recorded,
+
+    /// <summary>The name of the patch gives it (IPS, IPS32).</summary>
+    FileName,
+
+    /// <summary>A text that comes with the patch gives it, its readme (IPS, IPS32 whose name gives none).</summary>
+    Notes
+}
+
 /// <summary>A patch of the patch folder that gives no patched version, and why (<c>reason.patch_*</c>).</summary>
 public sealed record UnappliedPatch(PatchFile File, LocalizedMessage Reason);
 
@@ -107,6 +127,12 @@ public sealed record PatchedVersion(
     uint SourceCrc32)
 {
     public PatchFormat Format => Header.Format;
+
+    /// <summary>Where <see cref="SourceCrc32"/> was found: in the patch, its name or a text that comes with it.</summary>
+    public PatchCrcSource CrcSource { get; init; }
+
+    /// <summary>The text that gave <see cref="SourceCrc32"/>, when <see cref="CrcSource"/> is <see cref="PatchCrcSource.Notes"/>.</summary>
+    public PatchFile? Note { get; init; }
 
     /// <summary>Size of the result.</summary>
     public long TargetSize => Header.TargetSizeFor(SourceLength);
