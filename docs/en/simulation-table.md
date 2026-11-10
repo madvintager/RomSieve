@@ -19,7 +19,7 @@ a result before writing anything.
 | **Languages**, **Country/Region** | Detected languages and regions |
 | **Calculated Target Path** | Where the file is (or would be) written, relative to the destination |
 | **Status** | Badge Valid, Excluded, Unmatched, Duplicate or Error |
-| **DAT** | DAT of the [lot](naming-conventions-and-dats.md#several-dats) the file is sorted with, empty with a single DAT (hidden by default) |
+| **DAT** | DAT the file is sorted with: the single DAT, or that of the [lot](naming-conventions-and-dats.md#several-dats); empty for a file no DAT knows (hidden by default) |
 
 Click a column header to sort the table; sorting by status also orders the rows by their reason. Hover a row to see a
 tooltip with the size, the checksum, the reason for the status, the companion tracks of an optical set, or the details
@@ -78,8 +78,8 @@ according to the DAT (its clones, the games of a BIOS, the machines that use a *
 kept, which it names: *389 machine(s), 389 of them in the source; 120 kept: 1944, 19xx, armwar and 117 others*. Under
 **Related files**, it lists the [files transferred with
 it](#related-files), each with its size, its target (with its new name when a collision renamed it) and, for a CHD, its
-version, media and tracks. With a lot of DATs, the **DAT** line names the DAT of the file and, when other DATs know it,
-those, where its ROMs count as present. While some games are [unchecked](#choosing-games), a **Selection**
+version, media and tracks. The **DAT** line names the DAT of the file and, with a lot, when other DATs know
+it, those, where its ROMs count as present. While some games are [unchecked](#choosing-games), a **Selection**
 line also tells whether the row will be sorted: *Checked*, *Unchecked*, or *Sorted with the set …, which needs it* for a
 MAME set taken along by the checked games; the tooltip of the row repeats it. The status always describes the whole
 simulation, the **Selection** line the partial sort. For a patched version, the **Source file** line gives the path of

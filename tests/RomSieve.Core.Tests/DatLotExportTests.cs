@@ -342,10 +342,11 @@ public sealed class DatLotExportTests : IDisposable
     }
 
     [Fact]
-    public async Task Reports_OfASingleDat_ShouldNotNameAnyDat()
+    public async Task Reports_OfASingleDat_ShouldNameItForTheFilesItKnows_WithoutDetailingTheDats()
     {
         WriteGameBoy();
         _tmp.WriteBytes(Path.Combine("src", "tetris_gb_world.gb"), TetrisGbWorld);
+        _tmp.WriteBytes(Path.Combine("src", "unknown.bin"), Encoding.ASCII.GetBytes("NOTHING"));
         var config = Config();
         config.DatFile = Path.Combine(_dats, "Nintendo - Game Boy (20230414-173400).dat");
         var result = await _services.Processor.ExecuteAsync(config, isDryRun: true);
@@ -354,7 +355,13 @@ public sealed class DatLotExportTests : IDisposable
         await _services.Processor.ExportReportToJsonAsync(result.Items, result.Stats, Path.Combine(_out, "report.json"));
         await _services.Processor.ExportReportToCsvAsync(result.Items, Path.Combine(_out, "report.csv"));
 
-        File.ReadAllText(Path.Combine(_out, "report.json")).Should().NotContain("\"dat\":").And.NotContain("\"dats\"");
-        File.ReadAllLines(Path.Combine(_out, "report.csv"))[0].Should().EndWith(";error_message");
+        using var report = JsonDocument.Parse(File.ReadAllText(Path.Combine(_out, "report.json")));
+        report.RootElement.GetProperty("summary").TryGetProperty("dats", out _).Should().BeFalse("a single DAT is the DAT summary");
+        report.RootElement.GetProperty("files").EnumerateArray()
+            .ToDictionary(f => f.GetProperty("source_file").GetString()!, f => f.GetProperty("dat").GetString())
+            .Should().Equal(new Dictionary<string, string?> { ["tetris_gb_world.gb"] = GameBoy, ["unknown.bin"] = string.Empty });
+        var csv = File.ReadAllLines(Path.Combine(_out, "report.csv"));
+        csv[0].Should().EndWith(";error_message;dat");
+        csv.Single(line => line.StartsWith("tetris_gb_world.gb;", StringComparison.Ordinal)).Should().EndWith($";{GameBoy}");
     }
 }

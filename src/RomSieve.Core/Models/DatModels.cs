@@ -212,6 +212,16 @@ public sealed partial class DatCatalog
     public DatHeader Header { get; set; } = new();
 
     /// <summary>
+    /// Name of this catalog as a single DAT read from <paramref name="datFile"/>: the name of its header, or that of its
+    /// file without one; <see langword="null"/> without either.
+    /// </summary>
+    public string? SingleDatName(string? datFile)
+    {
+        var name = !string.IsNullOrWhiteSpace(Header.Name) ? Header.Name : Path.GetFileNameWithoutExtension(datFile);
+        return string.IsNullOrWhiteSpace(name) ? null : name;
+    }
+
+    /// <summary>
     /// Catalogs of the MAME software lists this catalog gathers (a folder of DATs, or an output of MAME holding several
     /// lists), by list name; <c>null</c> for a catalog of a single DAT. The short name of a software is only unique in
     /// its list (<c>sonic</c> is in <c>megadriv</c> and in other lists): the indices of the gathering catalog (games,

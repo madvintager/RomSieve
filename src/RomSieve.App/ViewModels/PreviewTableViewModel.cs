@@ -1323,8 +1323,12 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
     [ObservableProperty]
     private DatFilterOption? _selectedDatFilter;
 
-    /// <summary>Whether the run sorted a lot: the filter by DAT then has DATs to offer.</summary>
-    public bool HasDatFilter => DatFilterOptions.Count > 1;
+    /// <summary>
+    /// Whether the files of the run are sorted with several DATs of a lot: the filter by DAT then has DATs to offer. A
+    /// single DAT (or a lot whose files all are of one DAT) names its files, but filtering by it would only hide the files
+    /// it does not know.
+    /// </summary>
+    public bool HasDatFilter => DatFilterOptions.Count > 2;
 
     partial void OnSelectedDatFilterChanged(DatFilterOption? value) => RefreshFilteredPreviewItems();
 

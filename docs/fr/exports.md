@@ -14,8 +14,8 @@ Enregistre le résultat de la dernière exécution :
   plus les statistiques ; adapté aux scripts et à l'archivage.
 * **CSV** (`.csv`) : le même tableau, à ouvrir dans un tableur.
 
-Avec un [lot de DAT](#lot-de-dat), chaque fichier nomme aussi son DAT (champ `dat`, dernière colonne du CSV), et le
-JSON détaille ce qui a été trouvé de chaque DAT.
+Chaque fichier qu'un DAT reconnaît nomme aussi son DAT (champ `dat`, dernière colonne du CSV), avec un DAT seul comme
+avec un [lot de DAT](#lot-de-dat) ; avec un lot, le JSON détaille en plus ce qui a été trouvé de chaque DAT.
 
 Une [version patchée](patches.md) nomme son patch, son format et sa ROM d'origine (champs `patch`, `patch_format` et
 `patched_from` du JSON ; trois dernières colonnes du CSV, présentes seulement quand l'exécution a des versions

@@ -19,7 +19,7 @@ que l'on vérifie un résultat avant d'écrire quoi que ce soit.
 | **Langues**, **Pays/Région** | Langues et régions détectées |
 | **Chemin cible calculé** | Où le fichier est (ou serait) écrit, relativement à la destination |
 | **Statut** | Pastille Retenu, Exclu, Non conforme, Doublon ou Erreur |
-| **DAT** | DAT du [lot](naming-conventions-and-dats.md#plusieurs-dat) avec lequel le fichier est rangé, vide avec un DAT seul (masquée par défaut) |
+| **DAT** | DAT avec lequel le fichier est rangé : le DAT seul, ou celui du [lot](naming-conventions-and-dats.md#plusieurs-dat) ; vide pour un fichier qu'aucun DAT ne reconnaît (masquée par défaut) |
 
 Cliquez sur un en-tête de colonne pour trier le tableau ; le tri par statut range aussi les lignes selon leur raison.
 Survolez une ligne pour afficher une info-bulle avec la taille, la somme de contrôle, la raison du statut, les pistes
@@ -79,8 +79,8 @@ ligne **Utilisé par** compte les machines qui prennent des ROM dans le set, d'a
 BIOS, les machines qui utilisent un *device*), celles qui sont dans la source et celles qui sont retenues, qu'elle
 nomme : *389 machine(s), dont 389 dans la source ; 120 retenue(s) : 1944, 19xx, armwar et 117 autres*. Sous **Fichiers associés**, il énumère les
 [fichiers transférés avec elle](#fichiers-associes), chacun avec sa taille, sa cible (avec son nouveau nom quand une
-collision l'a renommé) et, pour un CHD, sa version, son média et ses pistes. Avec un lot de DAT, la ligne **DAT** nomme le DAT du
-fichier et, quand d'autres DAT le reconnaissent, ceux-ci, où ses ROMs comptent comme présentes. Tant que des jeux sont
+collision l'a renommé) et, pour un CHD, sa version, son média et ses pistes. La ligne **DAT** nomme le DAT du
+fichier et, avec un lot, quand d'autres DAT le reconnaissent, ceux-ci, où ses ROMs comptent comme présentes. Tant que des jeux sont
 [décochés](#choisir-des-jeux), une ligne **Sélection** dit en plus si la ligne sera triée : *Cochée*, *Décochée*, ou
 *Triée avec le set …, qui en a besoin* pour un set MAME emporté par les jeux cochés ; l'info-bulle de la ligne la
 reprend. Le statut décrit toujours la simulation entière, la ligne **Sélection** le tri partiel. Pour une version

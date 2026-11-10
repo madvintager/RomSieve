@@ -531,7 +531,7 @@ public sealed class DatLotViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task SingleDat_ShouldNotOfferAFilterByDat()
+    public async Task SingleDat_ShouldNameItselfInTheDatColumn_WithoutOfferingAFilterByDat()
     {
         var vm = TestMainViewModel.Create(new HeadlessDialogService(), _tmp.WriteText("config.json", "{}"));
         var source = _tmp.CreateSubdirectory("src_single");
@@ -544,7 +544,8 @@ public sealed class DatLotViewModelTests : IDisposable
         await vm.Execution.SimulateAsync();
 
         vm.PreviewTable.HasDatFilter.Should().BeFalse();
-        Row(vm, "tetris.gb").DatDisplay.Should().BeEmpty();
+        Row(vm, "tetris.gb").DatDisplay.Should().Be(GameBoy);
+        Row(vm, "tetris.gb").DetailDatText.Should().Be(GameBoy);
         vm.StatsBanner.DatStatsTooltip.Should().Be(vm.Localization.Tr("panel4.tooltip_dat_stats"));
     }
 }

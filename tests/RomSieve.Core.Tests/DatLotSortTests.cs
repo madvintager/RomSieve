@@ -620,12 +620,14 @@ public sealed class DatLotSortTests : IDisposable
     {
         WriteGameBoy();
         WriteSource("tetris_gb_world.gb", TetrisGbWorld);
+        WriteSource("unknown.bin", Encoding.ASCII.GetBytes("NOTHING"));
 
         var result = await SimulateAsync(Config(c =>
         {
             c.DatFile = Path.Combine(_dats, GameBoyFile);
             c.DatFolderMirror = true;
         }));
+        ItemOf(result, "unknown.bin").DatName.Should().BeNull("the DAT does not know the file");
         var withDat = await SimulateAsync(Config(c =>
         {
             c.DatFile = Path.Combine(_dats, GameBoyFile);
@@ -633,7 +635,7 @@ public sealed class DatLotSortTests : IDisposable
         }));
 
         var tetris = ItemOf(result, "tetris_gb_world.gb");
-        tetris.DatName.Should().BeNull();
+        tetris.DatName.Should().Be(GameBoy, "the DAT column of the table names the single DAT too");
         tetris.Parsed.DatKey.Should().BeNull();
         Relative(tetris.TargetPath).Should().Be("Tetris/Tetris (World) (Rev 1).gb", "a single DAT never gets a folder of its own");
         result.Stats.PerDat.Should().BeNull();

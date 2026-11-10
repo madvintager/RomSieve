@@ -226,6 +226,8 @@ public sealed class SortProcessorService : ISortProcessorService
             gameMatchedRoms = classifier.GameMatchedRoms;
         }
 
+        NameSingleDat(config, datCatalog, itemsToProcess);
+
         SelectReleases(config, itemsToProcess, datCatalog, gameMatchedRoms, progress, Log, lotIdentifier is null
             ? null
             : name => lotIdentifier.ClassifierFor(name)?.GameMatchedRoms);
@@ -603,6 +605,25 @@ public sealed class SortProcessorService : ISortProcessorService
                 "log.mame_required_sets",
                 ("count", requiredSets.Count),
                 ("examples", string.Join(", ", requiredSets.Take(3)) + (requiredSets.Count > 3 ? ", …" : string.Empty))));
+        }
+    }
+
+    /// <summary>
+    /// Names the single DAT of a run (<see cref="DatCatalog.SingleDatName"/>) on the items it knows, a file of their set
+    /// identified with one of its games, as a lot names the DAT of each file; the game keys are left as they are, a
+    /// single DAT having no other DAT to tell its games from. Nothing for a lot or several software lists, whose items
+    /// are named by their own DAT or list.
+    /// </summary>
+    private static void NameSingleDat(SortConfig config, DatCatalog? datCatalog, List<ProcessItem> items)
+    {
+        if (datCatalog is not { Dats: null, SoftwareLists: null } || datCatalog.SingleDatName(config.DatFile) is not { } name)
+        {
+            return;
+        }
+
+        foreach (var item in items.Where(it => it.RelatedItems.Prepend(it).Any(file => file.DatGameName is not null)))
+        {
+            DatLotIdentifier.AssignDat(item, name, [], tagsDats: false);
         }
     }
 
@@ -1592,6 +1613,10 @@ public sealed class SortProcessorService : ISortProcessorService
         CancellationToken cancellationToken = default) =>
         WriteStreamedExportAsync(outputPath, async stream =>
         {
+            // The files of a lot, or of a single DAT, name their DAT, as in the CSV report
+            var list = items as IReadOnlyCollection<ProcessItem> ?? [.. items];
+            var namesDats = stats.PerDat is not null || list.Any(it => it.DatName is not null);
+
             await using var json = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
             json.WriteStartObject();
             json.WriteStartObject("summary");
@@ -1637,7 +1662,7 @@ public sealed class SortProcessorService : ISortProcessorService
 
             json.WriteEndObject();
             json.WriteStartArray("files");
-            foreach (var item in items)
+            foreach (var item in list)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 json.WriteStartObject();
@@ -1662,7 +1687,7 @@ public sealed class SortProcessorService : ISortProcessorService
                 json.WriteString("winner_reference", item.WinnerReference ?? string.Empty);
                 json.WriteString("target_path", item.FinalTargetPath ?? item.TargetPath ?? string.Empty);
                 json.WriteString("error_message", item.ErrorMessage ?? string.Empty);
-                if (stats.PerDat is not null)
+                if (namesDats)
                 {
                     json.WriteString("dat", item.DatName ?? string.Empty);
                 }
@@ -1694,7 +1719,7 @@ public sealed class SortProcessorService : ISortProcessorService
         CancellationToken cancellationToken = default) =>
         WriteStreamedExportAsync(outputPath, async stream =>
         {
-            // The files of a lot name their DAT, in a last column
+            // The files of a lot, or of a single DAT, name their DAT, in a last column
             var list = items as IReadOnlyCollection<ProcessItem> ?? [.. items];
             var namesDats = list.Any(it => it.DatName is not null);
 

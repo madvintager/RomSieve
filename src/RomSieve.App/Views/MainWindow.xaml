@@ -3754,20 +3754,20 @@
                   <DataGridTemplateColumn Header="{Binding PreviewColumnHeaders[0]}" Width="220" CanUserSort="True" SortMemberPath="SourceName">
                     <DataGridTemplateColumn.CellTemplate>
                       <DataTemplate x:DataType="vm:PreviewRowViewModel">
-                        <!-- Left marker of a row new or changed since the previous simulation -->
+                        <!-- Left marker of a row new or changed since the previous simulation; its width is kept on
+                             every row, so that the check boxes stay aligned whether the marker shows or not -->
                         <DockPanel>
-                          <Border x:Name="RowChangeMarker"
-                                  DockPanel.Dock="Left"
-                                  Width="3"
-                                  Margin="0,1"
-                                  IsVisible="{Binding IsChangedSinceLastRun}">
-                            <Border.Background>
-                              <MultiBinding Converter="{StaticResource ThemeResource}" ConverterParameter="RowChange*MarkerBrush">
-                                <Binding Path="Change" />
-                                <Binding Path="$self.ActualThemeVariant" />
-                              </MultiBinding>
-                            </Border.Background>
-                          </Border>
+                          <Panel DockPanel.Dock="Left" Width="3" Margin="0,1">
+                            <Border x:Name="RowChangeMarker"
+                                    IsVisible="{Binding IsChangedSinceLastRun}">
+                              <Border.Background>
+                                <MultiBinding Converter="{StaticResource ThemeResource}" ConverterParameter="RowChange*MarkerBrush">
+                                  <Binding Path="Change" />
+                                  <Binding Path="$self.ActualThemeVariant" />
+                                </MultiBinding>
+                              </Border.Background>
+                            </Border>
+                          </Panel>
                           <!-- Partial sort: chooses the game of the row (all the files of a header), checked and locked for a MAME
                                set a checked game needs; scaled down, as the template of a check box is taller than a
                                row of the table -->

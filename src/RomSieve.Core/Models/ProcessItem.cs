@@ -188,9 +188,10 @@ public sealed class ProcessItem
     public string? DatGameName { get; set; }
 
     /// <summary>
-    /// Name of the DAT of a lot the file is sorted with (<see cref="DatLotMember.Name"/>): the first DAT of the lot that
-    /// knows it, or that knows the first file of its set (a descriptor and its tracks); <see langword="null"/> for a
-    /// file no DAT knows, and for any sort with a single DAT or none.
+    /// Name of the DAT the file is sorted with: of a lot (<see cref="DatLotMember.Name"/>), the first DAT of the lot that
+    /// knows it, or that knows the first file of its set (a descriptor and its tracks); with a single DAT, that DAT
+    /// (<see cref="DatCatalog.SingleDatName"/>) when a file of the set is one of its games. <see langword="null"/> for a
+    /// file no DAT knows, for several software lists, and for any sort without a DAT.
     /// </summary>
     public string? DatName { get; set; }
 

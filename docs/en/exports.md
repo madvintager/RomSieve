@@ -14,8 +14,8 @@ Saves the result of the last run:
   suited to scripts and archiving.
 * **CSV** (`.csv`): the same table, to open in a spreadsheet.
 
-With a [lot of DATs](#lot-of-dats), each file also names its DAT (`dat` field, last column of the CSV), and the JSON
-details what was found of each DAT.
+Each file a DAT knows also names its DAT (`dat` field, last column of the CSV), with a single DAT as with a
+[lot of DATs](#lot-of-dats); with a lot, the JSON also details what was found of each DAT.
 
 A [patched version](patches.md) names its patch, its format and its original ROM (`patch`, `patch_format` and
 `patched_from` fields of the JSON; three last columns of the CSV, only present when the run has patched versions).

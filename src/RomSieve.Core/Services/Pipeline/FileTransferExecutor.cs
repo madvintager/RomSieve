@@ -173,10 +173,7 @@ public sealed partial class FileTransferExecutor
 
         if (DatCatalog.Dats is null)
         {
-            var name = !string.IsNullOrWhiteSpace(DatCatalog.Header.Name)
-                ? DatCatalog.Header.Name
-                : Path.GetFileNameWithoutExtension(_config.DatFile);
-            return string.IsNullOrWhiteSpace(name) ? null : new DatPlacement(name);
+            return DatCatalog.SingleDatName(_config.DatFile) is { } name ? new DatPlacement(name) : null;
         }
 
         return DatCatalog.DatMemberFor(item.DatName) is { } member

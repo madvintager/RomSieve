@@ -390,6 +390,13 @@ public sealed partial class GuiTests
             cracked.Change.Should().Be(PreviewRowChange.Modified);
             var markers = window.GetVisualDescendants().OfType<Border>().Where(b => b.Name == "RowChangeMarker" && b.IsVisible).ToList();
             markers.Should().ContainSingle().Which.DataContext.Should().BeSameAs(cracked);
+
+            // The marker keeps its width on unmarked rows too: the check boxes of all the rows stay aligned
+            var checkLefts = window.GetVisualDescendants().OfType<CheckBox>().Where(c => c.Name == "ChkRowSortCheck" && c.IsVisible)
+                .Select(c => c.TranslatePoint(new Point(0, 0), window)!.Value.X)
+                .ToList();
+            checkLefts.Should().HaveCountGreaterThan(1);
+            checkLefts.Should().AllSatisfy(x => x.Should().BeApproximately(checkLefts[0], 0.5));
             window.Close();
         });
     }
