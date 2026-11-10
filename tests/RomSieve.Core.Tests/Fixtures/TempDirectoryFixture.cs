@@ -118,16 +118,41 @@ public sealed class TempDirectoryFixture : IDisposable
             }
         }
 
-        try
+        DeleteDirectory(Path);
+    }
+
+    /// <summary>Tries of <see cref="DeleteDirectory"/>, and the wait between two of them: a second at most.</summary>
+    private const int DeleteAttempts = 20;
+
+    private const int DeleteRetryDelayMs = 50;
+
+    /// <summary>
+    /// Deletes a temporary folder of a test with its content. A file still read in the background when the test ends
+    /// (a DAT that a view model reads off the UI thread, opened without <see cref="FileShare.Delete"/>) cannot be deleted
+    /// under Windows until the read ends: the deletion is tried again for a second, then given up.
+    /// </summary>
+    public static void DeleteDirectory(string path)
+    {
+        for (var attempt = 1; ; attempt++)
         {
-            if (Directory.Exists(Path))
+            try
             {
-                Directory.Delete(Path, recursive: true);
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+
+                return;
             }
-        }
-        catch
-        {
-            // Ignore cleanup errors on locked temporary files
+            catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && attempt < DeleteAttempts)
+            {
+                Thread.Sleep(DeleteRetryDelayMs);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Still locked: the folder is left behind
+                return;
+            }
         }
     }
 }

@@ -15,6 +15,7 @@ using RomSieve.App.ViewModels;
 using RomSieve.App.Views;
 using RomSieve.Core.Models;
 using RomSieve.Core.Services;
+using RomSieve.Core.Tests.Fixtures;
 using Xunit;
 using AppFileDialogFilter = RomSieve.App.Abstractions.FileDialogFilter;
 
@@ -52,20 +53,7 @@ public sealed partial class GuiTests : IDisposable
         _isolatedConfigPath = Path.Combine(_tempDir, "test_config.json");
     }
 
-    public void Dispose()
-    {
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors
-        }
-    }
+    public void Dispose() => TempDirectoryFixture.DeleteDirectory(_tempDir);
 
     private MainViewModel CreateViewModel(IDialogService? dialogService = null, string? configPath = null)
     {
