@@ -16,7 +16,10 @@ public enum PatternVariableScope
     Mame,
 
     /// <summary>A sort with a DAT: the name of its DAT, or of the DAT of a lot each file is sorted with.</summary>
-    Dat
+    Dat,
+
+    /// <summary>A lot of DATs with a folder per DAT: the folders of the DAT of each file (<c>{dat_folder}</c>).</summary>
+    DatFolder
 }
 
 /// <summary>

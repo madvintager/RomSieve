@@ -147,8 +147,10 @@ public sealed partial class GuiTests
         await RunOnUiThreadAsync(() =>
         {
             var vm = CreateViewModel();
-            // With the 1G1R on, its card shows all its settings (the TOSEC ones too, the convention being unknown)
+            // With the 1G1R on, its card shows all its settings (the TOSEC ones too, the convention being unknown); with a
+            // folder of the patches, the preview of the output shows the line of a patched version too
             vm.Priorities.OneGameOneRom = true;
+            vm.Directories.PatchDir = Path.Combine(_tempDir, "patches");
             var window = new MainWindow(vm) { Width = width, Height = height };
             window.Show();
             try

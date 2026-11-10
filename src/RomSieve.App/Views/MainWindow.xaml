@@ -2949,7 +2949,7 @@
             <Border x:Name="CardPattern" Classes="settings-card">
               <StackPanel Spacing="8">
                 <TextBlock Classes="card-title" Text="{Binding I18n[tab1.grp_pattern]}" />
-                <Grid RowDefinitions="Auto,0,Auto,8,Auto,6,Auto,0,Auto,8,Auto">
+                <Grid RowDefinitions="Auto,0,Auto,8,Auto,6,Auto,6,Auto,8,Auto">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="OutputLabel" />
                     <ColumnDefinition Width="12" />
@@ -3059,22 +3059,96 @@
                     </DropDownButton>
                   </StackPanel>
 
-                  <!-- Also at the root: the subfolder of a multi-disk game is named after its title -->
-                  <CheckBox x:Name="ChkRestoreArticles"
-                            Grid.Row="6"
-                            Grid.Column="2"
-                            Grid.ColumnSpan="3"
-                            FontSize="11"
-                            ToolTip.Tip="{Binding I18n[tab1.tooltip_restore_articles]}"
-                            Content="{Binding I18n[tab1.chk_restore_articles]}"
-                            IsChecked="{Binding Directories.RestoreArticles, Mode=TwoWay}" />
-                  <!-- A lot of DATs: a folder per DAT above the pattern, under the folders of its path when mirrored;
-                       greyed out for a single DAT, their tooltip saying when they apply -->
-                  <WrapPanel x:Name="PanelDatFolders"
+                  <!-- Folder of the patched versions, from the root of the destination, also when everything goes at the
+                       root (the note of that choice says so): greyed out without a folder of the patches (nothing patched is
+                       written), its value kept and its tooltip saying when it applies; empty, next to the original ROM -->
+                  <TextBlock Grid.Row="6" Classes="form-label" Text="{Binding I18n[tab1.lbl_patched_pattern]}" />
+                  <TextBox x:Name="EditPatchedPattern"
+                           Grid.Row="6"
+                           Grid.Column="2"
+                           FontSize="11"
+                           IsEnabled="{Binding Directories.IsPatchedPatternEnabled}"
+                           ToolTip.Tip="{Binding I18n[tab1.tooltip_patched_pattern]}"
+                           ToolTip.ShowOnDisabled="True"
+                           Watermark="{Binding I18n[tab1.patched_pattern_placeholder]}"
+                           Text="{Binding Directories.PatchedPattern, Mode=TwoWay}" />
+                  <StackPanel Grid.Row="6" Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <DropDownButton x:Name="BtnInsertPatchedVariable"
+                                    Content="{Binding I18n[tab1.btn_insert_variable]}"
+                                    ToolTip.Tip="{Binding I18n[tab1.tooltip_patched_insert_variable]}"
+                                    ToolTip.ShowOnDisabled="True"
+                                    IsEnabled="{Binding Directories.IsPatchedPatternEnabled}"
+                                    FontSize="11"
+                                    MinHeight="24"
+                                    Padding="8,0">
+                      <DropDownButton.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                          <MenuItem x:Name="MenuPatchedVariableTitle" Header="{Binding Directories.PatchedPatternVariables[0].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[0].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[0].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableLetter" Header="{Binding Directories.PatchedPatternVariables[1].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[1].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[1].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableCountry" Header="{Binding Directories.PatchedPatternVariables[2].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[2].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[2].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableLanguage" Header="{Binding Directories.PatchedPatternVariables[3].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[3].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[3].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableVersion" Header="{Binding Directories.PatchedPatternVariables[4].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[4].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[4].InsertCommand}" />
+                          <Separator />
+                          <MenuItem x:Name="MenuPatchedVariablePublisher" IsEnabled="{Binding Directories.PatchedPatternVariables[5].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[5].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[5].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[5].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableYear" IsEnabled="{Binding Directories.PatchedPatternVariables[6].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[6].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[6].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[6].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableSystem" IsEnabled="{Binding Directories.PatchedPatternVariables[7].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[7].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[7].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[7].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableChipset" IsEnabled="{Binding Directories.PatchedPatternVariables[8].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[8].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[8].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[8].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableVideo" IsEnabled="{Binding Directories.PatchedPatternVariables[9].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[9].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[9].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[9].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableDumpStatus" IsEnabled="{Binding Directories.PatchedPatternVariables[10].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[10].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[10].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[10].InsertCommand}" />
+                          <Separator />
+                          <MenuItem x:Name="MenuPatchedVariableGenre" IsEnabled="{Binding Directories.PatchedPatternVariables[11].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[11].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[11].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[11].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableCategory" IsEnabled="{Binding Directories.PatchedPatternVariables[12].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[12].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[12].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[12].InsertCommand}" />
+                          <Separator />
+                          <MenuItem x:Name="MenuPatchedVariableDat" IsEnabled="{Binding Directories.PatchedPatternVariables[13].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[13].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[13].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[13].InsertCommand}" />
+                          <!-- The folders of the original ROM, which this pattern alone knows -->
+                          <Separator />
+                          <MenuItem x:Name="MenuPatchedVariableOriginFolder" IsEnabled="{Binding Directories.PatchedPatternVariables[14].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[14].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[14].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[14].InsertCommand}" />
+                          <MenuItem x:Name="MenuPatchedVariableDatFolder" IsEnabled="{Binding Directories.PatchedPatternVariables[15].IsApplicable}" ToolTip.ShowOnDisabled="True" Header="{Binding Directories.PatchedPatternVariables[15].Label}" ToolTip.Tip="{Binding Directories.PatchedPatternVariables[15].Tooltip}" Command="{Binding Directories.PatchedPatternVariables[15].InsertCommand}" />
+                        </MenuFlyout>
+                      </DropDownButton.Flyout>
+                    </DropDownButton>
+                    <DropDownButton x:Name="BtnPatchedPatternPresets"
+                                    Content="{Binding I18n[tab1.btn_presets]}"
+                                    ToolTip.Tip="{Binding I18n[tab1.tooltip_patched_presets]}"
+                                    ToolTip.ShowOnDisabled="True"
+                                    IsEnabled="{Binding Directories.IsPatchedPatternEnabled}"
+                                    FontSize="11"
+                                    MinHeight="24"
+                                    Padding="8,0">
+                      <DropDownButton.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                          <MenuItem x:Name="MenuPresetPatchedNextToOrigin"
+                                    Header="{Binding I18n[tab1.preset_patched_next_to_origin]}"
+                                    ToolTip.Tip="{Binding I18n[tab1.tooltip_preset_patched_next_to_origin]}"
+                                    Command="{Binding Directories.PresetPatchedNextToOriginCommand}" />
+                          <MenuItem x:Name="MenuPresetPatchedSubfolder"
+                                    Header="{Binding I18n[tab1.preset_patched_subfolder]}"
+                                    ToolTip.Tip="{Binding I18n[tab1.tooltip_preset_patched_subfolder]}"
+                                    Command="{Binding Directories.PresetPatchedSubfolderCommand}" />
+                          <MenuItem x:Name="MenuPresetPatchedRoot"
+                                    Header="{Binding I18n[tab1.preset_patched_root]}"
+                                    ToolTip.Tip="{Binding I18n[tab1.tooltip_preset_patched_root]}"
+                                    Command="{Binding Directories.PresetPatchedRootCommand}" />
+                        </MenuFlyout>
+                      </DropDownButton.Flyout>
+                    </DropDownButton>
+                  </StackPanel>
+
+                  <!-- The other options of the tree, on one line so that the step needs no scrolling at its default size.
+                       Also at the root: the subfolder of a multi-disk game is named after its title. A lot of DATs: a folder
+                       per DAT above the pattern, under the folders of its path when mirrored; greyed out for a single DAT,
+                       their tooltip saying when they apply -->
+                  <WrapPanel x:Name="PanelTreeOptions"
                              Grid.Row="8"
                              Grid.Column="2"
                              Grid.ColumnSpan="3"
                              Orientation="Horizontal">
+                    <CheckBox x:Name="ChkRestoreArticles"
+                              Margin="0,0,20,0"
+                              FontSize="11"
+                              ToolTip.Tip="{Binding I18n[tab1.tooltip_restore_articles]}"
+                              Content="{Binding I18n[tab1.chk_restore_articles]}"
+                              IsChecked="{Binding Directories.RestoreArticles, Mode=TwoWay}" />
                     <CheckBox x:Name="ChkFolderPerDat"
                               Margin="0,0,20,0"
                               FontSize="11"
@@ -3118,6 +3192,13 @@
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
+                      <!-- With a folder of the patches: where a patched version of the first example goes -->
+                      <TextBlock x:Name="LblPreviewPatched"
+                                 Text="{Binding Directories.Preview.PatchedExampleText}"
+                                 ToolTip.Tip="{Binding Directories.Preview.PatchedExampleTooltip}"
+                                 FontSize="11"
+                                 TextTrimming="LeadingCharacterEllipsis"
+                                 IsVisible="{Binding Directories.Preview.HasPatchedExample}" />
                       <TextBlock x:Name="LblPreviewWarning"
                                  Text="{Binding Directories.Preview.WarningText}"
                                  FontSize="11"

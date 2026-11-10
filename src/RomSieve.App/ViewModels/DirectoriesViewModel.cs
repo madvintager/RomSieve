@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using RomSieve.App.Abstractions;
 using RomSieve.Core.Abstractions;
 using RomSieve.Core.Models;
+using RomSieve.Core.Services;
 
 namespace RomSieve.App.ViewModels;
 
@@ -49,6 +50,13 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     private static readonly (string Tag, string LabelKey, string TipKey)[] DatPatternVariableSpecs =
     [
         ("{dat}", "var.dat", "var.tooltip_dat")
+    ];
+
+    // Folders of the original ROM, in the pattern of the patched versions only: after the variables of the main pattern
+    private static readonly (string Tag, string LabelKey, string TipKey, PatternVariableScope Scope)[] FolderPatternVariableSpecs =
+    [
+        ("{origin_folder}", "var.origin_folder", "var.tooltip_origin_folder", PatternVariableScope.All),
+        ("{dat_folder}", "var.dat_folder", "var.tooltip_dat_folder", PatternVariableScope.DatFolder)
     ];
 
     private readonly ILocalizationService _localization;
@@ -113,12 +121,11 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             (8, "tab1.hashing_parallelism_8"),
             (SortConfig.AutoHashingParallelism, "tab1.hashing_parallelism_auto"));
 
-        PatternVariables =
+        PatternVariables = CreatePatternVariables(InsertVariableAtCaret);
+        PatchedPatternVariables =
         [
-            .. CommonPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.All)),
-            .. TosecPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Tosec)),
-            .. MamePatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Mame)),
-            .. DatPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Dat))
+            .. CreatePatternVariables(InsertPatchedVariableAtCaret),
+            .. FolderPatternVariableSpecs.Select(spec => CreatePatternVariable((spec.Tag, spec.LabelKey, spec.TipKey), spec.Scope, InsertPatchedVariableAtCaret))
         ];
         UpdatePatternVariables();
         TransferModeOptions =
@@ -227,6 +234,15 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// </summary>
     public int PatternCaretIndex { get; set; } = -1;
 
+    /// <summary>
+    /// Entries of the "Insert a variable" menu of the pattern of the patched versions: those of the main pattern, in the
+    /// same order, then <c>{origin_folder}</c> and <c>{dat_folder}</c>, which this pattern alone knows.
+    /// </summary>
+    public IReadOnlyList<PatternVariableViewModel> PatchedPatternVariables { get; }
+
+    /// <summary>Caret position in the field of the pattern of the patched versions (see <see cref="PatternCaretIndex"/>).</summary>
+    public int PatchedPatternCaretIndex { get; set; } = -1;
+
     /// <summary>Convention that the settings steps follow: the selected one, or the one detected from the DAT in Auto mode.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AreTosecVariablesApplicable), nameof(IsMameConvention), nameof(AreMameVariablesApplicable))]
@@ -241,7 +257,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// identified gives a patched version. Empty: none. Always shown, whatever the convention.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasPatchDir))]
+    [NotifyPropertyChangedFor(nameof(HasPatchDir), nameof(IsPatchedPatternEnabled))]
     private string _patchDir = string.Empty;
 
     /// <summary>Whether only the patched versions are written, not the original ROMs they replace.</summary>
@@ -257,6 +273,12 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
     /// <summary>Whether a patch folder is given: the option to write the patched versions only is greyed out otherwise.</summary>
     public bool HasPatchDir => !string.IsNullOrWhiteSpace(PatchDir);
+
+    /// <summary>
+    /// Whether the pattern of the patched versions can be edited: with a patch folder only, since nothing patched is
+    /// written without one. Greyed out, it keeps its value, and its tooltip says when it applies.
+    /// </summary>
+    public bool IsPatchedPatternEnabled => !IsRunning && HasPatchDir;
 
     /// <summary>
     /// Whether the effective convention is MAME: the MAME files (CHD folder, categories, ratings) are then read, and the
@@ -525,6 +547,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     protected override void OnRunningStateChanged()
     {
         OnPropertyChanged(nameof(IsPatternEditingEnabled));
+        OnPropertyChanged(nameof(IsPatchedPatternEnabled));
         OnPropertyChanged(nameof(IsM3uPlacementEnabled));
     }
 
@@ -547,8 +570,12 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         UpdatePatternVariables();
     }
 
-    // The mirror only acts with a folder per DAT
-    partial void OnFolderPerDatChanged(bool value) => OnPropertyChanged(nameof(IsDatFolderMirrorEnabled));
+    // The mirror only acts with a folder per DAT, as {dat_folder}
+    partial void OnFolderPerDatChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsDatFolderMirrorEnabled));
+        UpdatePatternVariables();
+    }
 
     /// <summary>Whether the folders of the DATs may be mirrored: a folder or an archive of DATs, each with a folder of its own.</summary>
     public bool IsDatFolderMirrorEnabled => HoldsSeveralDats && FolderPerDat;
@@ -844,18 +871,60 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             return;
         }
 
-        var current = Pattern ?? string.Empty;
-        var caret = PatternCaretIndex;
-        if (caret < 0 || caret > current.Length)
+        (Pattern, PatternCaretIndex) = InsertAtCaret(Pattern, PatternCaretIndex, tag);
+    }
+
+    /// <summary>
+    /// Inserts a variable at the caret of the field of the pattern of the patched versions
+    /// (<see cref="PatchedPatternCaretIndex"/>), as <see cref="InsertVariableAtCaret"/> does in the main pattern.
+    /// </summary>
+    public void InsertPatchedVariableAtCaret(string tag)
+    {
+        if (string.IsNullOrEmpty(tag) || !IsPatchedPatternEnabled)
         {
-            var prefix = current.Length == 0 || current.EndsWith('/') ? current : $"{current}/";
-            Pattern = $"{prefix}{tag}/";
-            PatternCaretIndex = prefix.Length + tag.Length;
             return;
         }
 
-        Pattern = current.Insert(caret, tag);
-        PatternCaretIndex = caret + tag.Length;
+        (PatchedPattern, PatchedPatternCaretIndex) = InsertAtCaret(PatchedPattern, PatchedPatternCaretIndex, tag);
+    }
+
+    /// <summary>
+    /// A pattern with <paramref name="tag"/> inserted at <paramref name="caret"/>, and the caret after it; without a caret
+    /// in the pattern, the tag becomes a new folder at its end.
+    /// </summary>
+    private static (string Pattern, int Caret) InsertAtCaret(string? pattern, int caret, string tag)
+    {
+        var current = pattern ?? string.Empty;
+        if (caret < 0 || caret > current.Length)
+        {
+            var prefix = current.Length == 0 || current.EndsWith('/') ? current : $"{current}/";
+            return ($"{prefix}{tag}/", prefix.Length + tag.Length);
+        }
+
+        return (current.Insert(caret, tag), caret + tag.Length);
+    }
+
+    // =========================================================================
+    // Commands: presets of the pattern of the patched versions
+    // =========================================================================
+
+    /// <summary>The patched versions next to their original ROM: an empty pattern.</summary>
+    [RelayCommand]
+    public void PresetPatchedNextToOrigin() => ApplyPatchedPreset(string.Empty);
+
+    /// <summary>A subfolder of the folder of the original ROM: <c>{origin_folder}/Patches</c>, the folder name translated.</summary>
+    [RelayCommand]
+    public void PresetPatchedSubfolder() =>
+        ApplyPatchedPreset($"{{{PathOrganizerService.OriginFolderVariable}}}/{_localization.Tr("tab1.patched_folder_name")}");
+
+    /// <summary>A folder at the root of the destination, by DAT then by title: <c>Patches/{dat}/{title}</c>.</summary>
+    [RelayCommand]
+    public void PresetPatchedRoot() => ApplyPatchedPreset($"{_localization.Tr("tab1.patched_folder_name")}/{{dat}}/{{title}}");
+
+    private void ApplyPatchedPreset(string pattern)
+    {
+        PatchedPattern = pattern;
+        PatchedPatternCaretIndex = -1;
     }
 
     // =========================================================================
@@ -1238,8 +1307,18 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     // Pattern variables and transfer mode hint
     // =========================================================================
 
-    private PatternVariableViewModel CreatePatternVariable((string Tag, string LabelKey, string TipKey) spec, PatternVariableScope scope) =>
-        new(spec.Tag, spec.LabelKey, _localization.Tr(spec.LabelKey), spec.TipKey, _localization.Tr(spec.TipKey), scope, InsertVariableAtCaret);
+    /// <summary>The variables of the main pattern, in the order of its menu, inserted by <paramref name="onInsert"/>.</summary>
+    private List<PatternVariableViewModel> CreatePatternVariables(Action<string> onInsert) =>
+    [
+        .. CommonPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.All, onInsert)),
+        .. TosecPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Tosec, onInsert)),
+        .. MamePatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Mame, onInsert)),
+        .. DatPatternVariableSpecs.Select(spec => CreatePatternVariable(spec, PatternVariableScope.Dat, onInsert))
+    ];
+
+    private PatternVariableViewModel CreatePatternVariable(
+        (string Tag, string LabelKey, string TipKey) spec, PatternVariableScope scope, Action<string> onInsert) =>
+        new(spec.Tag, spec.LabelKey, _localization.Tr(spec.LabelKey), spec.TipKey, _localization.Tr(spec.TipKey), scope, onInsert);
 
     partial void OnEffectiveConventionChanged(NamingConvention value) => UpdatePatternVariables();
 
@@ -1248,13 +1327,14 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// </summary>
     private void UpdatePatternVariables()
     {
-        foreach (var variable in PatternVariables)
+        foreach (var variable in PatternVariables.Concat(PatchedPatternVariables))
         {
             var (isApplicable, hintKey) = variable.Scope switch
             {
                 PatternVariableScope.Tosec => (AreTosecVariablesApplicable, "var.hint_tosec_only"),
                 PatternVariableScope.Mame => (AreMameVariablesApplicable, "var.hint_mame_only"),
                 PatternVariableScope.Dat => (!string.IsNullOrWhiteSpace(DatFilePath), "var.hint_dat_only"),
+                PatternVariableScope.DatFolder => (HoldsSeveralDats && FolderPerDat, "var.hint_dat_folder_only"),
                 _ => (true, null)
             };
             variable.IsApplicable = isApplicable;
@@ -1331,6 +1411,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         PatchDir = settings.PatchDir;
         PatchOnly = settings.PatchOnly;
         PatchedPattern = settings.PatchedPattern;
+        PatchedPatternCaretIndex = -1;
         MameCategoryFile = settings.MameCategoryFile;
         MameRatingFile = settings.MameRatingFile;
         SelectedNamingConvention = settings.NamingConvention;
@@ -1363,7 +1444,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         HashingParallelismOptions.RefreshTranslations();
         Advanced.RefreshTranslations();
 
-        foreach (var variable in PatternVariables)
+        foreach (var variable in PatternVariables.Concat(PatchedPatternVariables))
         {
             variable.Label = _localization.Tr(variable.LabelKey);
         }

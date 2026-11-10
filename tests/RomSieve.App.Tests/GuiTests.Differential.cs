@@ -257,6 +257,45 @@ public sealed partial class GuiTests
     }
 
     [Fact]
+    public async Task ChangedPatternOfThePatchedVersions_ShouldOnlyMarkThePatchedVersions()
+    {
+        // Two releases of a game, a DAT of both, and a translation of each
+        var source = Path.Combine(_tempDir, "patched_src");
+        var patches = Path.Combine(_tempDir, "patched_patches");
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(patches);
+        var games = new List<string>();
+        foreach (var (name, seed) in new[] { ("Game (Japan)", 1), ("Game (USA)", 2) })
+        {
+            var data = new byte[1024];
+            new Random(seed).NextBytes(data);
+            File.WriteAllBytes(Path.Combine(source, name + ".sfc"), data);
+            File.WriteAllBytes(Path.Combine(patches, name + " (T-Fr).bps"),
+                Core.Tests.Fixtures.PatchTestEncoder.BpsLinear(data, [.. data, .. Core.Tests.Fixtures.PatchTestEncoder.Ascii("Fr")]));
+            games.Add($"<game name=\"{name}\"><description>{name}</description><rom name=\"{name}.sfc\" size=\"{data.Length}\" crc=\"{Core.Tests.Fixtures.PatchTestEncoder.Crc(data):x8}\"/></game>");
+        }
+
+        var dat = Path.Combine(_tempDir, "patched.dat");
+        File.WriteAllText(dat, $"<?xml version=\"1.0\"?><datafile><header><name>Nintendo - SNES</name><homepage>No-Intro</homepage></header>{string.Concat(games)}</datafile>");
+
+        var vm = CreateViewModel();
+        vm.Directories.SourceDir = source;
+        vm.Directories.DestinationDir = Path.Combine(_tempDir, "patched_dst");
+        vm.Directories.DatFilePath = dat;
+        vm.Directories.PatchDir = patches;
+        await vm.Execution.SimulateAsync();
+        vm.AllPreviewItems.Count(r => r.IsPatched).Should().Be(2);
+
+        vm.Directories.PatchedPattern = "Patchs/{title}";
+        await vm.Execution.SimulateAsync();
+
+        vm.AllPreviewItems.Where(r => r.IsPatched).Should().HaveCount(2)
+            .And.OnlyContain(r => r.Change == PreviewRowChange.Modified, "their target changed");
+        vm.AllPreviewItems.Where(r => !r.IsPatched).Should().NotBeEmpty()
+            .And.OnlyContain(r => r.Change == PreviewRowChange.None, "the original ROMs stay where they were");
+    }
+
+    [Fact]
     public async Task OtherSource_ShouldStartFromAnEmptyTable()
     {
         var (vm, source, _) = CreateDifferentialSetup();

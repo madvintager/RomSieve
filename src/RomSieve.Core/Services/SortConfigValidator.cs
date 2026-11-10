@@ -81,7 +81,7 @@ public static class SortConfigValidator
     /// CHD folder (always read recursively), then the patch folder; <c>null</c> when it overlaps none. Any other run never
     /// reads the CHD folder, which stays in the configuration for the next MAME sort: it is then a folder like any other.
     /// The patch folder is checked whatever the run, even one that does not read it: a purge of a destination that holds
-    /// it would put the patches in quarantine. Last, the pattern of the patched versions (<see cref="GetPatchedPatternErrorKey"/>).
+    /// it would put the patches in quarantine. Last, the pattern of the patched versions (<see cref="GetPatchedPatternErrorKey(SortConfig)"/>).
     /// </summary>
     public static string? GetErrorKey(SortConfig config, bool isMameRun)
     {
@@ -100,11 +100,19 @@ public static class SortConfigValidator
     public static string? GetPatchedPatternErrorKey(SortConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
-        return !string.IsNullOrWhiteSpace(config.PatchDir) &&
-               PathOrganizerService.CheckPatchedPattern(config.PatchedPattern) != PatchedPatternProblem.None
+        return GetPatchedPatternErrorKey(config.PatchDir, config.PatchedPattern);
+    }
+
+    /// <summary>
+    /// Localization key of the error message of <paramref name="patchedPattern"/> with the patch folder
+    /// <paramref name="patchDir"/> (see <see cref="GetPatchedPatternErrorKey(SortConfig)"/>), or <c>null</c>: for the state
+    /// line of the interface, which has no <see cref="SortConfig"/>.
+    /// </summary>
+    public static string? GetPatchedPatternErrorKey(string? patchDir, string? patchedPattern) =>
+        !string.IsNullOrWhiteSpace(patchDir) &&
+        PathOrganizerService.CheckPatchedPattern(patchedPattern) != PatchedPatternProblem.None
             ? "dialog.error_patched_pattern_invalid"
             : null;
-    }
 
     /// <summary>
     /// Localization key of the error message describing how the destination overlaps the patch folder (read recursively),

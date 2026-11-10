@@ -198,6 +198,143 @@ public sealed partial class GuiTests
     }
 
     [Fact]
+    public async Task PatchedPatternRow_ShouldBeGreyedOutWithoutPatchFolder_AndShowItsLineInThePreview()
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                vm.Navigation.CurrentStep = WorkflowStep.Output;
+                Settle(window);
+                var edit = window.FindControl<TextBox>("EditPatchedPattern")!;
+                var insert = window.FindControl<DropDownButton>("BtnInsertPatchedVariable")!;
+                var presets = window.FindControl<DropDownButton>("BtnPatchedPatternPresets")!;
+                var line = window.FindControl<TextBlock>("LblPreviewPatched")!;
+
+                // Under the main pattern, above the other options of the tree, which share a line
+                BoundsIn(window, edit).Top.Should().BeGreaterThan(BoundsIn(window, window.FindControl<TextBox>("EditPattern")!).Bottom);
+                BoundsIn(window, edit).Bottom.Should().BeLessThan(BoundsIn(window, window.FindControl<CheckBox>("ChkRestoreArticles")!).Top);
+                window.FindControl<WrapPanel>("PanelTreeOptions")!.Children.Select(c => c.Name)
+                    .Should().Equal("ChkRestoreArticles", "ChkFolderPerDat", "ChkDatFolderMirror");
+                edit.Watermark.Should().Be(vm.Localization.Tr("tab1.patched_pattern_placeholder"));
+
+                // Without a folder of the patches: greyed out, never hidden, the tooltip saying when it applies; no line
+                // in the preview, since nothing patched would be written
+                foreach (var control in new Control[] { edit, insert, presets })
+                {
+                    control.IsEffectivelyVisible.Should().BeTrue(control.Name);
+                    control.IsEffectivelyEnabled.Should().BeFalse(control.Name);
+                    ToolTip.GetShowOnDisabled(control).Should().BeTrue(control.Name);
+                }
+
+                ToolTip.GetTip(edit).Should().Be(vm.Localization.Tr("tab1.tooltip_patched_pattern"));
+                line.IsVisible.Should().BeFalse();
+
+                vm.Directories.PatchDir = Path.Combine(_tempDir, "patches");
+                Settle(window);
+                edit.IsEffectivelyEnabled.Should().BeTrue();
+                insert.IsEffectivelyEnabled.Should().BeTrue();
+                line.IsEffectivelyVisible.Should().BeTrue();
+                line.Text.Should().Be(vm.Directories.Preview.PatchedExampleText);
+                line.TextTrimming.Should().Be(TextTrimming.LeadingCharacterEllipsis);
+
+                // A preset of its menu fills the field
+                presets.Flyout!.ShowAt(presets);
+                Settle(window);
+                var subfolder = window.FindControl<MenuItem>("MenuPresetPatchedSubfolder")!;
+                subfolder.Header.Should().Be(vm.Localization.Tr("tab1.preset_patched_subfolder"));
+                ToolTip.GetTip(subfolder).Should().Be(vm.Localization.Tr("tab1.tooltip_preset_patched_subfolder"));
+                window.FindControl<MenuItem>("MenuPresetPatchedNextToOrigin")!.Command.Should().BeSameAs(vm.Directories.PresetPatchedNextToOriginCommand);
+                window.FindControl<MenuItem>("MenuPresetPatchedRoot")!.Command.Should().BeSameAs(vm.Directories.PresetPatchedRootCommand);
+                subfolder.Command!.Execute(null);
+                presets.Flyout.Hide();
+                vm.Directories.Preview.Refresh();
+                Settle(window);
+                edit.Text.Should().Be("{origin_folder}/Patchs");
+                line.Text.Should().Contain(Path.Combine("Patchs", "Lemmings (1991)(Psygnosis)(FR)[!][T-En].adf"));
+
+                // Everything at the root greys out the main pattern only, as its note says
+                vm.Directories.FlatDestination = true;
+                Settle(window);
+                window.FindControl<TextBox>("EditPattern")!.IsEffectivelyEnabled.Should().BeFalse();
+                edit.IsEffectivelyEnabled.Should().BeTrue("the pattern of the patched versions applies at the root too");
+                insert.IsEffectivelyEnabled.Should().BeTrue();
+                window.FindControl<TextBlock>("LblFlatDestinationNote")!.Text.Should().Be(vm.Localization.Tr("tab1.flat_destination_note"))
+                    .And.Contain("versions patchées");
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
+    public async Task PatchedVariableMenu_ShouldHaveAnEntryPerVariable_AndInsertAtTheCaretOfItsField()
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            vm.Directories.PatchDir = Path.Combine(_tempDir, "patches");
+            vm.Directories.PatchedPattern = "Patchs/{title}";
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                vm.Navigation.CurrentStep = WorkflowStep.Output;
+                Settle(window);
+                var edit = window.FindControl<TextBox>("EditPatchedPattern")!;
+                edit.Focus();
+                edit.CaretIndex = "Patchs/".Length;
+                Settle(window);
+                vm.Directories.PatchedPatternCaretIndex.Should().Be("Patchs/".Length);
+                vm.Directories.PatternCaretIndex.Should().Be(-1, "the caret of the main pattern is its own");
+
+                var insert = window.FindControl<DropDownButton>("BtnInsertPatchedVariable")!;
+                insert.Focus();
+                insert.Flyout!.ShowAt(insert);
+                Settle(window);
+
+                // An entry bound to the wrong index would insert another variable than the one it names
+                var names = new[]
+                {
+                    "Title", "Letter", "Country", "Language", "Version", "Publisher", "Year", "System", "Chipset", "Video",
+                    "DumpStatus", "Genre", "Category", "Dat", "OriginFolder", "DatFolder"
+                };
+                names.Should().HaveCount(vm.Directories.PatchedPatternVariables.Count);
+                for (var i = 0; i < names.Length; i++)
+                {
+                    var variable = vm.Directories.PatchedPatternVariables[i];
+                    var entry = window.FindControl<MenuItem>($"MenuPatchedVariable{names[i]}");
+                    entry.Should().NotBeNull(names[i]);
+                    entry!.Header.Should().Be(variable.Label, names[i]);
+                    entry.Command.Should().BeSameAs(variable.InsertCommand, names[i]);
+                }
+
+                var datFolder = window.FindControl<MenuItem>("MenuPatchedVariableDatFolder")!;
+                datFolder.IsEnabled.Should().BeFalse("without a lot of DATs");
+                ToolTip.GetShowOnDisabled(datFolder).Should().BeTrue();
+
+                // The entry inserts its variable at the caret; once the menu is closed, the field gets the focus back
+                window.FindControl<MenuItem>("MenuPatchedVariableOriginFolder")!.Command!.Execute(null);
+                insert.Flyout.Hide();
+                Settle(window);
+                edit.Text.Should().Be("Patchs/{origin_folder}{title}");
+                edit.IsFocused.Should().BeTrue();
+                edit.CaretIndex.Should().Be("Patchs/{origin_folder}".Length);
+                vm.Directories.Pattern.Should().Be(Core.Models.SortSettings.DefaultPattern);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
     public async Task TransferModes_ShouldBeAListThatSaysWhatEachModeDoes()
     {
         await RunOnUiThreadAsync(() =>
@@ -276,6 +413,7 @@ public sealed partial class GuiTests
             var vm = CreateViewModel();
             vm.UiLocale = locale;
             vm.Directories.SourceDir = Path.Combine(_tempDir, "no_such_source");
+            vm.Directories.PatchDir = Path.Combine(_tempDir, "patches");
             vm.Navigation.CurrentStep = WorkflowStep.Output;
             var window = new MainWindow(vm);
             window.Show();
@@ -288,10 +426,13 @@ public sealed partial class GuiTests
                     {
                         vm.Directories.FlatDestination = flat;
                         vm.Directories.Pattern = flat ? Core.Models.SortSettings.DefaultPattern : "{title}/{unknown_variable}/{";
+                        // A refused pattern of the patched versions adds the longest warning
+                        vm.Directories.PatchedPattern = flat ? "{origin_folder}/Patchs" : "_purged/{title}";
                         vm.Directories.Preview.Refresh();
                         Settle(window);
                         AssertNotCut(window, locale, "ComboTransferMode", "LblTransferModeHint", "BtnInsertVariable", "BtnPatternPresets",
-                            "LblPreviewCaption", "LblPreviewWarning", "LblFlatDestinationNote", "ListPatternPreview", "RadioLayoutPattern", "RadioLayoutRoot");
+                            "LblPreviewCaption", "LblPreviewWarning", "LblFlatDestinationNote", "ListPatternPreview", "RadioLayoutPattern", "RadioLayoutRoot",
+                            "BtnInsertPatchedVariable", "BtnPatchedPatternPresets", "ChkFolderPerDat", "ChkDatFolderMirror");
                     }
                 }
             }

@@ -171,6 +171,23 @@ public sealed class PatchesViewModelTests : IDisposable
         window.ModifiedText.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task AProposedRom_ShouldShowItsFolderInTheSource_WhereverThePatchedVersionsGo()
+    {
+        WriteJapanAndUsa();
+        Directory.CreateDirectory(_temp.GetFilePath("src/jp"));
+        File.Move(_temp.GetFilePath("src/Game (Japan).sfc"), _temp.GetFilePath("src/jp/Game (Japan).sfc"));
+        _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
+        _config.PatchedPattern = "Patchs/{title}";
+
+        var window = await LoadAsync();
+
+        // The folder that tells two files of the same name apart is that of the source, never of the destination
+        var japan = Row(window, "Game (Japan) (T-Fr).ips").Origins.Single(o => o.Label == "Game (Japan).sfc");
+        japan.Folder.Should().Be("jp");
+        Row(window, "Game (Japan) (T-Fr).ips").Origins.Single(o => o.Label == "Game (USA).sfc").HasFolder.Should().BeFalse();
+    }
+
     // =========================================================================
     // The actions on a patch
     // =========================================================================

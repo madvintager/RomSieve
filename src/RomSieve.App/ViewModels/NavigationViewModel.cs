@@ -239,6 +239,7 @@ public sealed partial class NavigationViewModel : ViewModelBase
             case nameof(DirectoriesViewModel.DestinationDir):
             case nameof(DirectoriesViewModel.ChdDir):
             case nameof(DirectoriesViewModel.PatchDir):
+            case nameof(DirectoriesViewModel.PatchedPattern):
             case nameof(DirectoriesViewModel.IsMameConvention):
                 RefreshOutputIndicator();
                 break;
@@ -308,6 +309,15 @@ public sealed partial class NavigationViewModel : ViewModelBase
         else if (SortConfigValidator.GetPatchDirErrorKey(_directories.PatchDir, destination) is not null)
         {
             key = "nav.state_destination_overlap_patches";
+        }
+        else if (SortConfigValidator.GetPatchedPatternErrorKey(_directories.PatchDir, _directories.PatchedPattern) is { } patternKey)
+        {
+            // The pattern of the patched versions, which the run refuses: the reason in the tooltip
+            OutputEntry.SetIndicator(
+                StepIndicatorTone.Warning,
+                _localization.Tr("nav.state_patched_pattern_invalid"),
+                _localization.Tr(patternKey));
+            return;
         }
 
         OutputEntry.SetIndicator(

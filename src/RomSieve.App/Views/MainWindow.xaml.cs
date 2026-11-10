@@ -189,7 +189,25 @@ public partial class MainWindow : Window
 
             if (this.FindControl<DropDownButton>("BtnInsertVariable")?.Flyout is { } variableMenu)
             {
-                variableMenu.Closed += (_, _) => Dispatcher.UIThread.Post(() => FocusPatternAtCaret(editPattern));
+                variableMenu.Closed += (_, _) => Dispatcher.UIThread.Post(() => FocusPatternAtCaret(editPattern, ViewModel.Directories.PatternCaretIndex));
+            }
+        }
+
+        // The same for the pattern of the patched versions, with its own caret
+        if (this.FindControl<TextBox>("EditPatchedPattern") is { } editPatchedPattern)
+        {
+            editPatchedPattern.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == TextBox.CaretIndexProperty && editPatchedPattern.IsFocused)
+                {
+                    ViewModel.Directories.PatchedPatternCaretIndex = editPatchedPattern.CaretIndex;
+                }
+            };
+
+            if (this.FindControl<DropDownButton>("BtnInsertPatchedVariable")?.Flyout is { } patchedVariableMenu)
+            {
+                patchedVariableMenu.Closed += (_, _) =>
+                    Dispatcher.UIThread.Post(() => FocusPatternAtCaret(editPatchedPattern, ViewModel.Directories.PatchedPatternCaretIndex));
             }
         }
 
@@ -199,10 +217,9 @@ public partial class MainWindow : Window
         Activated += (_, _) => ViewModel.Navigation.RefreshIndicators();
     }
 
-    /// <summary>Gives the focus back to the pattern field, the caret after the inserted variable.</summary>
-    internal void FocusPatternAtCaret(TextBox editPattern)
+    /// <summary>Gives the focus back to a pattern field, the caret after the inserted variable.</summary>
+    internal static void FocusPatternAtCaret(TextBox editPattern, int caret)
     {
-        var caret = ViewModel.Directories.PatternCaretIndex;
         if (caret < 0 || !editPattern.IsEffectivelyEnabled)
         {
             return;

@@ -14,11 +14,13 @@ public sealed record PatternPreviewExample(string SourceName, string TargetPath,
 /// the sort itself (<see cref="INoIntroRedumpParser.ParseRomFilename"/> then <see cref="IPathOrganizerService.BuildTargetPath"/>
 /// on the <see cref="SortConfig"/> of the current options), so that the preview cannot differ from the sort.
 /// The examples are the first conforming files of the source, found by a bounded listing outside the UI thread
-/// (names only: no CRC, no archive opened), or built-in examples of the convention when the source has none.
+/// (names only: no CRC, no archive opened), or built-in examples of the convention when the source has none. With a
+/// folder of the patches, a line shows where a patched version of the first example would go, in place of the last
+/// example (<see cref="PatchedExampleText"/>, the pattern of the patched versions).
 /// </summary>
 public sealed partial class PatternPreviewViewModel : ViewModelBase
 {
-    /// <summary>Number of examples shown.</summary>
+    /// <summary>Number of lines of the preview: the examples, the last one giving way to the line of the patched version.</summary>
     public const int ExampleCount = 3;
 
     /// <summary>Number of source files read at most to find the examples.</summary>
@@ -80,7 +82,8 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
         nameof(DirectoriesViewModel.DatHeaderName),
         nameof(DirectoriesViewModel.DatLot),
         nameof(DirectoriesViewModel.FolderPerDat),
-        nameof(DirectoriesViewModel.DatFolderMirror)
+        nameof(DirectoriesViewModel.DatFolderMirror),
+        nameof(DirectoriesViewModel.PatchDir)
     };
 
     private readonly ILocalizationService _localization;
@@ -136,6 +139,21 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
     private string _warningText = string.Empty;
 
     public bool HasWarning => WarningText.Length > 0;
+
+    /// <summary>
+    /// Where a patched version of the first example would be written (<c>Patched version: path</c>), or empty: without a
+    /// folder of the patches nothing patched is written, a MAME set is never patched, and a refused pattern of the
+    /// patched versions writes nothing (its warning says why).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPatchedExample))]
+    private string _patchedExampleText = string.Empty;
+
+    /// <summary>The name of the patched version of the example and its path, for the tooltip of its line.</summary>
+    [ObservableProperty]
+    private string _patchedExampleTooltip = string.Empty;
+
+    public bool HasPatchedExample => PatchedExampleText.Length > 0;
 
     /// <summary>
     /// Convention used to parse the examples, as the sort does: the convention of the loaded DAT, otherwise the
@@ -206,6 +224,16 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
 
         // The examples of a lot go into the folder of one of its DATs, as its files would
         var dat = _directories.PreviewDatPlacement(convention);
+
+        // The line of the patched version takes the place of the last example: the preview keeps its height, and the
+        // output step needs no scrolling at its default size
+        var patchedWarnings = new List<string>();
+        RefreshPatchedExample(settings, config, convention, examples, dat, patchedWarnings);
+        if (HasPatchedExample && examples.Count == ExampleCount)
+        {
+            examples.RemoveAt(examples.Count - 1);
+        }
+
         Examples.ReplaceAll(examples.Select(example =>
         {
             var target = _organizer.BuildTargetPath(example.Parsed, example.Name, config, dat: dat);
@@ -241,6 +269,8 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
             warnings.Add(_localization.Tr("tab1.preview_unmatched_folder", ("folder", PathOrganizerService.UnmatchedFolderName)));
         }
 
+        warnings.AddRange(patchedWarnings);
+
         // MAME only looks for a set at the root of its ROM folders
         if (isMame && writesInSubfolders)
         {
@@ -266,6 +296,77 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
                     ? _localization.Tr("tab1.preview_builtin_no_source")
                     : _localization.Tr("tab1.preview_builtin_no_match");
     }
+
+    /// <summary>
+    /// The line of the patched version of the first example, built by the code of the sort (the name of
+    /// <see cref="PatchMatcher.ExamplePatchedName"/>, then <see cref="IPathOrganizerService.BuildTargetPath"/> as for a
+    /// patched version: never a multi-disk subfolder), and the problems of the pattern of the patched versions. Only
+    /// with a folder of the patches, out of MAME: the pattern is greyed out otherwise, and nothing it says is written.
+    /// </summary>
+    private void RefreshPatchedExample(
+        SortSettings settings,
+        SortConfig config,
+        NamingConvention convention,
+        List<(string Name, ParsedRomName Parsed)> examples,
+        DatPlacement? dat,
+        List<string> warnings)
+    {
+        var text = string.Empty;
+        var tooltip = string.Empty;
+        if (_directories.HasPatchDir && !convention.IsMameSets())
+        {
+            var pattern = settings.PatchedPattern;
+            var problem = PathOrganizerService.CheckPatchedPattern(pattern);
+            if (problem != PatchedPatternProblem.None)
+            {
+                warnings.Add(_localization.Tr(ProblemKey(problem)));
+            }
+            else
+            {
+                var check = _organizer.CheckPattern(pattern, patched: true);
+                if (check.UnknownVariables.Count > 0)
+                {
+                    warnings.Add(_localization.Tr("tab1.preview_patched_unknown_variables", ("variables", string.Join(", ", check.UnknownVariables))));
+                }
+
+                if (check.HasUnbalancedBraces)
+                {
+                    warnings.Add(_localization.Tr("tab1.preview_patched_unbalanced_braces"));
+                }
+
+                if (examples.Count > 0)
+                {
+                    var (name, parsed) = examples[0];
+                    // The convention of the name, as the sort reads it: Auto is resolved by the parser
+                    var patchedName = PatchMatcher.ExamplePatchedName(name, parsed.Convention);
+                    var target = _organizer.BuildTargetPath(parsed, patchedName, config, isMultiMediaOverride: false, dat: dat, patched: true);
+                    var first = Path.GetRelativePath(config.DestinationDir, target).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+                    if (!string.IsNullOrWhiteSpace(pattern) &&
+                        string.Equals(first, PathOrganizerService.UnmatchedFolderName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        warnings.Add(_localization.Tr("tab1.preview_patched_unmatched_folder", ("folder", PathOrganizerService.UnmatchedFolderName)));
+                    }
+
+                    text = _localization.Tr("tab1.preview_patched_example", ("path", target));
+                    tooltip = _localization.Tr("tab1.preview_example_tooltip", ("source", Path.GetFileName(patchedName)), ("target", target));
+                }
+            }
+        }
+
+        PatchedExampleText = text;
+        PatchedExampleTooltip = tooltip;
+    }
+
+    /// <summary>The warning of the preview for a refused pattern of the patched versions.</summary>
+    private static string ProblemKey(PatchedPatternProblem problem) => problem switch
+    {
+        PatchedPatternProblem.Rooted => "tab1.preview_patched_rooted",
+        PatchedPatternProblem.Drive => "tab1.preview_patched_drive",
+        PatchedPatternProblem.ParentSegment => "tab1.preview_patched_parent_segment",
+        PatchedPatternProblem.ForbiddenCharacter => "tab1.preview_patched_forbidden_character",
+        PatchedPatternProblem.ReservedFolder => "tab1.preview_patched_reserved_folder",
+        _ => "tab1.preview_patched_folder_variable_not_alone"
+    };
 
     /// <summary>Completes once the pending refreshes (debounced pattern, source listing) are done; for the tests.</summary>
     internal async Task WhenIdleAsync()
@@ -306,6 +407,7 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
         switch (e.PropertyName)
         {
             case nameof(DirectoriesViewModel.Pattern):
+            case nameof(DirectoriesViewModel.PatchedPattern):
                 SchedulePatternRefresh();
                 break;
             case nameof(DirectoriesViewModel.SourceDir):

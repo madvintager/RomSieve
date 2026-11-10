@@ -861,8 +861,32 @@ public sealed partial class PatchMatcher
             chosen ??= label;
         }
 
+        return WithLabel(originName, chosen ?? DefaultPatchLabel, convention);
+    }
+
+    /// <summary>Label of the patched version an example of the interface shows (<see cref="ExamplePatchedName"/>).</summary>
+    public const string ExamplePatchLabel = "T-En";
+
+    /// <summary>
+    /// Name of the patched version of <paramref name="originName"/> made by a translation patch: the rule of
+    /// <see cref="PatchedName"/>, with the label <see cref="ExamplePatchLabel"/>. For the preview of the interface,
+    /// which shows where such a version would be written.
+    /// </summary>
+    public static string ExamplePatchedName(string originName, NamingConvention convention)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(originName);
+        return WithLabel(originName, ExamplePatchLabel, convention);
+    }
+
+    /// <summary>
+    /// The name of an origin with a label in brackets before its extension, in the folder the name may hold. TOSEC
+    /// writes its flags without a space before them, the other conventions with one.
+    /// </summary>
+    private static string WithLabel(string originName, string label, NamingConvention convention)
+    {
+        var originFile = Path.GetFileName(originName);
         var separator = convention == NamingConvention.Tosec ? string.Empty : " ";
-        return $"{originName[..^originFile.Length]}{originBase}{separator}[{chosen ?? DefaultPatchLabel}]{Path.GetExtension(originFile)}";
+        return $"{originName[..^originFile.Length]}{Path.GetFileNameWithoutExtension(originFile)}{separator}[{label}]{Path.GetExtension(originFile)}";
     }
 
     /// <summary>The names a label is looked for in, in order.</summary>
