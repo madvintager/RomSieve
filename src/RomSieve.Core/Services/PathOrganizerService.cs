@@ -140,16 +140,68 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
             return UnmatchedFolderName;
         }
 
-        var title = parsed.Title;
-        if (restoreArticles)
+        var title = FolderTitle(parsed, restoreArticles);
+        var mapping = VariableValues(parsed, title, datName);
+        var sanitizedParts = new List<string>();
+        foreach (var part in PatternParts(pattern))
         {
-            title = _tosecParser.RestoreTitleArticles(title);
+            sanitizedParts.Add(ExpandPart(part, mapping));
         }
 
+        var isMulti = isMultiMediaOverride ?? parsed.IsMultiMedia;
+        if (subfolderMultidisk && isMulti)
+        {
+            var gameFolder = SanitizePathSegment(string.IsNullOrEmpty(title) ? "Unknown" : title);
+            if (hiddenSubfolder)
+            {
+                gameFolder = $".{gameFolder}";
+            }
+
+            if (sanitizedParts.Count == 0 || !string.Equals(sanitizedParts[^1], gameFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                sanitizedParts.Add(gameFolder);
+            }
+        }
+
+        return sanitizedParts.Count == 0
+            ? "."
+            : Path.Combine([.. sanitizedParts]);
+    }
+
+    /// <summary>Title of <c>{title}</c>, <c>{letter}</c> and of the multi-disk subfolder, its articles restored on request.</summary>
+    private string FolderTitle(ParsedRomName parsed, bool restoreArticles) =>
+        restoreArticles ? _tosecParser.RestoreTitleArticles(parsed.Title) : parsed.Title;
+
+    /// <summary>Folders of a pattern, between its separators (both, under any system), without the empty ones.</summary>
+    private static string[] PatternParts(string? pattern)
+    {
+        var rawPattern = (pattern ?? string.Empty).Trim().Trim('/', '\\');
+        return rawPattern.Length == 0 ? [] : PathSeparatorSplitRegex().Split(rawPattern);
+    }
+
+    /// <summary>
+    /// One folder of a pattern: its variables replaced by their values, the unknown ones dropped, then sanitized. A folder
+    /// left empty is <c>Unknown</c>, never removed.
+    /// </summary>
+    private string ExpandPart(string part, IReadOnlyDictionary<string, string> mapping)
+    {
+        var formatted = part;
+        foreach (var (key, val) in mapping)
+        {
+            formatted = formatted.Replace($"{{{key}}}", val, StringComparison.Ordinal);
+        }
+
+        formatted = UnmatchedPlaceholderRegex().Replace(formatted, string.Empty);
+        return SanitizePathSegment(formatted);
+    }
+
+    /// <summary>Values of the variables of a pattern (<see cref="PatternVariableNames"/>) for a file, each a sanitized folder name.</summary>
+    private Dictionary<string, string> VariableValues(ParsedRomName parsed, string title, string? datName)
+    {
         var firstChar = !string.IsNullOrEmpty(title) ? char.ToUpperInvariant(title[0]) : '#';
         var letter = firstChar is >= 'A' and <= 'Z' ? firstChar.ToString() : "#";
 
-        var mapping = new Dictionary<string, string>(StringComparer.Ordinal)
+        return new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["title"] = SanitizePathSegment(string.IsNullOrEmpty(title) ? "Unknown" : title),
             ["letter"] = letter,
@@ -174,49 +226,6 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
             // Header name of the DAT the file is sorted with
             ["dat"] = SanitizePathSegment(string.IsNullOrWhiteSpace(datName) ? "Unknown" : datName.Trim())
         };
-
-        var rawPattern = (pattern ?? string.Empty).Trim().Trim('/', '\\');
-        var sanitizedParts = new List<string>();
-
-        if (!string.IsNullOrEmpty(rawPattern))
-        {
-            var parts = PathSeparatorSplitRegex().Split(rawPattern);
-            foreach (var part in parts)
-            {
-                var formatted = part;
-                foreach (var (key, val) in mapping)
-                {
-                    formatted = formatted.Replace($"{{{key}}}", val, StringComparison.Ordinal);
-                }
-
-                formatted = UnmatchedPlaceholderRegex().Replace(formatted, string.Empty);
-
-                var cleanedSegment = SanitizePathSegment(formatted);
-                if (!string.IsNullOrEmpty(cleanedSegment) && cleanedSegment != ".")
-                {
-                    sanitizedParts.Add(cleanedSegment);
-                }
-            }
-        }
-
-        var isMulti = isMultiMediaOverride ?? parsed.IsMultiMedia;
-        if (subfolderMultidisk && isMulti)
-        {
-            var gameFolder = SanitizePathSegment(string.IsNullOrEmpty(title) ? "Unknown" : title);
-            if (hiddenSubfolder)
-            {
-                gameFolder = $".{gameFolder}";
-            }
-
-            if (sanitizedParts.Count == 0 || !string.Equals(sanitizedParts[^1], gameFolder, StringComparison.OrdinalIgnoreCase))
-            {
-                sanitizedParts.Add(gameFolder);
-            }
-        }
-
-        return sanitizedParts.Count == 0
-            ? "."
-            : Path.Combine([.. sanitizedParts]);
     }
 
     public string BuildTargetPath(
@@ -224,7 +233,8 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
         string fileName,
         SortConfig config,
         bool? isMultiMediaOverride = null,
-        DatPlacement? dat = null)
+        DatPlacement? dat = null,
+        bool patched = false)
     {
         ArgumentNullException.ThrowIfNull(config);
         var hiddenSubfolder = config.GenerateM3u &&
@@ -242,7 +252,16 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
 
         // The folder of the DAT of a lot goes above the folders of the pattern; _unmatched stays at the root
         var datFolders = relTargetDir == UnmatchedFolderName ? [] : DatFolderSegments(dat, config);
-        string[] parts = [config.DestinationDir, .. datFolders, .. relTargetDir == "." ? Array.Empty<string>() : [relTargetDir], fileName];
+        IReadOnlyList<string> folders = [.. datFolders, .. relTargetDir == "." ? Array.Empty<string>() : relTargetDir.Split(Path.DirectorySeparatorChar)];
+
+        // A patched version goes where the pattern of the patched versions says, from the root of the destination; empty,
+        // into the folder of its original ROM
+        if (patched && relTargetDir != UnmatchedFolderName && !string.IsNullOrWhiteSpace(config.PatchedPattern))
+        {
+            folders = PatchedFolders(parsed, config, datFolders, folders, dat?.Name);
+        }
+
+        string[] parts = [config.DestinationDir, .. folders, fileName];
         var target = Path.Combine(parts);
 
         // In ZIP mode, the target is the archive named after the file; a MAME set already is an archive, and its CHD
@@ -251,6 +270,53 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
             ? Path.ChangeExtension(target, ".zip")
             : target;
     }
+
+    /// <summary>
+    /// Folders of a patched version under the destination, from the pattern of the patched versions
+    /// (<see cref="SortConfig.PatchedPattern"/>): <c>{origin_folder}</c> is worth the folders of its original ROM
+    /// (<paramref name="originFolders"/>), <c>{dat_folder}</c> those of its DAT in a lot (<paramref name="datFolders"/>),
+    /// each possibly none; every other folder is expanded as a folder of the main pattern, with the values of the original
+    /// ROM. The pattern is refused before any run when it would leave the destination
+    /// (<see cref="CheckPatchedPattern"/>); its values, sanitized, cannot. A value may still name the first folder after
+    /// the quarantine of the purges or the marker of the destination (a game titled <c>_purged</c> under <c>{title}</c>):
+    /// that folder then takes a final <c>_</c>, as a reserved name of Windows does. The folders of <c>{origin_folder}</c>
+    /// and <c>{dat_folder}</c> stay those of the original ROM.
+    /// </summary>
+    private List<string> PatchedFolders(
+        ParsedRomName parsed,
+        SortConfig config,
+        IReadOnlyList<string> datFolders,
+        IReadOnlyList<string> originFolders,
+        string? datName)
+    {
+        var mapping = VariableValues(parsed, FolderTitle(parsed, config.RestoreArticles), datName);
+        var folders = new List<string>();
+        foreach (var part in PatternParts(config.PatchedPattern))
+        {
+            switch (part.Trim())
+            {
+                case $"{{{OriginFolderVariable}}}":
+                    folders.AddRange(originFolders);
+                    break;
+                case $"{{{DatFolderVariable}}}":
+                    folders.AddRange(datFolders);
+                    break;
+                default:
+                    var folder = ExpandPart(part, mapping);
+
+                    // Only a folder of this pattern: the folders of the original ROM are those of the main pattern
+                    folders.Add(folders.Count == 0 && IsGuardFolderName(folder) ? folder + "_" : folder);
+                    break;
+            }
+        }
+
+        return folders;
+    }
+
+    /// <summary>Whether a folder at the root of the destination would be the quarantine of the purges or the marker.</summary>
+    private static bool IsGuardFolderName(string name) =>
+        name.Equals(DestinationGuard.QuarantineDirectoryName, StringComparison.OrdinalIgnoreCase) ||
+        name.Equals(DestinationGuard.MarkerFileName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Folders of the destination above the pattern for the files of <paramref name="dat"/>: none for a single DAT or
@@ -316,12 +382,13 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
         }
     }
 
-    public PatternCheck CheckPattern(string? pattern)
+    public PatternCheck CheckPattern(string? pattern, bool patched = false)
     {
         var text = pattern ?? string.Empty;
         var unknown = PlaceholderNameRegex().Matches(text)
             .Select(m => m.Groups[1].Value)
-            .Where(name => !PatternVariableNames.Contains(name, StringComparer.Ordinal))
+            .Where(name => !PatternVariableNames.Contains(name, StringComparer.Ordinal) &&
+                           !(patched && FolderVariableNames.Contains(name, StringComparer.Ordinal)))
             .Distinct(StringComparer.Ordinal)
             .Select(name => $"{{{name}}}")
             .ToList();
@@ -372,9 +439,7 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
 
         // The first folder written: the folder variables may be worth no folder, and leave the next one first
         var first = segments.FirstOrDefault(segment => !string.IsNullOrWhiteSpace(segment) && !IsFolderVariable(segment));
-        if (first?.Trim().TrimEnd('.', ' ') is { } firstName &&
-            (firstName.Equals(DestinationGuard.QuarantineDirectoryName, StringComparison.OrdinalIgnoreCase) ||
-             firstName.Equals(DestinationGuard.MarkerFileName, StringComparison.OrdinalIgnoreCase)))
+        if (first?.Trim().TrimEnd('.', ' ') is { } firstName && IsGuardFolderName(firstName))
         {
             return PatchedPatternProblem.ReservedFolder;
         }

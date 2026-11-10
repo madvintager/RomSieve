@@ -95,12 +95,17 @@ public interface IPathOrganizerService
     /// <see cref="SortConfig.FolderPerDat"/>, under the folders of its path with <see cref="SortConfig.DatFolderMirror"/>),
     /// the folders produced by the pattern (with the multi-disk subfolder, hidden when the playlists are placed in the
     /// parent folder) and the file name, which is the name of its archive in ZIP mode. Used by the transfers and by the
-    /// live preview of the pattern.
+    /// live preview of the pattern. A patched version (<paramref name="patched"/>, with the name, the parsed name and the
+    /// DAT of its original ROM) goes, with a pattern of the patched versions (<see cref="SortConfig.PatchedPattern"/>),
+    /// into the folders it gives from the root of the destination instead of those of its original ROM.
     /// </summary>
-    string BuildTargetPath(ParsedRomName parsed, string fileName, SortConfig config, bool? isMultiMediaOverride = null, DatPlacement? dat = null);
+    string BuildTargetPath(ParsedRomName parsed, string fileName, SortConfig config, bool? isMultiMediaOverride = null, DatPlacement? dat = null, bool patched = false);
 
-    /// <summary>Unknown variables and unbalanced braces of a directory pattern, which the sort would drop or keep as text.</summary>
-    PatternCheck CheckPattern(string? pattern);
+    /// <summary>
+    /// Unknown variables and unbalanced braces of a directory pattern, which the sort would drop or keep as text. The
+    /// pattern of the patched versions (<paramref name="patched"/>) also knows <c>{origin_folder}</c> and <c>{dat_folder}</c>.
+    /// </summary>
+    PatternCheck CheckPattern(string? pattern, bool patched = false);
 
     string GenerateM3uFilename(string filenameOrStem);
     (string FinalPath, bool IsCollisionSkipped) ResolveCollision(

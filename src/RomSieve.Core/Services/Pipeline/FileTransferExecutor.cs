@@ -548,7 +548,7 @@ public sealed partial class FileTransferExecutor
         }
         var targetPath = item.IsOutsideSelection && item.ReleaseStatus == FileStatus.Unmatched
             ? ToTargetPath(item, Path.Combine(destDir, PathOrganizerService.UnmatchedFolderName, displayName))
-            : _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item));
+            : _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item), patched: item.Patch is not null);
 
         item.TargetPath = targetPath;
         item.FinalTargetPath = targetPath;
@@ -716,8 +716,9 @@ public sealed partial class FileTransferExecutor
             .FirstOrDefault(name => !string.IsNullOrEmpty(name) && !PathOrganizerService.IsSafeRelativeName(name));
 
     /// <summary>
-    /// Target of a kept item, before any collision: the folders of the pattern, then its DAT name or its own. A preserved
-    /// single-game archive is marked as such, with its companions, and keeps the extension of the archive.
+    /// Target of a kept item, before any collision: the folders of the pattern (of the pattern of the patched versions for
+    /// a patched version, from its original ROM), then its DAT name or its own. A preserved single-game archive is marked
+    /// as such, with its companions, and keeps the extension of the archive.
     /// </summary>
     private string TargetOf(ProcessItem item)
     {
@@ -732,7 +733,7 @@ public sealed partial class FileTransferExecutor
             }
         }
 
-        return _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item));
+        return _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item), patched: item.Patch is not null);
     }
 
     /// <summary>
