@@ -258,6 +258,47 @@ public sealed class ChdTests : IDisposable
     }
 
     [Fact]
+    public async Task MultiDiscRedumpGame_WithEveryDiscAsAChdMatchedByName_ShouldBeKeptAsACompleteSet()
+    {
+        const string game = "Two Discs Game (Europe)";
+        var dat = _temp.WriteText("redump-multi.dat", $"""
+            <?xml version="1.0"?>
+            <datafile>
+              <header><name>Sony - PlayStation</name><description>Sony - PlayStation (Redump)</description></header>
+              <game name="{game} (Disc 1)"><description>{game} (Disc 1)</description>
+                <rom name="{game} (Disc 1).cue" size="900" crc="11111111"/>
+                <rom name="{game} (Disc 1) (Track 1).bin" size="31399200" crc="22222222"/>
+                <rom name="{game} (Disc 1) (Track 2).bin" size="55756512" crc="33333333"/>
+              </game>
+              <game name="{game} (Disc 2)"><description>{game} (Disc 2)</description>
+                <rom name="{game} (Disc 2).cue" size="901" crc="44444444"/>
+                <rom name="{game} (Disc 2) (Track 1).bin" size="31399201" crc="55555555"/>
+                <rom name="{game} (Disc 2) (Track 2).bin" size="55756513" crc="66666666"/>
+              </game>
+            </datafile>
+            """);
+        WriteChd(game + " (Disc 1).chd", ChdTestFile.Create("disc one"));
+        WriteChd(game + " (Disc 2).chd", ChdTestFile.Create("disc two"));
+
+        var config = new SortConfig
+        {
+            SourceDir = _temp.GetFilePath("src"),
+            DestinationDir = _temp.GetFilePath("dst"),
+            DatFile = dat,
+            MatchChdByName = true
+        };
+        config.Filters.CompleteMultidiskSetsOnly = true;
+        config.Filters.NoIntroCompleteMultimediaSetsOnly = true;
+        var result = await _services.Processor.ExecuteAsync(config, isDryRun: true);
+
+        result.Items.Should().HaveCount(2);
+        result.Items.Should().OnlyContain(i => i.IsIdentifiedByName);
+        result.Items.Should().OnlyContain(
+            i => i.Status == FileStatus.Valid,
+            "a CHD stands for its whole disc: every disc of the set is there");
+    }
+
+    [Fact]
     public async Task DamagedChd_ShouldBeIsolatedWithItsReason_WithOrWithoutDat()
     {
         WriteChd(RedumpGame + ".chd", ChdTestFile.Create("beast")[..50]);

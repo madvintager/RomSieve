@@ -664,6 +664,8 @@
   "reason.unmatched_not_in_dat": "Archivo no encontrado en el archivo DAT",
   "reason.not_in_dat_excluded": "{reason} (archivo ausente del DAT)",
   "reason.incomplete_multidisk_set": "Conjunto de varios discos incompleto ({found}/{total} discos encontrados)",
+  "reason.incomplete_disc": "Disco incompleto: {found}/{total} archivos del DAT encontrados",
+  "reason.incomplete_game": "Juego incompleto: {found}/{total} archivos del DAT encontrados",
   "reason.mame_set_incomplete": "Set de MAME incompleto: faltan {roms} ROM y {disks} disco(s)",
   "reason.mame_set_needs_parent": "Set de MAME que depende de {set}: no contiene {roms} ROM ni {disks} disco(s) compartidos",
   "reason.mame_set_needs_bios": "Set de MAME que depende de la BIOS {set}, ausente del origen: faltan {roms} ROM de la BIOS",

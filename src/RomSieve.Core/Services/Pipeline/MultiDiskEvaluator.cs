@@ -280,10 +280,12 @@ public sealed partial class MultiDiskEvaluator
 
                             if (mustExclude)
                             {
+                                // The files of a single game of the DAT are missing, not disks of the set
                                 item.Status = FileStatus.Excluded;
                                 item.StatusReason = LocalizedMessage.Create(
-                                    "reason.incomplete_multidisk_set",
-                                    ("game", game.Name),
+                                    game.Roms.Any(r => OpticalCompanionService.IsDescriptorFile(r.Name))
+                                        ? "reason.incomplete_disc"
+                                        : "reason.incomplete_game",
                                     ("found", foundCount),
                                     ("total", totalExpected));
                             }
