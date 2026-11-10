@@ -32,6 +32,9 @@ romsieve-cli run -s /roms/arrivee -d /roms/triees --dat "Commodore - Amiga.dat" 
 # Appliquer les patchs d'un dossier, et n'écrire que les versions patchées
 romsieve-cli run --patches /roms/patchs --patch-only --execute
 
+# Simuler sans appliquer les patchs, en gardant le dossier des patchs des réglages
+romsieve-cli run --no-patches
+
 # Un lot de DAT : tout un pack TOSEC, sous-dossiers compris, rangé comme le pack
 romsieve-cli run --dat /dats/TOSEC --dat-recursive --dir-dat-mirror --execute
 # ... ou deux de ses DAT seulement
@@ -88,6 +91,7 @@ réglages ne gardent aucun jeu, aucun fichier n'est écrit et le code de sortie 
 `patches` prend les options de `run` qui choisissent ce qui est simulé (`--profile`, `--source`, `--destination`,
 `--dat`, `--dat-recursive`, `--dat-only`, `--dir-dat-mirror`, `--chd`, `--patches`, `--categories`, `--ratings`), sans
 rien écrire dans la destination. Il exige un dossier des patchs et un DAT (code 3 sinon), et refuse un tri MAME.
+Il applique les patchs même quand **Appliquer les patchs** est décoché dans les réglages.
 
 | Option | Rôle |
 |---|---|
@@ -113,8 +117,9 @@ renommage refusé (nom déjà pris, par exemple) donne le code 4.
 | `--dat-only <nom>` | Ne trie qu'avec ce DAT du lot, désigné par le nom de son en-tête, sans tenir compte des majuscules. Répétable ; remplace les DAT décochés des réglages. Un nom absent du lot est refusé (code 2), avec les noms du lot |
 | `--dir-dat-mirror` | Place le dossier de chaque DAT du lot sous les dossiers de son chemin dans le dossier ou l'archive de DAT. Refusé (code 2) quand **Un dossier par DAT** est décoché dans les réglages |
 | `--chd <dossier>` | Dossier des CHD d'une collection MAME, s'ils ne sont pas dans la source |
-| `--patches <dossier>` | Dossier des [patchs](patches.md) (IPS, UPS, BPS) à appliquer aux ROMs identifiées |
+| `--patches <dossier>` | Dossier des [patchs](patches.md) (IPS, UPS, BPS) à appliquer aux ROMs identifiées, même quand **Appliquer les patchs** est décoché dans les réglages |
 | `--patch-only` | N'écrit que les versions patchées des jeux qui en ont : ni leur ROM d'origine, ni (avec le 1G1R) la ROM retenue pour leur jeu |
+| `--no-patches` | N'applique aucun patch, sans changer le dossier des patchs des réglages (refusé avec `--patches`, code 2) |
 | `--categories <fichier>` | Fichier de catégories des machines MAME (`catver.ini`, `catlist.ini`) |
 | `--ratings <fichier>` | Fichier de notes des machines MAME (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` ou `zip` |
@@ -143,14 +148,14 @@ où un jeu a été trouvé (*Nintendo - Game Boy : 12 jeux trouvés, 14/1 600 RO
 DAT ; avec `--miss-list` ou `--fixdat`, une ligne compte les DAT complets et ceux sans aucun jeu trouvé, qui n'ont rien
 à exporter.
 
-Avec un dossier des patchs, une ligne du bilan compte les versions patchées et les patchs non appliqués (*Patchs :
+Quand les patchs sont appliqués, une ligne du bilan compte les versions patchées et les patchs non appliqués (*Patchs :
 2 versions patchées, 1 patch non appliqué.*) ; chaque patch non appliqué a sa ligne dans le journal.
 
 ## Garde-fous
 
 * Sans `--execute`, rien n'est écrit.
 * La source doit exister, le DAT doit être trouvé, et la destination ne doit pas chevaucher la source, ni le dossier
-  des patchs. Avec un dossier des patchs, un dossier des versions patchées qui sortirait de la destination (chemin
+  des patchs. Quand les patchs sont appliqués, un dossier des versions patchées qui sortirait de la destination (chemin
   absolu, `..`, `_purged` comme premier dossier...) est refusé en code 3, pour `run` comme pour `patches`. Un dossier de
   DAT que le tri refuserait (deux DAT du même nom, un DAT de machines MAME, des listes de logiciels mêlées à d'autres
   DAT, tous les DAT décochés) est refusé avant tout, en code 3.
@@ -172,7 +177,7 @@ Avec un dossier des patchs, une ligne du bilan compte les versions patchées et 
 |---|---|
 | 0 | Succès |
 | 1 | Erreur inattendue (un rapport d'erreur est enregistré dans `crashes/` à côté des réglages, et son chemin affiché) |
-| 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT, format d'export non pris en charge, `dat --output` sur le DAT lu, `patches --detach` d'un patch qui n'est pas un IPS appliqué d'après son nom) |
+| 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT, format d'export non pris en charge, `dat --output` sur le DAT lu, `patches --detach` d'un patch qui n'est pas un IPS appliqué d'après son nom, `--no-patches` avec `--patches`) |
 | 3 | Configuration invalide (fichier de réglages ou profil absent ou illisible, source, DAT ou destination introuvable, dossier ou archive de DAT refusé, dossiers qui se chevauchent, modèle qui commence par `_purged` ou `.romsieve`, dossier des versions patchées qui sortirait de la destination) |
 | 4 | Terminé, mais des fichiers sont en erreur (dont un tri arrêté par une destination pleine ou un journal impossible à écrire), un export a échoué (ou `dat` n'a gardé aucun jeu), des opérations n'ont pas pu être annulées ou des éléments de la quarantaine n'ont pas pu être supprimés |
 | 5 | Interrompu (Ctrl+C) |

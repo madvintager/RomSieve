@@ -43,6 +43,7 @@ public sealed class CliApplication
     private readonly Option<string?> _chdOption = new("--chd");
     private readonly Option<string?> _patchesOption = new("--patches");
     private readonly Option<bool> _patchOnlyOption = new("--patch-only");
+    private readonly Option<bool> _noPatchesOption = new("--no-patches");
     private readonly Option<bool> _nameFromNotesOption = new("--name-from-notes");
     private readonly Option<string[]> _detachOption = new("--detach") { AllowMultipleArgumentsPerToken = false };
     private readonly Option<string?> _categoriesOption = new("--categories");
@@ -161,6 +162,7 @@ public sealed class CliApplication
         _patchesOption.Description = Tr("cli.option_patches");
         _patchesOption.HelpName = Tr("cli.help_directory");
         _patchOnlyOption.Description = Tr("cli.option_patch_only");
+        _noPatchesOption.Description = Tr("cli.option_no_patches");
         _nameFromNotesOption.Description = Tr("cli.option_name_from_notes");
         _detachOption.Description = Tr("cli.option_detach");
         _detachOption.HelpName = Tr("cli.help_patch");
@@ -189,8 +191,9 @@ public sealed class CliApplication
         var run = new Command("run", Tr("cli.command_run"))
         {
             _profileOption, _sourceOption, _destinationOption, _datOption, _datRecursiveOption, _datOnlyOption, _datMirrorOption,
-            _chdOption, _patchesOption, _patchOnlyOption, _categoriesOption, _ratingsOption, _modeOption, _preserveArchivesOption,
-            _executeOption, _appendOption, _purgeOption, _yesOption, _forceForeignPurgeOption, _reportOption, _missListOption, _fixDatOption
+            _chdOption, _patchesOption, _patchOnlyOption, _noPatchesOption, _categoriesOption, _ratingsOption, _modeOption,
+            _preserveArchivesOption, _executeOption, _appendOption, _purgeOption, _yesOption, _forceForeignPurgeOption, _reportOption,
+            _missListOption, _fixDatOption
         };
         run.SetAction((parseResult, cancellationToken) => RunSortAsync(parseResult, cancellationToken));
 
@@ -340,12 +343,15 @@ public sealed class CliApplication
     /// command, checked as the interface checks them before anything is read or written: source and destination given and
     /// found, DAT found, DATs of a lot chosen, no overlap (<see cref="SortConfigValidator"/>). <paramref name="check"/> adds
     /// the checks of the command, after those of the source and the destination. On a refusal, the message is written and
-    /// its exit code returned.
+    /// its exit code returned. The patches are applied when <c>--patches</c> is given, or when <paramref name="applyPatches"/>
+    /// says so (the command <c>patches</c>, which is about them), and not with <c>--no-patches</c>, refused with
+    /// <c>--patches</c> (code 2); otherwise, as the configuration says.
     /// </summary>
     private async Task<(PreparedRun? Run, int Error)> PrepareRunAsync(
         ParseResult parseResult,
         bool quiet,
-        Func<SortSettings, int?>? check = null)
+        Func<SortSettings, int?>? check = null,
+        bool applyPatches = false)
     {
         var configPath = GetConfigPath(parseResult);
         var (settings, settingsError) = await LoadSettingsAsync(parseResult, configPath, quiet);
@@ -355,6 +361,20 @@ public sealed class CliApplication
         }
 
         ApplyOverrides(parseResult, settings);
+        if (applyPatches)
+        {
+            settings.ApplyPatches = true;
+        }
+
+        if (parseResult.GetValue(_noPatchesOption))
+        {
+            if (parseResult.GetValue(_patchesOption) is not null)
+            {
+                return (null, Fail(ExitCodes.InvalidArguments, Tr("cli.no_patches_with_patches")));
+            }
+
+            settings.ApplyPatches = false;
+        }
 
         // The folders of the DATs are mirrored under the folder of each DAT: without it, there is nothing to mirror
         if (parseResult.GetValue(_datMirrorOption))
@@ -642,7 +662,8 @@ public sealed class CliApplication
                 ? Fail(ExitCodes.InvalidConfiguration, Tr("cli.no_patch_dir"))
                 : string.IsNullOrWhiteSpace(settings.DatFile)
                     ? Fail(ExitCodes.InvalidConfiguration, Tr("log.patches_need_dat"))
-                    : null);
+                    : null,
+            applyPatches: true);
         if (prepared is null)
         {
             return prepareError;
@@ -909,7 +930,13 @@ public sealed class CliApplication
         if (parseResult.GetValue(_datOption) is { } dat) settings.DatFile = dat;
         if (parseResult.GetValue(_datRecursiveOption)) settings.DatRecursive = true;
         if (parseResult.GetValue(_chdOption) is { } chd) settings.ChdDir = chd;
-        if (parseResult.GetValue(_patchesOption) is { } patches) settings.PatchDir = patches;
+        if (parseResult.GetValue(_patchesOption) is { } patches)
+        {
+            // Giving the folder of the patches asks for them, whatever the configuration says
+            settings.PatchDir = patches;
+            settings.ApplyPatches = true;
+        }
+
         if (parseResult.GetValue(_patchOnlyOption)) settings.PatchOnly = true;
         if (parseResult.GetValue(_categoriesOption) is { } categories) settings.MameCategoryFile = categories;
         if (parseResult.GetValue(_ratingsOption) is { } ratings) settings.MameRatingFile = ratings;

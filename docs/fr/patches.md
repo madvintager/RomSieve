@@ -40,6 +40,13 @@ est toujours affiché, quelle que soit la convention.
   une ligne le signale (*Chevauche les patchs*), et la simulation comme le tri sont refusés. Une purge ne touche jamais
   au dossier des patchs.
 
+La case **Appliquer les patchs**, à côté du titre du cadre, est cochée par défaut, et se coche d'elle-même quand vous
+choisissez un dossier avec **Parcourir...**. Décochée, aucun patch n'est appliqué, mais le dossier reste dans les
+réglages et les profils pour la prochaine fois : il n'est pas lu, **N'écrire que les versions patchées** et le dossier
+des versions patchées sont grisés, et le journal dit que l'application des patchs est désactivée. Le reste ne change
+pas : un dossier des patchs placé dans la source n'est toujours pas trié comme des ROMs, et la destination ne doit
+toujours pas le chevaucher, pour qu'une purge ne mette jamais vos patchs en quarantaine.
+
 Le journal de la simulation dit combien de patchs ont été trouvés et combien ont donné une version patchée.
 
 ## Rapprochement
@@ -132,7 +139,7 @@ autre version du jeu : un patch fait pour `Jeu (World) (Collection).md`, que le 
 retenue est un choix à part, et seule la ROM d'origine du patch est remplacée. Le tableau montre une ROM remplacée
 **Exclu**, avec la raison *Remplacée par une version patchée* ; une ROM que le 1G1R écartait déjà garde sa raison.
 Option décochée, la ROM retenue et la version patchée sont toutes deux écrites. L'option est grisée sans dossier des
-patchs.
+patchs, ou quand **Appliquer les patchs** est décoché.
 
 ## Un dossier Patchs
 
@@ -177,9 +184,9 @@ est identifiée.
 * **Préréglages** : **À côté de la ROM d'origine** (champ vide), **Sous-dossier de la ROM d'origine**
   (`{origin_folder}/Patchs`) et **Dossier à la racine** (`Patchs/{dat}/{title}`), qui laisse le dossier de chaque DAT
   sans fichier inconnu.
-* Le champ et ses menus sont **grisés sans dossier des patchs**, puisque rien de patché ne serait écrit ; le champ garde
-  sa valeur, enregistrée dans les réglages et les profils.
-* Avec un dossier des patchs, l'[aperçu en direct](destination-and-transfers.md) montre, à la place
+* Le champ et ses menus sont **grisés sans dossier des patchs**, ou quand **Appliquer les patchs** est décoché,
+  puisque rien de patché ne serait écrit ; le champ garde sa valeur, enregistrée dans les réglages et les profils.
+* Quand les patchs sont appliqués, l'[aperçu en direct](destination-and-transfers.md) montre, à la place
   de son troisième exemple, où irait la version patchée du premier : *Version patchée : …*.
 
 Rien n'est écrit hors de la destination. Un dossier qui en sortirait, ou qui écrirait dans les dossiers que RomSieve
@@ -322,10 +329,11 @@ modifiée depuis le tri.
 
 ## En ligne de commande
 
-`--patches <dossier>` donne le dossier des patchs, et `--patch-only` n'écrit que les versions patchées (voir
-[Ligne de commande](command-line.md)). Le dossier des versions patchées vient du fichier de réglages ou du profil ; un
-dossier refusé arrête `run` comme `patches`, en code 3. Le bilan compte les versions patchées et les patchs non
-appliqués.
+`--patches <dossier>` donne le dossier des patchs et les applique, même quand **Appliquer les patchs** est décoché
+dans les réglages ; `--no-patches` n'en applique aucun, sans changer les réglages ; `--patch-only` n'écrit que les
+versions patchées (voir [Ligne de commande](command-line.md)). Le dossier des versions patchées vient du fichier de
+réglages ou du profil ; un dossier refusé arrête `run` comme `patches`, en code 3. Le bilan compte les versions
+patchées et les patchs non appliqués.
 
 `romsieve-cli patches` simule le tri et liste ses patchs non appliqués, avec les ROMs proposées pour un IPS sans CRC32,
 puis les IPS appliqués grâce à leur readme et ceux appliqués d'après leur nom ; `--name-from-notes --yes` écrit le CRC32

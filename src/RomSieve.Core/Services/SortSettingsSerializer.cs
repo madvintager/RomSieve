@@ -48,6 +48,7 @@ public static class SortSettingsSerializer
         data["dat_folder_mirror"] = s.DatFolderMirror;
         data["chd_dir"] = s.ChdDir.Trim();
         data["patch_dir"] = s.PatchDir.Trim();
+        data["apply_patches"] = s.ApplyPatches;
         data["patch_only"] = s.PatchOnly;
 
         // Unlike the main pattern, an empty one is a choice: next to the original ROM
@@ -180,6 +181,7 @@ public static class SortSettingsSerializer
             DatFolderMirror = s.DatFolderMirror,
             ChdDir = string.IsNullOrWhiteSpace(s.ChdDir) ? null : s.ChdDir.Trim(),
             PatchDir = string.IsNullOrWhiteSpace(s.PatchDir) ? null : s.PatchDir.Trim(),
+            ApplyPatches = s.ApplyPatches,
             PatchOnly = s.PatchOnly,
 
             // Apart from the main pattern: a flat destination leaves it as it is
@@ -277,6 +279,7 @@ public static class SortSettingsSerializer
         if (TryGetBool(data, "dat_folder_mirror", out var datFolderMirror)) s.DatFolderMirror = datFolderMirror;
         if (TryGetString(data, "chd_dir", out var chdDir)) s.ChdDir = chdDir;
         if (TryGetString(data, "patch_dir", out var patchDir)) s.PatchDir = patchDir;
+        if (TryGetBool(data, "apply_patches", out var applyPatches)) s.ApplyPatches = applyPatches;
         if (TryGetBool(data, "patch_only", out var patchOnly)) s.PatchOnly = patchOnly;
         if (TryGetString(data, "patched_pattern", out var patchedPattern)) s.PatchedPattern = patchedPattern;
         if (TryGetString(data, "mame_category_file", out var categoryFile)) s.MameCategoryFile = categoryFile;

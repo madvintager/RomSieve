@@ -41,6 +41,13 @@ It is always shown, whatever the convention.
   (*Overlaps the patches*), and both the simulation and the sort are refused. A purge never touches the folder of the
   patches.
 
+The **Apply the patches** box, next to the title of the card, is checked by default, and checks itself when you
+choose a folder with **Browse...**. Unchecked, no patch is applied, but the folder stays in the settings and the
+profiles for next time: it is not read, **Write the patched versions only** and the folder of the patched versions are
+greyed out, and the log says that applying the patches is turned off. The rest does not change: a folder of the
+patches inside the source is still not sorted as ROMs, and the destination still may not overlap it, so that a purge
+never puts your patches in quarantine.
+
 The log of the simulation tells how many patches were found and how many gave a patched version.
 
 ## Matching
@@ -132,7 +139,7 @@ the game: a patch made for `Game (World) (Collection).md`, which 1G1R leaves out
 patched version, and `Game (World).md` is not written. Without 1G1R, each ROM kept is a choice of its own, and only the
 original ROM of the patch is replaced. The table shows a ROM replaced **Excluded**, with the reason *Replaced by a
 patched version*; a ROM that 1G1R already left out keeps its reason. With the option unchecked, the ROM kept and the
-patched version are both written. The option is greyed out without a folder of the patches.
+patched version are both written. The option is greyed out without a folder of the patches, or with **Apply the patches** unchecked.
 
 ## A folder for the patched versions
 
@@ -175,9 +182,9 @@ identified.
   DAT**).
 * **Presets**: **Next to the original ROM** (empty field), **Subfolder of the original ROM** (`{origin_folder}/Patches`)
   and **Folder at the root** (`Patches/{dat}/{title}`), which leaves the folder of each DAT without unknown files.
-* The field and its menus are **greyed out without a folder of the patches**, since nothing patched would be written;
-  the field keeps its value, saved in the settings and the profiles.
-* With a folder of the patches, the [live preview](destination-and-transfers.md#live-preview) shows, in place of its
+* The field and its menus are **greyed out without a folder of the patches**, or with **Apply the patches** unchecked,
+  since nothing patched would be written; the field keeps its value, saved in the settings and the profiles.
+* When the patches are applied, the [live preview](destination-and-transfers.md#live-preview) shows, in place of its
   third example, where the patched version of the first one would go: *Patched version: …*.
 
 Nothing is written outside the destination. A folder that would leave it, or write into the folders RomSieve keeps for
@@ -318,10 +325,11 @@ the sort.
 
 ## On the command line
 
-`--patches <folder>` gives the folder of the patches, and `--patch-only` only writes the patched versions (see
-[Command line](command-line.md)). The folder of the patched versions comes from the settings file or the profile; a
-folder refused stops `run` as well as `patches`, with code 3. The summary counts the patched versions and the patches
-not applied.
+`--patches <folder>` gives the folder of the patches and applies them, even when **Apply the patches** is unchecked
+in the settings; `--no-patches` applies none, without changing the settings; `--patch-only` only writes the patched
+versions (see [Command line](command-line.md)). The folder of the patched versions comes from the settings file or the
+profile; a folder refused stops `run` as well as `patches`, with code 3. The summary counts the patched versions and
+the patches not applied.
 
 `romsieve-cli patches` simulates the sort and lists its patches not applied, with the ROMs proposed for an IPS without
 CRC32, then the IPS applied thanks to their readme and those applied from their name; `--name-from-notes --yes` writes

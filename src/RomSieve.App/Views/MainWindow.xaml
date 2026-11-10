@@ -1385,13 +1385,25 @@
               </StackPanel>
             </Border>
 
-            <!-- Patches (IPS, IPS32, UPS, BPS) applied to the identified ROMs: their folder, read in addition to the
-                 source, and whether only the patched versions are written. Always shown, whatever the convention -->
+            <!-- Patches (IPS, IPS32, UPS, BPS) applied to the identified ROMs: whether they are applied, their folder, read
+                 in addition to the source, and whether only the patched versions are written. Always shown, whatever the
+                 convention -->
             <Border x:Name="CardPatches" Classes="settings-card">
               <StackPanel Spacing="8">
-                <TextBlock Classes="card-title">
-                  <Run Text="{Binding I18n[tab1.card_patches]}" /> <Run Classes="optional" Text="{Binding I18n[tab1.optional]}" />
-                </TextBlock>
+                <!-- The box that turns the patches on or off sits next to the title, so that the folder stays in the
+                     settings while they are off; its negative margin keeps the height of the title row, so that the
+                     Collection step needs no scrolling at the default size -->
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                  <TextBlock Classes="card-title">
+                    <Run Text="{Binding I18n[tab1.card_patches]}" /> <Run Classes="optional" Text="{Binding I18n[tab1.optional]}" />
+                  </TextBlock>
+                  <CheckBox x:Name="ChkApplyPatches"
+                            Margin="0,-8"
+                            VerticalAlignment="Center"
+                            Content="{Binding I18n[tab1.chk_apply_patches]}"
+                            ToolTip.Tip="{Binding I18n[tab1.tooltip_apply_patches]}"
+                            IsChecked="{Binding Directories.ApplyPatches, Mode=TwoWay}" />
+                </StackPanel>
                 <!-- One row, so that the Collection step needs no scrolling at the default size: the tooltip of the
                      field says what a patch folder does -->
                 <Grid>
@@ -1432,7 +1444,7 @@
                             Content="{Binding I18n[tab1.chk_patch_only]}"
                             ToolTip.Tip="{Binding I18n[tab1.tooltip_patch_only]}"
                             ToolTip.ShowOnDisabled="True"
-                            IsEnabled="{Binding Directories.HasPatchDir}"
+                            IsEnabled="{Binding Directories.UsesPatches}"
                             IsChecked="{Binding Directories.PatchOnly, Mode=TwoWay}" />
                 </Grid>
               </StackPanel>

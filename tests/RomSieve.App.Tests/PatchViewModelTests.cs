@@ -128,6 +128,80 @@ public sealed class PatchViewModelTests : IDisposable
     }
 
     // =========================================================================
+    // The box that applies the patches
+    // =========================================================================
+
+    [Fact]
+    public async Task TheBoxToApplyThePatches_ShouldKeepTheFolder_AndBeSavedAndReadBack()
+    {
+        var path = _temp.WriteText("config.json", "{}");
+        var dialogs = new HeadlessDialogService { NextPickedFolder = _temp.CreateSubdirectory("patches") };
+        var vm = TestMainViewModel.Create(dialogs, path);
+        vm.Directories.ApplyPatches.Should().BeTrue("the patches of a folder are applied by default");
+        vm.Directories.UsesPatches.Should().BeFalse("no folder");
+
+        vm.Directories.PatchDir = dialogs.NextPickedFolder;
+        vm.Directories.UsesPatches.Should().BeTrue();
+        vm.Directories.IsPatchedPatternEnabled.Should().BeTrue();
+
+        vm.Directories.ApplyPatches = false;
+
+        vm.Directories.PatchDir.Should().Be(dialogs.NextPickedFolder, "the folder stays for later");
+        vm.Directories.UsesPatches.Should().BeFalse("the option to write the patched versions only is greyed out");
+        vm.Directories.IsPatchedPatternEnabled.Should().BeFalse();
+        var config = vm.BuildConfigUnchecked();
+        config.ApplyPatches.Should().BeFalse();
+        config.PatchDir.Should().Be(dialogs.NextPickedFolder);
+        await vm.SaveConfigurationAsync();
+        using (var saved = JsonDocument.Parse(await File.ReadAllTextAsync(path)))
+        {
+            saved.RootElement.GetProperty("apply_patches").GetBoolean().Should().BeFalse();
+            saved.RootElement.GetProperty("patch_dir").GetString().Should().Be(dialogs.NextPickedFolder);
+        }
+
+        var reloaded = TestMainViewModel.Create(new HeadlessDialogService { NextPickedFolder = dialogs.NextPickedFolder }, path);
+        reloaded.Directories.ApplyPatches.Should().BeFalse();
+        reloaded.Directories.PatchDir.Should().Be(dialogs.NextPickedFolder);
+
+        // Choosing a folder of patches asks for them
+        await reloaded.Directories.BrowsePatchDirCommand.ExecuteAsync(null);
+        reloaded.Directories.ApplyPatches.Should().BeTrue();
+        reloaded.Directories.UsesPatches.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ThePatchesOff_ShouldLeaveThePatternOfThePatchedVersionsAlone_ButNotTheOverlapWithTheDestination()
+    {
+        var dialogs = new HeadlessDialogService();
+        var vm = TestMainViewModel.Create(dialogs, _temp.WriteText("config.json", "{}"));
+        vm.Directories.SourceDir = _temp.CreateSubdirectory("src");
+        _temp.WriteText("src/Game (1990)(Ocean).adf", "game");
+        vm.Directories.PatchDir = _temp.CreateSubdirectory("patches");
+        vm.Directories.DestinationDir = Path.Combine(_temp.Path, "out");
+        vm.Directories.PatchedPattern = "../Patchs";
+        vm.Navigation.OutputEntry.IndicatorText.Should().Be("Patchées : dossier refusé");
+
+        vm.Directories.ApplyPatches = false;
+
+        vm.Navigation.OutputEntry.IndicatorTone.Should().Be(StepIndicatorTone.None, "nothing patched is written");
+        vm.Directories.Preview.HasPatchedExample.Should().BeFalse();
+        await vm.Execution.SimulateAsync();
+        dialogs.ShownMessages.Should().BeEmpty();
+        vm.Execution.LastItems.Should().NotBeEmpty();
+        vm.Execution.IsSimulationCurrent.Should().BeTrue();
+
+        vm.Directories.ApplyPatches = true;
+        vm.Execution.IsSimulationCurrent.Should().BeFalse("the run would apply the patches");
+        vm.Directories.ApplyPatches = false;
+
+        // A purge of a destination that holds the patches would put them in quarantine, applied or not
+        vm.Directories.DestinationDir = Path.Combine(_temp.Path, "patches", "sorted");
+        vm.Navigation.OutputEntry.IndicatorText.Should().Be("Chevauche les patchs");
+        await vm.Execution.SimulateAsync();
+        dialogs.ShownMessages.Should().ContainSingle(m => m.Message == _services.I18n.Tr("dialog.error_dest_inside_patches"));
+    }
+
+    // =========================================================================
     // Table
     // =========================================================================
 

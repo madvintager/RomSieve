@@ -83,7 +83,8 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
         nameof(DirectoriesViewModel.DatLot),
         nameof(DirectoriesViewModel.FolderPerDat),
         nameof(DirectoriesViewModel.DatFolderMirror),
-        nameof(DirectoriesViewModel.PatchDir)
+        nameof(DirectoriesViewModel.PatchDir),
+        nameof(DirectoriesViewModel.ApplyPatches)
     };
 
     private readonly ILocalizationService _localization;
@@ -307,7 +308,8 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
     /// The line of the patched version of the first example, built by the code of the sort (the name of
     /// <see cref="PatchMatcher.ExamplePatchedName"/>, then <see cref="IPathOrganizerService.BuildTargetPath"/> as for a
     /// patched version: never a multi-disk subfolder), and the problems of the pattern of the patched versions. Only
-    /// with a folder of the patches, out of MAME: the pattern is greyed out otherwise, and nothing it says is written.
+    /// when patches are applied (<see cref="DirectoriesViewModel.UsesPatches"/>), out of MAME: the pattern is greyed out
+    /// otherwise, and nothing it says is written.
     /// </summary>
     private void RefreshPatchedExample(
         SortSettings settings,
@@ -319,7 +321,7 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
     {
         var text = string.Empty;
         var tooltip = string.Empty;
-        if (_directories.HasPatchDir && !convention.IsMameSets())
+        if (_directories.UsesPatches && !convention.IsMameSets())
         {
             var pattern = settings.PatchedPattern;
             var problem = PathOrganizerService.CheckPatchedPattern(pattern);

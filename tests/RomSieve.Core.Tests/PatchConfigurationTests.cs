@@ -65,6 +65,30 @@ public sealed class PatchConfigurationTests : IDisposable
 
         read.PatchDir.Should().BeEmpty("a key a configuration does not have takes its default, without migration");
         read.PatchOnly.Should().BeFalse();
+        read.ApplyPatches.Should().BeTrue("a configuration that had a patch folder keeps applying its patches");
+    }
+
+    [Fact]
+    public void TheOptionToApplyThePatches_ShouldBeOnByDefault_AndBeWrittenAndReadBack()
+    {
+        var defaults = SortSettingsSerializer.Read(new Dictionary<string, object?>());
+        defaults.ApplyPatches.Should().BeTrue();
+        new SortConfig { SourceDir = "src", DestinationDir = "out" }.ApplyPatches.Should().BeTrue();
+
+        var data = new Dictionary<string, object?>(StringComparer.Ordinal);
+        SortSettingsSerializer.Write(new SortSettings { PatchDir = "C:/patches", ApplyPatches = false }, data);
+        data["apply_patches"].Should().Be(false);
+        data["patch_dir"].Should().Be("C:/patches", "the folder stays in the settings while the patches are off");
+
+        var config = SortSettingsSerializer.ToSortConfig(SortSettingsSerializer.Read(Parse(JsonSerializer.Serialize(data))));
+        config.ApplyPatches.Should().BeFalse();
+        config.PatchDir.Should().Be("C:/patches");
+        config.UsesPatches.Should().BeFalse();
+
+        config.ApplyPatches = true;
+        config.UsesPatches.Should().BeTrue();
+        config.PatchDir = " ";
+        config.UsesPatches.Should().BeFalse("no patch is applied without a folder");
     }
 
     // =========================================================================
@@ -91,6 +115,52 @@ public sealed class PatchConfigurationTests : IDisposable
 
         SortConfigValidator.GetErrorKey(config, isMameRun: false).Should().Be(expected);
         SortConfigValidator.GetErrorKey(config, isMameRun: true).Should().Be(expected, "the patch folder is checked whatever the run");
+
+        config.ApplyPatches = false;
+        SortConfigValidator.GetErrorKey(config, isMameRun: false).Should().Be(
+            expected, "a purge of a destination that holds the patch folder would put the patches in quarantine, applied or not");
+    }
+
+    [Fact]
+    public void ThePatternOfThePatchedVersions_ShouldOnlyBeRefused_WhenThePatchesAreApplied()
+    {
+        var config = new SortConfig
+        {
+            SourceDir = Root("src"),
+            DestinationDir = Root("out"),
+            PatchDir = Root("patches"),
+            PatchedPattern = "../Patched"
+        };
+        SortConfigValidator.GetErrorKey(config, isMameRun: false).Should().Be("dialog.error_patched_pattern_invalid");
+
+        config.ApplyPatches = false;
+
+        SortConfigValidator.GetErrorKey(config, isMameRun: false).Should().BeNull("nothing patched is written, and the field is greyed out");
+        SortConfigValidator.GetPatchedPatternErrorKey(config).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task APurge_ShouldStillProtectThePatchFolder_WhenThePatchesAreNotApplied()
+    {
+        var destination = _temp.CreateSubdirectory("dst");
+        var patch = _temp.WriteBytes("dst/patches/Game (T-En).bps", BpsLinear(Japan, Translated));
+        var config = new SortConfig
+        {
+            SourceDir = _temp.CreateSubdirectory("src"),
+            DestinationDir = destination,
+            PatchDir = Path.GetDirectoryName(patch),
+            ApplyPatches = false,
+            PurgeDestination = true
+        };
+        var executor = new FileTransferExecutor(
+            config, isDryRun: false, _services.Organizer, _services.FilterService, _services.I18n,
+            _services.OpticalCompanionService, _services.ChecksumService, _services.Patches);
+
+        var (success, error) = await executor.PrepareDestinationAsync();
+
+        success.Should().BeFalse();
+        error.Should().Be(_services.I18n.Tr("dialog.error_dest_contains_patches"));
+        File.Exists(patch).Should().BeTrue();
     }
 
     [Fact]
@@ -156,7 +226,7 @@ public sealed class PatchConfigurationTests : IDisposable
     // =========================================================================
 
     /// <summary>A simulation of a Japanese ROM with a patch, an orphan patch beside it.</summary>
-    private async Task<SortExecutionResult> SimulateAsync(SortConfig? config = null)
+    private async Task<SortExecutionResult> SimulateAsync(SortConfig? config = null, List<LogMessage>? logs = null)
     {
         _temp.WriteBytes("src/Game (Japan).sfc", Japan);
         var dat = _temp.WriteText("dat/snes.dat", $"""
@@ -169,7 +239,79 @@ public sealed class PatchConfigurationTests : IDisposable
         config.DatFile = dat;
         config.NamingConvention = NamingConvention.NoIntro;
         config.PatchDir = _temp.GetFilePath("patches");
-        return await _services.Processor.ExecuteAsync(config, isDryRun: true);
+        return await _services.Processor.ExecuteAsync(
+            config, isDryRun: true, logProgress: logs is null ? null : new SynchronousProgress<LogMessage>(logs.Add));
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
+
+    // =========================================================================
+    // Patches not applied
+    // =========================================================================
+
+    [Fact]
+    public async Task ARunWithThePatchesOff_ShouldReadNoPatch_AndIgnoreTheOptionsOfThePatchedVersions()
+    {
+        var logs = new List<LogMessage>();
+        var config = new SortConfig
+        {
+            SourceDir = _temp.GetFilePath("src"),
+            DestinationDir = _temp.CreateSubdirectory("dst"),
+            ApplyPatches = false,
+            PatchOnly = true,
+            PatchedPattern = "../Patched"
+        };
+
+        var result = await SimulateAsync(config, logs);
+
+        result.Stats.PatchedCount.Should().Be(0);
+        result.Stats.UnappliedPatches.Should().BeEmpty("the folder is not read");
+        result.Items.Should().ContainSingle().Which.Status.Should().Be(FileStatus.Valid, "the original ROM is written: no patched version replaces it");
+        result.Items.Should().OnlyContain(it => it.Patch == null);
+        logs.Should().Contain(l => l.Message.Key == "log.patches_disabled");
+        logs.Should().NotContain(l => l.Message.Key == "log.patch_dir_scanned");
+    }
+
+    [Fact]
+    public async Task APatchFolderInTheSource_ShouldStayOutOfTheCollection_WhenThePatchesAreOff()
+    {
+        // The patches and their readme, in the source: never sorted as ROMs, so never moved to _unmatched
+        var src = _temp.CreateSubdirectory("src");
+        _temp.WriteBytes("src/Game (Japan).sfc", Japan);
+        var patch = _temp.WriteBytes("src/patches/Game (Japan) (T-En).bps", BpsLinear(Japan, Translated));
+        var note = _temp.WriteText("src/patches/readme.txt", "A translation.");
+        var dat = _temp.WriteText("dat/snes.dat", $"""
+            <?xml version="1.0"?><datafile><header><name>Nintendo - SNES</name><homepage>No-Intro</homepage></header>
+            <game name="Game (Japan)"><description>Game (Japan)</description><rom name="Game (Japan).sfc" size="{Japan.Length}" crc="{Crc(Japan):x8}"/></game></datafile>
+            """);
+        var destination = _temp.CreateSubdirectory("dst");
+        var config = new SortConfig
+        {
+            SourceDir = src,
+            DestinationDir = destination,
+            DatFile = dat,
+            NamingConvention = NamingConvention.NoIntro,
+            PatchDir = Path.GetDirectoryName(patch),
+            ApplyPatches = false,
+            TransferMode = TransferMode.Move,
+            IsolateUnmatched = true
+        };
+
+        var simulation = await _services.Processor.ExecuteAsync(config, isDryRun: true);
+        simulation.Items.Should().ContainSingle().Which.SourcePath.Should().EndWith("Game (Japan).sfc");
+
+        var sort = await _services.Processor.ExecuteAsync(config, isDryRun: false);
+
+        sort.Stats.ErrorCount.Should().Be(0);
+        File.Exists(patch).Should().BeTrue("a patch is never sorted as a ROM");
+        File.Exists(note).Should().BeTrue();
+        Directory.EnumerateFiles(destination, "*", SearchOption.AllDirectories)
+            .Where(path => !DestinationGuard.IsGuardPath(path))
+            .Select(Path.GetFileName)
+            .Should().Equal("Game (Japan).sfc");
     }
 
     [Fact]

@@ -80,8 +80,9 @@ public static class SortConfigValidator
     /// then, for a run that sorts MAME sets (<paramref name="isMameRun"/>, <see cref="MameSetIdentifier.IsMameRun"/>), the
     /// CHD folder (always read recursively), then the patch folder; <c>null</c> when it overlaps none. Any other run never
     /// reads the CHD folder, which stays in the configuration for the next MAME sort: it is then a folder like any other.
-    /// The patch folder is checked whatever the run, even one that does not read it: a purge of a destination that holds
-    /// it would put the patches in quarantine. Last, the main pattern (<see cref="GetPatternErrorKey"/>), then the pattern of the patched versions (<see cref="GetPatchedPatternErrorKey(SortConfig)"/>).
+    /// The patch folder is checked whatever the run, even one that does not read it (a sort of MAME sets, or patches not
+    /// applied, <see cref="SortConfig.ApplyPatches"/>): a purge of a destination that holds it would put the patches in
+    /// quarantine. Last, the main pattern (<see cref="GetPatternErrorKey"/>), then the pattern of the patched versions (<see cref="GetPatchedPatternErrorKey(SortConfig)"/>).
     /// </summary>
     public static string? GetErrorKey(SortConfig config, bool isMameRun)
     {
@@ -104,13 +105,14 @@ public static class SortConfigValidator
 
     /// <summary>
     /// Localization key of the error message of a pattern of the patched versions that would not stay inside the
-    /// destination (<see cref="PathOrganizerService.CheckPatchedPattern"/>), or <c>null</c>. Only with a patch folder: the
-    /// pattern is greyed out without one, and nothing it would write is written. Whatever the run, as the patch folder.
+    /// destination (<see cref="PathOrganizerService.CheckPatchedPattern"/>), or <c>null</c>. Only when patches are applied
+    /// (<see cref="SortConfig.UsesPatches"/>): the pattern is greyed out otherwise, and nothing it would write is written.
+    /// Whatever the run, as the patch folder.
     /// </summary>
     public static string? GetPatchedPatternErrorKey(SortConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
-        return GetPatchedPatternErrorKey(config.PatchDir, config.PatchedPattern);
+        return GetPatchedPatternErrorKey(config.UsesPatches ? config.PatchDir : null, config.PatchedPattern);
     }
 
     /// <summary>

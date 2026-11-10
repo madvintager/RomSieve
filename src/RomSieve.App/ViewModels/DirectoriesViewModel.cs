@@ -257,8 +257,17 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// identified gives a patched version. Empty: none. Always shown, whatever the convention.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasPatchDir), nameof(IsPatchedPatternEnabled))]
+    [NotifyPropertyChangedFor(nameof(HasPatchDir), nameof(UsesPatches), nameof(IsPatchedPatternEnabled))]
     private string _patchDir = string.Empty;
+
+    /// <summary>
+    /// Whether the patches of <see cref="PatchDir"/> are applied (<see cref="SortConfig.ApplyPatches"/>): unchecked, the
+    /// folder stays in the settings for later, and the options of the patched versions are greyed out. Checked again
+    /// when a folder is chosen with Browse.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UsesPatches), nameof(IsPatchedPatternEnabled))]
+    private bool _applyPatches = true;
 
     /// <summary>Whether only the patched versions are written, not the original ROMs they replace.</summary>
     [ObservableProperty]
@@ -271,14 +280,20 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     [ObservableProperty]
     private string _patchedPattern = string.Empty;
 
-    /// <summary>Whether a patch folder is given: the option to write the patched versions only is greyed out otherwise.</summary>
+    /// <summary>Whether a patch folder is given.</summary>
     public bool HasPatchDir => !string.IsNullOrWhiteSpace(PatchDir);
 
     /// <summary>
-    /// Whether the pattern of the patched versions can be edited: with a patch folder only, since nothing patched is
-    /// written without one. Greyed out, it keeps its value, and its tooltip says when it applies.
+    /// Whether the run applies patches: a patch folder is given and <see cref="ApplyPatches"/> is checked
+    /// (<see cref="SortConfig.UsesPatches"/>). The option to write the patched versions only is greyed out otherwise.
     /// </summary>
-    public bool IsPatchedPatternEnabled => !IsRunning && HasPatchDir;
+    public bool UsesPatches => ApplyPatches && HasPatchDir;
+
+    /// <summary>
+    /// Whether the pattern of the patched versions can be edited: only when patches are applied, since nothing patched
+    /// is written otherwise. Greyed out, it keeps its value, and its tooltip says when it applies.
+    /// </summary>
+    public bool IsPatchedPatternEnabled => !IsRunning && UsesPatches;
 
     /// <summary>
     /// Whether the effective convention is MAME: the MAME files (CHD folder, categories, ratings) are then read, and the
@@ -641,7 +656,9 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         var folder = await _dialogService.PickFolderAsync(_localization.Tr("dialog.browse_patch_title"), startDir);
         if (!string.IsNullOrEmpty(folder))
         {
+            // Choosing a folder of patches asks for them
             PatchDir = folder;
+            ApplyPatches = true;
         }
     }
 
@@ -1361,6 +1378,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         settings.DatFolderMirror = DatFolderMirror;
         settings.ChdDir = ChdDir;
         settings.PatchDir = PatchDir;
+        settings.ApplyPatches = ApplyPatches;
         settings.PatchOnly = PatchOnly;
         settings.PatchedPattern = PatchedPattern;
         settings.MameCategoryFile = MameCategoryFile;
@@ -1409,6 +1427,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         DatFolderMirror = settings.DatFolderMirror;
         ChdDir = settings.ChdDir;
         PatchDir = settings.PatchDir;
+        ApplyPatches = settings.ApplyPatches;
         PatchOnly = settings.PatchOnly;
         PatchedPattern = settings.PatchedPattern;
         PatchedPatternCaretIndex = -1;

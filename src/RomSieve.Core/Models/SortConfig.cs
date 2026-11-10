@@ -69,6 +69,16 @@ public sealed class SortConfig
     public string? PatchDir { get; set; }
 
     /// <summary>
+    /// Whether the patches of <see cref="PatchDir"/> are applied. Off, the folder stays in the settings but is neither
+    /// read nor checked against the destination, and the options of the patched versions have no effect; it is still
+    /// kept out of the collection when it lies in the source, so that its files are never sorted as ROMs.
+    /// </summary>
+    public bool ApplyPatches { get; set; } = true;
+
+    /// <summary>Whether this run applies patches: a patch folder is given, and <see cref="ApplyPatches"/> is on.</summary>
+    public bool UsesPatches => ApplyPatches && !string.IsNullOrWhiteSpace(PatchDir);
+
+    /// <summary>
     /// Writes the patched versions only: an original ROM that at least one patched version replaces is not written.
     /// </summary>
     public bool PatchOnly { get; set; }

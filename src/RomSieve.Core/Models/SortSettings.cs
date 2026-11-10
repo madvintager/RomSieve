@@ -39,6 +39,9 @@ public sealed class SortSettings
     /// <summary>Folder of the patches (IPS, IPS32, UPS, BPS), read in addition to the source; empty: none.</summary>
     public string PatchDir { get; set; } = string.Empty;
 
+    /// <summary>Whether the patches of <see cref="PatchDir"/> are applied (<see cref="SortConfig.ApplyPatches"/>).</summary>
+    public bool ApplyPatches { get; set; } = true;
+
     /// <summary>Whether only the patched versions are written, not the original ROMs they replace (<see cref="SortConfig.PatchOnly"/>).</summary>
     public bool PatchOnly { get; set; }
 

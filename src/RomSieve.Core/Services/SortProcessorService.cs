@@ -505,6 +505,12 @@ public sealed class SortProcessorService : ISortProcessorService
             return [];
         }
 
+        if (!config.ApplyPatches)
+        {
+            log(LogLevel.Info, LocalizedMessage.Create("log.patches_disabled"));
+            return [];
+        }
+
         if (sortsMameSets)
         {
             log(LogLevel.Info, LocalizedMessage.Create("log.patches_ignored_mame"));

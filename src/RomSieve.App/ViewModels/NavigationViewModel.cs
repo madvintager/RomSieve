@@ -242,6 +242,7 @@ public sealed partial class NavigationViewModel : ViewModelBase
             case nameof(DirectoriesViewModel.Pattern):
             case nameof(DirectoriesViewModel.FlatDestination):
             case nameof(DirectoriesViewModel.PatchedPattern):
+            case nameof(DirectoriesViewModel.ApplyPatches):
             case nameof(DirectoriesViewModel.IsMameConvention):
                 RefreshOutputIndicator();
                 break;
@@ -321,9 +322,11 @@ public sealed partial class NavigationViewModel : ViewModelBase
                 _localization.Tr(mainPatternKey));
             return;
         }
-        else if (SortConfigValidator.GetPatchedPatternErrorKey(_directories.PatchDir, _directories.PatchedPattern) is { } patternKey)
+        else if (SortConfigValidator.GetPatchedPatternErrorKey(
+                     _directories.UsesPatches ? _directories.PatchDir : null,
+                     _directories.PatchedPattern) is { } patternKey)
         {
-            // The pattern of the patched versions, which the run refuses: the reason in the tooltip
+            // The pattern of the patched versions, which the run refuses when it applies patches: the reason in the tooltip
             OutputEntry.SetIndicator(
                 StepIndicatorTone.Warning,
                 _localization.Tr("nav.state_patched_pattern_invalid"),

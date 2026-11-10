@@ -226,6 +226,73 @@ public sealed class CliPatchTests : IDisposable
     }
 
     // =========================================================================
+    // Patches turned off
+    // =========================================================================
+
+    [Fact]
+    public async Task Run_WithThePatchesOffInTheConfiguration_ShouldApplyNone_UnlessTheFolderIsGiven()
+    {
+        WriteConfig(s =>
+        {
+            s.PatchDir = _patches;
+            s.ApplyPatches = false;
+            s.PatchOnly = true;
+            s.PatchedPattern = Path.Combine("..", "escape");
+        });
+
+        var off = await RunAsync("run", "--execute");
+
+        off.ExitCode.Should().Be(ExitCodes.Success, off.Error);
+        DestinationFiles().Should().Equal("Game (USA).sfc");
+        off.Output.Should().Contain("Applying the patches is turned off").And.NotContain("Patches:");
+
+        // Giving the folder asks for the patches, and the pattern is checked again
+        var given = await RunAsync("run", "--patches", _patches);
+        given.ExitCode.Should().Be(ExitCodes.InvalidConfiguration);
+        given.Error.Should().Contain("The folder of the patched versions must stay inside the destination");
+    }
+
+    [Fact]
+    public async Task Run_WithNoPatches_ShouldApplyNone_AndKeepTheConfiguration()
+    {
+        WriteConfig(s => s.PatchDir = _patches);
+        var before = File.ReadAllText(_configPath);
+
+        var result = await RunAsync("run", "--no-patches", "--execute");
+
+        result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
+        DestinationFiles().Should().Equal("Game (USA).sfc");
+        File.ReadAllText(_configPath).Should().Be(before, "the command line never writes the configuration");
+    }
+
+    [Fact]
+    public async Task Run_WithNoPatchesAndPatches_ShouldBeRefused()
+    {
+        var result = await RunAsync("run", "--no-patches", "--patches", _patches, "--execute");
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidArguments);
+        result.Error.Should().Contain("--no-patches and --patches exclude each other");
+        Directory.Exists(_destination).Should().BeFalse();
+        (await RunAsync("run", "--help")).Output.Should().Contain("--no-patches");
+    }
+
+    [Fact]
+    public async Task Patches_ShouldListThePatches_EvenWhenTheConfigurationTurnsThemOff()
+    {
+        WriteConfig(s =>
+        {
+            s.PatchDir = _patches;
+            s.ApplyPatches = false;
+        });
+
+        var result = await RunAsync("patches");
+
+        result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
+        result.Output.Should().Contain("Orphan (T-En).bps", "the command is about the patches");
+        DestinationFiles().Should().BeEmpty();
+    }
+
+    // =========================================================================
     // The patches command
     // =========================================================================
 

@@ -47,6 +47,20 @@ public sealed partial class GuiTests
                 option.IsEffectivelyEnabled.Should().BeTrue();
                 option.IsChecked = true;
                 vm.Directories.PatchOnly.Should().BeTrue();
+
+                // The box next to the title turns the patches off: the folder stays, editable, and the option greys out
+                var apply = window.FindControl<CheckBox>("ChkApplyPatches")!;
+                apply.IsChecked.Should().BeTrue();
+                apply.IsChecked = false;
+                Settle(window);
+                vm.Directories.ApplyPatches.Should().BeFalse();
+                option.IsEffectivelyEnabled.Should().BeFalse("nothing patched is written while the patches are off");
+                option.IsChecked.Should().BeTrue("the option keeps its value");
+                window.FindControl<TextBox>("EditPatchDir")!.IsEffectivelyEnabled.Should().BeTrue();
+                window.FindControl<TextBox>("EditPatchedPattern")!.IsEffectivelyEnabled.Should().BeFalse();
+                apply.IsChecked = true;
+                Settle(window);
+                option.IsEffectivelyEnabled.Should().BeTrue();
             }
             finally
             {

@@ -32,6 +32,9 @@ romsieve-cli run -s /roms/incoming -d /roms/sorted --dat "Commodore - Amiga.dat"
 # Apply the patches of a folder, and only write the patched versions
 romsieve-cli run --patches /roms/patches --patch-only --execute
 
+# Simulate without applying the patches, keeping the folder of the patches of the settings
+romsieve-cli run --no-patches
+
 # A lot of DATs: a whole TOSEC pack, subfolders included, laid out as the pack
 romsieve-cli run --dat /dats/TOSEC --dat-recursive --dir-dat-mirror --execute
 # ... or two of its DATs only
@@ -88,7 +91,7 @@ the settings keep no game, no file is written and the exit code is 4.
 `patches` takes the options of `run` that choose what is simulated (`--profile`, `--source`, `--destination`, `--dat`,
 `--dat-recursive`, `--dat-only`, `--dir-dat-mirror`, `--chd`, `--patches`, `--categories`, `--ratings`), without writing
 anything into the destination. It requires a folder of the patches and a DAT (code 3 otherwise), and refuses a MAME
-sort.
+sort. It applies the patches even when **Apply the patches** is unchecked in the settings.
 
 | Option | Role |
 |---|---|
@@ -114,8 +117,9 @@ already taken, for example) gives the code 4.
 | `--dat-only <name>` | Only sorts with this DAT of the lot, named by the name of its header, case ignored. Repeatable; replaces the DATs unchecked in the settings. A name the lot does not have is refused (code 2), with the names of the lot |
 | `--dir-dat-mirror` | Places the folder of each DAT of the lot under the folders of its path in the folder or the archive of DATs. Refused (code 2) when **A folder per DAT** is unchecked in the settings |
 | `--chd <folder>` | Folder of the CHDs of a MAME collection, when they are not in the source |
-| `--patches <folder>` | Folder of the [patches](patches.md) (IPS, UPS, BPS) to apply to the identified ROMs |
+| `--patches <folder>` | Folder of the [patches](patches.md) (IPS, UPS, BPS) to apply to the identified ROMs, even when **Apply the patches** is unchecked in the settings |
 | `--patch-only` | Only writes the patched versions of the games that have one: neither their original ROM, nor (with 1G1R) the ROM kept for their game |
+| `--no-patches` | Applies no patch, without changing the folder of the patches of the settings (refused with `--patches`, code 2) |
 | `--categories <file>` | Category file of the MAME machines (`catver.ini`, `catlist.ini`) |
 | `--ratings <file>` | Rating file of the MAME machines (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` or `zip` |
@@ -144,14 +148,14 @@ with a game found (*Nintendo - Game Boy: 12 games found, 14/1600 ROMs (0.9 %)*),
 `--miss-list` or `--fixdat`, a line counts the complete DATs and those without any game found, which have nothing to
 export.
 
-With a folder of the patches, a line of the summary counts the patched versions and the patches not applied (*Patches:
+When the patches are applied, a line of the summary counts the patched versions and the patches not applied (*Patches:
 2 patched versions, 1 patch not applied.*); each patch not applied has its line in the log.
 
 ## Safeguards
 
 * Without `--execute`, nothing is written.
 * The source must exist, the DAT must be found, and the destination may not overlap the source, nor the folder of
-  the patches. With a folder of the patches, a folder of the patched versions that would leave the destination (absolute
+  the patches. When the patches are applied, a folder of the patched versions that would leave the destination (absolute
   path, `..`, `_purged` as first folder...) is refused with code 3, for `run` as for `patches`. A folder of DATs the
   sort would refuse (two DATs of the same name, a DAT of MAME machines, software lists mixed with other DATs, every DAT
   unchecked) is refused before anything else, with code 3.
@@ -173,7 +177,7 @@ With a folder of the patches, a line of the summary counts the patched versions 
 |---|---|
 | 0 | Success |
 | 1 | Unexpected error (a crash report is saved in `crashes/` next to the settings, and its path printed) |
-| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT, unsupported export format, `dat --output` over the DAT read, `patches --detach` of a patch that is not an IPS applied from its name) |
+| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT, unsupported export format, `dat --output` over the DAT read, `patches --detach` of a patch that is not an IPS applied from its name, `--no-patches` with `--patches`) |
 | 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder or archive of DATs refused, overlapping folders, pattern that starts with `_purged` or `.romsieve`, folder of the patched versions that would leave the destination) |
 | 4 | Finished, but some files are in error (including a sort stopped by a full destination or a journal that cannot be written), an export failed (or `dat` kept no game), some operations could not be undone or some items of the quarantine could not be deleted |
 | 5 | Cancelled (Ctrl+C) |
