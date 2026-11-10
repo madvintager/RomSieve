@@ -11,7 +11,8 @@ namespace RomSieve.App.Tests;
 
 /// <summary>
 /// Differential simulations: a new simulation of the same source updates the rows in place, marks the rows new or
-/// changed since the previous one, and a real sort or another source starts from an empty table.
+/// changed since the previous one, and a real sort or another source starts from an empty table (the sort of the
+/// simulation shown keeps its rows until its results replace them).
 /// </summary>
 public sealed partial class GuiTests
 {
@@ -335,6 +336,84 @@ public sealed partial class GuiTests
 
         await vm.Execution.SimulateAsync();
         vm.PreviewTable.HasComparison.Should().BeFalse("a real sort is never the reference of the next simulation");
+    }
+
+    [Fact]
+    public async Task RealSortOfTheSimulationShown_ShouldKeepItsRowsAndBannerUntilItsResultsReplaceThem()
+    {
+        var (vm, _, _) = CreateDifferentialSetup();
+        vm.Directories.AppendToDestination = true;
+        await vm.Execution.SimulateAsync();
+        var rowsOfSimulation = vm.AllPreviewItems.ToList();
+        var totalOfSimulation = vm.StatsBanner.TotalChip.Text;
+        var checkedRow = rowsOfSimulation.First(r => r.CanBeSortChecked);
+        List<PreviewItemViewModel>? rowsDuringSort = null;
+        string? totalDuringSort = null;
+        bool? anyBoxEnabledDuringSort = null;
+        bool? canCheckShownDuringSort = null;
+        bool? boxCheckedDuringSort = null;
+        bool? boxKeptAfterClick = null;
+        void OnRunStarting(object? sender, EventArgs e)
+        {
+            rowsDuringSort = vm.AllPreviewItems.ToList();
+            totalDuringSort = vm.StatsBanner.TotalChip.Text;
+            anyBoxEnabledDuringSort = vm.AllPreviewItems.Any(r => r.CanBeSortChecked);
+            canCheckShownDuringSort = vm.PartialSort.CanCheckShownRows;
+            boxCheckedDuringSort = checkedRow.IsSortChecked;
+
+            // A box toggled by the view while the sort runs goes back: the sort took its games at its start
+            checkedRow.IsSortChecked = false;
+            vm.PartialSort.ToggleRowCheck(checkedRow);
+            boxKeptAfterClick = checkedRow.IsSortChecked;
+        }
+
+        vm.Execution.RunStarting += OnRunStarting;
+        try
+        {
+            await vm.Execution.StartSortAsync();
+        }
+        finally
+        {
+            vm.Execution.RunStarting -= OnRunStarting;
+        }
+
+        rowsDuringSort.Should().Equal(rowsOfSimulation, "the sort of the simulation shown keeps its rows while it runs");
+        totalDuringSort.Should().Be(totalOfSimulation, "and its banner");
+        anyBoxEnabledDuringSort.Should().BeFalse("the boxes cannot change while the sort runs");
+        canCheckShownDuringSort.Should().BeFalse();
+        boxCheckedDuringSort.Should().BeTrue("the games the sort writes stay checked");
+        boxKeptAfterClick.Should().BeTrue();
+        vm.PartialSort.IsPartialSelection.Should().BeFalse("the click during the sort unchecked nothing");
+
+        // Once over, the rows are those of the sort, built from its own items
+        vm.AllPreviewItems.Should().HaveCount(4).And.NotContain(r => rowsOfSimulation.Contains(r));
+        vm.AllPreviewItems.Should().OnlyContain(r => vm.Execution.LastItems.Any(i => ReferenceEquals(i, r.Item)));
+        vm.Execution.SortsTheCurrentSimulation.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RealSortAfterAChangedSetting_ShouldEmptyTheTableAtItsStart()
+    {
+        var (vm, _, _) = CreateDifferentialSetup();
+        vm.Directories.AppendToDestination = true;
+        await vm.Execution.SimulateAsync();
+        vm.TosecFilters.ExcludeModifications = !vm.TosecFilters.ExcludeModifications;
+        int? rowCountAtStart = null;
+        void OnRunStarting(object? sender, EventArgs e) => rowCountAtStart = vm.AllPreviewItems.Count;
+
+        vm.Execution.RunStarting += OnRunStarting;
+        try
+        {
+            await vm.Execution.StartSortAsync();
+        }
+        finally
+        {
+            vm.Execution.RunStarting -= OnRunStarting;
+        }
+
+        rowCountAtStart.Should().Be(0, "the rows of an older simulation would not say what the sort writes");
+        vm.Execution.SortsTheCurrentSimulation.Should().BeFalse();
+        vm.AllPreviewItems.Should().HaveCount(4);
     }
 
     [Fact]

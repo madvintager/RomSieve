@@ -46,6 +46,9 @@ public sealed partial class MainViewModel : ViewModelBase
     // An unreadable configuration file that could not be copied either: the default settings never replace it
     private string? _unpreservedConfigPath;
 
+    // The running real sort is that of the simulation shown: the table and the banner keep showing it until it ends
+    private bool _isShowingTheSortedSimulation;
+
     public MainViewModel(
         ISortProcessorService processorService,
         IDatService datService,
@@ -794,8 +797,9 @@ public sealed partial class MainViewModel : ViewModelBase
 
     private void OnItemProcessed(ProcessItem item)
     {
-        // A differential simulation keeps showing the previous rows until it is merged into them
-        if (!PreviewTable.IsDifferentialRunInProgress)
+        // A differential simulation keeps showing the previous rows until it is merged into them, and the sort of the
+        // simulation shown keeps its rows until its results replace them
+        if (!PreviewTable.IsDifferentialRunInProgress && !_isShowingTheSortedSimulation)
         {
             PreviewTable.AddPreviewItem(item, Execution.PreviewDestinationRoot);
         }
@@ -816,6 +820,15 @@ public sealed partial class MainViewModel : ViewModelBase
         }
 
         PreviewTable.ForgetPreviousSimulation();
+
+        // The sort of the simulation shown keeps its rows, its checked games and its banner until its own results replace
+        // them: an empty table for the minutes of the transfers would hide what is being sorted
+        _isShowingTheSortedSimulation = Execution.SortsTheCurrentSimulation && PreviewTable.AllPreviewItems.Count > 0;
+        if (_isShowingTheSortedSimulation)
+        {
+            return;
+        }
+
         PreviewTable.Clear();
         PartialSort.Forget();
         StatsBanner.Reset();
@@ -832,6 +845,12 @@ public sealed partial class MainViewModel : ViewModelBase
         }
         else
         {
+            if (_isShowingTheSortedSimulation)
+            {
+                // The rows of the simulation give way to those of the sort, built from its own items
+                ReleaseTheSortedSimulation();
+            }
+
             if (PreviewTable.AllPreviewItems.Count != items.Count)
             {
                 PreviewTable.RebuildAllPreviewItemsFromLastItems(destRoot, items);
@@ -896,9 +915,22 @@ public sealed partial class MainViewModel : ViewModelBase
         StatsBanner.UpdateStats(stats, transferMode, Fat32Limit.FindOversizedOutputFiles(items, transferMode, preserveArchives), preserveArchives);
     }
 
+    /// <summary>
+    /// Empties the table and the banner that showed the simulation during its sort, as the start of any other sort
+    /// does: the results of the sort take their place.
+    /// </summary>
+    private void ReleaseTheSortedSimulation()
+    {
+        _isShowingTheSortedSimulation = false;
+        PreviewTable.Clear();
+        PartialSort.Forget();
+        StatsBanner.Reset();
+    }
+
     private void OnRunFailed(object? sender, EventArgs e)
     {
         // As for any failed run, the table is left empty
+        _isShowingTheSortedSimulation = false;
         PreviewTable.ForgetPreviousSimulation();
         PreviewTable.Clear();
         PartialSort.Forget();
@@ -912,7 +944,12 @@ public sealed partial class MainViewModel : ViewModelBase
         var items = Execution.LastItems;
         var wasDifferential = PreviewTable.IsDifferentialRunInProgress;
         PreviewTable.ForgetPreviousSimulation();
-        if (wasDifferential)
+        if (_isShowingTheSortedSimulation)
+        {
+            // A stopped sort shows what it processed, not the simulation it started from
+            ReleaseTheSortedSimulation();
+        }
+        else if (wasDifferential)
         {
             StatsBanner.Reset();
             PreviewTable.Clear();

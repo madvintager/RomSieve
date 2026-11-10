@@ -208,7 +208,9 @@ conservés. Les nouvelles lignes, et celles dont le statut, la cible ou la raiso
 **Modifiés** n'affiche qu'elles. Survolez une ligne marquée pour voir son statut et sa cible précédents, ou sa raison
 précédente quand seule la raison a changé (une autre version l'emporte, une autre règle s'applique).
 
-Un tri réel, une autre source, ou une simulation interrompue repartent d'un tableau vide.
+Un tri réel, une autre source, ou une simulation interrompue repartent d'un tableau vide. Le tri de la simulation
+affichée (sans réglage modifié depuis) la garde à l'écran jusqu'à sa fin, cases verrouillées, puis ses résultats la
+remplacent.
 
 ## Simuler, trier, exporter
 

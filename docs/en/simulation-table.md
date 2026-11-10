@@ -199,7 +199,8 @@ status, target or reason changed, are marked, and the **Changed** chip shows onl
 previous status and target, or its previous reason when only the reason changed (another release won, another rule
 applies).
 
-A real sort, another source, or an interrupted simulation start again from an empty table.
+A real sort, another source, or an interrupted simulation start again from an empty table. The sort of the simulation
+shown (with no setting changed since) keeps it on screen until it ends, its boxes locked, then its results replace it.
 
 ## Simulate, sort, export
 

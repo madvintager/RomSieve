@@ -128,6 +128,11 @@ public sealed partial class PartialSortViewModel : ViewModelBase
         // Nothing is sorted while a run goes on, or while a folder of DATs is read
         if (!_execution.CanStartOperation)
         {
+            if (_execution.IsRunning)
+            {
+                LockRows();
+            }
+
             CanSortDisplayed = false;
             CanSortChecked = false;
             NotifyFooterChanged();
@@ -145,6 +150,22 @@ public sealed partial class PartialSortViewModel : ViewModelBase
 
         RefreshDisplayed();
         RefreshChecked();
+    }
+
+    /// <summary>
+    /// The boxes of the rows a run shows cannot change (the rows of a simulation kept while it is sorted, or until a new
+    /// simulation is merged into them): the sort took its games at its start. The next <see cref="IndexRows"/> after the
+    /// run unlocks them.
+    /// </summary>
+    private void LockRows()
+    {
+        foreach (var row in _table.AllPreviewItems)
+        {
+            row.CanBeSortChecked = false;
+        }
+
+        RefreshHeaders();
+        CanCheckShownRows = false;
     }
 
     /// <summary>The rows of the table, or their statuses, changed: the next <see cref="Refresh"/> indexes them again.</summary>
@@ -196,7 +217,7 @@ public sealed partial class PartialSortViewModel : ViewModelBase
     private void UpdateRowCheck(PreviewItemViewModel row)
     {
         var requiredBy = RequiredBy(row);
-        row.CanBeSortChecked = IsCheckable(row) && requiredBy is null;
+        row.CanBeSortChecked = !_execution.IsRunning && IsCheckable(row) && requiredBy is null;
         row.IsSortChecked = IsCheckedRow(row);
         row.SortCheckTooltip = RequiredTooltip(requiredBy);
         row.SetSelection(!IsPartialSelection || !IsCheckable(row)
@@ -259,9 +280,9 @@ public sealed partial class PartialSortViewModel : ViewModelBase
         {
             var checkable = header.Files.Where(IsCheckable).ToList();
             var requiredBy = checkable.Select(RequiredBy).ToList();
-            header.CanBeSortChecked = requiredBy.Any(r => r is null);
+            header.CanBeSortChecked = !_execution.IsRunning && requiredBy.Any(r => r is null);
             header.IsSortChecked = checkable.Count > 0 && checkable.All(f => IsSortedUnit(f.SelectionUnitKey));
-            header.SortCheckTooltip = header.CanBeSortChecked || requiredBy.Count == 0
+            header.SortCheckTooltip = requiredBy.Count == 0 || requiredBy.Any(r => r is null)
                 ? _localization.Tr("panel4.tooltip_row_check")
                 : RequiredTooltip(requiredBy[0]);
         }
@@ -570,7 +591,7 @@ public sealed partial class PartialSortViewModel : ViewModelBase
             .Where(IsCheckable)
             .Select(r => r.SelectionUnitKey)
             .ToHashSet(StringComparer.Ordinal);
-        CanCheckShownRows = shownUnits.Count > 0;
+        CanCheckShownRows = !_execution.IsRunning && shownUnits.Count > 0;
         var checkedCount = shownUnits.Count(IsSortedUnit);
         bool? state = checkedCount == 0 ? false : checkedCount == shownUnits.Count ? true : null;
         if (state != _areShownRowsChecked)
@@ -599,6 +620,21 @@ public sealed partial class PartialSortViewModel : ViewModelBase
     /// </summary>
     public void SetChecked(IEnumerable<PreviewRowViewModel> rows, bool isChecked)
     {
+        if (_execution.IsRunning)
+        {
+            // A box toggled while a run goes on goes back to its state: the running sort took its games at its start
+            foreach (var row in rows)
+            {
+                if (row is PreviewItemViewModel file)
+                {
+                    UpdateRowCheck(file);
+                }
+            }
+
+            RefreshHeaders();
+            return;
+        }
+
         var units = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in rows)
         {

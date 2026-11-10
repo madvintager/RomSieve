@@ -225,6 +225,12 @@ public sealed partial class ExecutionViewModel : ViewModelBase
     public IReadOnlyList<ProcessItem> LastItems => _lastItems;
     public SortConfig? LastExecutedConfig { get; private set; }
 
+    /// <summary>
+    /// Whether the running operation (or the last one) is a real sort of the simulation that was current at its start,
+    /// whose rows the preview table can keep showing until the results of the sort replace them.
+    /// </summary>
+    public bool SortsTheCurrentSimulation { get; private set; }
+
     /// <summary>Destination root of the rows of the preview table.</summary>
     public string PreviewDestinationRoot => LastExecutedConfig?.DestinationDir ?? _directories.DestinationDir;
 
@@ -609,11 +615,14 @@ public sealed partial class ExecutionViewModel : ViewModelBase
 
         LastExecutedConfig = config;
         IsDryRunOperation = isDryRun;
+        SortsTheCurrentSimulation = !isDryRun && IsSimulationCurrent;
         _runSettingsFingerprint = SettingsFingerprint();
-        ForgetSimulation();
         IsStopRequested = false;
         IsPipelineRunning = true;
         IsRunning = true;
+        // Forgotten once the run is under way: the rows of a simulation kept during its sort stay those of a simulation,
+        // checked games included, instead of being indexed as the results of a real sort
+        ForgetSimulation();
         _lastItems.Clear();
         _lastMissingRoms.Clear();
         LastDatCatalog = null;
@@ -1066,6 +1075,7 @@ public sealed partial class ExecutionViewModel : ViewModelBase
     {
         LastExecutedConfig = config;
         IsDryRunOperation = isDryRun;
+        SortsTheCurrentSimulation = !isDryRun && IsSimulationCurrent;
         _runSettingsFingerprint = SettingsFingerprint();
         _lastItems.Clear();
         RunStarting?.Invoke(this, EventArgs.Empty);
