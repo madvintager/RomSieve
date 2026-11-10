@@ -102,6 +102,9 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
     private List<PatchOriginOptionViewModel> _searchable = [];
     private string _patchDir = string.Empty;
+
+    /// <summary>The source of the last run: the folders of the ROMs are shown in it.</summary>
+    internal string SourceDir { get; private set; } = string.Empty;
     private bool _detectCopierHeaders = true;
 
     public PatchesViewModel(
@@ -224,12 +227,13 @@ public sealed partial class PatchesViewModel : ViewModelBase
     {
         var config = _lastConfig();
         _patchDir = config?.PatchDir ?? string.Empty;
+        SourceDir = config?.SourceDir ?? string.Empty;
         _detectCopierHeaders = config?.Filters.DetectCopierHeaders ?? true;
         var items = _lastItems();
         _searchable = [.. items
             .Where(it => PatchMatcher.IsPatchOrigin(it) && it.RelatedItems.Count == 0 && !it.IsMultiMedia)
             .OrderBy(it => it.DisplayName, StringComparer.CurrentCultureIgnoreCase)
-            .Select(it => new PatchOriginOptionViewModel(it))];
+            .Select(it => new PatchOriginOptionViewModel(it, SourceDir))];
 
         var rows = new List<PatchRowViewModel>();
         foreach (var unapplied in _lastStats()?.UnappliedPatches ?? [])
@@ -466,6 +470,19 @@ public sealed partial class PatchesViewModel : ViewModelBase
         if (value is not null && CanSearch)
         {
             SelectedRow!.Choose(value.Origin);
+        }
+    }
+
+    /// <summary>
+    /// Enter in the search: the first file found becomes the choice of the patch. Enter never renames anything, so that a
+    /// search ended by Enter cannot rename a patch by accident.
+    /// </summary>
+    [RelayCommand]
+    private void ChooseFirstSearchResult()
+    {
+        if (OriginSearchResults.Count > 0)
+        {
+            SelectedSearchResult = OriginSearchResults[0];
         }
     }
 

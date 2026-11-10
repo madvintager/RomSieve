@@ -53,6 +53,19 @@
       <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
       <Setter Property="CornerRadius" Value="4" />
     </Style>
+    <!-- The mark of the state of a patch, in the colors of the badges of the table -->
+    <Style Selector="TextBlock.mark">
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="TextBlock.mark.toMatch">
+      <Setter Property="Foreground" Value="{DynamicResource StatusExcludedBadgeForegroundBrush}" />
+    </Style>
+    <Style Selector="TextBlock.mark.applied">
+      <Setter Property="Foreground" Value="{DynamicResource StatusValidBadgeForegroundBrush}" />
+    </Style>
+    <Style Selector="TextBlock.mark.unfixable">
+      <Setter Property="Foreground" Value="{DynamicResource StatusDuplicateBadgeForegroundBrush}" />
+    </Style>
   </Window.Styles>
 
   <DockPanel Margin="16,14">
@@ -94,6 +107,7 @@
       <Border Classes="panel" Padding="2">
         <ListBox x:Name="ListPatches"
                  Background="Transparent"
+                 AutomationProperties.Name="{Binding I18n[patches.window_title]}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  ItemsSource="{Binding ListItems}"
                  SelectedItem="{Binding SelectedListItem, Mode=TwoWay}">
@@ -115,10 +129,16 @@
               </DockPanel>
             </DataTemplate>
             <DataTemplate DataType="vm:PatchRowViewModel">
-              <DockPanel Margin="8,0,0,0" ToolTip.Tip="{Binding Location}">
+              <DockPanel Margin="8,0,0,0"
+                         ToolTip.Tip="{Binding Location}"
+                         AutomationProperties.Name="{Binding AccessibleName}">
                 <TextBlock DockPanel.Dock="Left"
                            Width="16"
                            VerticalAlignment="Top"
+                           Classes="mark"
+                           Classes.toMatch="{Binding IsToMatch}"
+                           Classes.applied="{Binding IsApplied}"
+                           Classes.unfixable="{Binding IsUnfixable}"
                            Text="{Binding StateMark}" />
                 <StackPanel Spacing="1">
                   <TextBlock FontWeight="Bold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Text="{Binding Name}" />
@@ -147,19 +167,35 @@
                          FontSize="13"
                          TextWrapping="Wrap"
                          Text="{Binding SelectedRow.Name, FallbackValue=''}" />
-              <TextBlock Classes="hint" Text="{Binding SelectedRow.Location, FallbackValue=''}" />
-              <TextBlock x:Name="LblPatchState"
-                         Margin="0,8,0,0"
-                         TextWrapping="Wrap"
-                         Text="{Binding SelectedRow.StatusText, FallbackValue=''}" />
+              <TextBlock Classes="hint"
+                         Text="{Binding SelectedRow.Location, FallbackValue=''}"
+                         IsVisible="{Binding SelectedRow.HasLocation, FallbackValue=False}" />
+              <DockPanel Margin="0,8,0,0">
+                <TextBlock DockPanel.Dock="Left"
+                           Width="16"
+                           Classes="mark"
+                           Classes.toMatch="{Binding SelectedRow.IsToMatch, FallbackValue=False}"
+                           Classes.applied="{Binding SelectedRow.IsApplied, FallbackValue=False}"
+                           Classes.unfixable="{Binding SelectedRow.IsUnfixable, FallbackValue=False}"
+                           Text="{Binding SelectedRow.StateMark, FallbackValue=''}" />
+                <TextBlock x:Name="LblPatchState"
+                           TextWrapping="Wrap"
+                           Text="{Binding SelectedRow.StatusText, FallbackValue=''}" />
+              </DockPanel>
 
               <StackPanel IsVisible="{Binding SelectedRow.CanChoose, FallbackValue=False}">
                 <TextBlock Classes="section" Text="{Binding I18n[patches.question]}" />
+                <!-- Ctrl+F comes here; Enter takes the first file found, and never renames anything -->
                 <TextBox x:Name="EditPatchOriginSearch"
                          Watermark="{Binding I18n[patches.search_watermark]}"
                          ToolTip.Tip="{Binding I18n[patches.tooltip_search]}"
+                         AutomationProperties.Name="{Binding I18n[patches.question]}"
                          IsEnabled="{Binding CanSearch}"
-                         Text="{Binding OriginSearchText, Mode=TwoWay}" />
+                         Text="{Binding OriginSearchText, Mode=TwoWay}">
+                  <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding ChooseFirstSearchResultCommand}" />
+                  </TextBox.KeyBindings>
+                </TextBox>
 
                 <TextBlock Classes="hint" Margin="0,8,0,2" Text="{Binding I18n[patches.suggestions_header]}" />
                 <TextBlock Classes="hint"
@@ -169,15 +205,26 @@
                 <ListBox x:Name="ListPatchOrigins"
                          Background="Transparent"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         AutomationProperties.Name="{Binding I18n[patches.suggestions_header]}"
                          IsEnabled="{Binding CanSearch}"
                          ItemsSource="{Binding SelectedRow.Origins, FallbackValue={x:Null}}"
                          SelectedItem="{Binding SelectedRow.SelectedOrigin, Mode=TwoWay, FallbackValue={x:Null}}">
                   <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:PatchOriginOptionViewModel">
+                      <!-- Its folder under its name: two files of the same name tell apart -->
                       <RadioButton IsHitTestVisible="False"
                                    IsChecked="{Binding $parent[ListBoxItem].IsSelected}"
-                                   Content="{Binding Label}"
-                                   ToolTip.Tip="{Binding Location}" />
+                                   AutomationProperties.Name="{Binding Label}"
+                                   ToolTip.Tip="{Binding Location}">
+                        <StackPanel>
+                          <TextBlock TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Text="{Binding Label}" />
+                          <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
+                                     TextWrapping="NoWrap"
+                                     TextTrimming="PathSegmentEllipsis"
+                                     Text="{Binding Folder}"
+                                     IsVisible="{Binding HasFolder}" />
+                        </StackPanel>
+                      </RadioButton>
                     </DataTemplate>
                   </ListBox.ItemTemplate>
                 </ListBox>
@@ -186,6 +233,7 @@
                   <TextBlock Classes="hint" Margin="0,8,0,2" Text="{Binding I18n[patches.search_header]}" />
                   <ListBox x:Name="ListPatchOriginResults"
                            MaxHeight="160"
+                           AutomationProperties.Name="{Binding I18n[patches.search_header]}"
                            Background="Transparent"
                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                            ItemsSource="{Binding OriginSearchResults}"
@@ -213,12 +261,14 @@
                              ToolTip.Tip="{Binding I18n[patches.tooltip_form]}" />
                   <ListBox x:Name="ListPatchForms"
                            Background="Transparent"
+                           AutomationProperties.Name="{Binding I18n[patches.form_label]}"
                            ItemsSource="{Binding SelectedRow.Forms, FallbackValue={x:Null}}"
                            SelectedItem="{Binding SelectedRow.SelectedForm, Mode=TwoWay, FallbackValue={x:Null}}">
                     <ListBox.ItemTemplate>
                       <DataTemplate x:DataType="vm:PatchFormOptionViewModel">
                         <RadioButton IsHitTestVisible="False"
                                      IsChecked="{Binding $parent[ListBoxItem].IsSelected}"
+                                     AutomationProperties.Name="{Binding Label}"
                                      Content="{Binding Label}" />
                       </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -254,7 +304,6 @@
                 <Button x:Name="BtnPatchApply"
                         Margin="0,0,8,4"
                         Classes="accent"
-                        IsDefault="True"
                         Content="{Binding SelectedRow.ApplyLabel, FallbackValue=''}"
                         ToolTip.Tip="{Binding SelectedRow.ApplyTooltip, FallbackValue=''}"
                         ToolTip.ShowOnDisabled="True"

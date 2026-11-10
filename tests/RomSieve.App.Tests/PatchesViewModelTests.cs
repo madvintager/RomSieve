@@ -131,6 +131,10 @@ public sealed class PatchesViewModelTests : IDisposable
         ips.StatusText.Should().Be("Ce patch ne s'applique à aucune ROM : ni son nom ni son readme ne disent pour quelle ROM il a été fait.");
         ips.ListSummary.Should().BeEmpty();
         ips.Origins.Select(o => o.Label).Should().Equal("Game (Japan).sfc", "Game (USA).sfc");
+        ips.Origins.Should().OnlyContain(o => !o.HasFolder, "a ROM at the root of the source shows no folder");
+        ips.HasLocation.Should().BeFalse("it lies at the root of the patch folder");
+        (ips.IsToMatch, ips.IsApplied, ips.IsUnfixable).Should().Be((true, false, false));
+        ips.AccessibleName.Should().StartWith("Game (Japan) (T-Fr).ips, Ce patch ne s'applique à aucune ROM");
         ips.SelectedOrigin!.Label.Should().Be("Game (Japan).sfc", "the first suggestion is chosen, never applied");
         ips.HasSeveralForms.Should().BeFalse();
         ips.CanApply.Should().BeTrue();
@@ -145,6 +149,9 @@ public sealed class PatchesViewModelTests : IDisposable
         hack.ListSummary.Should().Be("→ Game (USA).sfc (readme)");
         hack.StatusText.Should().Be("Appliqué à Game (USA).sfc grâce à Hack.txt");
         hack.Location.Should().Be("hacks");
+        hack.HasLocation.Should().BeTrue();
+        (hack.IsToMatch, hack.IsApplied, hack.IsUnfixable).Should().Be((false, true, false));
+        hack.AccessibleName.Should().Be("Hack.ips → Game (USA).sfc (readme)");
 
         var byName = Row(window, named);
         byName.ListSummary.Should().Be("→ Game (USA).sfc");
@@ -247,6 +254,13 @@ public sealed class PatchesViewModelTests : IDisposable
         row.SelectedOrigin!.Label.Should().Be("Super Mario Bros. (World).sfc");
         row.Origins.Should().ContainSingle("the ROM found joins those of the patch");
         row.CanApply.Should().BeTrue();
+
+        // Enter in the search takes the first file found, and renames nothing
+        window.OriginSearchText = "game";
+        window.ChooseFirstSearchResultCommand.Execute(null);
+        await row.FormsLoading;
+        row.SelectedOrigin!.Label.Should().Be(window.OriginSearchResults[0].Label);
+        File.Exists(Path.Combine(_patches, "Super Mario Frères.ips")).Should().BeTrue();
 
         window.SelectedRow = Row(window, "Other.bps");
         window.OriginSearchText.Should().BeEmpty("the search is that of the selected patch");

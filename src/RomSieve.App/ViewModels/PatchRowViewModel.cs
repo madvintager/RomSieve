@@ -6,7 +6,7 @@ using RomSieve.Core.Services;
 namespace RomSieve.App.ViewModels;
 
 /// <summary>An identified file a patch may be meant for, in the list of the ROMs of a patch or in the search.</summary>
-public sealed class PatchOriginOptionViewModel(ProcessItem origin)
+public sealed class PatchOriginOptionViewModel(ProcessItem origin, string sourceDir)
 {
     public ProcessItem Origin { get; } = origin;
 
@@ -14,6 +14,29 @@ public sealed class PatchOriginOptionViewModel(ProcessItem origin)
 
     /// <summary>Where the file is: its archive, or its path.</summary>
     public string Location { get; } = !string.IsNullOrEmpty(origin.ArchivePath) ? origin.ArchivePath : origin.SourcePath;
+
+    /// <summary>
+    /// Its archive, or the folder of the file, in the source of the run, shown under its name: two files of the same name
+    /// tell apart. Empty for a file at the root of the source.
+    /// </summary>
+    public string Folder { get; } = FolderIn(
+        !string.IsNullOrEmpty(origin.ArchivePath) ? origin.ArchivePath : Path.GetDirectoryName(origin.SourcePath) ?? string.Empty,
+        sourceDir);
+
+    public bool HasFolder => Folder.Length > 0;
+
+    private static string FolderIn(string folder, string sourceDir)
+    {
+        if (string.IsNullOrEmpty(sourceDir) || string.IsNullOrEmpty(folder))
+        {
+            return folder;
+        }
+
+        var relative = Path.GetRelativePath(sourceDir, folder);
+        return relative == "." ? string.Empty
+            : relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative) ? folder
+            : relative;
+    }
 
     /// <summary>Name normalized for the search, once.</summary>
     internal string SearchName { get; } = SearchQuery.Normalize(origin.DisplayName);
@@ -208,7 +231,7 @@ public sealed partial class PatchRowViewModel : ObservableObject
         var option = Origins.FirstOrDefault(o => ReferenceEquals(o.Origin, origin));
         if (option is null)
         {
-            option = new PatchOriginOptionViewModel(origin);
+            option = new PatchOriginOptionViewModel(origin, _owner.SourceDir);
             Origins.Add(option);
             OnPropertyChanged(nameof(HasOrigins));
         }
@@ -218,7 +241,7 @@ public sealed partial class PatchRowViewModel : ObservableObject
 
     internal void AddOrigin(ProcessItem origin)
     {
-        Origins.Add(new PatchOriginOptionViewModel(origin));
+        Origins.Add(new PatchOriginOptionViewModel(origin, _owner.SourceDir));
         OnPropertyChanged(nameof(HasOrigins));
     }
 
@@ -284,6 +307,19 @@ public sealed partial class PatchRowViewModel : ObservableObject
         PatchRowState.Unfixable => "✗",
         _ => "✓"
     };
+
+    /// <summary>The states as booleans, for the colors of the theme (style classes of the view).</summary>
+    public bool IsToMatch => State == PatchRowState.ToMatch;
+
+    public bool IsApplied => State is PatchRowState.AppliedByName or PatchRowState.AppliedByNote;
+
+    public bool IsUnfixable => State == PatchRowState.Unfixable;
+
+    /// <summary>Whether it lies in a folder of the patch folder, or in an archive: a patch at its root has no place to show.</summary>
+    public bool HasLocation => Location.Length > 0;
+
+    /// <summary>What a screen reader says of its line in the list: its name, and where it stands.</summary>
+    public string AccessibleName => ListSummary.Length > 0 ? $"{Name} {ListSummary}" : $"{Name}, {StatusText}";
 
     /// <summary>Why the last action was refused; empty after a success.</summary>
     [ObservableProperty]
@@ -379,7 +415,8 @@ public sealed partial class PatchRowViewModel : ObservableObject
     {
         foreach (var name in new[]
         {
-            nameof(CanChoose), nameof(ListSummary), nameof(StatusText), nameof(IsWarning), nameof(StateMark), nameof(CanApply), nameof(ApplyLabel),
+            nameof(CanChoose), nameof(ListSummary), nameof(StatusText), nameof(IsWarning), nameof(StateMark), nameof(IsToMatch),
+            nameof(IsApplied), nameof(IsUnfixable), nameof(AccessibleName), nameof(CanApply), nameof(ApplyLabel),
             nameof(ApplyTooltip), nameof(PreviewNewName), nameof(HasPreview), nameof(ArchiveHint), nameof(CanDetach),
             nameof(DetachTooltip), nameof(CanUndo), nameof(IsInArchive)
         })

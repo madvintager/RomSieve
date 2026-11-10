@@ -1,5 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.Media;
+using Avalonia.Styling;
+using Avalonia.VisualTree;
 using RomSieve.App.ViewModels;
 using RomSieve.App.Views;
 using RomSieve.Core.Models;
@@ -244,6 +249,135 @@ public sealed partial class GuiTests
             finally
             {
                 window.Close();
+            }
+        });
+    }
+
+    /// <summary>
+    /// The window of the patches with a patch of each kind: the marks of their states in the colors of the theme, light
+    /// and dark; the folder under each ROM proposed; Ctrl+F to the search, and Enter there taking the first file found
+    /// without renaming anything; and, with the real fonts only (ROMSIEVE_HEADLESS_SKIA=1), no text cut at the minimum
+    /// size in any language: the buttons of the detail, of the groups, of the summary and of the footer, and the titles.
+    /// </summary>
+    [Fact]
+    public async Task PatchesWindow_ShouldFollowTheThemeAndTheKeyboard_AndFitItsTextsInEveryLanguage()
+    {
+        var source = Path.Combine(_tempDir, "layout_src");
+        var patches = Path.Combine(_tempDir, "layout_folder");
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(Path.Combine(patches, "hack"));
+        var usa = System.Text.Encoding.ASCII.GetBytes(new string('U', 4096));
+        var world = System.Text.Encoding.ASCII.GetBytes(new string('W', 4096));
+        Directory.CreateDirectory(Path.Combine(source, "usa"));
+        File.WriteAllBytes(Path.Combine(source, "usa", "Game (USA).sfc"), usa);
+        File.WriteAllBytes(Path.Combine(source, "Other (World).sfc"), world);
+        var dat = Path.Combine(_tempDir, "layout_snes.dat");
+        File.WriteAllText(dat, $"""
+            <?xml version="1.0"?><datafile><header><name>Nintendo - SNES</name><homepage>No-Intro</homepage></header>
+            <game name="Game (USA)"><description>Game (USA)</description><rom name="Game (USA).sfc" size="4096" crc="{PatchTestEncoder.Crc(usa):x8}"/></game>
+            <game name="Other (World)"><description>Other (World)</description><rom name="Other (World).sfc" size="4096" crc="{PatchTestEncoder.Crc(world):x8}"/></game></datafile>
+            """);
+        File.WriteAllBytes(Path.Combine(patches, "Game (T-Fr).ips"), PatchTestEncoder.IpsDiff(usa, [.. usa, .. "Fr"u8.ToArray()]));
+        File.WriteAllBytes(Path.Combine(patches, "Other (Hack).ips"), PatchTestEncoder.IpsDiff(world, [.. world, .. "Hack"u8.ToArray()]));
+        File.WriteAllBytes(Path.Combine(patches, "hack", "Hack.ips"), PatchTestEncoder.IpsDiff(usa, [.. usa, .. "Hk"u8.ToArray()]));
+        File.WriteAllText(Path.Combine(patches, "hack", "readme.txt"), $"CRC32: {PatchTestEncoder.Crc(usa):X8}");
+        File.WriteAllBytes(Path.Combine(patches, "Orphan.bps"), PatchTestEncoder.BpsLinear(new byte[64], new byte[65]));
+
+        var vm = CreateViewModel();
+        vm.Directories.SourceDir = source;
+        vm.Directories.DestinationDir = Path.Combine(_tempDir, "layout_dst");
+        vm.Directories.DatFilePath = dat;
+        vm.Directories.PatchDir = patches;
+        await vm.Execution.SimulateAsync();
+
+        await RunOnUiThreadAsync(async () =>
+        {
+            var shown = vm.Patches;
+            shown.Load();
+            await Task.WhenAll(shown.Rows.Select(r => r.FormsLoading));
+            var patchesWindow = new PatchesWindow { DataContext = shown };
+            patchesWindow.Show();
+            try
+            {
+                Settle(patchesWindow);
+                shown.Rows.Select(r => r.State).Should().Contain([PatchRowState.ToMatch, PatchRowState.AppliedByNote, PatchRowState.Unfixable]);
+
+                // The marks of the states, in the colors of the badges of the table, light then dark
+                var list = patchesWindow.FindControl<ListBox>("ListPatches")!;
+                TextBlock Mark(string state) => list.GetVisualDescendants().OfType<TextBlock>().First(t => t.Classes.Contains("mark") && t.Classes.Contains(state));
+                ((ISolidColorBrush)Mark("toMatch").Foreground!).Color.Should().Be(PaletteColor(ThemeVariant.Light, "StatusExcludedBadgeForegroundBrush"));
+                ((ISolidColorBrush)Mark("applied").Foreground!).Color.Should().Be(PaletteColor(ThemeVariant.Light, "StatusValidBadgeForegroundBrush"));
+                ((ISolidColorBrush)Mark("unfixable").Foreground!).Color.Should().Be(PaletteColor(ThemeVariant.Light, "StatusDuplicateBadgeForegroundBrush"));
+                MainWindow.ApplyTheme(UiTheme.Dark);
+                Settle(patchesWindow);
+                ((ISolidColorBrush)Mark("applied").Foreground!).Color.Should().Be(PaletteColor(ThemeVariant.Dark, "StatusValidBadgeForegroundBrush"));
+                MainWindow.ApplyTheme(UiTheme.Light);
+                Settle(patchesWindow);
+
+                // Each ROM proposed shows its folder in the source
+                var origins = patchesWindow.FindControl<ListBox>("ListPatchOrigins")!;
+                origins.GetVisualDescendants().OfType<TextBlock>().Should().Contain(t => t.Text == "usa" && t.IsEffectivelyVisible, "its folder in the source");
+
+                // Ctrl+F, a search, Enter: the first file found is chosen, nothing is renamed
+                var row = shown.SelectedRow!;
+                row.Name.Should().Be("Game (T-Fr).ips");
+                patchesWindow.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, "f");
+                Settle(patchesWindow);
+                var search = patchesWindow.FindControl<TextBox>("EditPatchOriginSearch")!;
+                patchesWindow.FocusManager!.GetFocusedElement().Should().BeSameAs(search);
+                patchesWindow.KeyTextInput("world");
+                Settle(patchesWindow);
+                shown.OriginSearchText.Should().Be("world");
+                patchesWindow.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+                await row.FormsLoading;
+                Settle(patchesWindow);
+                row.SelectedOrigin!.Label.Should().Be("Other (World).sfc");
+                File.Exists(Path.Combine(patches, "Game (T-Fr).ips")).Should().BeTrue("Enter never renames anything");
+                shown.HasModified.Should().BeFalse();
+
+                if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
+                {
+                    // A patch renamed, to show « Undo »
+                    await shown.ApplyCommand.ExecuteAsync(null);
+                    patchesWindow.Width = patchesWindow.MinWidth;
+                    patchesWindow.Height = patchesWindow.MinHeight;
+                    foreach (var locale in new[] { "fr", "en", "es" })
+                    {
+                        vm.UiLocale = locale;
+                        Settle(patchesWindow);
+                        foreach (var name in new[] { "BtnPatchesClose", "BtnPatchesSimulateAgain", "BtnPatchApply", "BtnPatchDetach", "BtnPatchUndo" })
+                        {
+                            AssertNotTrimmed(patchesWindow.FindControl<Control>(name)!, $"{name} ({locale})");
+                        }
+
+                        var headers = list.GetVisualDescendants().OfType<Control>()
+                            .Where(c => c is Button { IsEffectivelyVisible: true } || (c is TextBlock { FontWeight: FontWeight.Bold } t && t.DataContext is PatchGroupViewModel))
+                            .ToList();
+                        headers.OfType<Button>().Should().HaveCount(2, "the patches to match and those applied by a readme have an action");
+                        headers.OfType<TextBlock>().Should().HaveCount(3, "three groups have patches");
+                        foreach (var control in headers)
+                        {
+                            AssertNotTrimmed(control, $"a title of group or its button ({locale})");
+                        }
+
+                        await shown.OpenBatchCommand.ExecuteAsync(PatchGroupKind.ToMatch);
+                        Settle(patchesWindow);
+                        foreach (var name in new[] { "BtnPatchBatchCheckAll", "BtnPatchBatchApply", "BtnPatchBatchBack" })
+                        {
+                            AssertNotTrimmed(patchesWindow.FindControl<Control>(name)!, $"{name} ({locale})");
+                        }
+
+                        shown.CloseBatchCommand.Execute(null);
+                    }
+
+                    vm.UiLocale = "fr";
+                }
+            }
+            finally
+            {
+                // The theme belongs to the application, shared by every test
+                MainWindow.ApplyTheme(UiTheme.Light);
+                patchesWindow.Close();
             }
         });
     }
