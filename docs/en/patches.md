@@ -5,8 +5,9 @@ translation, a bug fix, a hack. It is shared instead of the modified ROM, since 
 game; each user applies it to their own copy.
 
 RomSieve applies the patches of a folder to the ROMs of your collection: each patch whose original ROM is identified in
-the source gives a **patched version**, written in the destination next to the original version. The original ROM is
-**never modified**.
+the source gives a **patched version**, written in the destination next to the original version, or in a folder of its
+own (see [A folder for the patched versions](#a-folder-for-the-patched-versions)). The original ROM is **never
+modified**.
 
 A patch only applies to the exact ROM it was made for: same region, same revision, same dump. RomSieve finds it for you
 by its checksum (CRC32), which needs a [DAT file](naming-conventions-and-dats.md#dat-files).
@@ -88,7 +89,9 @@ The detail panel of a patched version names the readme that gave the CRC32.
 
 * **Name**: that of the original ROM, followed by a label of the patch in square brackets, with the extension of the
   original ROM (see [Name of the patched version](#name-of-the-patched-version)).
-* **Folder**: the one the original ROM would have in the destination, even when 1G1R leaves it out.
+* **Folder**: the one the original ROM would have in the destination, even when 1G1R leaves it out, or the one the
+  **Patched versions** field of the **Output** step gives (see
+  [A folder for the patched versions](#a-folder-for-the-patched-versions)).
 * **Game**: the patched version belongs to the game of its original ROM. It stays outside 1G1R, multi-disk sets and
   filters: it is never left out instead of its origin, and never leaves it out.
 * **Conflicts**: a collision with a file already in the destination follows the chosen conflict mode (see
@@ -131,14 +134,70 @@ original ROM of the patch is replaced. The table shows a ROM replaced **Excluded
 patched version*; a ROM that 1G1R already left out keeps its reason. With the option unchecked, the ROM kept and the
 patched version are both written. The option is greyed out without a folder of the patches.
 
+## A folder for the patched versions
+
+By default, a patched version goes into the folder of its original ROM. The **Patched versions** field of the
+**Output** step, in the *Directory tree* frame, under the **Pattern**, puts it elsewhere, for two uses:
+
+* **keeping a clean set**: a DAT manager that checks the folder of a DAT finds no unknown file in it, since the patched
+  versions are kept out of that folder;
+* **showing the patched versions apart** in a frontend, in a folder of their own or in a subfolder of each game.
+
+The field is a pattern of folders, like the **Pattern** (see [Variables](destination-and-transfers.md#variables)), but it
+starts from the **root of the destination**, even with **All at the root**: the folders of a lot of DATs are not added
+to it on their own. Its variables take the values of the original ROM (`{title}`, `{dat}`, `{publisher}`…), even when
+1G1R leaves it out, and two variables exist for it alone:
+
+| Variable | Content |
+|---|---|
+| `{origin_folder}` | The whole folder the original ROM goes into: the folder of its DAT in a lot (under the folders of its path when they are mirrored), then the folders of the pattern; none with **All at the root** |
+| `{dat_folder}` | The folder of the DAT of the original ROM in a lot, under the folders of its path when they are mirrored; none for a single DAT, or without **A folder per DAT** |
+
+Each makes up a folder on its own, between two `/`: `{origin_folder}/Patches` is allowed, `{origin_folder}-patches` is
+not. Empty, the field (*Next to the original ROM*) gives the same folder as `{origin_folder}`.
+
+Examples with `Chrono Trigger (Japan).sfc`, the pattern `{title}` and a `(T-En)` patch:
+
+| Patched versions | Single DAT | Lot, a folder per DAT | Lot, folders of the DATs mirrored (`No-Intro/`) |
+|---|---|---|---|
+| *(empty)* | `Chrono Trigger/` | `Nintendo - SNES/Chrono Trigger/` | `No-Intro/Nintendo - SNES/Chrono Trigger/` |
+| `Patches/{title}` | `Patches/Chrono Trigger/` | `Patches/Chrono Trigger/` (every DAT together) | `Patches/Chrono Trigger/` |
+| `Patches/{dat}/{title}` | `Patches/Nintendo - SNES/Chrono Trigger/` | `Patches/Nintendo - SNES/Chrono Trigger/` | `Patches/Nintendo - SNES/Chrono Trigger/` |
+| `{dat_folder}/Patches` | `Patches/` | `Nintendo - SNES/Patches/` | `No-Intro/Nintendo - SNES/Patches/` |
+| `{origin_folder}/Patches` | `Chrono Trigger/Patches/` | `Nintendo - SNES/Chrono Trigger/Patches/` | `No-Intro/Nintendo - SNES/Chrono Trigger/Patches/` |
+
+The file keeps its name there, `Chrono Trigger (Japan) [T-En].sfc` (a `.zip` archive in ZIP mode). The `_unmatched`
+folder of the non-conforming files stays at the root: a patched version never goes there, since its original ROM is
+identified.
+
+* **Insert Variable** inserts a variable at the caret of the field: those of the pattern, then **Folder of the original
+  ROM** (`{origin_folder}`) and **Folder of the DAT** (`{dat_folder}`, greyed out outside a lot with **A folder per
+  DAT**).
+* **Presets**: **Next to the original ROM** (empty field), **Subfolder of the original ROM** (`{origin_folder}/Patches`)
+  and **Folder at the root** (`Patches/{dat}/{title}`), which leaves the folder of each DAT without unknown files.
+* The field and its menus are **greyed out without a folder of the patches**, since nothing patched would be written;
+  the field keeps its value, saved in the settings and the profiles.
+* With a folder of the patches, the [live preview](destination-and-transfers.md#live-preview) shows, in place of its
+  third example, where the patched version of the first one would go: *Patched version: …*.
+
+Nothing is written outside the destination. A folder that would leave it, or write into the folders RomSieve keeps for
+itself, is **refused**: a path that starts with `/` or `\`, a drive (`C:`), a `..` folder, a character forbidden in a
+name (`< > : " | ? *`), `_purged` or `.romsieve` as first folder, `{origin_folder}` or `{dat_folder}` that is not a
+folder on its own. The preview says why, a line says so under the **Output** step (*Patched folder refused*), and both
+the simulation and the sort are refused before anything is written. An unknown variable, a brace without its pair or an
+`_unmatched` folder are only a warning of the preview, as for the pattern.
+
+Changing the folder of the patched versions makes the last simulation out of date; the next one marks the patched
+versions alone *Changed*. **Undo Last Sort** deletes them, and the folders it empties.
+
 ## Transfer modes
 
 | Mode | Patched version |
 |---|---|
-| **Copy** | A file, written next to the original ROM |
+| **Copy** | A file, written next to the original ROM or in its [folder](#a-folder-for-the-patched-versions) |
 | **Move** | A file, written **before** the original ROM leaves the source. With *Write the patched versions only*, the ROM it replaces stays in the source. |
 | **Hard link**, **Symlink** | A **copy**: a link cannot hold modified data. The log says so. |
-| **ZIP** | An archive of its own, in the TorrentZip format, like that of any other game |
+| **ZIP** | An archive of its own, in the TorrentZip format, like that of any other game, in the same folder |
 
 An original ROM stored in an archive is extracted next to the target while the patch is applied, then deleted. The
 archive is never modified.
@@ -260,7 +319,9 @@ the sort.
 ## On the command line
 
 `--patches <folder>` gives the folder of the patches, and `--patch-only` only writes the patched versions (see
-[Command line](command-line.md)). The summary counts the patched versions and the patches not applied.
+[Command line](command-line.md)). The folder of the patched versions comes from the settings file or the profile; a
+folder refused stops `run` as well as `patches`, with code 3. The summary counts the patched versions and the patches
+not applied.
 
 `romsieve-cli patches` simulates the sort and lists its patches not applied, with the ROMs proposed for an IPS without
 CRC32, then the IPS applied thanks to their readme and those applied from their name; `--name-from-notes --yes` writes

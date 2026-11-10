@@ -15,7 +15,8 @@ RomSieve manipule des collections de plusieurs téraoctets. Il est conçu pour q
   leurs liens résolus. Les lecteurs réseau mappés et les montages liés (*bind mounts*) ne sont pas résolus. La
   destination ne peut pas non plus chevaucher le [dossier des patchs](patches.md#dossier-des-patchs), qu'une purge ne
   touche jamais.
-* **Un patch ne modifie jamais la ROM d'origine** : la version patchée est un nouveau fichier, écrit à côté.
+* **Un patch ne modifie jamais la ROM d'origine** : la version patchée est un nouveau fichier, écrit à côté ou dans
+  son [dossier](patches.md#un-dossier-patchs), toujours dans la destination.
 * **Rien n'est écrit hors de la destination.** Un nom de fichier lu dans une archive ou un DAT qui est un chemin absolu
   (`C:/…`, `/home/…`), contient un segment `..` ou un caractère nul pourrait écrire n'importe où sur le disque, ce que
   font exprès certaines archives trouvées sur Internet. Un tel fichier est en erreur dès la simulation, avec la raison

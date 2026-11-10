@@ -2,8 +2,8 @@
 
 Tout ce qui est décrit sur cette page se règle dans l'étape **Sortie**, en quatre cadres : **Destination** (le dossier,
 et que faire s'il n'est pas vide), **Écriture des fichiers** (mode, conflits, vérification, archives d'un seul jeu),
-**Jeux multi-disques** (sous-dossier, playlist) et **Arborescence** (modèle, articles, dossiers des DAT d'un lot,
-aperçu). La croix au bout du champ de la destination le vide.
+**Jeux multi-disques** (sous-dossier, playlist) et **Arborescence** (modèle, dossier des versions patchées, articles,
+dossiers des DAT d'un lot, aperçu). La croix au bout du champ de la destination le vide.
 
 ![L'étape Sortie](../images/fr/output_settings.png)
 
@@ -32,6 +32,11 @@ Saisissez le modèle dans le champ, ou utilisez les deux menus placés dessous :
 
 Choisir un préréglage repasse sur **Dans des dossiers, selon le modèle** si **Tout à la racine** était choisi (voir plus bas).
 
+Sous le modèle, le champ **Versions patchées**, avec ses propres menus, range les versions patchées d'un
+[dossier des patchs](patches.md) : vide, à côté de leur ROM d'origine ; sinon, dans les dossiers qu'il décrit, depuis
+la racine de la destination, même avec **Tout à la racine** (voir [Un dossier Patchs](patches.md#un-dossier-patchs)). Il
+est grisé sans dossier des patchs.
+
 ### Aperçu en direct
 
 En bas du cadre *Arborescence*, l'aperçu montre où le tri écrirait trois fichiers avec les options actuelles : destination, dossiers et
@@ -46,10 +51,12 @@ convention, le DAT, la destination, le mode ou les options ci-dessous.
   garde le nom de la source.
 * Avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), les exemples vont dans le dossier du premier DAT
   coché de leur convention, comme ses fichiers.
+* Avec un [dossier des patchs](patches.md), une ligne montre, à la place du troisième exemple, où irait une version
+  patchée du premier (*Version patchée : …*), d'après le champ **Versions patchées**.
 
 L'aperçu signale un modèle qui ne ferait pas ce qu'il dit : une variable inconnue (le tri la supprime), une accolade
 sans paire (elle resterait dans le nom du dossier), ou un modèle qui écrit dans `_unmatched`, le dossier des fichiers
-non conformes.
+non conformes. Il signale de même un dossier des versions patchées refusé, et dit pourquoi.
 
 ### Variables
 
@@ -69,6 +76,8 @@ non conformes.
 | `{genre}` | Genre de la machine, d'après le [fichier de catégories](naming-conventions-and-dats.md#genre-des-machines) (MAME) | `Shooter` |
 | `{category}` | Genre et sous-genre de la machine (MAME) | `Shooter - Flying Vertical` |
 | `{dat}` | Nom d'en-tête du DAT du fichier : le DAT choisi, ou le DAT du lot avec lequel il est rangé | `Nintendo - Game Boy` |
+| `{origin_folder}` | Versions patchées seulement : le dossier entier de la ROM d'origine (dossier de son DAT dans un lot, puis dossiers du modèle) | `Nintendo - Game Boy/Tetris` |
+| `{dat_folder}` | Versions patchées seulement : le dossier du DAT de la ROM d'origine dans un lot, aucun pour un DAT seul | `Nintendo - Game Boy` |
 
 Une valeur inconnue donne `Unknown` (vide pour `{version}`). Les noms sont débarrassés des caractères interdits par
 Windows ou Linux, et les chemins très longs sont pris en charge sous Windows.
@@ -78,7 +87,8 @@ Windows ou Linux, et les chemins très longs sont pris en charge sous Windows.
 La ligne **Organisation**, en tête du cadre *Arborescence*, propose deux choix : **Dans des dossiers, selon le modèle**
 (par défaut) ou **Tout à la racine (aucun sous-dossier)**, qui place tous les fichiers à la racine de la destination.
 C'est une option à part entière : le modèle reste dans son champ, grisé avec **Insérer une variable**, et resservira
-quand vous reviendrez aux dossiers ou choisirez un préréglage. Une phrase sous les deux choix le rappelle.
+quand vous reviendrez aux dossiers ou choisirez un préréglage. Une phrase sous les deux choix le rappelle, et dit que
+le dossier des versions patchées, lui, s'applique encore.
 **Restaurer les articles initiaux** reste actif, car il s'applique aussi au sous-dossier d'un jeu multi-disques. Un jeu multi-disques garde son sous-dossier si **Un sous-dossier par jeu**
 (cadre *Jeux multi-disques*) est coché.
 
@@ -88,8 +98,8 @@ un modèle, ses dossiers viennent au-dessus de celui de la liste.
 
 ### Un dossier par DAT
 
-Avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), deux cases sous **Restaurer les articles initiaux**
-placent les fichiers de chaque DAT à part :
+Avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), deux cases à côté de **Restaurer les articles
+initiaux** placent les fichiers de chaque DAT à part :
 
 * **Un dossier par DAT** (cochée par défaut) : les fichiers de chaque DAT vont dans un dossier à son nom, au-dessus des
   dossiers du modèle. Avec `{title}`, `Tetris (World).gb` va dans `Nintendo - Game Boy/Tetris/`. Décochée, tous les
@@ -105,8 +115,8 @@ Le dossier `_unmatched` des fichiers non conformes reste à la racine de la dest
 
 ### Options associées
 
-* **Restaurer les articles initiaux**, sous le modèle : `Legend of Zelda, The` devient `The Legend of Zelda` dans les
-  noms de dossiers.
+* **Restaurer les articles initiaux**, sous le modèle et le dossier des versions patchées : `Legend of Zelda, The`
+  devient `The Legend of Zelda` dans les noms de dossiers.
 
 Le cadre **Jeux multi-disques**, à côté de *Écriture des fichiers* :
 
@@ -143,8 +153,9 @@ Les fichiers **Exclus** par un filtre et les **Doublons** ne sont jamais écrits
 mode Déplacer.
 
 Une version patchée (voir [Patchs](patches.md#modes-de-transfert)) est écrite comme une copie dans tous les modes, liens
-compris, puisqu'un lien ne peut pas porter un contenu modifié ; en mode Déplacer, elle est écrite avant que sa ROM
-d'origine ne quitte la source, et en mode ZIP, elle a son archive. Les fichiers **Non conformes** sont transférés dans `_unmatched/` à la racine de la destination.
+compris, puisqu'un lien ne peut pas porter un contenu modifié, à côté de sa ROM d'origine ou dans son
+[dossier](patches.md#un-dossier-patchs) ; en mode Déplacer, elle est écrite avant que sa ROM d'origine ne quitte la
+source, et en mode ZIP, elle a son archive. Les fichiers **Non conformes** sont transférés dans `_unmatched/` à la racine de la destination.
 
 ### Isoler les fichiers non conformes dans _unmatched
 

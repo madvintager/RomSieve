@@ -2,8 +2,8 @@
 
 Everything on this page is set in the **Output** step, in four frames: **Destination** (the folder, and what to do
 when it is not empty), **Writing the files** (mode, conflicts, verification, single-game archives), **Multi-disk
-games** (subfolder, playlist) and **Directory tree** (pattern, articles, folders of the DATs of a lot, preview). The
-cross at the end of the destination field empties it.
+games** (subfolder, playlist) and **Directory tree** (pattern, folder of the patched versions, articles, folders of the
+DATs of a lot, preview). The cross at the end of the destination field empties it.
 
 ![The Output step](../images/output_settings.png)
 
@@ -32,6 +32,12 @@ Type the pattern in the field, or use the two menus under it:
 
 Choosing a preset goes back to **In folders, from the pattern** if **All at the root** was chosen (see below).
 
+Under the pattern, the **Patched versions** field, with menus of its own, places the patched versions of a
+[folder of the patches](patches.md): empty, next to their original ROM; otherwise, in the folders it describes, from the
+root of the destination, even with **All at the root** (see
+[A folder for the patched versions](patches.md#a-folder-for-the-patched-versions)). It is greyed out without a folder of
+the patches.
+
 ### Live preview
 
 At the bottom of the *Directory tree* frame, the preview shows where the sort would write three files with the current options: destination,
@@ -46,10 +52,12 @@ the DAT, the destination, the mode or the options below change.
   the source name.
 * With a [lot of DATs](naming-conventions-and-dats.md#several-dats), the examples go into the folder of the first DAT
   checked of their convention, as its files would.
+* With a [folder of the patches](patches.md), a line shows, in place of the third example, where a patched version of
+  the first one would go (*Patched version: …*), from the **Patched versions** field.
 
 The preview warns about a pattern that would not do what it says: an unknown variable (the sort drops it), a brace
 without its pair (it would stay in the folder name), or a pattern that writes into `_unmatched`, the folder of the
-non-conforming files.
+non-conforming files. It also reports a folder of the patched versions that is refused, and says why.
 
 ### Variables
 
@@ -69,6 +77,8 @@ non-conforming files.
 | `{genre}` | Genre of the machine, from the [category file](naming-conventions-and-dats.md#machine-categories) (MAME) | `Shooter` |
 | `{category}` | Genre and subgenre of the machine (MAME) | `Shooter - Flying Vertical` |
 | `{dat}` | Header name of the DAT of the file: the DAT chosen, or the DAT of the lot it is sorted with | `Nintendo - Game Boy` |
+| `{origin_folder}` | Patched versions only: the whole folder of the original ROM (folder of its DAT in a lot, then folders of the pattern) | `Nintendo - Game Boy/Tetris` |
+| `{dat_folder}` | Patched versions only: the folder of the DAT of the original ROM in a lot, none for a single DAT | `Nintendo - Game Boy` |
 
 An unknown value gives `Unknown` (empty for `{version}`). The names are cleaned of the characters forbidden by Windows
 or Linux, and very long paths are supported on Windows.
@@ -78,7 +88,8 @@ or Linux, and very long paths are supported on Windows.
 The **Layout** line, at the top of the *Directory tree* frame, offers two choices: **In folders, from the pattern** (the
 default) or **All at the root (no subfolders)**, which puts every file at the root of the destination. It is an option
 of its own: the pattern stays in its field, greyed with **Insert Variable**, and is used again when you go back to the
-folders or choose a preset. A sentence under the two choices recalls it. **Restore leading articles** stays active, as it
+folders or choose a preset. A sentence under the two choices recalls it, and says that the folder of the patched
+versions still applies. **Restore leading articles** stays active, as it
 also applies to the subfolder of a multi-disk game. A multi-disk game still gets its subfolder if **One subfolder per game** (*Multi-disk games* frame) is checked.
 
 A software of a [MAME software list](naming-conventions-and-dats.md#mame-software-lists) always goes into the folder of
@@ -87,8 +98,8 @@ pattern, its folders come above that of the list.
 
 ### A folder per DAT
 
-With a [lot of DATs](naming-conventions-and-dats.md#several-dats), two boxes under **Restore leading articles** keep the
-files of each DAT apart:
+With a [lot of DATs](naming-conventions-and-dats.md#several-dats), two boxes next to **Restore leading articles** keep
+the files of each DAT apart:
 
 * **A folder per DAT** (checked by default): the files of each DAT go into a folder named after it, above the folders of
   the pattern. With `{title}`, `Tetris (World).gb` goes into `Nintendo - Game Boy/Tetris/`. Unchecked, every DAT shares
@@ -104,8 +115,8 @@ The `_unmatched` folder of the non-conforming files stays at the root of the des
 
 ### Related options
 
-* **Restore leading articles**, under the pattern: `Legend of Zelda, The` becomes `The Legend of Zelda` in the folder
-  names.
+* **Restore leading articles**, under the pattern and the folder of the patched versions: `Legend of Zelda, The`
+  becomes `The Legend of Zelda` in the folder names.
 
 The **Multi-disk games** frame, next to *Writing the files*:
 
@@ -143,8 +154,9 @@ and so is a software of a MAME list.
 Files **Excluded** by a filter and **Duplicates** are never written: they stay in the source, even in Move mode.
 
 A patched version (see [Patches](patches.md#transfer-modes)) is written as a copy in every mode, links included, since a
-link cannot hold modified data; in Move mode, it is written before its original ROM leaves the source, and in ZIP mode,
-it has its own archive.
+link cannot hold modified data, next to its original ROM or in its
+[folder](patches.md#a-folder-for-the-patched-versions); in Move mode, it is written before its original ROM leaves the
+source, and in ZIP mode, it has its own archive.
 **Non-conforming** files are transferred to `_unmatched/` at the root of the destination.
 
 ### Isolate non-conforming files in _unmatched

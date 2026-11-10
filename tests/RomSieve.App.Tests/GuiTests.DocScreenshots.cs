@@ -151,11 +151,33 @@ public sealed partial class GuiTests
                                      (WorkflowStep.Output, "output_settings")
                                  })
                         {
+                            // The output step shows the folder of the patched versions with the line of its preview, for
+                            // this screenshot only: a subfolder of the folder of the original ROM, named in the language
+                            var showsPatches = step == WorkflowStep.Output;
+                            if (showsPatches)
+                            {
+                                vm.Directories.PatchDir = patches;
+                                vm.Directories.PresetPatchedSubfolderCommand.Execute(null);
+                                vm.Directories.Preview.Refresh();
+                                UseWindowsSeparators(vm.Directories.Preview);
+
+                                // The results are not shown out of date for an option of the screenshot
+                                vm.Execution.AdoptCurrentSettingsAsSimulatedForTests();
+                            }
+
                             vm.Navigation.CurrentStep = step;
                             HideSampleSourceIndicator(vm);
                             Settle(window!);
                             frame = RenderWindow(window!);
                             Save(frame, StepPageBounds(window!, step), Path.Combine(folder, $"{image}{suffix}.png"));
+                            if (showsPatches)
+                            {
+                                vm.Directories.PatchedPattern = string.Empty;
+                                vm.Directories.PatchDir = string.Empty;
+                                vm.Directories.Preview.Refresh();
+                                UseWindowsSeparators(vm.Directories.Preview);
+                                vm.Execution.AdoptCurrentSettingsAsSimulatedForTests();
+                            }
                         }
 
                         var preferences = new PreferencesWindow { DataContext = vm.Preferences };
@@ -312,11 +334,18 @@ public sealed partial class GuiTests
         // The pattern preview shows the files of the sample collection, at the sample destination, with the
         // separators of its Windows paths
         directories.Preview.ShowSourceFilesForTests(source);
-        directories.Preview.Examples.ReplaceAll(directories.Preview.Examples
-            .Select(e => e with { TargetPath = e.TargetPath.Replace('/', '\\') })
-            .ToList());
+        UseWindowsSeparators(directories.Preview);
 
         HideSampleSourceIndicator(vm);
+    }
+
+    /// <summary>The paths of the preview with the separators of the Windows paths of the sample collection.</summary>
+    private static void UseWindowsSeparators(PatternPreviewViewModel preview)
+    {
+        preview.Examples.ReplaceAll(preview.Examples
+            .Select(e => e with { TargetPath = e.TargetPath.Replace('/', '\\') })
+            .ToList());
+        preview.PatchedExampleText = preview.PatchedExampleText.Replace('/', '\\');
     }
 
     /// <summary>

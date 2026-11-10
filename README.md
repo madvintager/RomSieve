@@ -52,7 +52,8 @@ or RAR archive it was downloaded as, and each file is sorted with the DAT that k
 convention, filters, 1G1R and folder in the destination. Only the DATs the source needs are read in full.
 
 **Patches.** Give RomSieve a folder of IPS, UPS or BPS patches (translations, fixes, hacks): each patch whose original
-ROM is identified in your collection gives a patched version, written next to the original, which is never modified.
+ROM is identified in your collection gives a patched version, written next to the original, or in a folder of its
+own, while the original is never modified.
 UPS and BPS patches are matched by the checksum they record, IPS patches by the CRC32 in their name or in their readme,
 with or without a copier header. For an IPS that gives none, the Patches window proposes ROMs from its name, or lets you
 search one, and writes its CRC32 in the name of the patch. A translation of a Japanese release is applied even when 1G1R

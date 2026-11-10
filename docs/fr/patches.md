@@ -5,8 +5,8 @@ ROM : une traduction, une correction de bogues, un hack. On le diffuse à la pla
 la ROM reviendrait à diffuser le jeu ; c'est à chacun de l'appliquer à sa propre copie.
 
 RomSieve applique les patchs d'un dossier aux ROMs de votre collection : chaque patch dont la ROM d'origine est
-identifiée dans la source donne une **version patchée**, écrite dans la destination à côté de la version d'origine. La
-ROM d'origine n'est **jamais modifiée**.
+identifiée dans la source donne une **version patchée**, écrite dans la destination à côté de la version d'origine, ou
+dans un dossier à part (voir [Un dossier Patchs](#un-dossier-patchs)). La ROM d'origine n'est **jamais modifiée**.
 
 Un patch ne s'applique qu'à la ROM exacte pour laquelle il a été fait : même région, même révision, même dump. RomSieve
 la trouve pour vous par sa somme de contrôle (CRC32), ce qui demande un [fichier DAT](naming-conventions-and-dats.md#fichiers-dat).
@@ -88,7 +88,8 @@ Le panneau de détail d'une version patchée nomme le readme qui a donné le CRC
 
 * **Nom** : celui de la ROM d'origine, suivi d'un libellé du patch entre crochets, avec l'extension de la ROM
   d'origine (voir [Choix du nom](#choix-du-nom)).
-* **Dossier** : celui que la ROM d'origine aurait dans la destination, même quand le 1G1R l'écarte.
+* **Dossier** : celui que la ROM d'origine aurait dans la destination, même quand le 1G1R l'écarte, ou celui que donne
+  le champ **Versions patchées** de l'étape **Sortie** (voir [Un dossier Patchs](#un-dossier-patchs)).
 * **Jeu** : la version patchée appartient au jeu de sa ROM d'origine. Elle reste en dehors du 1G1R, des multi-disques
   et des filtres : elle n'est jamais écartée à la place de son origine, ni ne l'écarte.
 * **Conflits** : une collision avec un fichier déjà présent dans la destination suit le mode de conflit choisi (voir
@@ -133,14 +134,72 @@ retenue est un choix à part, et seule la ROM d'origine du patch est remplacée.
 Option décochée, la ROM retenue et la version patchée sont toutes deux écrites. L'option est grisée sans dossier des
 patchs.
 
+## Un dossier Patchs
+
+Par défaut, une version patchée va dans le dossier de sa ROM d'origine. Le champ **Versions patchées** de l'étape
+**Sortie**, dans le cadre *Arborescence*, sous le **Modèle**, la range ailleurs, pour deux usages :
+
+* **garder un set propre** : un gestionnaire de DAT qui vérifie le dossier d'un DAT n'y trouve aucun fichier inconnu,
+  puisque les versions patchées sont rangées hors de ce dossier ;
+* **présenter les versions patchées à part** dans un frontend, dans un dossier à elles ou dans un sous-dossier de chaque
+  jeu.
+
+Le champ est un modèle de dossiers, comme le **Modèle** (voir [Variables](destination-and-transfers.md#variables)), mais
+il part de la **racine de la destination**, même avec **Tout à la racine** : les dossiers d'un lot de DAT ne s'y ajoutent
+pas d'eux-mêmes. Ses variables prennent les valeurs de la ROM d'origine (`{title}`, `{dat}`, `{publisher}`…), même
+quand le 1G1R l'écarte, et deux variables n'existent que pour lui :
+
+| Variable | Contenu |
+|---|---|
+| `{origin_folder}` | Le dossier entier où va la ROM d'origine : le dossier de son DAT dans un lot (sous les dossiers de son chemin s'ils sont reproduits), puis les dossiers du modèle ; aucun avec **Tout à la racine** |
+| `{dat_folder}` | Le dossier du DAT de la ROM d'origine dans un lot, sous les dossiers de son chemin s'ils sont reproduits ; aucun pour un DAT seul, ou sans **Un dossier par DAT** |
+
+Chacune forme un dossier à elle seule, entre deux `/` : `{origin_folder}/Patchs` est permis, `{origin_folder}-patchs`
+ne l'est pas. Vide, le champ (*À côté de la ROM d'origine*) donne le même dossier que `{origin_folder}`.
+
+Exemples avec `Chrono Trigger (Japan).sfc`, le modèle `{title}` et un patch `(T-En)` :
+
+| Versions patchées | DAT seul | Lot, un dossier par DAT | Lot, arborescence des DAT reproduite (`No-Intro/`) |
+|---|---|---|---|
+| *(vide)* | `Chrono Trigger/` | `Nintendo - SNES/Chrono Trigger/` | `No-Intro/Nintendo - SNES/Chrono Trigger/` |
+| `Patchs/{title}` | `Patchs/Chrono Trigger/` | `Patchs/Chrono Trigger/` (tous les DAT ensemble) | `Patchs/Chrono Trigger/` |
+| `Patchs/{dat}/{title}` | `Patchs/Nintendo - SNES/Chrono Trigger/` | `Patchs/Nintendo - SNES/Chrono Trigger/` | `Patchs/Nintendo - SNES/Chrono Trigger/` |
+| `{dat_folder}/Patchs` | `Patchs/` | `Nintendo - SNES/Patchs/` | `No-Intro/Nintendo - SNES/Patchs/` |
+| `{origin_folder}/Patchs` | `Chrono Trigger/Patchs/` | `Nintendo - SNES/Chrono Trigger/Patchs/` | `No-Intro/Nintendo - SNES/Chrono Trigger/Patchs/` |
+
+Le fichier y garde son nom, `Chrono Trigger (Japan) [T-En].sfc` (une archive `.zip` en mode ZIP). Le dossier
+`_unmatched` des fichiers non conformes reste à la racine : une version patchée n'y va jamais, puisque sa ROM d'origine
+est identifiée.
+
+* **Insérer une variable** insère une variable au curseur du champ : celles du modèle, puis **Dossier de la ROM
+  d'origine** (`{origin_folder}`) et **Dossier du DAT** (`{dat_folder}`, grisé hors d'un lot avec **Un dossier par
+  DAT**).
+* **Préréglages** : **À côté de la ROM d'origine** (champ vide), **Sous-dossier de la ROM d'origine**
+  (`{origin_folder}/Patchs`) et **Dossier à la racine** (`Patchs/{dat}/{title}`), qui laisse le dossier de chaque DAT
+  sans fichier inconnu.
+* Le champ et ses menus sont **grisés sans dossier des patchs**, puisque rien de patché ne serait écrit ; le champ garde
+  sa valeur, enregistrée dans les réglages et les profils.
+* Avec un dossier des patchs, l'[aperçu en direct](destination-and-transfers.md) montre, à la place
+  de son troisième exemple, où irait la version patchée du premier : *Version patchée : …*.
+
+Rien n'est écrit hors de la destination. Un dossier qui en sortirait, ou qui écrirait dans les dossiers que RomSieve
+garde pour lui, est **refusé** : chemin qui commence par `/` ou `\`, lecteur (`C:`), dossier `..`, caractère interdit
+dans un nom (`< > : " | ? *`), `_purged` ou `.romsieve` comme premier dossier, `{origin_folder}` ou `{dat_folder}` qui
+ne forme pas un dossier à lui seul. L'aperçu dit pourquoi, une ligne le signale sous l'étape **Sortie** (*Patchées :
+dossier refusé*), et la simulation comme le tri sont refusés avant d'écrire quoi que ce soit. Une variable inconnue,
+une accolade sans paire ou un dossier `_unmatched` ne sont qu'un avertissement de l'aperçu, comme pour le modèle.
+
+Changer le dossier des versions patchées rend la dernière simulation périmée ; la suivante marque *Modifiés* les seules
+lignes des versions patchées. **Annuler le dernier tri** les supprime, ainsi que les dossiers vidés.
+
 ## Modes de transfert
 
 | Mode | Version patchée |
 |---|---|
-| **Copier** | Un fichier, écrit à côté de la ROM d'origine |
+| **Copier** | Un fichier, écrit à côté de la ROM d'origine ou dans son [dossier](#un-dossier-patchs) |
 | **Déplacer** | Un fichier, écrit **avant** que la ROM d'origine ne quitte la source. Avec *N'écrire que les versions patchées*, la ROM remplacée reste dans la source. |
 | **Hard link**, **Symlink** | Une **copie** : un lien ne peut pas porter un contenu modifié. Le journal le dit. |
-| **ZIP** | Une archive à elle, au format TorrentZip, comme celle de tout autre jeu |
+| **ZIP** | Une archive à elle, au format TorrentZip, comme celle de tout autre jeu, rangée dans le même dossier |
 
 Une ROM d'origine rangée dans une archive est extraite à côté de la cible le temps d'appliquer le patch, puis supprimée.
 L'archive n'est jamais modifiée.
@@ -264,7 +323,9 @@ modifiée depuis le tri.
 ## En ligne de commande
 
 `--patches <dossier>` donne le dossier des patchs, et `--patch-only` n'écrit que les versions patchées (voir
-[Ligne de commande](command-line.md)). Le bilan compte les versions patchées et les patchs non appliqués.
+[Ligne de commande](command-line.md)). Le dossier des versions patchées vient du fichier de réglages ou du profil ; un
+dossier refusé arrête `run` comme `patches`, en code 3. Le bilan compte les versions patchées et les patchs non
+appliqués.
 
 `romsieve-cli patches` simule le tri et liste ses patchs non appliqués, avec les ROMs proposées pour un IPS sans CRC32,
 puis les IPS appliqués grâce à leur readme et ceux appliqués d'après leur nom ; `--name-from-notes --yes` écrit le CRC32

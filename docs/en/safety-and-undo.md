@@ -12,7 +12,8 @@ RomSieve handles collections of several terabytes. It is designed so that a wron
   symbolic link or a junction leads from one to the other: the paths are compared as written, then with their links
   resolved. Mapped network drives and bind mounts are not resolved. Nor can the destination overlap the
   [folder of the patches](patches.md#folder-of-the-patches), which a purge never touches.
-* **A patch never modifies the original ROM**: the patched version is a new file, written next to it.
+* **A patch never modifies the original ROM**: the patched version is a new file, written next to it or in its
+  [folder](patches.md#a-folder-for-the-patched-versions), always inside the destination.
 * **Nothing is written outside the destination.** A file name read from an archive or a DAT that is an absolute path
   (`C:/…`, `/home/…`), holds a `..` segment or a null character could write anywhere on the disk, which some archives
   found on the Internet are crafted to do. Such a file is in error from the simulation on, with the reason "Not written:
