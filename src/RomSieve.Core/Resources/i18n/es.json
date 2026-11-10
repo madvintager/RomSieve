@@ -1415,5 +1415,17 @@
   "filters.amiga_hint_any": "No se excluye nada; las versiones AGA y OCS de un juego siguen siendo dos juegos.",
   "filters.amiga_hint_ocs": "Se excluyen los juegos AGA y ECS.",
   "filters.amiga_hint_ecs": "Se excluyen los juegos AGA.",
-  "filters.amiga_hint_aga": "No se excluye nada. Con 1G1R, las versiones AGA y OCS de un juego son un solo juego, primero la versión AGA."
+  "filters.amiga_hint_aga": "No se excluye nada. Con 1G1R, las versiones AGA y OCS de un juego son un solo juego, primero la versión AGA.",
+  "patch.error_truncated": "El parche está truncado.",
+  "patch.error_signature": "Este archivo no es un parche IPS, IPS32, UPS o BPS.",
+  "patch.error_number_overflow": "El parche contiene un número desmesurado.",
+  "patch.error_out_of_bounds": "El parche lee o escribe fuera de la ROM original o del resultado.",
+  "patch.error_trailing_data": "El parche contiene datos después de su final.",
+  "patch.error_incomplete": "El parche no produce todo el resultado que anuncia.",
+  "patch.error_patch_too_large": "El parche supera {max} MB, el tamaño máximo que lee RomSieve.",
+  "patch.error_target_too_large": "El parche anuncia un tamaño de {size} bytes, más allá del límite de {max} GB.",
+  "patch.error_patch_crc": "El parche está dañado: su CRC32 es {actual} en lugar de {expected}.",
+  "patch.error_source_size": "El parche espera una ROM original de {expected} bytes, no de {actual}.",
+  "patch.error_source_crc": "El parche espera una ROM original con el CRC32 {expected}, no {actual}.",
+  "patch.error_target_crc": "El resultado tiene el CRC32 {actual} en lugar de {expected}."
 }

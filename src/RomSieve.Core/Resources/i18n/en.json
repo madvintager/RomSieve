@@ -1415,5 +1415,17 @@
   "filters.amiga_hint_any": "Nothing is excluded; the AGA and OCS versions of a game stay two games.",
   "filters.amiga_hint_ocs": "The AGA and ECS games are excluded.",
   "filters.amiga_hint_ecs": "The AGA games are excluded.",
-  "filters.amiga_hint_aga": "Nothing is excluded. With 1G1R, the AGA and OCS versions of a game are one game, the AGA version first."
+  "filters.amiga_hint_aga": "Nothing is excluded. With 1G1R, the AGA and OCS versions of a game are one game, the AGA version first.",
+  "patch.error_truncated": "The patch is truncated.",
+  "patch.error_signature": "This file is not an IPS, IPS32, UPS or BPS patch.",
+  "patch.error_number_overflow": "The patch holds an oversized number.",
+  "patch.error_out_of_bounds": "The patch reads or writes outside the original ROM or the result.",
+  "patch.error_trailing_data": "The patch holds data after its end.",
+  "patch.error_incomplete": "The patch does not produce the whole result it announces.",
+  "patch.error_patch_too_large": "The patch exceeds {max} MB, the largest size RomSieve reads.",
+  "patch.error_target_too_large": "The patch announces a size of {size} bytes, beyond the limit of {max} GB.",
+  "patch.error_patch_crc": "The patch is damaged: its CRC32 is {actual} instead of {expected}.",
+  "patch.error_source_size": "The patch expects an original ROM of {expected} bytes, not {actual}.",
+  "patch.error_source_crc": "The patch expects an original ROM with the CRC32 {expected}, not {actual}.",
+  "patch.error_target_crc": "The result has the CRC32 {actual} instead of {expected}."
 }
