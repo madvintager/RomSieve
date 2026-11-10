@@ -136,8 +136,8 @@ Options common to all commands:
 | `--lang <fr\|en\|es>` | Language of the messages (by default, the one of the interface, otherwise English) |
 | `-q`, `--quiet` | Shows only warnings, errors and the summary |
 
-Every other setting (filters, 1G1R, pattern, conflicts...) comes from the settings file or the profile: prepare it in
-the interface, then save it as a profile.
+Every other setting (filters, 1G1R, pattern, folder of the patched versions, conflicts...) comes from the settings file
+or the profile: prepare it in the interface, then save it as a profile.
 
 With a [lot of DATs](naming-conventions-and-dats.md#several-dats), the summary gives, after the totals, a line per DAT
 with a game found (*Nintendo - Game Boy: 12 games found, 14/1600 ROMs (0.9 %)*), then the number of the other DATs; with
@@ -151,7 +151,8 @@ With a folder of the patches, a line of the summary counts the patched versions 
 
 * Without `--execute`, nothing is written.
 * The source must exist, the DAT must be found, and the destination may not overlap the source, nor the folder of
-  the patches. A folder of DATs the
+  the patches. With a folder of the patches, a folder of the patched versions that would leave the destination (absolute
+  path, `..`, `_purged` as first folder...) is refused with code 3, for `run` as for `patches`. A folder of DATs the
   sort would refuse (two DATs of the same name, a DAT of MAME machines, software lists mixed with other DATs, every DAT
   unchecked) is refused before anything else, with code 3.
 * A real sort into a non-empty destination requires `--append`, or `--purge --yes`; a folder without the `.romsieve`
@@ -173,7 +174,7 @@ With a folder of the patches, a line of the summary counts the patched versions 
 | 0 | Success |
 | 1 | Unexpected error (a crash report is saved in `crashes/` next to the settings, and its path printed) |
 | 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT, unsupported export format, `dat --output` over the DAT read, `patches --detach` of a patch that is not an IPS applied from its name) |
-| 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder or archive of DATs refused, overlapping folders) |
+| 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder or archive of DATs refused, overlapping folders, folder of the patched versions that would leave the destination) |
 | 4 | Finished, but some files are in error (including a sort stopped by a full destination or a journal that cannot be written), an export failed (or `dat` kept no game), some operations could not be undone or some items of the quarantine could not be deleted |
 | 5 | Cancelled (Ctrl+C) |
 | 6 | Confirmation required (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, `quarantine --empty`, `patches --name-from-notes` or `patches --detach` without `--yes`) |

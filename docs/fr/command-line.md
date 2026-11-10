@@ -135,8 +135,8 @@ Options communes à toutes les commandes :
 | `--lang <fr\|en\|es>` | Langue des messages (par défaut, celle de l'interface, sinon l'anglais) |
 | `-q`, `--quiet` | N'affiche que les avertissements, les erreurs et le bilan |
 
-Tous les autres réglages (filtres, 1G1R, modèle, conflits...) viennent du fichier de réglages ou du profil : préparez-les
-dans l'interface, puis enregistrez-les comme profil.
+Tous les autres réglages (filtres, 1G1R, modèle, dossier des versions patchées, conflits...) viennent du fichier de
+réglages ou du profil : préparez-les dans l'interface, puis enregistrez-les comme profil.
 
 Avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), le bilan donne, après les totaux, une ligne par DAT
 où un jeu a été trouvé (*Nintendo - Game Boy : 12 jeux trouvés, 14/1 600 ROMs (0,9 %)*), puis le nombre des autres
@@ -150,7 +150,8 @@ Avec un dossier des patchs, une ligne du bilan compte les versions patchées et 
 
 * Sans `--execute`, rien n'est écrit.
 * La source doit exister, le DAT doit être trouvé, et la destination ne doit pas chevaucher la source, ni le dossier
-  des patchs. Un dossier de
+  des patchs. Avec un dossier des patchs, un dossier des versions patchées qui sortirait de la destination (chemin
+  absolu, `..`, `_purged` comme premier dossier...) est refusé en code 3, pour `run` comme pour `patches`. Un dossier de
   DAT que le tri refuserait (deux DAT du même nom, un DAT de machines MAME, des listes de logiciels mêlées à d'autres
   DAT, tous les DAT décochés) est refusé avant tout, en code 3.
 * Un tri réel dans une destination non vide exige `--append`, ou `--purge --yes` ; un dossier sans le marqueur
@@ -172,7 +173,7 @@ Avec un dossier des patchs, une ligne du bilan compte les versions patchées et 
 | 0 | Succès |
 | 1 | Erreur inattendue (un rapport d'erreur est enregistré dans `crashes/` à côté des réglages, et son chemin affiché) |
 | 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT, format d'export non pris en charge, `dat --output` sur le DAT lu, `patches --detach` d'un patch qui n'est pas un IPS appliqué d'après son nom) |
-| 3 | Configuration invalide (fichier de réglages ou profil absent ou illisible, source, DAT ou destination introuvable, dossier ou archive de DAT refusé, dossiers qui se chevauchent) |
+| 3 | Configuration invalide (fichier de réglages ou profil absent ou illisible, source, DAT ou destination introuvable, dossier ou archive de DAT refusé, dossiers qui se chevauchent, dossier des versions patchées qui sortirait de la destination) |
 | 4 | Terminé, mais des fichiers sont en erreur (dont un tri arrêté par une destination pleine ou un journal impossible à écrire), un export a échoué (ou `dat` n'a gardé aucun jeu), des opérations n'ont pas pu être annulées ou des éléments de la quarantaine n'ont pas pu être supprimés |
 | 5 | Interrompu (Ctrl+C) |
 | 6 | Confirmation requise (`--yes`, `--append` / `--purge --yes`, `--force-foreign-purge`, `quarantine --empty`, `patches --name-from-notes` ou `patches --detach` sans `--yes`) |

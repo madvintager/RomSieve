@@ -9,8 +9,8 @@ namespace RomSieve.Cli.Tests;
 /// <summary>
 /// The patches on the command line, from end to end: <c>--patches</c> gives the patch folder and <c>--patch-only</c>
 /// writes the patched versions only, with the guards of the interface (a destination that overlaps the patch folder is
-/// refused, code 3), and the summary counts the patched versions and the patches not applied. Every run uses a
-/// configuration of a temporary directory.
+/// refused, code 3, as is a pattern of the patched versions that would leave the destination), and the summary counts the
+/// patched versions and the patches not applied. Every run uses a configuration of a temporary directory.
 /// </summary>
 public sealed class CliPatchTests : IDisposable
 {
@@ -19,6 +19,7 @@ public sealed class CliPatchTests : IDisposable
     private readonly string _source;
     private readonly string _destination;
     private readonly string _patches;
+    private readonly string _dat;
 
     private static readonly byte[] Japan = Data(1, 4096);
     private static readonly byte[] Usa = Data(2, 4096);
@@ -36,24 +37,33 @@ public sealed class CliPatchTests : IDisposable
         _temp.WriteBytes("patches/Game (Japan) (T-En).bps", BpsLinear(Japan, Translated));
         _temp.WriteBytes("patches/Game (USA) (Hack).ups", Ups(Usa, UsaHack));
         _temp.WriteBytes("patches/Orphan (T-En).bps", BpsLinear(Data(9, 64), Data(10, 64)));
-        var dat = _temp.WriteText("dat/snes.dat", $"""
+        _dat = _temp.WriteText("dat/snes.dat", $"""
             <?xml version="1.0"?><datafile><header><name>Nintendo - SNES</name><homepage>No-Intro</homepage></header>
             <game name="Game (Japan)"><description>Game (Japan)</description><rom name="Game (Japan).sfc" size="{Japan.Length}" crc="{Crc(Japan):x8}"/></game>
             <game name="Game (USA)"><description>Game (USA)</description><rom name="Game (USA).sfc" size="{Usa.Length}" crc="{Crc(Usa):x8}"/></game></datafile>
             """);
+        WriteConfig();
+    }
+
+    /// <summary>The configuration of the runs (or a profile, at <paramref name="path"/>), changed by <paramref name="configure"/>.</summary>
+    private void WriteConfig(Action<SortSettings>? configure = null, string? path = null)
+    {
         var settings = new SortSettings
         {
             SourceDir = _source,
             DestinationDir = _destination,
-            DatFile = dat,
+            DatFile = _dat,
             NamingConvention = NamingConvention.NoIntro,
             FlatDestination = true,
             OneGameOneRom = true,
             PriorityLanguages = ["en", "ja"]
         };
+        configure?.Invoke(settings);
         var data = new Dictionary<string, object?>(StringComparer.Ordinal) { ["ui_locale"] = "en" };
         SortSettingsSerializer.Write(settings, data);
-        File.WriteAllText(_configPath, JsonSerializer.Serialize(data));
+        var target = path ?? _configPath;
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        File.WriteAllText(target, JsonSerializer.Serialize(data));
     }
 
     public void Dispose() => _temp.Dispose();
@@ -133,6 +143,86 @@ public sealed class CliPatchTests : IDisposable
         result.Output.Should().Contain("--patches").And.Contain("--patch-only");
         (await RunAsync("--help")).Output.Should().Contain("patches");
         (await RunAsync("patches", "--help")).Output.Should().Contain("--name-from-notes").And.Contain("--detach").And.Contain("--yes");
+    }
+
+    // =========================================================================
+    // The pattern of the patched versions, read from the configuration or the profile
+    // =========================================================================
+
+    [Fact]
+    public async Task Run_WithAPatchedPattern_ShouldWriteThePatchedVersionsInTheirFolder_WithTheSameSummary()
+    {
+        WriteConfig(s => s.PatchedPattern = "Patchs/{title}");
+
+        var result = await RunAsync("run", "--patches", _patches, "--execute");
+
+        result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
+        DestinationFiles().Should().Equal(
+            "Game (USA).sfc",
+            Path.Combine("Patchs", "Game", "Game (Japan) [T-En].sfc"),
+            Path.Combine("Patchs", "Game", "Game (USA) [Hack].sfc"));
+        File.ReadAllBytes(Path.Combine(_destination, "Patchs", "Game", "Game (Japan) [T-En].sfc")).Should().Equal(Translated);
+        result.Output.Should().Contain("Patches: 2 patched versions, 1 patch not applied.");
+    }
+
+    [Fact]
+    public async Task Run_WithAPatchedPatternInTheProfile_ShouldWriteThePatchedVersionsInTheirFolder()
+    {
+        var profilePath = ConfigurationProfiles.GetPath(_configPath, "Translations");
+        WriteConfig(s =>
+        {
+            s.PatchDir = _patches;
+            s.PatchedPattern = "{origin_folder}/Translations";
+            s.FlatDestination = false;
+            s.Pattern = "{title}";
+        }, path: profilePath);
+
+        var result = await RunAsync("run", "--profile", "Translations", "--execute");
+
+        result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
+        DestinationFiles().Should().Equal(
+            Path.Combine("Game", "Game (USA).sfc"),
+            Path.Combine("Game", "Translations", "Game (Japan) [T-En].sfc"),
+            Path.Combine("Game", "Translations", "Game (USA) [Hack].sfc"));
+    }
+
+    [Theory]
+    [InlineData("run")]
+    [InlineData("patches")]
+    public async Task APatchedPatternThatLeavesTheDestination_ShouldBeRefused_AndNothingWritten(string command)
+    {
+        WriteConfig(s => s.PatchedPattern = Path.Combine("..", "escape", "{title}"));
+
+        var result = await RunAsync(command == "run" ? ["run", "--patches", _patches, "--execute"] : ["patches", "--patches", _patches]);
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidConfiguration);
+        result.Error.Should().Contain("The folder of the patched versions must stay inside the destination");
+        Directory.Exists(_destination).Should().BeFalse();
+        Directory.Exists(Path.Combine(_temp.Path, "escape")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task APatchedPatternIntoTheQuarantine_ShouldBeRefused_InTheLanguageOfTheMessages()
+    {
+        WriteConfig(s => s.PatchedPattern = "_purged/{title}");
+
+        var result = await RunAsync("run", "--patches", _patches, "--execute", "--lang", "fr");
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidConfiguration);
+        result.Error.Should().Contain("Le dossier des versions patchées doit rester dans la destination");
+        Directory.Exists(_destination).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task APatchedPatternThatLeavesTheDestination_ShouldNotStopASortWithoutPatchFolder()
+    {
+        // The pattern is greyed out without a folder of the patches: nothing patched is written
+        WriteConfig(s => s.PatchedPattern = Path.Combine("..", "escape"));
+
+        var result = await RunAsync("run", "--execute");
+
+        result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
+        DestinationFiles().Should().Equal("Game (USA).sfc");
     }
 
     // =========================================================================
