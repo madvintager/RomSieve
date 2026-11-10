@@ -43,7 +43,7 @@ public static partial class DiscLabelResolver
         }
 
         var labels = eligible.Any(it => it.Parsed.DiscLabelCandidate is not null)
-            ? FindLabels(eligible, datCatalog)
+            ? FindLabels(eligible, ParseDatGames(eligible, datCatalog))
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in eligible)
@@ -56,6 +56,25 @@ public static partial class DiscLabelResolver
         }
     }
 
+    /// <summary>
+    /// The disks of the DAT (its No-Intro / Redump games with a disc number), parsed from their names, each with the
+    /// label <see cref="Apply"/> gives the disc of that name: their release keys are those of the files of the source,
+    /// and they tell how many disks a set has whatever the source holds. Empty without DAT or without any disc in
+    /// <paramref name="items"/>.
+    /// </summary>
+    public static IReadOnlyList<ParsedRomName> ParseDatDiscs(IList<ProcessItem> items, DatCatalog? datCatalog)
+    {
+        var eligible = items.Where(it => IsDisc(it.Parsed)).ToList();
+        if (eligible.Count == 0 || datCatalog is null)
+        {
+            return [];
+        }
+
+        var datDiscs = ParseDatGames(eligible, datCatalog);
+        var labels = FindLabels(eligible, datDiscs);
+        return [.. datDiscs.Select(d => d.Parsed with { DiscLabel = labels.GetValueOrDefault(d.Name) })];
+    }
+
     private static bool IsDisc(ParsedRomName parsed) =>
         parsed.Convention is NamingConvention.NoIntro or NamingConvention.Redump &&
         parsed.DiscNumber.HasValue &&
@@ -66,7 +85,31 @@ public static partial class DiscLabelResolver
             ? parsed.RawFilename[..^parsed.Extension.Length]
             : parsed.RawFilename;
 
-    private static Dictionary<string, string> FindLabels(List<ProcessItem> eligible, DatCatalog? datCatalog)
+    /// <summary>The games of the DAT that are disks, parsed in the convention of the disks of the source.</summary>
+    private static List<(string Name, ParsedRomName Parsed)> ParseDatGames(List<ProcessItem> eligible, DatCatalog? datCatalog)
+    {
+        var datDiscs = new List<(string Name, ParsedRomName Parsed)>();
+        if (datCatalog is null)
+        {
+            return datDiscs;
+        }
+
+        var isRedump = eligible.Any(it => it.Parsed.Convention == NamingConvention.Redump);
+        foreach (var game in datCatalog.Games)
+        {
+            if (game.Name.Contains("(Dis", StringComparison.OrdinalIgnoreCase))
+            {
+                var parsed = NoIntroRedumpParser.ParseNoIntroFilenameStatic(game.Name + DatGameExtension, isRedump: isRedump);
+                if (parsed.DiscNumber.HasValue && !parsed.TrackNumber.HasValue)
+                {
+                    datDiscs.Add((game.Name, parsed));
+                }
+            }
+        }
+        return datDiscs;
+    }
+
+    private static Dictionary<string, string> FindLabels(List<ProcessItem> eligible, List<(string Name, ParsedRomName Parsed)> datDiscs)
     {
         // One disc per name: a file of the source and the DAT game it matches are the same disc
         var discs = new Dictionary<string, (string GroupKey, Disc Disc)>(StringComparer.OrdinalIgnoreCase);
@@ -79,20 +122,9 @@ public static partial class DiscLabelResolver
             }
         }
 
-        if (datCatalog is not null)
+        foreach (var (name, parsed) in datDiscs)
         {
-            var isRedump = eligible.Any(it => it.Parsed.Convention == NamingConvention.Redump);
-            foreach (var game in datCatalog.Games)
-            {
-                if (game.Name.Contains("(Dis", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parsed = NoIntroRedumpParser.ParseNoIntroFilenameStatic(game.Name + DatGameExtension, isRedump: isRedump);
-                    if (parsed.DiscNumber.HasValue && !parsed.TrackNumber.HasValue)
-                    {
-                        Add(game.Name, parsed);
-                    }
-                }
-            }
+            Add(name, parsed);
         }
 
         foreach (var item in eligible)

@@ -30,6 +30,12 @@ public sealed class EntryClassifier
     /// several identical entries (the same ROM in several games) marks all of them as present.
     /// </summary>
     public HashSet<DatRomEntry> MatchedDatEntries { get; } = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>
+    /// Names of the ROMs of each DAT game that a file was identified as, the completeness of a game of the DAT: a file
+    /// counts for the single entry it is identified through, the one it is written as, and not for the identical
+    /// entries of other games (tracks shared by the disks of a set), which <see cref="MatchedDatEntries"/> holds.
+    /// </summary>
     public Dictionary<string, HashSet<string>> GameMatchedRoms { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -567,20 +573,17 @@ public sealed class EntryClassifier
 
             if (match is not null)
             {
-                // Every matching entry is present, but the file is identified through a single deterministic entry
-                foreach (var matchedEntry in matches)
+                // Every matching entry is present, but the file is identified through a single deterministic entry,
+                // the only one it makes its game complete with
+                MatchedDatEntries.UnionWith(matches);
+                if (_datCatalog.GetGameForEntry(match) is { } matchedGame)
                 {
-                    MatchedDatEntries.Add(matchedEntry);
-                    var matchedGame = _datCatalog.GetGameForEntry(matchedEntry);
-                    if (matchedGame is not null)
+                    if (!GameMatchedRoms.TryGetValue(matchedGame.Name, out var romSet))
                     {
-                        if (!GameMatchedRoms.TryGetValue(matchedGame.Name, out var romSet))
-                        {
-                            romSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                            GameMatchedRoms[matchedGame.Name] = romSet;
-                        }
-                        romSet.Add(matchedEntry.Name);
+                        romSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        GameMatchedRoms[matchedGame.Name] = romSet;
                     }
+                    romSet.Add(match.Name);
                 }
 
                 // A disk is named without extension in the DAT; a MAME short name is not a parsable title,

@@ -24,8 +24,11 @@ public sealed class IncompleteGameTests : IDisposable
 
     private static string Crc(byte[] data) => Crc32.HashToUInt32(data).ToString("x8", CultureInfo.InvariantCulture);
 
-    /// <summary>Files of each disc of a two-disc Redump game: its descriptor and two tracks, all different.</summary>
-    private static Dictionary<string, byte[]> RedumpDisc(int disc)
+    /// <summary>
+    /// Files of each disc of a two-disc Redump game: its descriptor and two tracks, all different unless the audio
+    /// track is the same on every disc (<paramref name="sharedAudio"/>).
+    /// </summary>
+    private static Dictionary<string, byte[]> RedumpDisc(int disc, bool sharedAudio = false)
     {
         var name = $"{Game} (Disc {disc})";
         var cue = $"""
@@ -40,11 +43,11 @@ public sealed class IncompleteGameTests : IDisposable
         {
             [name + ".cue"] = Encoding.ASCII.GetBytes(cue),
             [name + " (Track 1).bin"] = Encoding.ASCII.GetBytes($"DATA TRACK OF DISC {disc}"),
-            [name + " (Track 2).bin"] = Encoding.ASCII.GetBytes($"AUDIO TRACK OF DISC {disc}")
+            [name + " (Track 2).bin"] = Encoding.ASCII.GetBytes(sharedAudio ? "AUDIO TRACK OF EVERY DISC" : $"AUDIO TRACK OF DISC {disc}")
         };
     }
 
-    private static string DatOf(IEnumerable<(string Game, Dictionary<string, byte[]> Files)> games)
+    private static string DatOf(IEnumerable<(string Game, Dictionary<string, byte[]> Files)> games, string? noDumpRom = null)
     {
         var xml = new StringBuilder("""
             <?xml version="1.0"?>
@@ -59,6 +62,11 @@ public sealed class IncompleteGameTests : IDisposable
                 xml.AppendLine($"""    <rom name="{name}" size="{data.Length}" crc="{Crc(data)}"/>""");
             }
 
+            if (noDumpRom is not null && game == $"{Game} (Disc 1)")
+            {
+                xml.AppendLine($"""    <rom name="{noDumpRom}" size="0" status="nodump"/>""");
+            }
+
             xml.AppendLine("  </game>");
         }
 
@@ -67,7 +75,8 @@ public sealed class IncompleteGameTests : IDisposable
 
     private async Task<SortExecutionResult> SimulateAsync(
         IEnumerable<(string Game, Dictionary<string, byte[]> Files)> datGames,
-        IEnumerable<(string Name, byte[] Data)> sourceFiles)
+        IEnumerable<(string Name, byte[] Data)> sourceFiles,
+        string? noDumpRom = null)
     {
         var src = _temp.CreateSubdirectory("src");
         foreach (var (name, data) in sourceFiles)
@@ -79,7 +88,7 @@ public sealed class IncompleteGameTests : IDisposable
         {
             SourceDir = src,
             DestinationDir = _temp.CreateSubdirectory("dst"),
-            DatFile = _temp.WriteText("game.dat", DatOf(datGames))
+            DatFile = _temp.WriteText("game.dat", DatOf(datGames, noDumpRom))
         };
         config.Filters.CompleteMultidiskSetsOnly = true;
         config.Filters.NoIntroCompleteMultimediaSetsOnly = true;
@@ -125,21 +134,56 @@ public sealed class IncompleteGameTests : IDisposable
         _services.I18n.Format(item.StatusReason).Should().Be("Jeu incomplet : 1/2 fichiers du DAT trouvés");
     }
 
-    [Fact]
-    public async Task SetMissingAWholeDisc_ShouldKeepTheReasonThatCountsDisks()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task SetMissingAWholeDisc_ShouldKeepTheReasonThatCountsDisks(int missingDisc)
     {
         var disc1 = RedumpDisc(1);
         var disc2 = RedumpDisc(2);
 
-        // Disc 1 is missing: the number of disks comes from the highest disc number of the source
+        // The names give no number of disks: it comes from the DAT, so that a missing last disc is seen too
         var result = await SimulateAsync(
             [($"{Game} (Disc 1)", disc1), ($"{Game} (Disc 2)", disc2)],
-            disc2.Select(f => (f.Key, f.Value)));
+            (missingDisc == 1 ? disc2 : disc1).Select(f => (f.Key, f.Value)));
 
         var descriptor = result.Items.Single(it => it.DisplayName.EndsWith(".cue", StringComparison.Ordinal));
         descriptor.Status.Should().Be(FileStatus.Excluded);
         descriptor.StatusReason!.Key.Should().Be("reason.incomplete_multidisk_set");
         _services.I18n.Format(descriptor.StatusReason).Should().Be("Set multi-disquettes incomplet (1/2 disques trouvés)");
+    }
+
+    [Fact]
+    public async Task TrackSharedWithAnotherDisc_ShouldNotCompleteTheDiscThatLacksIt()
+    {
+        // The audio track of disc 2 is identical to that of disc 1, which is present: disc 2 still lacks its own
+        var disc1 = RedumpDisc(1, sharedAudio: true);
+        var disc2 = RedumpDisc(2, sharedAudio: true);
+        var partialDisc2 = disc2.Where(f => !f.Key.Contains("(Track 2)", StringComparison.Ordinal));
+
+        var result = await SimulateAsync(
+            [($"{Game} (Disc 1)", disc1), ($"{Game} (Disc 2)", disc2)],
+            disc1.Concat(partialDisc2).Select(f => (f.Key, f.Value)));
+
+        var descriptor2 = result.Items.Single(it => it.DisplayName == $"{Game} (Disc 2).cue");
+        descriptor2.Status.Should().Be(FileStatus.Excluded);
+        _services.I18n.Format(descriptor2.StatusReason).Should().Be("Disque incomplet : 2/3 fichiers du DAT trouvés");
+        result.Items.Should().OnlyContain(it => it.Status == FileStatus.Excluded, "the set is incomplete without disc 2");
+    }
+
+    [Fact]
+    public async Task RomNeverDumped_ShouldNotMakeTheDiscIncomplete()
+    {
+        var disc1 = RedumpDisc(1);
+        var disc2 = RedumpDisc(2);
+
+        var result = await SimulateAsync(
+            [($"{Game} (Disc 1)", disc1), ($"{Game} (Disc 2)", disc2)],
+            disc1.Concat(disc2).Select(f => (f.Key, f.Value)),
+            noDumpRom: $"{Game} (Disc 1) (Track 3).bin");
+
+        result.Items.Should().NotBeEmpty();
+        result.Items.Should().OnlyContain(it => it.Status == FileStatus.Valid);
     }
 
     [Fact]

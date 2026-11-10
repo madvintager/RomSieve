@@ -538,6 +538,30 @@ public sealed class DatLotSortTests : IDisposable
         File.Exists(Path.Combine(_dst, PlayStation, "Final Quest", "Final Quest (USA) (Disc 2).bin")).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task RedumpSetOfALotMissingItsLastDisc_ShouldBeIncomplete_AfterTheDisksOfItsDat()
+    {
+        WriteGameBoy();
+        var cue1 = Encoding.ASCII.GetBytes(Cue("Final Quest (USA) (Disc 1).bin"));
+        var cue2 = Encoding.ASCII.GetBytes(Cue("Final Quest (USA) (Disc 2).bin"));
+        var bin1 = Encoding.ASCII.GetBytes("FINAL QUEST DISC 1 DATA");
+        var bin2 = Encoding.ASCII.GetBytes("FINAL QUEST DISC 2 DATA");
+        WriteDat(Path.Combine("Redump", "Sony - PlayStation - Datfile (2) (2025-01-01).dat"), PlayStation, "redump.org",
+            ("Final Quest (USA) (Disc 1)", null, Rom("Final Quest (USA) (Disc 1).cue", cue1) + Rom("Final Quest (USA) (Disc 1).bin", bin1)),
+            ("Final Quest (USA) (Disc 2)", null, Rom("Final Quest (USA) (Disc 2).cue", cue2) + Rom("Final Quest (USA) (Disc 2).bin", bin2)));
+        WriteSource("Final Quest (USA) (Disc 1).cue", cue1);
+        WriteSource("Final Quest (USA) (Disc 1).bin", bin1);
+        WriteTetrisSources();
+
+        var result = await SimulateAsync(Config(c => c.Filters.NoIntroCompleteMultimediaSetsOnly = true));
+
+        var disc1 = ItemOf(result, "Final Quest (USA) (Disc 1).cue");
+        disc1.Status.Should().Be(FileStatus.Excluded);
+        disc1.StatusReason!.Key.Should().Be("reason.incomplete_multidisk_set");
+        _services.I18n.Format(disc1.StatusReason).Should().Be("Set multi-disquettes incomplet (1/2 disques trouvés)");
+        ItemOf(result, "tetris_gb_world.gb").Status.Should().Be(FileStatus.Valid);
+    }
+
     // =========================================================================
     // Target paths
     // =========================================================================

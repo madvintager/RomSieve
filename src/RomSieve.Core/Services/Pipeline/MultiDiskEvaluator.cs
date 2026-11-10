@@ -263,13 +263,16 @@ public sealed partial class MultiDiskEvaluator
         {
             foreach (var item in itemsToProcess)
             {
-                if (item.Status == FileStatus.Valid && !string.IsNullOrEmpty(item.TargetFilename))
+                // A CHD named after its game stands for the whole disc, whose tracks the DAT lists: it is complete
+                if (item.Status == FileStatus.Valid && !string.IsNullOrEmpty(item.TargetFilename) && !item.IsIdentifiedByName)
                 {
                     var game = datCatalog.GetGameForRom(item.TargetFilename, item.DatGameName);
-                    if (game is not null && game.IsMultidisk && game.Roms.Count > 1)
+
+                    // A ROM never dumped has no file in any collection
+                    var totalExpected = game?.Roms.Count(r => r.Status != DatRomStatus.NoDump) ?? 0;
+                    if (game is not null && game.IsMultidisk && totalExpected > 1)
                     {
                         var foundCount = gameMatchedRoms.TryGetValue(game.Name, out var matchedSet) ? matchedSet.Count : 0;
-                        var totalExpected = game.Roms.Count;
                         if (foundCount < totalExpected)
                         {
                             item.IsMultidiskComplete = false;
@@ -299,12 +302,13 @@ public sealed partial class MultiDiskEvaluator
             }
         }
 
-        return EvaluateReleaseMultidisk(itemsToProcess);
+        return EvaluateReleaseMultidisk(itemsToProcess, DiscLabelResolver.ParseDatDiscs(itemsToProcess, datCatalog));
     }
 
-    private MultiDiskEvaluationResult EvaluateReleaseMultidisk(IList<ProcessItem> itemsToProcess)
+    private MultiDiskEvaluationResult EvaluateReleaseMultidisk(IList<ProcessItem> itemsToProcess, IReadOnlyList<ParsedRomName> datDiscs)
     {
-        // Infer DiscTotal for releases that use (Disc 1) / (Disk 1) without explicit 'of N'
+        // Infer DiscTotal for releases that use (Disc 1) / (Disk 1) without explicit 'of N', from the disks of the
+        // source and those of the DAT: a set that lacks its last disc is not taken for complete
         var unboundedDiscNums = new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
         var unboundedItems = new List<(string RelKey, ProcessItem Item)>();
 
@@ -320,6 +324,32 @@ public sealed partial class MultiDiskEvaluator
                 }
                 set.Add(item.Parsed.DiscNumber.Value);
                 unboundedItems.Add((rkey, item));
+            }
+        }
+
+        // A disc of the DAT is named without extension, while the extension of a file (its media) and the DAT of a lot
+        // are part of its release key: each disc is keyed as a file of each shape the source has
+        var shapes = unboundedItems
+            .Select(u => (u.Item.Parsed.Extension, u.Item.Parsed.DatKey))
+            .Distinct()
+            .ToList();
+        foreach (var disc in datDiscs)
+        {
+            if (disc is not { DiscNumber: { } number, DiscTotal: null })
+            {
+                continue;
+            }
+
+            var stem = !string.IsNullOrEmpty(disc.Extension) && disc.RawFilename.EndsWith(disc.Extension, StringComparison.OrdinalIgnoreCase)
+                ? disc.RawFilename[..^disc.Extension.Length]
+                : disc.RawFilename;
+            foreach (var (extension, datKey) in shapes)
+            {
+                var asFile = disc with { RawFilename = stem + extension, Extension = extension, DatKey = datKey };
+                if (unboundedDiscNums.TryGetValue(_filterService.GetReleaseKey(asFile, smartMultidisk: false), out var set))
+                {
+                    set.Add(number);
+                }
             }
         }
 
