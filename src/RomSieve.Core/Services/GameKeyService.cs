@@ -232,7 +232,8 @@ public sealed partial class GameKeyService(IReleaseScoringService scoring) : IGa
 
     public IReadOnlyList<string> GetCleanedMoreInfo(ParsedRomName parsed) =>
         parsed.MoreInfo
-            .Where(info => !DiskSpecificMoreInfoRegex().IsMatch(info))
+            .Where(info => !DiskSpecificMoreInfoRegex().IsMatch(info) &&
+                           !string.Equals(info, parsed.DiscLabel, StringComparison.Ordinal))
             .OrderBy(info => info, StringComparer.Ordinal)
             .ToList();
 

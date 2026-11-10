@@ -164,6 +164,13 @@ public sealed class FiltersViewModel : ViewModelBase
     /// </summary>
     public bool IsFilterNotInDatApplicable => !_isMameConvention && !_isSoftwareListConvention;
 
+    /// <summary>
+    /// Whether completing a set with the disks of another dump (<see cref="TosecFiltersViewModel.SmartMultidiskGrouping"/>,
+    /// shared by TOSEC and No-Intro / Redump) has an effect: not in a MAME run or with software lists, whatever the
+    /// convention shown, as a MAME set or a software holds all its disks. Greyed then, its tooltip saying where it applies.
+    /// </summary>
+    public bool IsSmartMultidiskApplicable => !_isMameConvention && !_isSoftwareListConvention;
+
     public string FilterNotInDatTooltip => _localization.Tr(
         IsFilterNotInDatApplicable ? "filters.tooltip_filter_not_in_dat" : "filters.tooltip_filter_not_in_dat_mame");
 
@@ -586,6 +593,7 @@ public sealed class FiltersViewModel : ViewModelBase
         OnPropertyChanged(nameof(AreNoIntroOnlyOptionsApplicable));
         OnPropertyChanged(nameof(IsFilterNotInDatApplicable));
         OnPropertyChanged(nameof(FilterNotInDatTooltip));
+        OnPropertyChanged(nameof(IsSmartMultidiskApplicable));
         OnPropertyChanged(nameof(UnlicensedTooltip));
         OnPropertyChanged(nameof(RereleasesTooltip));
         OnPropertyChanged(nameof(DumpsNoEffectText));

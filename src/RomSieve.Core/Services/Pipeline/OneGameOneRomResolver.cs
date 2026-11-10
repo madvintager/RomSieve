@@ -267,7 +267,9 @@ public sealed partial class OneGameOneRomResolver
             rItems.Add(gItem);
         }
 
-        if (smartMulti)
+        // Also for No-Intro / Redump, whose releases borrow the disc they lack from another pressing of their edition; the
+        // multi-disk evaluation keys them, as here, without the smart TOSEC key
+        if (_config.Filters.SmartMultidiskGrouping)
         {
             // Clean data disks that the multi-disk evaluation found to complete a release compete with it
             foreach (var (rkey, rItems) in releaseGroups)

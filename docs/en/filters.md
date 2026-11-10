@@ -122,9 +122,21 @@ where a file the DAT does not know is always non-conforming.
   are not all present is excluded. With the MAME convention, this group gives way to the **Complete sets only (ROMs and
   CHDs present)** option of the [MAME machines](#mame-machines) frame. For the software of a MAME list, this option
   excludes a software whose archive lacks a ROM.
-* **Tolerate minor disk tag differences (trainers/fixes)** *(TOSEC)*: a set is often incomplete because disk 1 carries a
-  trainer `[t]` or a fix `[f]` that the data disks do not. With this option, RomSieve completes the set with the clean
-  data disks of the same game.
+* **Complete a set with the disks of another dump**: an incomplete set borrows the disk it lacks from another dump of
+  the same edition. *(TOSEC)* A set is often incomplete because disk 1 carries a trainer `[t]` or a fix `[f]` that the
+  data disks do not: RomSieve completes it with the clean data disks of the same game. *(No-Intro / Redump)* A disc
+  dumped in several pressings, told apart by their mastering codes (`Phantasm (Japan) (Disc 6) (4M)` and
+  `(Disc 6) (5M)`), completes the set whose other discs have none. Only the set with the most discs borrows, always
+  the same dump (the one that shares the most tags with the set, then the one with the fewest tags, then the first
+  name), and never a disc of another edition (`(Premium Box)`). The option has no effect on MAME sets and software
+  lists.
+
+*(No-Intro / Redump)* A disc often carries its own label after its number: `Command & Conquer (USA) (Disc 1) (GDI Disc)`
+and `(Disc 2) (NOD Disc)`, `(Disc 1) (Allies)` and `(Disc 2) (Soviet)`. These discs form a single set, and its playlist
+is named without the label of the first disc (`Command & Conquer (USA).m3u`). A tag that every disc of an edition
+carries, such as `(Disc 1) (Premium Box)` and `(Disc 2) (Premium Box)`, still keeps that edition apart, and so does a
+tag that tells a disc from another dump of the same disc (`(Disc 1) (EDC)` next to `(Disc 1)`). RomSieve compares
+the discs of the DAT, when there is one, so the result does not depend on the discs that the source holds.
 
 ## Amiga machine
 

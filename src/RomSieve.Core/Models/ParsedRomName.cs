@@ -108,6 +108,20 @@ public sealed partial record ParsedRomName
     public string? RereleaseTag { get; init; }
 
     /// <summary>
+    /// No-Intro / Redump: the unrecognized parenthesis that directly follows the disc number, as it appears in
+    /// <see cref="MoreInfo"/> (<c>(GDI Disc)</c> in <c>Command &amp; Conquer (USA) (Disc 1) (GDI Disc)</c>). It may be the
+    /// label of that disc or the mark of an edition (<c>(Disc 1) (Premium Box)</c>): only a comparison with the other
+    /// disks of the game tells, which <see cref="Services.DiscLabelResolver"/> makes.
+    /// </summary>
+    public string? DiscLabelCandidate { get; init; }
+
+    /// <summary>
+    /// The <see cref="DiscLabelCandidate"/> that <see cref="Services.DiscLabelResolver"/> found to be the label of this
+    /// disc alone: left out of the release key, so that the disks of a set labelled one by one form a single release.
+    /// </summary>
+    public string? DiscLabel { get; init; }
+
+    /// <summary>
     /// Game a release belongs to when the DAT says it explicitly: the parent set of a MAME machine. It takes part in
     /// the canonical game key, so that two games with the same title (the Tetris of Atari and the one of Sega) stay
     /// apart, while the title of the parent (<see cref="ParentTitle"/>) gathers its clones.

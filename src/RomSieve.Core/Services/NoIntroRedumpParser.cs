@@ -442,10 +442,14 @@ public sealed partial class NoIntroRedumpParser : INoIntroRedumpParser
         var softwareMods = new List<string>();
         var dumpFlags = new List<string>();
         var moreInfo = new List<string>();
+        string? discLabelCandidate = null;
+        var previousIsDisc = false;
 
         foreach (var segment in parens)
         {
             var segStrip = segment.Trim();
+            var followsDisc = previousIsDisc;
+            previousIsDisc = false;
 
             // 1. Region check
             var subRegions = segStrip.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -496,6 +500,7 @@ public sealed partial class NoIntroRedumpParser : INoIntroRedumpParser
                 discNum = int.Parse(mDisc.Groups[1].ValueSpan);
                 discTotal = mDisc.Groups[2].Success ? int.Parse(mDisc.Groups[2].ValueSpan) : null;
                 mediaLabel = segStrip;
+                previousIsDisc = true;
                 continue;
             }
 
@@ -589,6 +594,13 @@ public sealed partial class NoIntroRedumpParser : INoIntroRedumpParser
                 rereleaseTag = !string.IsNullOrEmpty(rereleaseTag) ? $"{rereleaseTag}, {segStrip}" : segStrip;
                 moreInfo.Add($"({segStrip})");
                 continue;
+            }
+
+            // Redump writes the label of a disc right after its number, "(Disc 1) (GDI Disc)", and the marks of the
+            // edition after it, "(Disc 2) (Genbu) (Shokai Genteiban)"; whether it is one is decided by DiscLabelResolver
+            if (followsDisc)
+            {
+                discLabelCandidate = $"({segStrip})";
             }
 
             moreInfo.Add($"({segStrip})");
@@ -701,7 +713,8 @@ public sealed partial class NoIntroRedumpParser : INoIntroRedumpParser
             DiscNumber = discNum,
             DiscTotal = discTotal,
             TrackNumber = trackNum,
-            RereleaseTag = rereleaseTag
+            RereleaseTag = rereleaseTag,
+            DiscLabelCandidate = discLabelCandidate
         };
     }
 

@@ -69,6 +69,56 @@ public sealed partial class GuiTests
     }
 
     /// <summary>
+    /// Completing a set with the disks of another dump: one box of TOSEC and No-Intro / Redump, shown with the options of
+    /// both conventions and greyed in a MAME run or with software lists, where it has no effect.
+    /// </summary>
+    [Fact]
+    public async Task FiltersTab_SmartMultidisk_ShouldBeOneBoxOfTosecAndNoIntro()
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                vm.Navigation.CurrentStep = WorkflowStep.Filters;
+                Settle(window);
+
+                var box = window.FindControl<CheckBox>("ChkSmartMultidisk")!;
+                ContentText(box).Should().Be("Compléter un set avec les disques d'un autre dump");
+                ToolTip.GetShowOnDisabled(box).Should().BeTrue();
+                box.IsChecked.Should().BeTrue("on for a new configuration");
+
+                vm.Filters.IsNoIntroShown = true;
+                Settle(window);
+                box.IsEffectivelyVisible.Should().BeTrue();
+                box.IsEffectivelyEnabled.Should().BeTrue();
+                box.IsChecked = false;
+                vm.TosecFilters.SmartMultidiskGrouping.Should().BeFalse("one option for both conventions");
+                vm.BuildConfigUnchecked().Filters.SmartMultidiskGrouping.Should().BeFalse();
+
+                foreach (var convention in new[] { NamingConvention.Mame, NamingConvention.MameSoftwareList })
+                {
+                    vm.Directories.SelectedNamingConvention = convention;
+                    vm.Filters.IsTosecShown = true;
+                    Settle(window);
+                    box.IsEffectivelyVisible.Should().BeTrue(convention.ToString());
+                    box.IsEffectivelyEnabled.Should().BeFalse(convention.ToString());
+                }
+
+                vm.Directories.SelectedNamingConvention = NamingConvention.Redump;
+                Settle(window);
+                box.IsEffectivelyEnabled.Should().BeTrue();
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>
     /// Filtering the files missing from the DAT: one box of every convention, last of the content to keep, shown with the
     /// options of both conventions and greyed in a MAME run or with software lists, its tooltip saying why.
     /// </summary>
@@ -225,7 +275,8 @@ public sealed partial class GuiTests
                 vm.NoIntroFilters.ExcludePirate.Should().BeTrue();
                 window.FindControl<CheckBox>("ChkKeepRereleases")!.IsEffectivelyVisible.Should().BeTrue();
                 pd.IsEffectivelyVisible.Should().BeFalse();
-                smart.IsEffectivelyVisible.Should().BeFalse();
+                smart.IsEffectivelyVisible.Should().BeTrue("a No-Intro / Redump set also borrows a disc from another pressing");
+                smart.IsEnabled.Should().BeTrue();
 
                 // The MAME card is always there with the No-Intro / Redump options, reduced to its title and a sentence
                 // saying when it applies; its options only come with the MAME convention

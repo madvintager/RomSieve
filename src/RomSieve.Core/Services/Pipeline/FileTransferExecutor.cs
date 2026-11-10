@@ -1396,6 +1396,22 @@ public sealed partial class FileTransferExecutor
     }
 
     /// <summary>
+    /// The file name of the first disc of a playlist without the label of that disc (<see cref="ParsedRomName.DiscLabel"/>):
+    /// <c>Command &amp; Conquer (USA) (Disc 1) (GDI Disc).cue</c> names the playlist of the whole set
+    /// <c>Command &amp; Conquer (USA).m3u</c>.
+    /// </summary>
+    private static string WithoutDiscLabel(string fileName, ParsedRomName parsed)
+    {
+        if (parsed.DiscLabel is not { } label)
+        {
+            return fileName;
+        }
+
+        var index = fileName.IndexOf(label, StringComparison.OrdinalIgnoreCase);
+        return index < 0 ? fileName : fileName.Remove(index, label.Length);
+    }
+
+    /// <summary>
     /// Writes one <c>.m3u</c> playlist per release grouped by <see cref="MultiDiskEvaluator.GroupPlaylistReleases"/>. An
     /// existing playlist, or a path that a file of the sort took (<paramref name="claimedPaths"/>), follows the collision
     /// mode. A cancellation removes the playlist being written and is thrown again.
@@ -1442,7 +1458,7 @@ public sealed partial class FileTransferExecutor
 
             var firstPath = uniqueDiscs[0].FinalTargetPath!;
             var discParent = Path.GetDirectoryName(firstPath) ?? _config.DestinationDir;
-            var m3uFilename = _organizer.GenerateM3uFilename(Path.GetFileName(firstPath));
+            var m3uFilename = _organizer.GenerateM3uFilename(WithoutDiscLabel(Path.GetFileName(firstPath), uniqueDiscs[0].Parsed));
             var destDir = _config.DestinationDir;
             var placement = _config.M3uPlacement;
 
