@@ -84,8 +84,9 @@ fichier et, quand d'autres DAT le reconnaissent, ceux-ci, où ses ROMs comptent 
 [décochés](#choisir-des-jeux), une ligne **Sélection** dit en plus si la ligne sera triée : *Cochée*, *Décochée*, ou
 *Triée avec le set …, qui en a besoin* pour un set MAME emporté par les jeux cochés ; l'info-bulle de la ligne la
 reprend. Le statut décrit toujours la simulation entière, la ligne **Sélection** le tri partiel. Pour une version
-patchée, la ligne **Patch** nomme le patch, son format et la ROM d'origine avec son CRC32 ; pour une ROM d'origine, la
-ligne **Versions patchées** les nomme. Les textes peuvent être
+patchée, la ligne **Fichier source** donne le chemin de la ROM d'origine, dont elle reprend le contenu, et la ligne
+**Patch** le chemin du patch, son format et la ROM d'origine avec son CRC32 ; pour une ROM d'origine, la ligne
+**Versions patchées** les nomme. Les textes peuvent être
 sélectionnés et copiés. Le panneau est replié par défaut ; il reste ouvert ou fermé d'une session à l'autre.
 
 ## Pastilles de statut

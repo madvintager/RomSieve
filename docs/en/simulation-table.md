@@ -82,8 +82,9 @@ version, media and tracks. With a lot of DATs, the **DAT** line names the DAT of
 those, where its ROMs count as present. While some games are [unchecked](#choosing-games), a **Selection**
 line also tells whether the row will be sorted: *Checked*, *Unchecked*, or *Sorted with the set …, which needs it* for a
 MAME set taken along by the checked games; the tooltip of the row repeats it. The status always describes the whole
-simulation, the **Selection** line the partial sort. For a patched version, the **Patch** line names the patch, its
-format and the original ROM with its CRC32; for an original ROM, the **Patched versions** line names them. The texts can be selected and copied. The panel is folded by default;
+simulation, the **Selection** line the partial sort. For a patched version, the **Source file** line gives the path of
+the original ROM, whose content it takes, and the **Patch** line the path of the patch, its format and the original ROM
+with its CRC32; for an original ROM, the **Patched versions** line names them. The texts can be selected and copied. The panel is folded by default;
 it stays open or closed from one session to the next.
 
 ## Status chips

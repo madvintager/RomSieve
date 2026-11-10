@@ -331,9 +331,7 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
             : statusLabel;
         StatusLabel = statusLabel;
         StatusReasonText = reason;
-        SourcePathDisplay = !string.IsNullOrEmpty(Item.ArchiveMember)
-            ? $"{Item.SourcePath} › {Item.ArchiveMember}"
-            : Item.SourcePath;
+        SourcePathDisplay = FormatDetailSourcePath(Item);
         FullTargetPath = Item.FinalTargetPath ?? Item.TargetPath ?? string.Empty;
 
         Status = Item.Status;
@@ -626,28 +624,44 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
     }
 
     /// <summary>
-    /// Patch line of the detail panel: for a patched version, its patch, the format and the original ROM with the CRC32
-    /// the patch was matched by, and the text that gave it when it comes from a readme; for an original ROM, the names of
-    /// its patched versions; nothing otherwise.
+    /// Source file line of the detail panel: the file and, for the member of an archive, the member. For a patched
+    /// version, the file its bytes come from, its original ROM: the patch is on the patch line
+    /// (<see cref="FormatDetailPatch"/>), with its own path.
+    /// </summary>
+    public static string FormatDetailSourcePath(ProcessItem item)
+    {
+        var source = item.Patch?.Origin ?? item;
+        return FormatPath(source.SourcePath, source.ArchiveMember);
+    }
+
+    /// <summary>A file, or the member of an archive after the path of the archive.</summary>
+    private static string FormatPath(string path, string? archiveMember) =>
+        string.IsNullOrEmpty(archiveMember) ? path : $"{path} › {archiveMember}";
+
+    /// <summary>
+    /// Patch line of the detail panel: for a patched version, the path of its patch, the format and the original ROM
+    /// with the CRC32 the patch was matched by, and the text that gave it when it comes from a readme; for an original
+    /// ROM, the names of its patched versions; nothing otherwise.
     /// </summary>
     public static (string Label, string Text) FormatDetailPatch(ProcessItem item, ILocalizationService localization)
     {
         if (item.Patch is { } patch)
         {
             var crc = patch.SourceCrc32.ToString("X8", CultureInfo.InvariantCulture);
+            var patchPath = FormatPath(patch.File.SourcePath, patch.File.ArchiveMember);
             return (
                 localization.Tr("panel4.detail_patch"),
                 patch.Note is { } note
                     ? localization.Tr(
                         "panel4.detail_patch_text_note",
-                        ("patch", patch.File.DisplayName),
+                        ("patch", patchPath),
                         ("format", patch.Format.ToDisplayName()),
                         ("origin", patch.Origin.DisplayName),
                         ("crc", crc),
                         ("note", note.DisplayName))
                     : localization.Tr(
                         "panel4.detail_patch_text",
-                        ("patch", patch.File.DisplayName),
+                        ("patch", patchPath),
                         ("format", patch.Format.ToDisplayName()),
                         ("origin", patch.Origin.DisplayName),
                         ("crc", crc)));

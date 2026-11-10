@@ -131,17 +131,29 @@ public sealed class PatchViewModelTests : IDisposable
     // Table
     // =========================================================================
 
-    /// <summary>A Japanese and an American release of a game, the American one kept, and a translation of the Japanese one.</summary>
-    private async Task<(PreviewTableViewModel Table, SortExecutionResult Result)> SimulateAsync()
+    /// <summary>
+    /// A Japanese and an American release of a game, the American one kept, and a translation of the Japanese one; with
+    /// <paramref name="inArchives"/>, the Japanese release and its translation are each the member of a ZIP archive.
+    /// </summary>
+    private async Task<(PreviewTableViewModel Table, SortExecutionResult Result)> SimulateAsync(bool inArchives = false)
     {
-        _temp.WriteBytes("src/Game (Japan).sfc", Japan);
+        var translation = PatchTestEncoder.BpsLinear(Japan, [.. Japan, .. "English"u8.ToArray()]);
+        if (inArchives)
+        {
+            WriteZip("src", "Game (Japan).sfc", Japan);
+            WriteZip("patches", "Game (Japan) (T-En).bps", translation);
+        }
+        else
+        {
+            _temp.WriteBytes("src/Game (Japan).sfc", Japan);
+            _temp.WriteBytes("patches/Game (Japan) (T-En).bps", translation);
+        }
         _temp.WriteBytes("src/Game (USA).sfc", Usa);
         var dat = _temp.WriteText("dat/snes.dat", $"""
             <?xml version="1.0"?><datafile><header><name>Nintendo - SNES</name><homepage>No-Intro</homepage></header>
             <game name="Game (Japan)"><description>Game (Japan)</description><rom name="Game (Japan).sfc" size="{Japan.Length}" crc="{PatchTestEncoder.Crc(Japan):x8}"/></game>
             <game name="Game (USA)"><description>Game (USA)</description><rom name="Game (USA).sfc" size="{Usa.Length}" crc="{PatchTestEncoder.Crc(Usa):x8}"/></game></datafile>
             """);
-        _temp.WriteBytes("patches/Game (Japan) (T-En).bps", PatchTestEncoder.BpsLinear(Japan, [.. Japan, .. "English"u8.ToArray()]));
         var config = new SortConfig
         {
             SourceDir = _temp.GetFilePath("src"),
@@ -169,17 +181,41 @@ public sealed class PatchViewModelTests : IDisposable
     public async Task APatchedVersion_ShouldHaveItsBadgeAndNameItsPatchInTheDetail()
     {
         var (table, _) = await SimulateAsync();
+        var patchPath = Path.Combine(_temp.Path, "patches", "Game (Japan) (T-En).bps");
+        var originPath = Path.Combine(_temp.Path, "src", "Game (Japan).sfc");
 
         var patched = Row(table, "Game (Japan) (T-En).bps");
         patched.IsPatched.Should().BeTrue();
+        patched.SourcePathDisplay.Should().Be(originPath, "the bytes of a patched version come from its original ROM");
         patched.DetailPatchLabel.Should().Be("Patch");
-        patched.DetailPatchText.Should().Be($"Game (Japan) (T-En).bps (BPS), appliqué à Game (Japan).sfc (CRC32 {PatchTestEncoder.Crc(Japan):X8})");
+        patched.DetailPatchText.Should().Be($"{patchPath} (BPS), appliqué à Game (Japan).sfc (CRC32 {PatchTestEncoder.Crc(Japan):X8})");
 
         var origin = Row(table, "Game (Japan).sfc");
         origin.IsPatched.Should().BeFalse();
+        origin.SourcePathDisplay.Should().Be(originPath);
         origin.DetailPatchLabel.Should().Be("Versions patchées");
         origin.DetailPatchText.Should().Be("Game (Japan) [T-En].sfc");
         Row(table, "Game (USA).sfc").DetailPatchText.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task APatchedVersionFromArchives_ShouldShowTheMemberOfTheRomAndOfThePatchInTheDetail()
+    {
+        var (table, _) = await SimulateAsync(inArchives: true);
+        var romZip = Path.Combine(_temp.Path, "src", "Game (Japan).zip");
+        var patchZip = Path.Combine(_temp.Path, "patches", "Game (Japan) (T-En).zip");
+
+        var patched = Row(table, "Game (Japan) (T-En).bps");
+        patched.SourcePathDisplay.Should().Be($"{romZip} › Game (Japan).sfc");
+        patched.DetailPatchText.Should().StartWith($"{patchZip} › Game (Japan) (T-En).bps (BPS), appliqué à Game (Japan).sfc");
+    }
+
+    private void WriteZip(string folder, string member, byte[] content)
+    {
+        var path = Path.Combine(_temp.CreateSubdirectory(folder), Path.ChangeExtension(member, ".zip"));
+        using var zip = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create);
+        using var stream = zip.CreateEntry(member).Open();
+        stream.Write(content);
     }
 
     [Fact]
@@ -191,7 +227,7 @@ public sealed class PatchViewModelTests : IDisposable
         var (table, _) = await SimulateAsync();
 
         Row(table, "Game (USA) (Hack).ips").DetailPatchText.Should().Be(
-            $"Game (USA) (Hack).ips (IPS), appliqué à Game (USA).sfc (CRC32 {PatchTestEncoder.Crc(Usa):X8}, lu dans Game (USA) (Hack).txt)");
+            $"{Path.Combine(_temp.Path, "patches", "Game (USA) (Hack).ips")} (IPS), appliqué à Game (USA).sfc (CRC32 {PatchTestEncoder.Crc(Usa):X8}, lu dans Game (USA) (Hack).txt)");
     }
 
     [Fact]
