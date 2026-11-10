@@ -39,6 +39,12 @@ public sealed class HeadlessDialogService : IDialogService
     /// <summary>What the user does in the next windows of the DATs of a lot: true for OK, false for Cancel (OK by default).</summary>
     public Func<DatLotViewModel, Task<bool>>? OnShowDatLot { get; set; }
 
+    /// <summary>Windows of the patches shown, in order.</summary>
+    public List<PatchesViewModel> ShownPatches { get; } = [];
+
+    /// <summary>What the user does in the next windows of the patches: true to simulate again (false by default).</summary>
+    public Func<PatchesViewModel, Task<bool>>? OnShowPatches { get; set; }
+
     public Task<string?> PickFolderAsync(string title, string? initialDirectory = null) =>
         Task.FromResult(NextPickedFolder);
 
@@ -104,5 +110,11 @@ public sealed class HeadlessDialogService : IDialogService
     {
         ShownDatLots.Add(lot);
         return OnShowDatLot is null || await OnShowDatLot(lot);
+    }
+
+    public async Task<bool> ShowPatchesAsync(PatchesViewModel patches)
+    {
+        ShownPatches.Add(patches);
+        return OnShowPatches is not null && await OnShowPatches(patches);
     }
 }

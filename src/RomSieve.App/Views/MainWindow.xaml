@@ -243,6 +243,23 @@
     <Style Selector="Button.decided-count:disabled /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="Transparent" />
     </Style>
+    <!-- A text of the banner that opens a window: a bare underlined text, the whole of it clickable -->
+    <Style Selector="Button.banner-link">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.banner-link /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.banner-link TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="TextDecorations" Value="Underline" />
+    </Style>
     <Style Selector="TextBlock.decided-count.decided-nothing">
       <Setter Property="FontWeight" Value="Normal" />
       <Setter Property="TextDecorations" Value="{x:Null}" />
@@ -3228,15 +3245,27 @@
                            FontSize="11"
                            FontWeight="Bold"
                            VerticalAlignment="Center" />
-                <!-- Patches of the patch folder that gave no patched version, named with their reason in the tooltip -->
-                <TextBlock x:Name="LblUnappliedPatches"
-                           Text="{Binding StatsBanner.UnappliedPatchesText}"
-                           ToolTip.Tip="{Binding StatsBanner.UnappliedPatchesTooltip}"
-                           IsVisible="{Binding StatsBanner.IsUnappliedPatchesVisible}"
-                           Foreground="{DynamicResource SizeWarningForegroundBrush}"
-                           FontSize="11"
-                           FontWeight="Bold"
-                           VerticalAlignment="Center" />
+                <!-- Patches of the patch folder that gave no patched version, named with their reason in the tooltip; a
+                     click opens the window of the patches -->
+                <Button x:Name="BtnUnappliedPatches"
+                        Classes="banner-link"
+                        ToolTip.Tip="{Binding StatsBanner.UnappliedPatchesTooltip}"
+                        IsVisible="{Binding StatsBanner.IsUnappliedPatchesVisible}"
+                        Command="{Binding Patches.OpenCommand}">
+                  <TextBlock x:Name="LblUnappliedPatches"
+                             Text="{Binding StatsBanner.UnappliedPatchesText}"
+                             Foreground="{DynamicResource SizeWarningForegroundBrush}" />
+                </Button>
+                <!-- Without patches left out: the IPS applied thanks to their readme, whose name may get their CRC32 -->
+                <Button x:Name="BtnPatchesToName"
+                        Classes="banner-link"
+                        ToolTip.Tip="{Binding I18n[stats.tooltip_patches_to_name]}"
+                        IsVisible="{Binding Patches.IsNamingLinkVisible}"
+                        Command="{Binding Patches.OpenCommand}">
+                  <TextBlock x:Name="LblPatchesToName"
+                             Text="{Binding Patches.NamingLinkText}"
+                             Foreground="{DynamicResource HintForegroundBrush}" />
+                </Button>
               </StackPanel>
             </controls:TwoSidedWrapPanel>
           </Border>

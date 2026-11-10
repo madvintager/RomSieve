@@ -933,5 +933,8 @@ public sealed class ExportViewModelTests : IDisposable
 
         public Task<bool> ShowDatLotAsync(DatLotViewModel lot) =>
             Task.FromResult(false);
+
+        public Task<bool> ShowPatchesAsync(PatchesViewModel patches) =>
+            Task.FromResult(false);
     }
 }

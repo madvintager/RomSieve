@@ -130,6 +130,8 @@ public sealed partial class GuiTests : IDisposable
         public Task ShowPreferencesAsync(PreferencesViewModel preferences) => Task.CompletedTask;
 
         public Task<bool> ShowDatLotAsync(DatLotViewModel lot) => Task.FromResult(false);
+
+        public Task<bool> ShowPatchesAsync(PatchesViewModel patches) => Task.FromResult(false);
     }
 
     // =========================================================================

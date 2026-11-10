@@ -26,7 +26,7 @@ public sealed class PatchNamingTests : IDisposable
 
     public PatchNamingTests()
     {
-        _naming = new PatchNamingService(_services.Patches);
+        _naming = new PatchNamingService(_services.Patches, _services.ChecksumService, _services.CrcCache);
         _patches = _temp.CreateSubdirectory("patches");
     }
 
@@ -207,6 +207,48 @@ public sealed class PatchNamingTests : IDisposable
             (LogLevel.Warn, "log.patch_rename_refused"),
             (LogLevel.Info, "log.patch_renamed"));
         _log[0].Message.Args["reason"].Should().BeOfType<LocalizedMessage>().Which.Key.Should().Be("reason.patch_rename_missing");
+    }
+
+    // =========================================================================
+    // Forms of an origin
+    // =========================================================================
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task TheFormsOfAnOrigin_ShouldBeBothForAFileWithACopierHeader_TheWholeOneFirst(bool detectCopierHeaders)
+    {
+        var data = Data(3, 8192);
+        var file = (byte[])[.. Ascii("NES\u001a"), .. new byte[12], .. data];
+        _temp.WriteBytes("src/Game (USA).nes", file);
+        _temp.WriteBytes("src/Plain (USA).nes", Japan);
+        var dat = _temp.WriteText("dat/nes.dat", $"""
+            <?xml version="1.0"?><datafile><header><name>Nintendo - NES</name><homepage>No-Intro</homepage></header>
+            <game name="Game (USA)"><description>Game (USA)</description><rom name="Game (USA).nes" size="{data.Length}" crc="{Crc(data):x8}"/></game>
+            <game name="Plain (USA)"><description>Plain (USA)</description><rom name="Plain (USA).nes" size="{Japan.Length}" crc="{Crc(Japan):x8}"/></game></datafile>
+            """);
+        var result = await _services.Processor.ExecuteAsync(
+            new SortConfig { SourceDir = _temp.GetFilePath("src"), DestinationDir = _temp.CreateSubdirectory("dst"), DatFile = dat, NamingConvention = NamingConvention.NoIntro },
+            isDryRun: true);
+        var game = result.Items.Single(it => it.DisplayName == "Game (USA).nes");
+        var plain = result.Items.Single(it => it.DisplayName == "Plain (USA).nes");
+
+        var forms = await _naming.GetOriginFormsAsync(game, detectCopierHeaders);
+        var plainForms = await _naming.GetOriginFormsAsync(plain, detectCopierHeaders);
+
+        if (detectCopierHeaders)
+        {
+            forms.Select(f => (f.Crc32, f.Offset, f.WithCopierHeader)).Should().Equal(
+                (Crc(file), 0L, (bool?)true),
+                (Crc(data), 16L, (bool?)false));
+        }
+        else
+        {
+            forms.Select(f => (f.Crc32, f.Offset, f.WithCopierHeader)).Should().Equal((Crc(data), 16L, (bool?)null));
+        }
+
+        plainForms.Select(f => (f.Crc32, f.Offset, f.WithCopierHeader)).Should().Equal((Crc(Japan), 0L, (bool?)null));
+        forms.Should().OnlyContain(f => ReferenceEquals(f.Origin, game));
     }
 
     [Fact]

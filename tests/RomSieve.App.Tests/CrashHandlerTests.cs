@@ -182,6 +182,8 @@ public sealed class CrashHandlerTests : IDisposable
         public Task ShowPreferencesAsync(PreferencesViewModel preferences) => Task.CompletedTask;
 
         public Task<bool> ShowDatLotAsync(DatLotViewModel lot) => Task.FromResult(false);
+
+        public Task<bool> ShowPatchesAsync(PatchesViewModel patches) => Task.FromResult(false);
     }
 
     private sealed class FailingDialogService : IDialogService
@@ -209,5 +211,7 @@ public sealed class CrashHandlerTests : IDisposable
         public Task ShowPreferencesAsync(PreferencesViewModel preferences) => Task.CompletedTask;
 
         public Task<bool> ShowDatLotAsync(DatLotViewModel lot) => Task.FromResult(false);
+
+        public Task<bool> ShowPatchesAsync(PatchesViewModel patches) => Task.FromResult(false);
     }
 }

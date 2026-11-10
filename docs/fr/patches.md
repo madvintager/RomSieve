@@ -155,7 +155,7 @@ Un patch qui ne donne aucune version patchée a sa ligne dans le journal, avec s
 | Raison | Ce qu'il faut faire |
 |---|---|
 | Aucune ROM identifiée de ce CRC32 dans la source | La ROM d'origine manque, ou elle n'est pas identifiée par le DAT |
-| Ni le nom du patch IPS ni un texte qui l'accompagne ne donnent le CRC32 de la ROM d'origine | Ajoutez le CRC32 au nom du patch, par exemple `[1a2b3c4d]` |
+| Ni le nom du patch IPS ni un texte qui l'accompagne ne donnent le CRC32 de la ROM d'origine | Choisissez sa ROM dans la fenêtre **Patchs** (voir [Nommer un IPS](#nommer-un-ips)), ou ajoutez le CRC32 au nom du patch, par exemple `[1a2b3c4d]` |
 | Aucune ROM identifiée dans la source pour les CRC32 que donne un readme | La ROM d'origine manque, ou elle n'est pas identifiée par le DAT |
 | Patch illisible | Le fichier est tronqué, abîmé, ou d'un autre format |
 | Le nom du patch donne les CRC32 de plusieurs ROMs de la source | Ne gardez dans le nom que le CRC32 de la bonne ROM |
@@ -166,13 +166,48 @@ Un patch qui ne donne aucune version patchée a sa ligne dans le journal, avec s
 
 Sans DAT, les patchs ne sont pas lus : le journal le dit.
 
+## Nommer un IPS
+
+La plupart des IPS téléchargés n'ont de CRC32 ni dans leur nom ni dans leur readme. Plutôt que de le chercher et de
+renommer le fichier à la main, ouvrez la fenêtre **Patchs** : après une simulation, cliquez sur « *n* patchs non
+appliqués » dans le bandeau des résultats (ou sur « *n* patchs à nommer », quand aucun patch n'est resté non appliqué
+mais que des IPS l'ont été grâce à leur readme).
+
+La fenêtre liste les patchs non appliqués, puis les IPS appliqués grâce à leur readme. Pour un patch sélectionné :
+
+* **ROM d'origine** propose les ROMs identifiées dont le nom ou le titre commence le nom du patch, ou celui de son
+  archive, ou celui de son dossier quand ce dossier ne contient que lui (`Traduction CT/patch.ips`). Les noms génériques
+  (`patch`, `fix`, `v1.1`…) ne comptent pas. La ROM entière passe avant le titre seul, puis la ROM que le tri écrit. Pour
+  un patch dont le nom ou le readme désigne plusieurs ROMs, ce sont ces ROMs.
+* **Autre ROM** cherche parmi toutes les ROMs identifiées par la simulation, quand aucune ROM proposée n'est la bonne : un
+  titre traduit (`Super Mario Frères.ips` pour `Super Mario Bros.`) ou abrégé n'en propose aucune. **Prendre cette ROM**
+  (ou un double clic) la choisit.
+* **Forme** choisit, pour une ROM à en-tête copieur, le CRC32 avec ou sans l'en-tête. Un IPS ne dit pas pour laquelle il
+  a été fait : son readme le dit en général. La liste est grisée quand la ROM n'a qu'une forme.
+
+Une ROM proposée n'est jamais prise d'office : cochez chaque patch à renommer, vérifiez le **Nouveau nom** affiché, puis
+cliquez sur **Renommer**. Le CRC32 s'ajoute avant l'extension (`Jeu (T-Fr).ips` devient `Jeu (T-Fr) [47e70e08].ips`),
+la ligne dit ce qu'il en est, et le journal le note. **Relancer la simulation** ferme la fenêtre et relance la simulation,
+qui applique les patchs renommés. Le CRC32 ajouté n'apparaît pas dans le nom de la version patchée (voir
+[Choix du nom](#choix-du-nom)).
+
+* **Cocher les IPS appliqués par un readme** coche les IPS que la simulation a déjà appliqués grâce à leur readme :
+  écrire leur CRC32 dans leur nom les fait aussi appliquer par d'autres outils, comme igir.
+* Un patch rangé dans une **archive** n'est jamais renommé, puisqu'une archive n'est jamais modifiée : la fenêtre donne le
+  CRC32 de la ROM choisie, et il faut extraire le patch pour écrire ce CRC32 dans son nom.
+* Un patch dont le nom donne déjà un CRC32, un UPS ou un BPS ne se choisit pas : un CRC32 dans son nom ne le réparerait
+  pas.
+* Rien n'est écrasé : un nom déjà pris laisse le patch tel quel, et sa ligne le dit. Le renommage n'est pas inscrit au
+  journal des tris, et **Annuler le dernier tri** ne le défait pas : il se défait à la main.
+
 ## Dans les résultats
 
 * Le tableau marque chaque version patchée d'une pastille **Patchée**. Dans la vue groupée, elle suit la version retenue
   de son jeu. Le panneau de détail nomme le patch, son format et la ROM d'origine ; celui d'une ROM d'origine nomme ses
   versions patchées. Une version patchée ne peut pas être choisie comme gagnant 1G1R.
 * Le bandeau compte les versions patchées dans la pastille **Patchées**, qui n'affiche qu'elles, et les patchs non
-  appliqués dans « *n* patchs non appliqués », dont l'infobulle donne la liste avec leurs raisons.
+  appliqués dans « *n* patchs non appliqués », dont l'infobulle donne la liste avec leurs raisons et qu'un clic ouvre
+  dans la fenêtre **Patchs** (voir [Nommer un IPS](#nommer-un-ips)).
 * Dans un [tri partiel](simulation-table.md#trier-une-partie-de-la-simulation), une version patchée suit la case de son
   jeu.
 * Les [exports](exports.md) la décrivent : le rapport nomme son patch, et le DAT de votre collection l'écrit avec ses

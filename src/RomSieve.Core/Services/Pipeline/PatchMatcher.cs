@@ -662,90 +662,10 @@ public sealed partial class PatchMatcher
     /// The other form of the data of a file (<see cref="ReadOtherFormsAsync"/>), when <paramref name="mayFit"/> accepts its
     /// size; <see langword="null"/> without one, or for a file that cannot be read again.
     /// </summary>
-    private async Task<Candidate?> OtherFormAsync(Candidate candidate, Func<long, bool> mayFit, CancellationToken cancellationToken)
-    {
-        var item = candidate.Item;
-        try
-        {
-            if (item.CopierHeaderSize > 0)
-            {
-                if (mayFit(item.FileSize) && string.IsNullOrEmpty(item.ArchiveMember))
-                {
-                    var crc = _crcCache.Get(item.SourcePath);
-                    if (crc is null)
-                    {
-                        crc = await _checksumService.ComputeFileCrc32Async(item.SourcePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-                        _crcCache.Set(item.SourcePath, crc);
-                    }
-
-                    return candidate with { Offset = 0, Size = item.FileSize, Crc32 = uint.Parse(crc, NumberStyles.HexNumber, CultureInfo.InvariantCulture) };
-                }
-            }
-            else if (CopierHeaderSizes.Any(h => item.FileSize > h && mayFit(item.FileSize - h))
-                     && await ReadWithoutHeaderAsync(item, cancellationToken).ConfigureAwait(false) is { } withoutHeader)
-            {
-                return candidate with { Offset = withoutHeader.Header, Size = item.FileSize - withoutHeader.Header, Crc32 = withoutHeader.Crc };
-            }
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
-        {
-            // A file that cannot be read again gives no other form
-        }
-
-        return null;
-    }
-
-    /// <summary>Sizes of the copier headers <see cref="IChecksumService.DetectCopierHeader"/> finds: iNES, Lynx, SNES.</summary>
-    private static readonly int[] CopierHeaderSizes = [16, 64, 512];
-
-    /// <summary>The copier header of a file identified whole, and the CRC32 of its data after it; <see langword="null"/> without header.</summary>
-    private async Task<(int Header, uint Crc)?> ReadWithoutHeaderAsync(ProcessItem item, CancellationToken cancellationToken)
-    {
-        await using Stream stream = !string.IsNullOrEmpty(item.ArchivePath) && !string.IsNullOrEmpty(item.ArchiveMember)
-            ? _checksumService.OpenArchiveMember(item.ArchivePath, item.ArchiveMember)
-            : new FileStream(item.SourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
-        var start = new byte[64];
-        var read = await stream.ReadAtLeastAsync(start, start.Length, throwOnEndOfStream: false, cancellationToken).ConfigureAwait(false);
-        var header = _checksumService.DetectCopierHeader(start.AsSpan(0, read), item.FileSize);
-        if (header <= 0 || header >= item.FileSize)
-        {
-            return null;
-        }
-
-        var crc = new Crc32();
-        if (header < read)
-        {
-            crc.Append(start.AsSpan(header, read - header));
-        }
-        else if (header > read)
-        {
-            await SkipAsync(stream, header - read, cancellationToken).ConfigureAwait(false);
-        }
-
-        var buffer = new byte[81920];
-        int n;
-        while ((n = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
-        {
-            crc.Append(buffer.AsSpan(0, n));
-        }
-
-        return (header, crc.GetCurrentHashAsUInt32());
-    }
-
-    private static async Task SkipAsync(Stream stream, int count, CancellationToken cancellationToken)
-    {
-        var buffer = new byte[Math.Min(count, 4096)];
-        while (count > 0)
-        {
-            var n = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(count, buffer.Length)), cancellationToken).ConfigureAwait(false);
-            if (n == 0)
-            {
-                throw new EndOfStreamException();
-            }
-
-            count -= n;
-        }
-    }
+    private async Task<Candidate?> OtherFormAsync(Candidate candidate, Func<long, bool> mayFit, CancellationToken cancellationToken) =>
+        await PatchOriginForms.OtherFormAsync(candidate.Item, mayFit, _checksumService, _crcCache, cancellationToken).ConfigureAwait(false) is { } other
+            ? candidate with { Offset = other.Offset, Size = other.Size, Crc32 = other.Crc32 }
+            : null;
 
     // =========================================================================
     // The patched version

@@ -1,0 +1,244 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RomSieve.App.ViewModels"
+        x:Class="RomSieve.App.Views.PatchesWindow"
+        x:DataType="vm:PatchesViewModel"
+        Title="{Binding I18n[patches.window_title]}"
+        Width="900"
+        Height="640"
+        MinWidth="640"
+        MinHeight="480"
+        ShowInTaskbar="False"
+        Icon="avares://RomSieve.App/Assets/icon.png"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        FontSize="11"
+        WindowStartupLocation="CenterOwner">
+
+  <Window.Styles>
+    <!-- Same compact controls as the main window -->
+    <Style Selector="TextBlock.hint">
+      <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.form-label">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,10,0" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+    </Style>
+    <Style Selector="Button">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Padding" Value="10,2" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="3" />
+    </Style>
+    <Style Selector="ListBox#ListPatches ListBoxItem, ListBox#ListPatchOriginResults ListBoxItem">
+      <Setter Property="Padding" Value="4,2" />
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel Margin="16,14">
+    <!-- The IPS applied thanks to their readme on the left; renaming, a new simulation and closing on the right -->
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+      <Button x:Name="BtnPatchesCheckNoteMatched"
+              DockPanel.Dock="Left"
+              Content="{Binding I18n[patches.btn_check_note_matched]}"
+              ToolTip.Tip="{Binding I18n[patches.tooltip_check_note_matched]}"
+              Command="{Binding CheckNoteMatchedCommand}" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button x:Name="BtnPatchesRename"
+                MinWidth="85"
+                HorizontalContentAlignment="Center"
+                Content="{Binding RenameLabel}"
+                ToolTip.Tip="{Binding I18n[patches.tooltip_rename]}"
+                Command="{Binding RenameCommand}" />
+        <Button x:Name="BtnPatchesSimulateAgain"
+                MinWidth="85"
+                HorizontalContentAlignment="Center"
+                IsEnabled="{Binding HasRenamed}"
+                ToolTip.ShowOnDisabled="True"
+                Content="{Binding I18n[patches.btn_simulate_again]}"
+                ToolTip.Tip="{Binding I18n[patches.tooltip_simulate_again]}"
+                Click="OnSimulateAgainClick" />
+        <Button x:Name="BtnPatchesClose"
+                MinWidth="85"
+                HorizontalContentAlignment="Center"
+                IsCancel="True"
+                Content="{Binding I18n[patches.btn_close]}"
+                Click="OnCloseClick" />
+      </StackPanel>
+    </DockPanel>
+
+    <TextBlock x:Name="LblPatchesHint"
+               DockPanel.Dock="Top"
+               Classes="hint"
+               Margin="0,0,0,8"
+               Text="{Binding I18n[patches.hint]}" />
+
+    <!-- The patch selected: its origin, the form of its data, its new name, and a search among the identified files -->
+    <Border x:Name="PanelPatchDetail"
+            DockPanel.Dock="Bottom"
+            Margin="0,10,0,0"
+            Padding="10,8"
+            BorderThickness="1"
+            BorderBrush="{DynamicResource ControlBorderBrush}"
+            CornerRadius="4"
+            IsVisible="{Binding HasSelectedRow}">
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,6,Auto,6,Auto,6,Auto,4,Auto">
+        <TextBlock Grid.ColumnSpan="2"
+                   FontWeight="Bold"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{Binding SelectedRow.Name, FallbackValue=''}" />
+        <TextBlock Grid.Row="1"
+                   Grid.ColumnSpan="2"
+                   Classes="hint"
+                   Text="{Binding SelectedRow.StatusText, FallbackValue=''}" />
+
+        <TextBlock Grid.Row="3" Classes="form-label" Text="{Binding I18n[patches.origin_label]}" />
+        <ComboBox x:Name="ComboPatchOrigin"
+                  Grid.Row="3"
+                  Grid.Column="1"
+                  PlaceholderText="{Binding I18n[patches.origin_placeholder]}"
+                  ToolTip.Tip="{Binding I18n[patches.tooltip_origin]}"
+                  ToolTip.ShowOnDisabled="True"
+                  IsEnabled="{Binding CanSearch}"
+                  ItemsSource="{Binding SelectedRow.Origins, FallbackValue={x:Null}}"
+                  SelectedItem="{Binding SelectedRow.SelectedOrigin, Mode=TwoWay, FallbackValue={x:Null}}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:PatchOriginOptionViewModel">
+              <TextBlock TextWrapping="NoWrap" Text="{Binding Label}" ToolTip.Tip="{Binding Location}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+
+        <TextBlock Grid.Row="5" Classes="form-label" Text="{Binding I18n[patches.form_label]}" />
+        <ComboBox x:Name="ComboPatchForm"
+                  Grid.Row="5"
+                  Grid.Column="1"
+                  ToolTip.Tip="{Binding I18n[patches.tooltip_form]}"
+                  ToolTip.ShowOnDisabled="True"
+                  IsEnabled="{Binding SelectedRow.HasSeveralForms, FallbackValue=False}"
+                  ItemsSource="{Binding SelectedRow.Forms, FallbackValue={x:Null}}"
+                  SelectedItem="{Binding SelectedRow.SelectedForm, Mode=TwoWay, FallbackValue={x:Null}}"
+                  DisplayMemberBinding="{Binding Label, x:DataType=vm:PatchFormOptionViewModel}" />
+
+        <TextBlock Grid.Row="7" Classes="form-label" Text="{Binding I18n[patches.search_label]}" />
+        <DockPanel Grid.Row="7" Grid.Column="1">
+          <Button x:Name="BtnPatchChooseFound"
+                  DockPanel.Dock="Right"
+                  Margin="8,0,0,0"
+                  Content="{Binding I18n[patches.btn_choose_found]}"
+                  ToolTip.Tip="{Binding I18n[patches.tooltip_choose_found]}"
+                  Command="{Binding ChooseSearchResultCommand}" />
+          <TextBox x:Name="EditPatchOriginSearch"
+                   Watermark="{Binding I18n[patches.search_watermark]}"
+                   ToolTip.Tip="{Binding I18n[patches.tooltip_search]}"
+                   ToolTip.ShowOnDisabled="True"
+                   IsEnabled="{Binding CanSearch}"
+                   Text="{Binding OriginSearchText, Mode=TwoWay}" />
+        </DockPanel>
+        <Border Grid.Row="9"
+                Grid.Column="1"
+                Height="96"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource ControlBorderBrush}"
+                CornerRadius="3">
+          <ListBox x:Name="ListPatchOriginResults"
+                   Background="Transparent"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   ItemsSource="{Binding OriginSearchResults}"
+                   SelectedItem="{Binding SelectedSearchResult, Mode=TwoWay}"
+                   DoubleTapped="OnSearchResultDoubleTapped">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:PatchOriginOptionViewModel">
+                <Grid ColumnDefinitions="Auto,8,*">
+                  <TextBlock TextWrapping="NoWrap" Text="{Binding Label}" />
+                  <TextBlock Grid.Column="2"
+                             Foreground="{DynamicResource HintForegroundBrush}"
+                             TextWrapping="NoWrap"
+                             TextTrimming="CharacterEllipsis"
+                             Text="{Binding Location}" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Border>
+      </Grid>
+    </Border>
+
+    <!-- One row per patch: its box, its name and place, why it is there, and its new name or what became of it -->
+    <Border BorderThickness="1"
+            BorderBrush="{DynamicResource ControlBorderBrush}"
+            CornerRadius="4"
+            Padding="2">
+      <ListBox x:Name="ListPatches"
+               Background="Transparent"
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+               ItemsSource="{Binding Rows}"
+               SelectedItem="{Binding SelectedRow, Mode=TwoWay}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:PatchRowViewModel">
+            <DockPanel>
+              <CheckBox DockPanel.Dock="Left"
+                        VerticalAlignment="Top"
+                        MinWidth="0"
+                        Margin="0,0,6,0"
+                        IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                        IsEnabled="{Binding CanCheck}"
+                        ToolTip.Tip="{Binding CheckTooltip}"
+                        ToolTip.ShowOnDisabled="True"
+                        AutomationProperties.Name="{Binding Name}" />
+              <StackPanel Spacing="1">
+                <Grid ColumnDefinitions="Auto,8,*">
+                  <TextBlock FontWeight="Bold" TextWrapping="NoWrap" Text="{Binding Name}" />
+                  <TextBlock Grid.Column="2"
+                             Foreground="{DynamicResource HintForegroundBrush}"
+                             TextWrapping="NoWrap"
+                             TextTrimming="CharacterEllipsis"
+                             Text="{Binding Location}" />
+                </Grid>
+                <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
+                           TextWrapping="NoWrap"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding StatusText}"
+                           ToolTip.Tip="{Binding StatusText}" />
+                <TextBlock TextWrapping="NoWrap"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding NewNameText}"
+                           IsVisible="{Binding !IsRenamed}" />
+                <TextBlock TextWrapping="NoWrap"
+                           TextTrimming="CharacterEllipsis"
+                           FontWeight="Bold"
+                           Text="{Binding ResultText}"
+                           IsVisible="{Binding ResultText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              </StackPanel>
+            </DockPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+  </DockPanel>
+</Window>

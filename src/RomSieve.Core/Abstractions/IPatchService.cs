@@ -62,6 +62,17 @@ public interface IPatchNamingService
     string NameWithCrc(string fileName, uint crc);
 
     /// <summary>
+    /// The forms of the data of <paramref name="origin"/> an IPS may expect, to choose the CRC32 to write: the form it was
+    /// identified in and, with <paramref name="detectCopierHeaders"/>, the other one (with or without its copier header),
+    /// read again from the source. The whole file first; <see cref="PatchOriginSuggestion.WithCopierHeader"/> tells them
+    /// apart when there are two. Empty for a file without CRC32.
+    /// </summary>
+    Task<IReadOnlyList<PatchOriginSuggestion>> GetOriginFormsAsync(
+        ProcessItem origin,
+        bool detectCopierHeaders,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Renames each patch of <paramref name="renames"/> in its folder, after checking it is still an IPS or an IPS32 of
     /// <paramref name="patchDir"/>, on the disk (never in an archive), neither a link nor a name that already gives a
     /// CRC32, and that its new name is free. A refusal or a failure leaves the patch as it was and goes on with the

@@ -74,6 +74,7 @@ public static class AppServiceCollectionExtensions
             provider.GetRequiredService<IOperationJournalService>(),
             provider.GetRequiredService<IUpdateCheckService>(),
             provider.GetRequiredService<IDialogService>(),
+            provider.GetRequiredService<IPatchNamingService>(),
             configFilePath);
     }
 }

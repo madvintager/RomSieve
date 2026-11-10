@@ -152,7 +152,7 @@ A patch that gives no patched version has its line in the log, with its reason:
 | Reason | What to do |
 |---|---|
 | No identified ROM with this CRC32 in the source | The original ROM is missing, or the DAT does not identify it |
-| Neither the name of the IPS patch nor a text that comes with it gives the CRC32 of the original ROM | Add the CRC32 to the name of the patch, for example `[1a2b3c4d]` |
+| Neither the name of the IPS patch nor a text that comes with it gives the CRC32 of the original ROM | Choose its ROM in the **Patches** window (see [Naming an IPS](#naming-an-ips)), or add the CRC32 to the name of the patch, for example `[1a2b3c4d]` |
 | No identified ROM in the source for the CRC32 given by a readme | The original ROM is missing, or the DAT does not identify it |
 | Unreadable patch | The file is truncated, damaged, or of another format |
 | The name of the patch gives the CRC32 of several ROMs of the source | Only keep in the name the CRC32 of the right ROM |
@@ -163,13 +163,46 @@ A patch that gives no patched version has its line in the log, with its reason:
 
 Without a DAT, the patches are not read: the log says so.
 
+## Naming an IPS
+
+Most downloaded IPS have a CRC32 neither in their name nor in their readme. Rather than looking it up and renaming the
+file by hand, open the **Patches** window: after a simulation, click "*n* patches not applied" in the banner of the
+results (or "*n* patches to name", when no patch was left out but some IPS were applied thanks to their readme).
+
+The window lists the patches not applied, then the IPS applied thanks to their readme. For the patch selected:
+
+* **Original ROM** proposes the identified ROMs whose name or title starts the name of the patch, or that of its
+  archive, or that of its folder when the folder holds it alone (`CT Translation/patch.ips`). Generic names (`patch`,
+  `fix`, `v1.1`…) do not count. The whole name comes before the title alone, then the ROM the sort writes. For a patch
+  whose name or readme designates several ROMs, those ROMs.
+* **Other ROM** searches all the ROMs identified by the simulation, when no ROM proposed is the right one: a translated
+  (`Super Mario Frères.ips` for `Super Mario Bros.`) or shortened title proposes none. **Take this ROM** (or a double
+  click) chooses it.
+* **Form** chooses, for a ROM with a copier header, the CRC32 with or without the header. An IPS does not tell which one
+  it was made for: its readme usually does. The list is greyed out when the ROM has a single form.
+
+A ROM proposed is never taken on its own: check each patch to rename, look at the **New name** shown, then click
+**Rename**. The CRC32 is added before the extension (`Game (T-Fr).ips` becomes `Game (T-Fr) [47e70e08].ips`), the row
+says what became of it, and the log records it. **Simulate again** closes the window and runs the simulation again,
+which applies the patches renamed. The CRC32 added does not appear in the name of the patched version (see
+[Name of the patched version](#name-of-the-patched-version)).
+
+* **Check the IPS applied by a readme** checks the IPS the simulation already applied thanks to their readme: writing
+  their CRC32 in their name makes other tools, such as igir, apply them too.
+* A patch stored in an **archive** is never renamed, since an archive is never modified: the window gives the CRC32 of
+  the ROM chosen, and the patch has to be extracted to write that CRC32 in its name.
+* A patch whose name already gives a CRC32, a UPS or a BPS cannot be chosen for: a CRC32 in its name would not fix it.
+* Nothing is overwritten: a name already taken leaves the patch as it was, and its row says so. Renaming is not recorded
+  in the journal of the sorts, and **Undo Last Sort** does not undo it: it is undone by hand.
+
 ## In the results
 
 * The table marks each patched version with a **Patched** badge. In the grouped view, it follows the kept release of its
   game. The detail panel names the patch, its format and the original ROM; that of an original ROM names its patched
   versions. A patched version cannot be chosen as the 1G1R winner.
 * The banner counts the patched versions in the **Patched** chip, which shows them alone, and the patches not applied in
-  "*n* patches not applied", whose tooltip lists them with their reasons.
+  "*n* patches not applied", whose tooltip lists them with their reasons and which a click opens in the **Patches**
+  window (see [Naming an IPS](#naming-an-ips)).
 * In a [partial sort](simulation-table.md#sorting-part-of-the-simulation), a patched version follows the checkbox of
   its game.
 * The [exports](exports.md) describe it: the report names its patch, and the DAT of your collection writes it with its

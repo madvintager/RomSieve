@@ -486,7 +486,9 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
             return;
         }
 
-        UnappliedPatchesText = _localization.Tr("stats.unapplied_patches", ("count", unapplied.Count));
+        UnappliedPatchesText = _localization.Tr(
+            unapplied.Count == 1 ? "stats.unapplied_patches_one" : "stats.unapplied_patches",
+            ("count", unapplied.Count));
         var lines = new List<string> { _localization.Tr("stats.tooltip_unapplied_patches") };
         lines.AddRange(unapplied
             .Take(MaxListedUnappliedPatches)

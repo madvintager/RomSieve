@@ -58,6 +58,7 @@ public sealed partial class MainViewModel : ViewModelBase
         IOperationJournalService journalService,
         IUpdateCheckService updateService,
         IDialogService dialogService,
+        IPatchNamingService patchNaming,
         string? configFilePath = null)
     {
         _processorService = processorService ?? throw new ArgumentNullException(nameof(processorService));
@@ -175,6 +176,17 @@ public sealed partial class MainViewModel : ViewModelBase
 
         PartialSort = new PartialSortViewModel(_localization, Execution, PreviewTable);
 
+        Patches = new PatchesViewModel(
+            _localization,
+            _dialogService,
+            patchNaming ?? throw new ArgumentNullException(nameof(patchNaming)),
+            () => Execution.LastItems,
+            () => Execution.LastStats,
+            () => Execution.LastExecutedConfig,
+            () => Execution.IsRunning,
+            Execution.SimulateAsync,
+            Log.Append);
+
         Export = new ExportViewModel(
             _processorService,
             _dialogService,
@@ -230,6 +242,7 @@ public sealed partial class MainViewModel : ViewModelBase
             if (e.PropertyName == nameof(ExecutionViewModel.IsRunning))
             {
                 OnIsRunningChanged(Execution.IsRunning);
+                Patches.Refresh();
             }
 
             if (e.PropertyName == nameof(ExecutionViewModel.IsSimulationCurrent))
@@ -327,6 +340,9 @@ public sealed partial class MainViewModel : ViewModelBase
 
     /// <summary>Partial sort of the rows shown in the table (and, later, of the games chosen in it).</summary>
     public PartialSortViewModel PartialSort { get; }
+
+    /// <summary>The window of the patches of the last run: origins of the IPS without CRC32, written in their names.</summary>
+    public PatchesViewModel Patches { get; }
     public LogViewModel Log { get; }
 
     /// <summary>Quarantine of the purges of the destination: its size, and a command that empties it for good.</summary>
@@ -827,6 +843,7 @@ public sealed partial class MainViewModel : ViewModelBase
         PreviewTable.CompleteRun(Execution.IsDryRunOperation ? Execution.LastExecutedConfig?.SourceDir : null);
         UpdateStatsBanner(result.Items, result.Stats);
         StatsBanner.SetChangedRowCount(PreviewTable.HasComparison ? PreviewTable.ChangedRowCount : null);
+        Patches.Refresh();
         NotifyExportCommandsCanExecuteChanged();
         Navigation.RefreshIndicators();
         RefreshTiebreakDecisions();
@@ -957,6 +974,7 @@ public sealed partial class MainViewModel : ViewModelBase
         Log.RefreshTranslations();
         Updates.RefreshTranslations();
         Export.RefreshTranslations();
+        Patches.RefreshTranslations();
     }
 
     private void NotifyExportCommandsCanExecuteChanged()

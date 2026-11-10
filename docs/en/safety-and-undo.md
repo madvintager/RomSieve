@@ -17,7 +17,10 @@ RomSieve handles collections of several terabytes. It is designed so that a wron
   (`C:/…`, `/home/…`), holds a `..` segment or a null character could write anywhere on the disk, which some archives
   found on the Internet are crafted to do. Such a file is in error from the simulation on, with the reason "Not written:
   the name … is unsafe or invalid", and nothing is written for it nor for the other files of its game; the other files
-  are sorted as usual. Every target is checked once more just before it is written.
+  are sorted as usual. Every target is checked once more just before it is written. The only exception, out of any
+  sort: **Rename**, in the **Patches** window, adds a CRC32 to the name of the IPS you check in the folder of the
+  patches (see [Naming an IPS](patches.md#naming-an-ips)). Nothing else changes there: neither the content of the
+  patches, nor the archives, nor a file already there.
 * **A purge deletes nothing** (see below).
 * **An interrupted sort leaves no partial file**: **Stop** (the **Simulate (Dry-Run)** button while a run is in
   progress) removes the file being written, even in the middle of a large copy. A file is written under a temporary
