@@ -169,7 +169,7 @@ RomSieve sorts the archives as they are: it never rebuilds, repairs nor converts
 
 In a *merged* or *split* collection, the games take from the BIOS sets the ROMs they share with their BIOS: put the
 BIOS and *device* sets in the source, and RomSieve sorts those the kept games need.
-To change the romset type, use a romset manager such as clrmamepro or RomVault.
+To change the romset type, use a romset manager.
 
 *Samples* are not supported, and a file outside an archive (except a CHD) is not a MAME set.
 
@@ -203,7 +203,7 @@ Besides its arcade machines, MAME emulates consoles and computers, whose cartrid
 *Software List ROMs* collection holds one folder per list, and one archive per software in it
 (`megadriv/sonic.zip`). RomSieve reads two kinds of DATs for a list:
 
-* the **SabreTools DAT** of the list (Pleasuredome, ROMVault: `megadriv.xml`), whose header bears the name of the list;
+* the **SabreTools DAT** of the list (`megadriv.xml`), whose header bears the name of the list;
 * the **hash file** of the list that MAME ships in its `hash` folder (`hash/megadriv.xml`), which also says the
   parent of each clone and how well MAME supports each software;
 * the **output of MAME** for the list, which says the same: `mame -getsoftlist megadriv > megadriv.xml`. In Windows
@@ -216,8 +216,8 @@ publisher its software name. The convention can also be chosen in the list, but 
 To sort **one list**, choose its DAT and, as the source, the folder of the list (`Software List ROMs/megadriv`).
 
 To sort **several lists at once**, choose a **folder of DATs**: **Browse...** next to the DAT field, then **Folder of
-DATs…**, or `--dat <folder>` on the command line. The folder holds a DAT per list: the *Software List
-ROMs* folder of the `DatRoot` of ROMVault, or the `hash` folder of MAME. An output of MAME that holds several lists
+DATs…**, or `--dat <folder>` on the command line. The folder holds a DAT per list, as the `hash` folder
+of MAME does. An output of MAME that holds several lists
 (`mame -getsoftlist`, `mame -listsoftware`) works the same way. The source is then the folder that holds a folder per
 list (`Software List ROMs`), and **Scan subdirectories recursively** must be checked.
 
@@ -228,8 +228,8 @@ list (`Software List ROMs`), and **Scan subdirectories recursively** must be che
   **non-conforming**; the log counts them and names a few.
 * The completion and the Miss List only count the lists present in the source: a DAT of the folder whose list the
   source does not hold adds nothing missing. The Miss List names each software with its list (`gamegear/shinobi`).
-* The filtered DAT of the catalog, the DAT of your collection and the fixdat are written as **a DAT per list** (as in
-  the `DatRoot` of ROMVault), at the root of the folder chosen: `megadriv.xml`, `gamegear.xml`... Read from the `hash`
+* The filtered DAT of the catalog, the DAT of your collection and the fixdat are written as **a DAT per list**, at the
+  root of the folder chosen: `megadriv.xml`, `gamegear.xml`... Read from the `hash`
   folder of MAME, they are written as MAME software lists, which MAME reads
   ([Exports](exports.md#mame-software-lists)).
 * A folder of software lists only holds lists: lists mixed with DATs of another convention, or two DATs of the same

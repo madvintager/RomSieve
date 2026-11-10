@@ -177,7 +177,7 @@ RomSieve trie les archives telles qu'elles sont : il ne reconstruit, ne répare 
 | *split* | Les seules ROMs propres à sa machine | Un parent est trié normalement. Un clone ne fonctionne pas sans le set de son parent : il est signalé, et en 1G1R il perd toujours face à son parent complet. |
 
 Dans une collection *merged* ou *split*, les jeux prennent dans les sets de BIOS les ROMs qu'ils partagent avec leur
-BIOS : placez les sets de BIOS et de *devices* dans la source, RomSieve trie ceux dont les jeux retenus ont besoin. Pour changer de type de romset, utilisez un gestionnaire de romsets comme clrmamepro ou RomVault.
+BIOS : placez les sets de BIOS et de *devices* dans la source, RomSieve trie ceux dont les jeux retenus ont besoin. Pour changer de type de romset, utilisez un gestionnaire de romsets.
 
 Les *samples* ne sont pas gérés, et un fichier hors d'une archive (sauf un CHD) n'est pas un set MAME.
 
@@ -213,7 +213,7 @@ pour les cartouches Mega Drive, `a2600`, `cpc_flop`...). Une collection *Softwar
 liste, et une archive par logiciel dans ce dossier (`megadriv/sonic.zip`). RomSieve lit deux sortes de DAT pour une
 liste :
 
-* le **DAT SabreTools** de la liste (Pleasuredome, ROMVault : `megadriv.xml`), dont l'en-tête porte le nom de la liste ;
+* le **DAT SabreTools** de la liste (`megadriv.xml`), dont l'en-tête porte le nom de la liste ;
 * le **fichier hash** de la liste que MAME livre dans son dossier `hash` (`hash/megadriv.xml`), qui donne en plus le
   parent de chaque clone et la prise en charge de chaque logiciel par MAME ;
 * la **sortie de MAME** pour la liste, qui dit la même chose : `mame -getsoftlist megadriv > megadriv.xml`. Dans
@@ -228,7 +228,7 @@ Pour trier **une liste**, choisissez son DAT et, comme source, le dossier de la 
 
 Pour trier **plusieurs listes à la fois**, choisissez un **dossier de DAT** : **Parcourir...** à côté du champ du DAT,
 puis **Dossier de DAT…**, ou `--dat <dossier>` en ligne de commande. Le dossier contient un
-DAT par liste : le dossier *Software List ROMs* du `DatRoot` de ROMVault, ou le dossier `hash` de MAME. Une sortie de
+DAT par liste, comme le dossier `hash` de MAME. Une sortie de
 MAME qui contient plusieurs listes (`mame -getsoftlist`, `mame -listsoftware`) fonctionne de même. La source est alors
 le dossier qui contient un dossier par liste (`Software List ROMs`), et **Scanner récursivement les sous-dossiers**
 doit être coché.
@@ -240,8 +240,8 @@ doit être coché.
   **non conforme** ; le journal les compte et en nomme quelques-uns.
 * La complétude et la Miss List ne comptent que les listes présentes dans la source : un DAT du dossier dont la source
   n'a pas la liste n'ajoute rien de manquant. La Miss List nomme chaque logiciel avec sa liste (`gamegear/shinobi`).
-* Le DAT filtré du catalogue, le DAT de votre collection et le fixdat s'écrivent en **un DAT par liste** (comme dans le
-  `DatRoot` de ROMVault), à la racine du dossier choisi : `megadriv.xml`, `gamegear.xml`... Lus dans le dossier `hash`
+* Le DAT filtré du catalogue, le DAT de votre collection et le fixdat s'écrivent en **un DAT par liste**, à la racine du
+  dossier choisi : `megadriv.xml`, `gamegear.xml`... Lus dans le dossier `hash`
   de MAME, ils s'écrivent comme des listes de logiciels MAME, que MAME lit
   ([Exports](exports.md#listes-de-logiciels-mame)).
 * Un dossier de listes de logiciels ne réunit que des listes : des listes mêlées à des DAT d'une autre convention, ou

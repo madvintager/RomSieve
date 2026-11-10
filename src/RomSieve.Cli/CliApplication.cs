@@ -628,7 +628,7 @@ public sealed class CliApplication
     /// those left out with their reason and the origins proposed for an IPS without CRC32, then the IPS applied thanks to
     /// their readme, and those applied from their name. With <c>--name-from-notes</c>, shows the CRC32 the IPS applied
     /// thanks to their readme would get in their name and, with <c>--yes</c>, writes it (<see cref="IPatchNamingService"/>):
-    /// other tools, such as igir, then apply them too. With <c>--detach</c>, an IPS applied from its name stops applying
+    /// other tools then apply them too. With <c>--detach</c>, an IPS applied from its name stops applying
     /// to its ROM: the CRC32 is removed from its name (with <c>--yes</c>), and the next simulation proposes it again. A
     /// suggestion is never taken: the user names such a patch, or chooses its ROM in the window of the interface.
     /// </summary>

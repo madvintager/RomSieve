@@ -12,7 +12,7 @@ namespace RomSieve.Core.Services;
 /// "source XOR result" up to a <c>0x00</c>, which advances the position too (Flips). Past the end of the source, its
 /// bytes read as <c>0x00</c> (ups-spec); the result is padded with zeros or cut to its size (Flips).</item>
 /// <item>The CRC32 of the patch is checked when it is read, the size of the source before applying, the CRC32 of the
-/// source and of the result after (Flips, igir). The patch is applied forward only, as igir does: UPS is reversible,
+/// source and of the result after (Flips). The patch is applied forward only: UPS is reversible,
 /// but the source of a patch is always the original ROM here.</item>
 /// </list>
 /// A block may run past both files only by its final <c>0x00</c> (a patch written for a source longer than its result

@@ -14,7 +14,7 @@ namespace RomSieve.Core.Services;
 /// and before the selection of a partial sort, which it follows like any file of its game. The rules:
 /// <list type="bullet">
 /// <item>The origin of a UPS or a BPS is the file of the CRC32 and the size of the source it records; that of an IPS,
-/// which records nothing, the file of a CRC32 its name gives (the expression of igir, on the file name only) or, when
+/// which records nothing, the file of a CRC32 its name gives (on the file name only) or, when
 /// its name gives none, the text that comes with it, its readme (<see cref="NotesOf"/>, <see cref="NoteCrcs"/>). A text
 /// that gives the CRC32 of a file with and without its copier header leaves the patch out: an IPS does not tell which
 /// form it expects.</item>
@@ -306,7 +306,7 @@ public sealed partial class PatchMatcher
             return new ReadPatch(patch, header, [sourceCrc], PatchCrcSource.Recorded);
         }
 
-        // An IPS records no checksum: its name gives the CRC32 of its origin, as igir reads it
+        // An IPS records no checksum: its name gives the CRC32 of its origin
         var crcs = CrcTokens(BaseName(patch.DisplayName)).Select(t => t.Crc).Distinct().ToList();
         if (crcs.Count > 0)
         {
@@ -333,7 +333,7 @@ public sealed partial class PatchMatcher
         _unapplied.Add(new UnappliedPatch(patch, reason) { Suggestions = suggestions ?? [] });
 
     /// <summary>
-    /// The CRC32 in a file name, as igir reads it in the name of a patch that records none: 8 hexadecimal digits, after an
+    /// The CRC32 in the name of a patch that records none: 8 hexadecimal digits, after an
     /// optional <c>0x</c>, neither preceded nor followed by a letter or a digit (<c>[47e70e08]</c>, <c>(0x47E70E08)</c>,
     /// <c>_47e70e08_</c>). The folders of the path are not read.
     /// </summary>

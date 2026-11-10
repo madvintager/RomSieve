@@ -1,8 +1,8 @@
 # RomSieve.Zlib
 
 Raw Deflate compressor that writes, byte for byte, what zlib writes at level 9 (window of 15 bits, memory level 8,
-default strategy). RomSieve needs it for its TorrentZip archives, which must be identical to those of trrntzip,
-RomVault and igir: the `DeflateStream` of .NET compresses with zlib-ng, whose output differs.
+default strategy). RomSieve needs it for its TorrentZip archives, which must be identical to those of trrntzip
+and RomVault: the `DeflateStream` of .NET compresses with zlib-ng, whose output differs.
 
 ## Origin and license
 
@@ -29,5 +29,5 @@ licensed under the Microsoft Public License like the rest of this folder. The no
   zlib's own loop does, and ends the stream when finished or disposed (SharpCompress 0.50.4 does not end it when
   `leaveOpen` is set).
 
-The output is checked against reference archives of igir and RomVault by the tests of the Core
+The output is checked against reference TorrentZip archives by the tests of the Core
 (`tests/RomSieve.Core.Tests/Fixtures/TorrentZip`).

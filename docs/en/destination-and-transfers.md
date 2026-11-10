@@ -131,9 +131,9 @@ details), and the sentence of the selected mode stays under the list.
 | **Symlink** | A shortcut pointing to the source | Must stay in place | No extra space. On Windows, creating symbolic links may require the Developer Mode or administrator rights. An emulator that writes to the file changes the one in the source. |
 | **ZIP** | One ZIP archive per file | Unchanged | A descriptor and its tracks share one archive. |
 
-About the **ZIP** mode: the archives are in the *TorrentZip* format, which RomVault and igir recognize. This format fixes
-everything that could differ from one tool to another (order of the files, date, compression, headers): an archive only
-depends on its content, and two sorts of the same files give byte-identical archives, like those of these tools. A ROM
+About the **ZIP** mode: the archives are in the *TorrentZip* format. This format fixes everything that could differ
+from one tool to another (order of the files, date, compression, headers): an archive only depends on its content, and
+two sorts of the same files give byte-identical archives. A ROM
 manager therefore takes them as already in order, without compressing them again, and a shared collection stays the same
 from one user to another. Compressing takes longer than copying. With **Verify copied files**, every archive is read
 again and its TorrentZip signature checked. A MAME set, which

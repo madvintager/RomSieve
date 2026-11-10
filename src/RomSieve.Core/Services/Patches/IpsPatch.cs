@@ -9,14 +9,14 @@ namespace RomSieve.Core.Services;
 /// <list type="bullet">
 /// <item>IPS: signature <c>PATCH</c>; records of a 3-byte offset, a 2-byte size and the data, big-endian; a zero size
 /// announces a run (RLE): a 2-byte length, then the byte to repeat; footer <c>EOF</c> (ZeroSoft, SnesLab). An offset
-/// equal to <c>0x454F46</c> reads as the footer (Flips, igir): no tool writes it.</item>
+/// equal to <c>0x454F46</c> reads as the footer (Flips): no tool writes it.</item>
 /// <item>The records apply in the order of the file, a later one overwriting an earlier one; a record past the end of
-/// the source grows the result up to its last byte (Rom Patcher JS, Flips, igir). A run of length zero writes nothing
+/// the source grows the result up to its last byte (Rom Patcher JS, Flips). A run of length zero writes nothing
 /// (ZeroSoft asks for a nonzero length: such a record does no harm).</item>
 /// <item>Truncation, an extension of IPS (SNESTool, Lunar IPS; SnesLab): exactly 3 bytes after <c>EOF</c> give the size
-/// the result is cut to. It only shortens the result, as igir does; any other number of bytes after <c>EOF</c> than 0
+/// the result is cut to. It only shortens the result; any other number of bytes after <c>EOF</c> than 0
 /// or 3 refuses the patch, as Flips does.</item>
-/// <item>IPS32, which no specification describes (igir, Citron, ips.py): signature <c>IPS32</c>, 4-byte offsets,
+/// <item>IPS32, which no specification describes (Citron, ips.py): signature <c>IPS32</c>, 4-byte offsets,
 /// footer <c>EEOF</c>, the same records and runs, no truncation, nothing after the footer.</item>
 /// </list>
 /// No checksum: the source is found by the CRC32 in the name of the patch.

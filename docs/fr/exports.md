@@ -24,7 +24,7 @@ patchées).
 ## DAT de votre collection...
 
 Génère un fichier DAT des ROMs de votre source que la dernière exécution a **retenues**, pour que d'autres
-gestionnaires de ROMs (ClrMamePro, RomVault, Igir...) puissent contrôler votre collection triée :
+gestionnaires de ROMs puissent contrôler votre collection triée :
 
 * **Logiqx XML** (`.xml`), le format le plus largement reconnu ;
 * **ClrMamePro** (`.dat`).
@@ -63,7 +63,7 @@ manquantes : elles ne sont pas listées.
 Génère le DAT des jeux du **catalogue** (le fichier DAT choisi à l'étape Collection) que vos réglages gardent, **sans
 simulation et sans lire la source** : les filtres, les langues et les pays, le 1G1R et, pour MAME, les filtres des
 machines, les catégories, les notes et le volume s'appliquent aux jeux du DAT comme à une collection complète nommée
-d'après lui. Chargez le résultat dans un gestionnaire de ROMs (ClrMamePro, RomVault, Igir...) pour constituer ou
+d'après lui. Chargez le résultat dans un gestionnaire de ROMs pour constituer ou
 contrôler une collection des seuls jeux que vous voulez : RomSieve lui-même ne reconstruit jamais un set.
 
 Les deux exports DAT décrivent des choses différentes :
@@ -100,10 +100,9 @@ dossier : voir plus bas). Le pied de fenêtre montre l'étape en cours, et
 
 Avec des [listes de logiciels MAME](naming-conventions-and-dats.md#listes-de-logiciels-mame), une liste ou un dossier
 de listes, le DAT de votre collection et le DAT filtré du catalogue demandent un **dossier**, pas un fichier : un DAT
-par liste s'écrit à sa racine, au nom de la liste (`megadriv.xml`, `gamegear.xml`...), comme un gestionnaire de ROMs
-les range dans son `DatRoot` et comme MAME les cherche. L'en-tête de chaque DAT ne porte que le nom de la liste :
-RomVault nomme le dossier d'un DAT d'après son en-tête, et MAME ne trouve les logiciels d'une liste que dans le dossier
-de ce nom.
+par liste s'écrit à sa racine, au nom de la liste (`megadriv.xml`, `gamegear.xml`...), comme MAME les cherche. L'en-tête de chaque DAT ne porte que le nom de la liste :
+un gestionnaire de ROMs peut nommer le dossier d'un DAT d'après son en-tête, et MAME ne trouve les logiciels d'une liste
+que dans le dossier de ce nom.
 
 * Quand les listes viennent des fichiers de MAME lui-même (son dossier `hash`, ou la sortie de `mame -getsoftlist`),
   les DAT s'écrivent comme des **listes de logiciels MAME**, le format que MAME lit dans son dossier `hash` : chaque

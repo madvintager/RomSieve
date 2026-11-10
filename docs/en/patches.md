@@ -51,7 +51,7 @@ out in favour of the American release.
 * A **UPS** or a **BPS** designates its original ROM by the CRC32 and the size it records.
 * An **IPS** records nothing: its name must give the CRC32 of the original ROM, as 8 hexadecimal digits, between
   brackets, between parentheses or apart from the rest of the name (`Game (Japan) (T-En) [47E70E08].ips`,
-  `(0x47e70e08)`). This is the rule of igir.
+  `(0x47e70e08)`).
 * An IPS whose name gives no CRC32 takes it from its **readme**, if it has one. Most patches give it, in the form
   romhacking.net uses (`File/ROM CRC32: 47E70E08`) or another (`CRC32 : 0x47e70e08`). See
   [Readme of an IPS](#readme-of-an-ips).
@@ -210,7 +210,7 @@ which applies the patches renamed. The CRC32 added does not appear in the name o
   nothing is checked beforehand. Check those to rename (or **Check all**), then **Apply (*n*)**; **Back** returns to the
   detail without renaming anything.
 * **Write their ROM in their name (*n*)**, on the title of the **Applied** group, does the same for the IPS applied
-  thanks to their readme: writing their CRC32 in their name makes other tools, such as igir, apply them too. For a
+  thanks to their readme: writing their CRC32 in their name makes other tools apply them too. For a
   single one of these patches, the button of the detail is called **Write the ROM in the name**.
 * A patch stored in an **archive** is never renamed, since an archive is never modified: the window gives the CRC32 of
   the ROM chosen, and the patch has to be extracted to write that CRC32 in its name.

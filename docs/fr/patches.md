@@ -50,8 +50,7 @@ que le 1G1R écarte au profit de la version américaine.
 
 * Un **UPS** ou un **BPS** désigne sa ROM d'origine par le CRC32 et la taille qu'il enregistre.
 * Un **IPS** n'enregistre rien : son nom doit donner le CRC32 de la ROM d'origine, en 8 chiffres hexadécimaux, entre
-  crochets, entre parenthèses ou séparé du reste du nom (`Jeu (Japan) (T-En) [47E70E08].ips`, `(0x47e70e08)`). C'est la
-  règle d'igir.
+  crochets, entre parenthèses ou séparé du reste du nom (`Jeu (Japan) (T-En) [47E70E08].ips`, `(0x47e70e08)`).
 * Un IPS dont le nom ne donne aucun CRC32 le prend dans son **readme**, s'il en a un. La plupart des patchs le donnent,
   sous la forme qu'emploie romhacking.net (`File/ROM CRC32: 47E70E08`) ou une autre (`CRC32 : 0x47e70e08`). Voir
   [Readme des IPS](#readme-des-ips).
@@ -215,7 +214,7 @@ applique les patchs renommés. Le CRC32 ajouté n'apparaît pas dans le nom de l
   patch : rien n'y est coché d'avance. Cochez ceux à renommer (ou **Tout cocher**), puis **Appliquer (*n*)** ;
   **Retour** revient au détail sans rien renommer.
 * **Écrire leur ROM dans leur nom (*n*)**, sur le titre du groupe **Appliqués**, fait de même pour les IPS appliqués
-  grâce à leur readme : écrire leur CRC32 dans leur nom les fait aussi appliquer par d'autres outils, comme igir. Pour un
+  grâce à leur readme : écrire leur CRC32 dans leur nom les fait aussi appliquer par d'autres outils. Pour un
   seul de ces patchs, le bouton du détail s'appelle **Écrire la ROM dans le nom**.
 * Un patch rangé dans une **archive** n'est jamais renommé, puisqu'une archive n'est jamais modifiée : la fenêtre donne le
   CRC32 de la ROM choisie, et il faut extraire le patch pour écrire ce CRC32 dans son nom.

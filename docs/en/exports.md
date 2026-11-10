@@ -22,8 +22,8 @@ A [patched version](patches.md) names its patch, its format and its original ROM
 
 ## DAT of your collection...
 
-Generates a DAT file listing the ROMs of your source the last run **kept**, so that other ROM managers (ClrMamePro,
-RomVault, Igir...) can check your sorted collection:
+Generates a DAT file listing the ROMs of your source the last run **kept**, so that other ROM managers can check
+your sorted collection:
 
 * **Logiqx XML** (`.xml`), the most widely supported format;
 * **ClrMamePro** (`.dat`).
@@ -61,7 +61,7 @@ not listed.
 Generates the DAT of the games of the **catalog** (the DAT file chosen at the Collection step) that your settings keep,
 **without a simulation and without reading the source**: the filters, the languages and countries, the 1G1R and, for
 MAME, the machine filters, the categories, the ratings and the volume are applied to the games of the DAT as they would
-be to a complete collection named after it. Load the result in a ROM manager (ClrMamePro, RomVault, Igir...) to build
+be to a complete collection named after it. Load the result in a ROM manager to build
 or check a collection of the games you want only: RomSieve itself never rebuilds a set.
 
 The two DAT exports describe different things:
@@ -97,9 +97,8 @@ writing anything; when the settings keep no game, no file is written.
 
 With [MAME software lists](naming-conventions-and-dats.md#mame-software-lists), one list or a folder of lists, the DAT
 of your collection and the filtered DAT of the catalog ask for a **folder**, not a file: a DAT per list is written at
-its root, named after the list (`megadriv.xml`, `gamegear.xml`...), as a ROM manager keeps them in its `DatRoot` and
-as MAME looks for them. The header of each DAT holds the name of the list alone: RomVault names the folder of a DAT
-after its header, and MAME only finds the software of a list in the folder of that name.
+its root, named after the list (`megadriv.xml`, `gamegear.xml`...), as MAME looks for them. The header of each DAT holds the name of the list alone: a ROM manager may name the folder of
+a DAT after its header, and MAME only finds the software of a list in the folder of that name.
 
 * When the lists come from MAME's own files (its `hash` folder, or the output of `mame -getsoftlist`), the DATs are
   written as **MAME software lists**, the format MAME reads in its `hash` folder: each software kept is copied as it

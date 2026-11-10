@@ -989,7 +989,7 @@ public sealed partial class DatCatalog
 
     /// <summary>
     /// Fixdat of the catalog: a DAT listing only the <paramref name="missingRoms"/>, grouped by game in DAT order
-    /// with their parent / clone relations, under the header <c>fixDat_&lt;name&gt;</c> used by RomVault and Igir.
+    /// with their parent / clone relations, under the header <c>fixDat_&lt;name&gt;</c> used by RomVault.
     /// </summary>
     public DatCatalog CreateFixDat(IEnumerable<DatRomEntry> missingRoms)
     {

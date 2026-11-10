@@ -132,10 +132,9 @@ détail), et la phrase du mode choisi reste affichée sous la liste.
 | **Symlink** | Un raccourci vers la source | Doit rester en place | Aucun espace supplémentaire. Sous Windows, créer des liens symboliques peut exiger le mode développeur ou les droits d'administrateur. Un émulateur qui écrit dans le fichier modifie celui de la source. |
 | **ZIP** | Une archive ZIP par fichier | Inchangée | Un descripteur et ses pistes partagent la même archive. |
 
-À propos du mode **ZIP** : les archives sont au format *TorrentZip*, celui que reconnaissent RomVault et igir. Ce format
-fixe tout ce qui pourrait changer d'un outil à l'autre (ordre des fichiers, date, compression, en-têtes) : une archive ne
-dépend que de son contenu, et deux tris des mêmes fichiers donnent des archives identiques à l'octet près, comme celles
-de ces outils. Un gestionnaire de ROMs les tient donc pour déjà rangées, sans les recompresser, et une collection
+À propos du mode **ZIP** : les archives sont au format *TorrentZip*. Ce format fixe tout ce qui pourrait changer d'un
+outil à l'autre (ordre des fichiers, date, compression, en-têtes) : une archive ne dépend que de son contenu, et deux
+tris des mêmes fichiers donnent des archives identiques à l'octet près. Un gestionnaire de ROMs les tient donc pour déjà rangées, sans les recompresser, et une collection
 partagée reste identique d'un utilisateur à l'autre. La compression prend plus de temps qu'une copie. Avec **Vérifier
 les fichiers copiés**, chaque archive est relue et sa signature TorrentZip contrôlée. Un set MAME, qui est déjà une archive, et ses CHD sont copiés tels quels (voir
 [DAT MAME](naming-conventions-and-dats.md#dat-mame)), de même qu'un logiciel d'une liste MAME.

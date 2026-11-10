@@ -47,7 +47,7 @@ public interface IPatchService
 }
 
 /// <summary>
-/// Writes the CRC32 of its origin in the name of an IPS, the way igir and RomSieve read it, so that the patch applies at
+/// Writes the CRC32 of its origin in the name of an IPS, the way RomSieve reads it, so that the patch applies at
 /// the next sort, in RomSieve as elsewhere. The only write of RomSieve outside a destination: an explicit action, out of
 /// any sort, on a file of the patch folder alone. A renaming loses nothing and is undone by hand, so it is not journaled
 /// with the sorts; each one has its line in the log.

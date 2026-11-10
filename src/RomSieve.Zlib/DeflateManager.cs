@@ -831,7 +831,7 @@ internal sealed partial class DeflateManager
 
         // RomSieve: DotNetZip ends a block early here when it seems profitable (the TRUNCATE_BLOCK heuristic of
         // zlib's trees.c), which zlib leaves off by default: with it, the output is no longer that of zlib, and
-        // a TorrentZip archive differs from those of trrntzip, RomVault and igir. It is removed.
+        // a TorrentZip archive differs from those of trrntzip and RomVault. It is removed.
 
         return (last_lit == lit_bufsize - 1) || (last_lit == lit_bufsize);
 

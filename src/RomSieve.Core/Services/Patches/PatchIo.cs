@@ -142,7 +142,7 @@ internal static class PatchNumbers
 }
 
 /// <summary>
-/// The footer shared by UPS and BPS: CRC32 of the source, of the result and of the patch, little-endian (Flips, igir;
+/// The footer shared by UPS and BPS: CRC32 of the source, of the result and of the patch, little-endian (Flips;
 /// the specifications do not say). The CRC32 of the patch covers every byte before it, and is checked here.
 /// </summary>
 internal readonly record struct PatchFooter(uint SourceCrc32, uint TargetCrc32, uint PatchCrc32)

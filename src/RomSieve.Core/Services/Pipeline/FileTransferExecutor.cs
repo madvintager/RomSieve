@@ -825,7 +825,7 @@ public sealed partial class FileTransferExecutor
 
     /// <summary>
     /// ZIP mode: writes the item and its companions into one TorrentZip archive (<see cref="TorrentZipWriter"/>), the
-    /// archive that RomVault and igir write from the same files. Cancellable, removed on failure, optionally verified,
+    /// archive that RomVault writes from the same files. Cancellable, removed on failure, optionally verified,
     /// then journaled.
     /// </summary>
     private async Task TransferAsZipAsync(ProcessItem item, TargetSet set, FileStatus status, CancellationToken cancellationToken)

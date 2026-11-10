@@ -8,9 +8,9 @@ using RomSieve.Zlib;
 namespace RomSieve.Core.Services;
 
 /// <summary>
-/// Writes a TorrentZip archive: the ZIP that trrntzip, RomVault and igir write byte for byte from the same files, so that
+/// Writes a TorrentZip archive: the ZIP that trrntzip and RomVault write byte for byte from the same files, so that
 /// an archive only depends on its content. The rules are RomVault's (<c>Compress/ZipFile</c>,
-/// <c>Compress/StructuredZip</c>, <c>SortMethods/Sorters</c>), whose output igir reproduces:
+/// <c>Compress/StructuredZip</c>, <c>SortMethods/Sorters</c>):
 /// <list type="bullet">
 /// <item>entries in TorrentZip order (<see cref="CompareNames"/>), <c>/</c> as the directory separator, no directory
 /// entry, no duplicate;</item>
