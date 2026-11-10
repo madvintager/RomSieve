@@ -518,7 +518,7 @@ public sealed class SortProcessorService : ISortProcessorService
         var patchFolder = scanner.ScanPatchFolder(config.PatchDir, cancellationToken, progress);
         var matcher = new PatchMatcher(config, _patchService, _checksumService, _crcCache, log);
         await matcher.MatchAsync(items, patchFolder, cancellationToken, progress).ConfigureAwait(false);
-        PatchMatcher.ApplyPatchOnly(items, config.PatchOnly);
+        PatchMatcher.ApplyPatchOnly(items, config.PatchOnly, config.Filters.OneGameOneRom, _filterService);
         return matcher.Unapplied;
     }
 
@@ -1409,7 +1409,7 @@ public sealed class SortProcessorService : ISortProcessorService
         {
             var originals = gameItems.Where(it => it.Patch is null).ToList();
             RecalculateGameItems(originals, config, datCatalog, allItems?.Where(it => it.Patch is null).ToList());
-            PatchMatcher.ApplyPatchOnly(originals, config.PatchOnly);
+            PatchMatcher.ApplyPatchOnly(originals, config.PatchOnly, config.Filters.OneGameOneRom, _filterService);
             return;
         }
 

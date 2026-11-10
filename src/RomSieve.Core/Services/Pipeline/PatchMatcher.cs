@@ -196,31 +196,66 @@ public sealed partial class PatchMatcher
     }
 
     /// <summary>
-    /// The option to write the patched versions only (<see cref="SortConfig.PatchOnly"/>): an origin the release selection
-    /// kept, and that a patched version replaces, is left out (<see cref="ProcessItem.IsReplacedByPatch"/>). An origin
-    /// the selection already left out keeps its reason. Called after every selection, the recalculation of a game too.
+    /// The option to write the patched versions only (<see cref="SortConfig.PatchOnly"/>): a file the release selection
+    /// kept, and that a patched version replaces, is left out (<see cref="ProcessItem.IsReplacedByPatch"/>). A patched
+    /// version replaces its origin and, with the 1G1R (<paramref name="oneGameOneRom"/>), the release kept for its game
+    /// (same canonical game key, <see cref="IGameKeyService.SerializeCanonicalGameKey"/>): a patch made for a release the
+    /// 1G1R left out still replaces the one it kept. Without the 1G1R, every release kept is a choice of the user, and only
+    /// the origin is replaced. A file the selection already left out keeps its reason. Called after every selection, the
+    /// recalculation of a game too, with the original files (the patched versions are reached by
+    /// <see cref="ProcessItem.PatchedVersions"/>).
     /// </summary>
-    public static void ApplyPatchOnly(IEnumerable<ProcessItem> items, bool patchOnly)
+    public static void ApplyPatchOnly(IEnumerable<ProcessItem> items, bool patchOnly, bool oneGameOneRom, IGameKeyService gameKeys)
     {
-        foreach (var origin in items)
+        var originals = items.Where(it => it.Patch is null).ToList();
+        foreach (var item in originals)
         {
-            if (origin.PatchedVersions.Count == 0)
+            item.IsReplacedByPatch = false;
+        }
+
+        if (!patchOnly)
+        {
+            return;
+        }
+
+        // Each file kept and the patched versions that replace it: those of its own, then those of its game
+        var replacedBy = new Dictionary<ProcessItem, List<ProcessItem>>(ReferenceEqualityComparer.Instance);
+        foreach (var origin in originals.Where(o => o.PatchedVersions.Count > 0))
+        {
+            replacedBy[origin] = [.. origin.PatchedVersions];
+        }
+
+        if (oneGameOneRom)
+        {
+            foreach (var game in originals.Where(it => it.Parsed.IsConform).GroupBy(it => gameKeys.SerializeCanonicalGameKey(it.Parsed)))
+            {
+                var patched = game.SelectMany(it => it.PatchedVersions).ToList();
+                if (patched.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (var item in game)
+                {
+                    var list = replacedBy.TryGetValue(item, out var existing) ? existing : replacedBy[item] = [];
+                    list.AddRange(patched.Where(p => !list.Contains(p)));
+                }
+            }
+        }
+
+        foreach (var (item, patched) in replacedBy)
+        {
+            if (item.Status != FileStatus.Valid)
             {
                 continue;
             }
 
-            origin.IsReplacedByPatch = false;
-            if (!patchOnly || origin.Status != FileStatus.Valid)
-            {
-                continue;
-            }
-
-            origin.Status = FileStatus.Excluded;
-            origin.ReleaseStatus = FileStatus.Excluded;
-            origin.StatusReason = LocalizedMessage.Create(
+            item.Status = FileStatus.Excluded;
+            item.ReleaseStatus = FileStatus.Excluded;
+            item.StatusReason = LocalizedMessage.Create(
                 "reason.replaced_by_patch",
-                ("patches", string.Join(", ", origin.PatchedVersions.Select(p => p.DisplayName))));
-            origin.IsReplacedByPatch = true;
+                ("patches", string.Join(", ", patched.Select(p => p.DisplayName))));
+            item.IsReplacedByPatch = true;
         }
     }
 

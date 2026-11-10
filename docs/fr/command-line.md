@@ -114,7 +114,7 @@ renommage refusé (nom déjà pris, par exemple) donne le code 4.
 | `--dir-dat-mirror` | Place le dossier de chaque DAT du lot sous les dossiers de son chemin dans le dossier ou l'archive de DAT. Refusé (code 2) quand **Un dossier par DAT** est décoché dans les réglages |
 | `--chd <dossier>` | Dossier des CHD d'une collection MAME, s'ils ne sont pas dans la source |
 | `--patches <dossier>` | Dossier des [patchs](patches.md) (IPS, UPS, BPS) à appliquer aux ROMs identifiées |
-| `--patch-only` | N'écrit que les versions patchées, pas les ROMs d'origine qu'elles remplacent |
+| `--patch-only` | N'écrit que les versions patchées des jeux qui en ont : ni leur ROM d'origine, ni (avec le 1G1R) la ROM retenue pour leur jeu |
 | `--categories <fichier>` | Fichier de catégories des machines MAME (`catver.ini`, `catlist.ini`) |
 | `--ratings <fichier>` | Fichier de notes des machines MAME (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` ou `zip` |

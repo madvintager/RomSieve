@@ -1453,7 +1453,7 @@
   "log.patches_ignored_mame": "Los parches no se aplican a los sets de MAME: la carpeta de los parches no se lee.",
   "log.patches_need_dat": "Los parches solo se aplican a los archivos identificados en un DAT: la carpeta de los parches no se lee.",
   "reason.patched_from": "Versión parcheada de {origin} por {patch} ({format})",
-  "reason.replaced_by_patch": "Sustituida por su versión parcheada: {patches}",
+  "reason.replaced_by_patch": "Sustituida por una versión parcheada: {patches}",
   "reason.patch_unreadable": "Parche ilegible: {error}",
   "reason.patch_no_crc": "Ni el nombre del parche IPS ni un texto que lo acompañe dan el CRC32 de la ROM original: añádalo al nombre, por ejemplo [1a2b3c4d]",
   "reason.patch_orphan": "Ninguna ROM identificada con el CRC32 {crc} en el origen",
@@ -1547,7 +1547,7 @@
   "tab1.tooltip_patch_dir": "Carpeta de los parches (IPS, IPS32, UPS, BPS), leída con sus subcarpetas y sus archivos comprimidos. Cada parche cuya ROM original esté identificada en el origen da una versión parcheada, escrita junto a ella. La ROM original nunca se modifica.",
   "tab1.tooltip_clear_patch_dir": "No aplicar parches.",
   "tab1.chk_patch_only": "Escribir solo las versiones parcheadas",
-  "tab1.tooltip_patch_only": "Una ROM original que sustituye una versión parcheada no se escribe (en modo Mover, se queda en el origen). Sin carpeta de los parches, la opción no tiene efecto.",
+  "tab1.tooltip_patch_only": "Un juego que tiene una versión parcheada solo se escribe de esa forma: la ROM conservada por el 1G1R no se escribe, aunque el parche se hiciera para otra versión del juego (sin el 1G1R, solo se sustituye la ROM original del parche). En modo Mover, la ROM sustituida se queda en el origen. Sin carpeta de los parches, la opción no tiene efecto.",
   "dialog.browse_patch_title": "Seleccione la carpeta de los parches",
   "dialog.error_same_patch_dest": "La carpeta de los parches y el destino son idénticos.",
   "dialog.error_dest_contains_patches": "El destino contiene la carpeta de los parches: vaciar o llenar este destino pondría en peligro los parches. Elija un destino fuera de esa carpeta.",
@@ -1585,6 +1585,6 @@
   "cli.patches_detach_unknown": "--detach {name}: ningún IPS aplicado según su nombre tiene este nombre. IPS aplicados según su nombre: {names}",
   "cli.patches_rename_requires_yes": "Añada --yes para renombrar estos parches. Solo cambia su nombre, en la carpeta de los parches.",
   "cli.patches_renamed": "{renamed}, {refused}.",
-  "cli.option_patch_only": "Escribe solo las versiones parcheadas, no las ROM originales que sustituyen.",
+  "cli.option_patch_only": "Escribe solo las versiones parcheadas de los juegos que las tienen: ni su ROM original, ni (con el 1G1R) la ROM conservada para su juego.",
   "cli.summary_patches": "Parches: {patched}, {unapplied}."
 }

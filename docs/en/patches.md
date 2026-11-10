@@ -123,16 +123,20 @@ brackets comes from the name of the patch:
 
 ### Write the patched versions only
 
-Check **Write the patched versions only**, next to the field, so that an original ROM that at least one patched version
-replaces is not written. The table shows it **Excluded**, with the reason *Replaced by its patched version*. A ROM that
-1G1R already left out keeps its reason. The option is greyed out without a folder of the patches.
+Check **Write the patched versions only**, next to the field, so that a game that has a patched version is only written
+in that form. With 1G1R, the ROM kept for that game is not written, even when the patch was made for another release of
+the game: a patch made for `Game (World) (Collection).md`, which 1G1R leaves out for `Game (World).md`, gives the only
+patched version, and `Game (World).md` is not written. Without 1G1R, each ROM kept is a choice of its own, and only the
+original ROM of the patch is replaced. The table shows a ROM replaced **Excluded**, with the reason *Replaced by a
+patched version*; a ROM that 1G1R already left out keeps its reason. With the option unchecked, the ROM kept and the
+patched version are both written. The option is greyed out without a folder of the patches.
 
 ## Transfer modes
 
 | Mode | Patched version |
 |---|---|
 | **Copy** | A file, written next to the original ROM |
-| **Move** | A file, written **before** the original ROM leaves the source. With *Write the patched versions only*, the original ROM it replaces stays in the source. |
+| **Move** | A file, written **before** the original ROM leaves the source. With *Write the patched versions only*, the ROM it replaces stays in the source. |
 | **Hard link**, **Symlink** | A **copy**: a link cannot hold modified data. The log says so. |
 | **ZIP** | An archive of its own, in the TorrentZip format, like that of any other game |
 

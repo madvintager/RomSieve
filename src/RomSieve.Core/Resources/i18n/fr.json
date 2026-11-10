@@ -1453,7 +1453,7 @@
   "log.patches_ignored_mame": "Les patchs ne s'appliquent pas aux sets MAME : le dossier des patchs n'est pas lu.",
   "log.patches_need_dat": "Les patchs ne s'appliquent qu'aux fichiers identifiés dans un DAT : le dossier des patchs n'est pas lu.",
   "reason.patched_from": "Version patchée de {origin} par {patch} ({format})",
-  "reason.replaced_by_patch": "Remplacée par sa version patchée : {patches}",
+  "reason.replaced_by_patch": "Remplacée par une version patchée : {patches}",
   "reason.patch_unreadable": "Patch illisible : {error}",
   "reason.patch_no_crc": "Ni le nom du patch IPS ni un texte qui l'accompagne ne donnent le CRC32 de la ROM d'origine : ajoutez-le au nom, par exemple [1a2b3c4d]",
   "reason.patch_orphan": "Aucune ROM identifiée de CRC32 {crc} dans la source",
@@ -1547,7 +1547,7 @@
   "tab1.tooltip_patch_dir": "Dossier des patchs (IPS, IPS32, UPS, BPS), lu avec ses sous-dossiers et ses archives. Chaque patch dont la ROM d'origine est identifiée dans la source donne une version patchée, écrite à côté d'elle. La ROM d'origine n'est jamais modifiée.",
   "tab1.tooltip_clear_patch_dir": "Ne pas appliquer de patchs.",
   "tab1.chk_patch_only": "N'écrire que les versions patchées",
-  "tab1.tooltip_patch_only": "Une ROM d'origine que remplace une version patchée n'est pas écrite (en mode Déplacer, elle reste dans la source). Sans dossier des patchs, l'option est sans effet.",
+  "tab1.tooltip_patch_only": "Un jeu qui a une version patchée n'est écrit que sous cette forme : la ROM retenue par le 1G1R n'est pas écrite, même si le patch a été fait pour une autre version du jeu (sans le 1G1R, seule la ROM d'origine du patch est remplacée). En mode Déplacer, la ROM remplacée reste dans la source. Sans dossier des patchs, l'option est sans effet.",
   "dialog.browse_patch_title": "Sélectionnez le dossier des patchs",
   "dialog.error_same_patch_dest": "Le dossier des patchs et la destination sont identiques.",
   "dialog.error_dest_contains_patches": "La destination contient le dossier des patchs : vider ou remplir cette destination mettrait en danger les patchs. Choisissez une destination située hors de ce dossier.",
@@ -1585,6 +1585,6 @@
   "cli.patches_detach_unknown": "--detach {name} : aucun IPS appliqué d'après son nom ne porte ce nom. IPS appliqués d'après leur nom : {names}",
   "cli.patches_rename_requires_yes": "Ajoutez --yes pour renommer ces patchs. Seul leur nom change, dans le dossier des patchs.",
   "cli.patches_renamed": "{renamed}, {refused}.",
-  "cli.option_patch_only": "N'écrit que les versions patchées, pas les ROMs d'origine qu'elles remplacent.",
+  "cli.option_patch_only": "N'écrit que les versions patchées des jeux qui en ont : ni leur ROM d'origine, ni (avec le 1G1R) la ROM retenue pour leur jeu.",
   "cli.summary_patches": "Patchs : {patched}, {unapplied}."
 }

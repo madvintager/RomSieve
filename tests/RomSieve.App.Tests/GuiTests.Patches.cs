@@ -139,10 +139,17 @@ public sealed partial class GuiTests
         Row(vm, "Game (USA).sfc").Item.Status.Should().Be(FileStatus.Excluded);
         translation.Change.Should().Be(PreviewRowChange.None);
 
-        // A patch removed: its row goes, and the origin it replaced is written again
+        // A patch removed: its row goes; the release the 1G1R kept stays replaced, by the translation of its game now
         File.Delete(Path.Combine(patches, "Game (USA) (Hack).ups"));
         await vm.Execution.SimulateAsync();
         vm.AllPreviewItems.Should().NotContain(r => r.SourceName == "Game (USA) (Hack).ups");
+        Row(vm, "Game (USA).sfc").Item.Status.Should().Be(FileStatus.Excluded);
+        Row(vm, "Game (USA).sfc").Item.StatusReason!.Args["patches"].Should().Be("Game (Japan) (T-En).bps");
+        Row(vm, "Game (USA).sfc").Change.Should().Be(PreviewRowChange.Modified);
+
+        // The option unchecked: the release kept is written again, beside the patched version
+        vm.Directories.PatchOnly = false;
+        await vm.Execution.SimulateAsync();
         Row(vm, "Game (USA).sfc").Item.Status.Should().Be(FileStatus.Valid);
         Row(vm, "Game (USA).sfc").Change.Should().Be(PreviewRowChange.Modified);
     }

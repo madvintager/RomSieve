@@ -1453,7 +1453,7 @@
   "log.patches_ignored_mame": "Patches do not apply to MAME sets: the folder of the patches is not read.",
   "log.patches_need_dat": "Patches only apply to files identified in a DAT: the folder of the patches is not read.",
   "reason.patched_from": "Patched version of {origin} by {patch} ({format})",
-  "reason.replaced_by_patch": "Replaced by its patched version: {patches}",
+  "reason.replaced_by_patch": "Replaced by a patched version: {patches}",
   "reason.patch_unreadable": "Unreadable patch: {error}",
   "reason.patch_no_crc": "Neither the name of the IPS patch nor a text that comes with it gives the CRC32 of the original ROM: add it to the name, for example [1a2b3c4d]",
   "reason.patch_orphan": "No identified ROM with the CRC32 {crc} in the source",
@@ -1547,7 +1547,7 @@
   "tab1.tooltip_patch_dir": "Folder of the patches (IPS, IPS32, UPS, BPS), read with its subfolders and its archives. Each patch whose original ROM is identified in the source gives a patched version, written next to it. The original ROM is never modified.",
   "tab1.tooltip_clear_patch_dir": "Apply no patch.",
   "tab1.chk_patch_only": "Write the patched versions only",
-  "tab1.tooltip_patch_only": "An original ROM that a patched version replaces is not written (in Move mode, it stays in the source). Without a folder of the patches, the option has no effect.",
+  "tab1.tooltip_patch_only": "A game that has a patched version is only written in that form: the ROM the 1G1R kept is not written, even when the patch was made for another release of the game (without the 1G1R, only the original ROM of the patch is replaced). In Move mode, the ROM replaced stays in the source. Without a folder of the patches, the option has no effect.",
   "dialog.browse_patch_title": "Select the folder of the patches",
   "dialog.error_same_patch_dest": "The folder of the patches and the destination are the same.",
   "dialog.error_dest_contains_patches": "The destination contains the folder of the patches: emptying or filling this destination would put the patches at risk. Choose a destination outside this folder.",
@@ -1585,6 +1585,6 @@
   "cli.patches_detach_unknown": "--detach {name}: no IPS applied from its name has this name. IPS applied from their name: {names}",
   "cli.patches_rename_requires_yes": "Add --yes to rename these patches. Only their name changes, in the folder of the patches.",
   "cli.patches_renamed": "{renamed}, {refused}.",
-  "cli.option_patch_only": "Writes the patched versions only, not the original ROMs they replace.",
+  "cli.option_patch_only": "Writes only the patched versions of the games that have one: neither their original ROM, nor (with the 1G1R) the ROM kept for their game.",
   "cli.summary_patches": "Patches: {patched}, {unapplied}."
 }

@@ -125,16 +125,21 @@ est tiré du nom du patch :
 
 ### N'écrire que les versions patchées
 
-Cochez **N'écrire que les versions patchées**, à côté du champ, pour qu'une ROM d'origine remplacée par au moins une
-version patchée ne soit pas écrite. Le tableau la montre **Exclu**, avec la raison *Remplacée par sa version patchée*.
-Une ROM que le 1G1R écartait déjà garde sa raison. L'option est grisée sans dossier des patchs.
+Cochez **N'écrire que les versions patchées**, à côté du champ, pour qu'un jeu qui a une version patchée ne soit écrit
+que sous cette forme. Avec le 1G1R, la ROM retenue pour ce jeu n'est pas écrite, même si le patch a été fait pour une
+autre version du jeu : un patch fait pour `Jeu (World) (Collection).md`, que le 1G1R écarte au profit de
+`Jeu (World).md`, donne la seule version patchée, et `Jeu (World).md` n'est pas écrite. Sans le 1G1R, chaque ROM
+retenue est un choix à part, et seule la ROM d'origine du patch est remplacée. Le tableau montre une ROM remplacée
+**Exclu**, avec la raison *Remplacée par une version patchée* ; une ROM que le 1G1R écartait déjà garde sa raison.
+Option décochée, la ROM retenue et la version patchée sont toutes deux écrites. L'option est grisée sans dossier des
+patchs.
 
 ## Modes de transfert
 
 | Mode | Version patchée |
 |---|---|
 | **Copier** | Un fichier, écrit à côté de la ROM d'origine |
-| **Déplacer** | Un fichier, écrit **avant** que la ROM d'origine ne quitte la source. Avec *N'écrire que les versions patchées*, la ROM d'origine remplacée reste dans la source. |
+| **Déplacer** | Un fichier, écrit **avant** que la ROM d'origine ne quitte la source. Avec *N'écrire que les versions patchées*, la ROM remplacée reste dans la source. |
 | **Hard link**, **Symlink** | Une **copie** : un lien ne peut pas porter un contenu modifié. Le journal le dit. |
 | **ZIP** | Une archive à elle, au format TorrentZip, comme celle de tout autre jeu |
 

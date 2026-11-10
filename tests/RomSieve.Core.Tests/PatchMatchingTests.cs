@@ -530,7 +530,7 @@ public sealed class PatchMatchingTests : IDisposable
     }
 
     [Fact]
-    public async Task PatchOnly_ShouldKeepTheReasonOfAnOriginThe1G1RLeftOut()
+    public async Task PatchOnly_WithThe1G1R_ShouldReplaceTheReleaseKeptForTheGame_ByAPatchOfAnotherRelease()
     {
         var dat = WriteJapanAndUsa();
         _temp.WriteBytes("patches/Game (Japan) (T-En).bps", BpsLinear(Japan, Translated));
@@ -538,9 +538,59 @@ public sealed class PatchMatchingTests : IDisposable
         var (result, _) = await SimulateAsync(Config(dat, patchOnly: true));
 
         var japan = Named(result, "Game (Japan).sfc");
-        japan.IsReplacedByPatch.Should().BeFalse();
+        japan.Status.Should().Be(FileStatus.Excluded);
+        japan.IsReplacedByPatch.Should().BeFalse("the 1G1R left it out first, and it keeps its reason");
         japan.StatusReason!.Key.Should().NotBe("reason.replaced_by_patch");
-        Named(result, "Game (USA).sfc").Status.Should().Be(FileStatus.Valid, "the option only leaves out the files a patched version replaces");
+        var usa = Named(result, "Game (USA).sfc");
+        usa.Status.Should().Be(FileStatus.Excluded, "the patched version of the game replaces the release the 1G1R kept");
+        usa.IsReplacedByPatch.Should().BeTrue();
+        usa.StatusReason!.Key.Should().Be("reason.replaced_by_patch");
+        usa.StatusReason.Args["patches"].Should().Be("Game (Japan) (T-En).bps");
+        PatchedVersion(result).Status.Should().Be(FileStatus.Valid);
+        result.Items.Where(it => it.Status == FileStatus.Valid).Should().ContainSingle("only the patched version of the game is written");
+    }
+
+    [Fact]
+    public async Task PatchOnly_WithoutThe1G1R_ShouldOnlyReplaceTheOriginOfThePatch()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (Japan) (T-En).bps", BpsLinear(Japan, Translated));
+        var config = Config(dat, patchOnly: true);
+        config.Filters.OneGameOneRom = false;
+
+        var (result, _) = await SimulateAsync(config);
+
+        Named(result, "Game (Japan).sfc").IsReplacedByPatch.Should().BeTrue();
+        Named(result, "Game (USA).sfc").Status.Should().Be(FileStatus.Valid, "without the 1G1R, each release kept is a choice of its own");
+    }
+
+    [Fact]
+    public async Task WithoutPatchOnly_TheReleaseKeptAndThePatchedVersion_ShouldBothBeWritten()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (Japan) (T-En).bps", BpsLinear(Japan, Translated));
+
+        var (result, _) = await SimulateAsync(Config(dat));
+
+        Named(result, "Game (USA).sfc").Status.Should().Be(FileStatus.Valid);
+        Named(result, "Game (USA).sfc").IsReplacedByPatch.Should().BeFalse();
+        PatchedVersion(result).Status.Should().Be(FileStatus.Valid);
+    }
+
+    [Fact]
+    public async Task TheRecalculationOfAGame_ShouldReplaceTheReleaseKept_ByAPatchOfAnotherRelease()
+    {
+        var dat = WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (Japan) (T-En).bps", BpsLinear(Japan, Translated));
+        var config = Config(dat, patchOnly: true);
+        var (result, _) = await SimulateAsync(config);
+        string Describe() => string.Join("|", result.Items.Select(it => $"{it.DisplayName}:{it.Status}:{it.StatusReason?.Key}:{it.IsReplacedByPatch}"));
+        var simulated = Describe();
+
+        _services.Processor.RecalculateGameItems(result.Items.ToList(), config, result.DatCatalog, result.Items);
+
+        Describe().Should().Be(simulated);
+        Named(result, "Game (USA).sfc").IsReplacedByPatch.Should().BeTrue();
     }
 
     // =========================================================================

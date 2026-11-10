@@ -115,7 +115,7 @@ already taken, for example) gives the code 4.
 | `--dir-dat-mirror` | Places the folder of each DAT of the lot under the folders of its path in the folder or the archive of DATs. Refused (code 2) when **A folder per DAT** is unchecked in the settings |
 | `--chd <folder>` | Folder of the CHDs of a MAME collection, when they are not in the source |
 | `--patches <folder>` | Folder of the [patches](patches.md) (IPS, UPS, BPS) to apply to the identified ROMs |
-| `--patch-only` | Only writes the patched versions, not the original ROMs they replace |
+| `--patch-only` | Only writes the patched versions of the games that have one: neither their original ROM, nor (with 1G1R) the ROM kept for their game |
 | `--categories <file>` | Category file of the MAME machines (`catver.ini`, `catlist.ini`) |
 | `--ratings <file>` | Rating file of the MAME machines (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` or `zip` |
