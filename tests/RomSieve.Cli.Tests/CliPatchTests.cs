@@ -92,7 +92,7 @@ public sealed class CliPatchTests : IDisposable
         result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
         DestinationFiles().Should().Equal("Game (Japan) [T-En].sfc", "Game (USA) [Hack].sfc", "Game (USA).sfc");
         File.ReadAllBytes(Path.Combine(_destination, "Game (Japan) [T-En].sfc")).Should().Equal(Translated);
-        result.Output.Should().Contain("Patches: 2 patched versions, 1 patches not applied.");
+        result.Output.Should().Contain("Patches: 2 patched versions, 1 patch not applied.");
         result.Output.Should().Contain("Orphan (T-En).bps", "each patch not applied has its line");
     }
 
@@ -155,7 +155,7 @@ public sealed class CliPatchTests : IDisposable
         var result = await RunAsync("patches", "--patches", _patches);
 
         result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
-        result.Output.Should().Contain("3 patched versions, 2 patches not applied, 1 IPS applied thanks to their readme.");
+        result.Output.Should().Contain("3 patched versions, 2 patches not applied, 1 IPS applied thanks to its readme.");
         result.Output.Should().Contain("Not applied, Game (Japan) (T-Fr).ips: Neither the name of the IPS patch");
         result.Output.Should().Contain($"ROM proposed: Game (Japan).sfc, CRC32 {Crc(Japan):X8}; new name: Game (Japan) (T-Fr) [{Crc(Japan):x8}].ips");
         result.Output.Should().Contain("A ROM proposed is never taken on its own");
@@ -181,14 +181,14 @@ public sealed class CliPatchTests : IDisposable
         var done = await RunAsync("patches", "--patches", _patches, "--name-from-notes", "--yes");
 
         done.ExitCode.Should().Be(ExitCodes.Success, done.Error);
-        done.Output.Should().Contain("Patch renamed: Hack.ips becomes").And.Contain("1 patches renamed, 0 refused.");
+        done.Output.Should().Contain("Patch renamed: Hack.ips becomes").And.Contain("1 patch renamed, 0 refused.");
         File.Exists(ips).Should().BeFalse();
         File.Exists(renamed).Should().BeTrue();
 
         // The CRC32 in its name now applies it, without its readme
         var again = await RunAsync("patches", "--patches", _patches, "--name-from-notes");
         again.ExitCode.Should().Be(ExitCodes.Success, again.Error);
-        again.Output.Should().Contain("3 patched versions, 1 patches not applied, 0 IPS applied thanks to their readme.");
+        again.Output.Should().Contain("3 patched versions, 1 patch not applied, 0 IPS applied thanks to their readme.");
         again.Output.Should().Contain("No IPS applied thanks to its readme is to be named.");
     }
 

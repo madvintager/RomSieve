@@ -188,7 +188,10 @@ public sealed partial class PatchMatcher
             _log(LogLevel.Warn, LocalizedMessage.Create("log.patch_not_applied", ("name", unapplied.File.DisplayName), ("reason", unapplied.Reason)));
         }
 
-        _log(LogLevel.Info, LocalizedMessage.Create("log.patches_summary", ("patched", matched.Count), ("unapplied", _unapplied.Count)));
+        _log(LogLevel.Info, LocalizedMessage.Create(
+            "log.patches_summary",
+            ("patched", LocalizedMessage.Count("patches.count_patched", matched.Count)),
+            ("unapplied", LocalizedMessage.Count("patches.count_unapplied", _unapplied.Count))));
         return matched.Count;
     }
 

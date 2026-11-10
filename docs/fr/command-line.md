@@ -140,7 +140,7 @@ DAT ; avec `--miss-list` ou `--fixdat`, une ligne compte les DAT complets et ceu
 à exporter.
 
 Avec un dossier des patchs, une ligne du bilan compte les versions patchées et les patchs non appliqués (*Patchs :
-2 versions patchées, 1 patchs non appliqués.*) ; chaque patch non appliqué a sa ligne dans le journal.
+2 versions patchées, 1 patch non appliqué.*) ; chaque patch non appliqué a sa ligne dans le journal.
 
 ## Garde-fous
 

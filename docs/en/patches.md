@@ -169,6 +169,8 @@ Most downloaded IPS have a CRC32 neither in their name nor in their readme. Rath
 file by hand, open the **Patches** window: after a simulation, click "*n* patches not applied" in the banner of the
 results (or "*n* patches to name", when no patch was left out but some IPS were applied thanks to their readme).
 
+![The Patches window](../images/patches_window.png)
+
 The window lists the patches not applied, then the IPS applied thanks to their readme. For the patch selected:
 
 * **Original ROM** proposes the identified ROMs whose name or title starts the name of the patch, or that of its

@@ -10,6 +10,7 @@ using Avalonia.VisualTree;
 using RomSieve.App.ViewModels;
 using RomSieve.App.Views;
 using RomSieve.Core.Models;
+using RomSieve.Core.Services;
 using RomSieve.Core.Tests.Fixtures;
 
 namespace RomSieve.App.Tests;
@@ -71,6 +72,8 @@ public sealed partial class GuiTests
         MainViewModel? vm = null;
         MainWindow? window = null;
         SortConfig? config = null;
+        SortConfig? patchConfig = null;
+        var patches = CreateDocPatches();
 
         await RunOnUiThreadAsync(() =>
         {
@@ -80,12 +83,20 @@ public sealed partial class GuiTests
             vm.Directories.DatFilePath = dat;
             vm.Directories.Pattern = "{publisher}/{title}/";
             vm.Priorities.Apply1G1RPreset("france");
+
+            // The window of the patches comes from a simulation of its own, with a folder of patches, so that the
+            // other screenshots do not change
+            vm.Directories.PatchDir = patches;
+            patchConfig = vm.BuildConfigUnchecked();
+            vm.Directories.PatchDir = string.Empty;
             config = vm.BuildConfigUnchecked();
         });
 
         // The simulation runs out of the UI thread and without any open window, then its result is shown
         // (see the pitfall of the Headless tests)
-        var result = await new CoreTestServices("en").Processor.ExecuteAsync(config!, isDryRun: true);
+        var core = new CoreTestServices("en");
+        var result = await core.Processor.ExecuteAsync(config!, isDryRun: true);
+        var patchResult = await core.Processor.ExecuteAsync(patchConfig!, isDryRun: true);
 
         await RunOnUiThreadAsync(() =>
         {
@@ -158,6 +169,37 @@ public sealed partial class GuiTests
                         {
                             preferences.Close();
                         }
+
+                        // The window of the patches, on its own simulation: an IPS without CRC32 checked, with the
+                        // ROMs its name proposes, then an IPS applied thanks to its readme
+                        var patchesVm = new PatchesViewModel(
+                            vm.Localization,
+                            new HeadlessDialogService(),
+                            new PatchNamingService(core.Patches, core.ChecksumService, core.CrcCache),
+                            () => patchResult.Items,
+                            () => patchResult.Stats,
+                            () => patchConfig,
+                            () => false,
+                            () => Task.CompletedTask,
+                            (_, _) => { });
+                        patchesVm.Load();
+                        while (patchesVm.Rows.Any(r => !r.FormsLoading.IsCompleted))
+                        {
+                            Dispatcher.UIThread.RunJobs();
+                        }
+
+                        patchesVm.Rows[0].IsChecked = true;
+                        var patchesWindow = new PatchesWindow { DataContext = patchesVm };
+                        patchesWindow.Show();
+                        try
+                        {
+                            Settle(patchesWindow);
+                            Save(RenderWindow(patchesWindow), null, Path.Combine(folder, $"patches_window{suffix}.png"));
+                        }
+                        finally
+                        {
+                            patchesWindow.Close();
+                        }
                     }
                 }
             }
@@ -206,6 +248,30 @@ public sealed partial class GuiTests
             {games}</datafile>
             """);
         return (source, Path.Combine(root, "Amiga (sorted)"), dat);
+    }
+
+    /// <summary>
+    /// The folder of patches of the window of the patches: two IPS without CRC32 in their name, which the simulation leaves
+    /// out and whose names propose ROMs, and an IPS whose readme gives the CRC32 of its ROM.
+    /// </summary>
+    private string CreateDocPatches()
+    {
+        var patches = Path.Combine(_tempDir, "doc", "Patches");
+        Directory.CreateDirectory(Path.Combine(patches, "Dune (T-En)"));
+        byte[] Translate(string rom)
+        {
+            var data = AdfImage(rom);
+            var translated = (byte[])data.Clone();
+            translated[1024] ^= 0x5a;
+            return PatchTestEncoder.IpsDiff(data, translated);
+        }
+
+        File.WriteAllBytes(Path.Combine(patches, "Lemmings (1991)(Psygnosis)[tr es].ips"), Translate("Lemmings (1991)(Psygnosis)(GB)[!].adf"));
+        File.WriteAllBytes(Path.Combine(patches, "Pinball Dreams (1992)(21st Century)[h Turbo].ips"), Translate("Pinball Dreams (1992)(21st Century)(GB)[!].adf"));
+        File.WriteAllBytes(Path.Combine(patches, "Dune (T-En)", "patch.ips"), Translate("Dune (1992)(Cryo)(FR)[!].adf"));
+        var dune = AdfImage("Dune (1992)(Cryo)(FR)[!].adf");
+        File.WriteAllText(Path.Combine(patches, "Dune (T-En)", "readme.txt"), $"Dune - English translation\nROM CRC32: {Crc32.HashToUInt32(dune):X8}\n");
+        return patches;
     }
 
     /// <summary>A file of the size of an Amiga floppy disk image (880 KB), with a content of its own.</summary>

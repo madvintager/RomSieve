@@ -161,7 +161,10 @@ public sealed class SourceScanner
         ReportSkips(skips);
         patches.Sort(ComparePatchFiles);
         notes.Sort(ComparePatchFiles);
-        _log(LogLevel.Info, LocalizedMessage.Create("log.patch_dir_scanned", ("count", patches.Count), ("path", patchDir)));
+        _log(LogLevel.Info, LocalizedMessage.Create(
+            "log.patch_dir_scanned",
+            ("count", LocalizedMessage.Count("patches.count_found", patches.Count)),
+            ("path", patchDir)));
         return new PatchFolderContent(patches, notes);
     }
 

@@ -486,9 +486,7 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
             return;
         }
 
-        UnappliedPatchesText = _localization.Tr(
-            unapplied.Count == 1 ? "stats.unapplied_patches_one" : "stats.unapplied_patches",
-            ("count", unapplied.Count));
+        UnappliedPatchesText = _localization.Format(LocalizedMessage.Count("stats.unapplied_patches", unapplied.Count));
         var lines = new List<string> { _localization.Tr("stats.tooltip_unapplied_patches") };
         lines.AddRange(unapplied
             .Take(MaxListedUnappliedPatches)
@@ -498,7 +496,7 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
                 ("reason", _localization.Format(p.Reason)))));
         if (unapplied.Count > MaxListedUnappliedPatches)
         {
-            lines.Add(_localization.Tr("stats.tooltip_unapplied_more", ("count", unapplied.Count - MaxListedUnappliedPatches)));
+            lines.Add(_localization.Format(LocalizedMessage.Count("stats.tooltip_unapplied_more", unapplied.Count - MaxListedUnappliedPatches)));
         }
 
         UnappliedPatchesTooltip = string.Join(Environment.NewLine, lines);

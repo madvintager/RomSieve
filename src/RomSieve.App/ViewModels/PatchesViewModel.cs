@@ -304,7 +304,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
     /// </summary>
     public bool IsNamingLinkVisible => NoteMatchedCount > 0 && (_lastStats()?.UnappliedPatches.Count ?? 0) == 0;
 
-    public string NamingLinkText => Tr(NoteMatchedCount == 1 ? "stats.patches_to_name_one" : "stats.patches_to_name", ("count", NoteMatchedCount));
+    public string NamingLinkText => _localization.Format(LocalizedMessage.Count("stats.patches_to_name", NoteMatchedCount));
 
     /// <summary>Counts again what the last run gives to the window; called when a run ends or starts, and when its results change.</summary>
     public void Refresh()

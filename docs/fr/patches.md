@@ -173,6 +173,8 @@ renommer le fichier à la main, ouvrez la fenêtre **Patchs** : après une simul
 appliqués » dans le bandeau des résultats (ou sur « *n* patchs à nommer », quand aucun patch n'est resté non appliqué
 mais que des IPS l'ont été grâce à leur readme).
 
+![La fenêtre Patchs](../images/fr/patches_window.png)
+
 La fenêtre liste les patchs non appliqués, puis les IPS appliqués grâce à leur readme. Pour un patch sélectionné :
 
 * **ROM d'origine** propose les ROMs identifiées dont le nom ou le titre commence le nom du patch, ou celui de son

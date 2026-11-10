@@ -37,6 +37,12 @@ public sealed record LocalizedMessage
     }
 
     /// <summary>
+    /// A number of things, singular or plural: <paramref name="key"/> with its <c>{count}</c>, or <c>key_one</c> for one
+    /// ("1 patch not applied", "2 patches not applied"). Both keys exist in every catalog.
+    /// </summary>
+    public static LocalizedMessage Count(string key, int count) => Create(count == 1 ? key + "_one" : key, ("count", count));
+
+    /// <summary>
     /// Wraps a text that is not translatable, or already translated (e.g. an exception message), as a message.
     /// </summary>
     public static LocalizedMessage Verbatim(string text) => Create(VerbatimKey, ("text", text));

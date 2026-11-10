@@ -672,11 +672,11 @@ public sealed class CliApplication
             .Where(p => p.CrcSource == PatchCrcSource.Notes)
             .DistinctBy(p => p.File)
             .ToList();
-        WriteLine(Tr(
+        WriteLine(_localization.Format(LocalizedMessage.Create(
             "cli.patches_summary",
-            ("patched", result.Stats.PatchedCount),
-            ("unapplied", result.UnappliedPatches.Count),
-            ("by_note", byNote.Count)));
+            ("patched", LocalizedMessage.Count("patches.count_patched", result.Stats.PatchedCount)),
+            ("unapplied", LocalizedMessage.Count("patches.count_unapplied", result.UnappliedPatches.Count)),
+            ("by_note", LocalizedMessage.Count("patches.count_by_note", byNote.Count)))));
 
         string Describe(PatchFile patch) => patch.ArchiveMember is { } member
             ? $"{member} ({Path.GetFileName(patch.SourcePath)})"
@@ -749,7 +749,10 @@ public sealed class CliApplication
             (level, message) => WriteLine($"[{level.ToTag()}] {_localization.Format(message)}"),
             cancellationToken);
         var refused = results.Count(r => !r.IsRenamed);
-        WriteLine(Tr("cli.patches_renamed", ("renamed", results.Count - refused), ("refused", refused)));
+        WriteLine(_localization.Format(LocalizedMessage.Create(
+            "cli.patches_renamed",
+            ("renamed", LocalizedMessage.Count("patches.count_renamed", results.Count - refused)),
+            ("refused", LocalizedMessage.Count("patches.count_refused", refused)))));
         return refused == 0 ? ExitCodes.Success : ExitCodes.CompletedWithErrors;
     }
 
@@ -1086,7 +1089,10 @@ public sealed class CliApplication
 
         if (stats.PatchedCount > 0 || stats.UnappliedPatches.Count > 0)
         {
-            WriteLine(Tr("cli.summary_patches", ("patched", stats.PatchedCount), ("unapplied", stats.UnappliedPatches.Count)));
+            WriteLine(_localization.Format(LocalizedMessage.Create(
+                "cli.summary_patches",
+                ("patched", LocalizedMessage.Count("patches.count_patched", stats.PatchedCount)),
+                ("unapplied", LocalizedMessage.Count("patches.count_unapplied", stats.UnappliedPatches.Count)))));
         }
 
         if (hasDat)

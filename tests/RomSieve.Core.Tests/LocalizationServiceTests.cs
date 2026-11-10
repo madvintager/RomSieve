@@ -48,6 +48,24 @@ public sealed partial class LocalizationServiceTests
             .Should().Contain("Disk full");
     }
 
+    [Theory]
+    [InlineData("fr", 0, "Patchs : 0 versions patchées, 0 patchs non appliqués")]
+    [InlineData("fr", 1, "Patchs : 1 version patchée, 1 patch non appliqué")]
+    [InlineData("en", 1, "Patches: 1 patched version, 1 patch not applied")]
+    [InlineData("en", 2, "Patches: 2 patched versions, 2 patches not applied")]
+    [InlineData("es", 1, "Parches: 1 versión parcheada, 1 parche no aplicado")]
+    public void ACount_ShouldTakeTheFormOfOneThingForOne_AndBeTranslatedAgain(string locale, int count, string expected)
+    {
+        var message = LocalizedMessage.Create(
+            "log.patches_summary",
+            ("patched", LocalizedMessage.Count("patches.count_patched", count)),
+            ("unapplied", LocalizedMessage.Count("patches.count_unapplied", count)));
+
+        _i18n.SetLocale(locale);
+
+        _i18n.Format(message).Should().Be(expected);
+    }
+
     [Fact]
     public void SwitchToEnglish_ShouldReturnEnglishTranslations()
     {
@@ -182,7 +200,7 @@ public sealed partial class LocalizationServiceTests
             .Should().BeEmpty();
     }
 
-    [GeneratedRegex(@"(?:\bTr|LocalizedMessage\.Create)\(\s*""([^""]+)""", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?:\bTr|LocalizedMessage\.Create|LocalizedMessage\.(Count))\(\s*""([^""]+)""", RegexOptions.CultureInvariant)]
     private static partial Regex TrCallRegex();
 
     [Fact]
@@ -210,12 +228,18 @@ public sealed partial class LocalizationServiceTests
             var content = File.ReadAllText(csFile);
             foreach (Match m in TrCallRegex().Matches(content))
             {
-                var key = m.Groups[1].Value;
-                missing.AddRange(catalogs.Where(c => !c.Value.ContainsKey(key)).Select(c => $"{c.Key}: {key} ({Path.GetFileName(csFile)})"));
+                var key = m.Groups[2].Value;
+
+                // A count takes its key, and the key of one thing (LocalizedMessage.Count)
+                string[] keys = m.Groups[1].Success ? [key, key + "_one"] : [key];
+                foreach (var used in keys)
+                {
+                    missing.AddRange(catalogs.Where(c => !c.Value.ContainsKey(used)).Select(c => $"{c.Key}: {used} ({Path.GetFileName(csFile)})"));
+                }
             }
         }
 
-        missing.Should().BeEmpty("all keys passed to Tr() or LocalizedMessage.Create() must exist in every catalog");
+        missing.Should().BeEmpty("all keys passed to Tr(), LocalizedMessage.Create() or LocalizedMessage.Count() must exist in every catalog");
     }
 
     [GeneratedRegex(@"\{(\w+)\}", RegexOptions.CultureInvariant)]

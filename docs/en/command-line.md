@@ -141,7 +141,7 @@ with a game found (*Nintendo - Game Boy: 12 games found, 14/1600 ROMs (0.9 %)*),
 export.
 
 With a folder of the patches, a line of the summary counts the patched versions and the patches not applied (*Patches:
-2 patched versions, 1 patches not applied.*); each patch not applied has its line in the log.
+2 patched versions, 1 patch not applied.*); each patch not applied has its line in the log.
 
 ## Safeguards
 
