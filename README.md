@@ -51,6 +51,12 @@ list or a fixdat. A whole No-Intro, Redump or TOSEC pack can be used at once: ch
 or RAR archive it was downloaded as, and each file is sorted with the DAT that knows it, each DAT with its own
 convention, filters, 1G1R and folder in the destination. Only the DATs the source needs are read in full.
 
+**Patches.** Give RomSieve a folder of IPS, UPS or BPS patches (translations, fixes, hacks): each patch whose original
+ROM is identified in your collection gives a patched version, written next to the original, which is never modified.
+UPS and BPS patches are matched by the checksum they record, IPS patches by the CRC32 in their name, with or without a
+copier header. A translation of a Japanese release is applied even when 1G1R keeps another release, and you can write
+the patched versions only.
+
 **Safe file operations.** RomSieve can copy, move, create hard links or symbolic links, or write one TorrentZip archive per game,
 into folder patterns such as `{publisher}/{title}/` or `{country}/{title}/`. Files that do not match go to
 `_unmatched/`, and a cancelled transfer leaves no partial file behind. An archive that holds a single game can be
@@ -70,6 +76,7 @@ unless `--execute` is given.
 romsieve-cli run --report report.json --miss-list missing.txt
 romsieve-cli run --profile "Amiga 1G1R" --execute
 romsieve-cli run --dat /dats/No-Intro --dat-recursive --execute
+romsieve-cli run --patches /roms/patches --patch-only --execute
 romsieve-cli undo --yes
 ```
 
@@ -86,7 +93,7 @@ with `sha256sum -c <archive>.sha256`. The binaries are not signed, so Windows Sm
 
 The [user guide](docs/README.md), in [English](docs/en/index.md) and [French](docs/fr/index.md), covers every feature:
 [quick start](docs/en/quick-start.md), [naming conventions and DATs](docs/en/naming-conventions-and-dats.md),
-[1G1R](docs/en/languages-regions-1g1r.md), [safety and undo](docs/en/safety-and-undo.md) and
+[1G1R](docs/en/languages-regions-1g1r.md), [patches](docs/en/patches.md), [safety and undo](docs/en/safety-and-undo.md) and
 [command line](docs/en/command-line.md) (all options and exit codes). The guide of the latest release is also
 [online](https://madvintager.github.io/RomSieve/guide/index.html).
 

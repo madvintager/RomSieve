@@ -10,7 +10,9 @@ RomSieve handles collections of several terabytes. It is designed so that a wron
 * **The destination can neither be the source, nor contain it**, nor (with a recursive scan) lie inside it: the sorted
   files would be analyzed again, and a purge would empty the source. RomSieve refuses these folders, also when a
   symbolic link or a junction leads from one to the other: the paths are compared as written, then with their links
-  resolved. Mapped network drives and bind mounts are not resolved.
+  resolved. Mapped network drives and bind mounts are not resolved. Nor can the destination overlap the
+  [folder of the patches](patches.md#folder-of-the-patches), which a purge never touches.
+* **A patch never modifies the original ROM**: the patched version is a new file, written next to it.
 * **Nothing is written outside the destination.** A file name read from an archive or a DAT that is an absolute path
   (`C:/…`, `/home/…`), holds a `..` segment or a null character could write anywhere on the disk, which some archives
   found on the Internet are crafted to do. Such a file is in error from the simulation on, with the reason "Not written:
@@ -87,7 +89,7 @@ folders) and, after your confirmation, reverses it:
 | Operation of the sort | Undo |
 |---|---|
 | Move | The file goes back to its original place |
-| Copy, extraction, ZIP archive, playlist, `.romsieve` marker | The file is deleted, if unchanged |
+| Copy, extraction, ZIP archive, patched version, playlist, `.romsieve` marker | The file is deleted, if unchanged |
 | Hard link, symbolic link | The link is deleted (the source keeps the data) |
 | Rewritten descriptor (`.cue`...) | The rewritten copy is deleted; in Move mode, the original descriptor is restored |
 | Purge | The content set aside in `_purged` goes back to its place |

@@ -97,5 +97,6 @@ playlists are deleted, and purged content is put back. A file you modified after
 ## What next?
 
 * [Export](exports.md) a report, the list of missing ROMs or a DAT of your collection.
+* Apply [patches](patches.md) (translations, fixes, hacks) to your ROMs, without modifying them.
 * Save your settings as a [profile](settings-and-profiles.md) to reuse them, also from the
   [command line](command-line.md).

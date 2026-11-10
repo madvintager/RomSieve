@@ -47,6 +47,8 @@ on voit d'un coup d'œil quelle version l'a emporté sur quelles autres.
 
 ![Tableau groupé par jeu](../images/fr/simulation_grouped.png)
 
+* Les [versions patchées](patches.md) d'un jeu suivent sa version retenue, avec la pastille **Patchée** (aussi sur
+  l'en-tête du jeu).
 * Un jeu d'un seul fichier reste une ligne simple, sans en-tête.
 * Les fichiers sans jeu identifié (noms non conformes) sont réunis à la fin, sous **Sans jeu identifié**.
 * Le tri par colonne range les jeux selon leur version retenue (ou leur premier fichier), et les autres versions de
@@ -80,7 +82,9 @@ collision l'a renommé) et, pour un CHD, sa version, son média et ses pistes. A
 fichier et, quand d'autres DAT le reconnaissent, ceux-ci, où ses ROMs comptent comme présentes. Tant que des jeux sont
 [décochés](#choisir-des-jeux), une ligne **Sélection** dit en plus si la ligne sera triée : *Cochée*, *Décochée*, ou
 *Triée avec le set …, qui en a besoin* pour un set MAME emporté par les jeux cochés ; l'info-bulle de la ligne la
-reprend. Le statut décrit toujours la simulation entière, la ligne **Sélection** le tri partiel. Les textes peuvent être
+reprend. Le statut décrit toujours la simulation entière, la ligne **Sélection** le tri partiel. Pour une version
+patchée, la ligne **Patch** nomme le patch, son format et la ROM d'origine avec son CRC32 ; pour une ROM d'origine, la
+ligne **Versions patchées** les nomme. Les textes peuvent être
 sélectionnés et copiés. Le panneau est replié par défaut ; il reste ouvert ou fermé d'une session à l'autre.
 
 ## Pastilles de statut
@@ -94,6 +98,10 @@ conformes compris). Elle ne change pas les autres pastilles : un jeu décoché r
 tri garderait, vous ne le triez simplement pas cette fois. Cliquez sur **Sélection** pour n'afficher que les lignes que
 trie la sélection (avec les sets MAME requis) ; elle se combine avec les pastilles de statut et la recherche. Une ligne
 décochée pendant ce filtre reste affichée, pour pouvoir la recocher, jusqu'au prochain changement de filtre.
+
+Avec un [dossier des patchs](patches.md), la pastille **Patchées** compte les versions patchées ; cliquez dessus pour
+n'afficher qu'elles (elle se combine avec les autres). À droite, « *n* patchs non appliqués » compte les patchs qui
+n'ont donné aucune version patchée, et son infobulle les nomme avec leurs raisons.
 
 Avec un DAT, le bandeau affiche aussi la **Complétude** de votre collection (ROMs du DAT trouvées / total). Avec un
 lot de DAT, elle réunit tous ses DAT, et son info-bulle détaille chaque DAT où un jeu a été trouvé, puis compte les

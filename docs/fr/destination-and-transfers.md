@@ -141,7 +141,11 @@ les fichiers copiés**, chaque archive est relue et sa signature TorrentZip cont
 [DAT MAME](naming-conventions-and-dats.md#dat-mame)), de même qu'un logiciel d'une liste MAME.
 
 Les fichiers **Exclus** par un filtre et les **Doublons** ne sont jamais écrits : ils restent dans la source, même en
-mode Déplacer. Les fichiers **Non conformes** sont transférés dans `_unmatched/` à la racine de la destination.
+mode Déplacer.
+
+Une version patchée (voir [Patchs](patches.md#modes-de-transfert)) est écrite comme une copie dans tous les modes, liens
+compris, puisqu'un lien ne peut pas porter un contenu modifié ; en mode Déplacer, elle est écrite avant que sa ROM
+d'origine ne quitte la source, et en mode ZIP, elle a son archive. Les fichiers **Non conformes** sont transférés dans `_unmatched/` à la racine de la destination.
 
 ### Isoler les fichiers non conformes dans _unmatched
 

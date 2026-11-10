@@ -28,6 +28,9 @@ romsieve-cli run --profile "Amiga 1G1R" --execute
 # D'autres dossiers, DAT ou mode de transfert que ceux des réglages
 romsieve-cli run -s /roms/arrivee -d /roms/triees --dat "Commodore - Amiga.dat" --mode zip --execute
 
+# Appliquer les patchs d'un dossier, et n'écrire que les versions patchées
+romsieve-cli run --patches /roms/patchs --patch-only --execute
+
 # Un lot de DAT : tout un pack TOSEC, sous-dossiers compris, rangé comme le pack
 romsieve-cli run --dat /dats/TOSEC --dat-recursive --dir-dat-mirror --execute
 # ... ou deux de ses DAT seulement
@@ -84,6 +87,8 @@ réglages ne gardent aucun jeu, aucun fichier n'est écrit et le code de sortie 
 | `--dat-only <nom>` | Ne trie qu'avec ce DAT du lot, désigné par le nom de son en-tête, sans tenir compte des majuscules. Répétable ; remplace les DAT décochés des réglages. Un nom absent du lot est refusé (code 2), avec les noms du lot |
 | `--dir-dat-mirror` | Place le dossier de chaque DAT du lot sous les dossiers de son chemin dans le dossier ou l'archive de DAT. Refusé (code 2) quand **Un dossier par DAT** est décoché dans les réglages |
 | `--chd <dossier>` | Dossier des CHD d'une collection MAME, s'ils ne sont pas dans la source |
+| `--patches <dossier>` | Dossier des [patchs](patches.md) (IPS, UPS, BPS) à appliquer aux ROMs identifiées |
+| `--patch-only` | N'écrit que les versions patchées, pas les ROMs d'origine qu'elles remplacent |
 | `--categories <fichier>` | Fichier de catégories des machines MAME (`catver.ini`, `catlist.ini`) |
 | `--ratings <fichier>` | Fichier de notes des machines MAME (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` ou `zip` |
@@ -112,10 +117,14 @@ où un jeu a été trouvé (*Nintendo - Game Boy : 12 jeux trouvés, 14/1 600 RO
 DAT ; avec `--miss-list` ou `--fixdat`, une ligne compte les DAT complets et ceux sans aucun jeu trouvé, qui n'ont rien
 à exporter.
 
+Avec un dossier des patchs, une ligne du bilan compte les versions patchées et les patchs non appliqués (*Patchs :
+2 versions patchées, 1 patchs non appliqués.*) ; chaque patch non appliqué a sa ligne dans le journal.
+
 ## Garde-fous
 
 * Sans `--execute`, rien n'est écrit.
-* La source doit exister, le DAT doit être trouvé, et la destination ne doit pas chevaucher la source. Un dossier de
+* La source doit exister, le DAT doit être trouvé, et la destination ne doit pas chevaucher la source, ni le dossier
+  des patchs. Un dossier de
   DAT que le tri refuserait (deux DAT du même nom, un DAT de machines MAME, des listes de logiciels mêlées à d'autres
   DAT, tous les DAT décochés) est refusé avant tout, en code 3.
 * Un tri réel dans une destination non vide exige `--append`, ou `--purge --yes` ; un dossier sans le marqueur

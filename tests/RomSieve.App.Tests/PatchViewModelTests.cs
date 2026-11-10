@@ -80,6 +80,23 @@ public sealed class PatchViewModelTests : IDisposable
         vm.Navigation.OutputEntry.IndicatorTone.Should().Be(StepIndicatorTone.None);
     }
 
+    [Fact]
+    public async Task ASimulationIntoThePatchFolder_ShouldBeRefusedBeforeItStarts()
+    {
+        var dialogs = new HeadlessDialogService();
+        var vm = TestMainViewModel.Create(dialogs, _temp.WriteText("config.json", "{}"));
+        vm.Directories.SourceDir = _temp.CreateSubdirectory("src");
+        _temp.WriteText("src/Game (1990)(Ocean).adf", "game");
+        vm.Directories.PatchDir = _temp.CreateSubdirectory("patches");
+        vm.Directories.DestinationDir = Path.Combine(_temp.Path, "patches", "sorted");
+
+        await vm.Execution.SimulateAsync();
+
+        dialogs.ShownMessages.Should().ContainSingle(m => m.Message == _services.I18n.Tr("dialog.error_dest_inside_patches"));
+        vm.Execution.LastItems.Should().BeEmpty("nothing runs");
+        Directory.Exists(Path.Combine(_temp.Path, "patches", "sorted")).Should().BeFalse();
+    }
+
     // =========================================================================
     // Table
     // =========================================================================

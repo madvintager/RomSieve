@@ -28,6 +28,9 @@ romsieve-cli run --profile "Amiga 1G1R" --execute
 # Other folders, DAT or transfer mode than those of the settings
 romsieve-cli run -s /roms/incoming -d /roms/sorted --dat "Commodore - Amiga.dat" --mode zip --execute
 
+# Apply the patches of a folder, and only write the patched versions
+romsieve-cli run --patches /roms/patches --patch-only --execute
+
 # A lot of DATs: a whole TOSEC pack, subfolders included, laid out as the pack
 romsieve-cli run --dat /dats/TOSEC --dat-recursive --dir-dat-mirror --execute
 # ... or two of its DATs only
@@ -84,6 +87,8 @@ the settings keep no game, no file is written and the exit code is 4.
 | `--dat-only <name>` | Only sorts with this DAT of the lot, named by the name of its header, case ignored. Repeatable; replaces the DATs unchecked in the settings. A name the lot does not have is refused (code 2), with the names of the lot |
 | `--dir-dat-mirror` | Places the folder of each DAT of the lot under the folders of its path in the folder or the archive of DATs. Refused (code 2) when **A folder per DAT** is unchecked in the settings |
 | `--chd <folder>` | Folder of the CHDs of a MAME collection, when they are not in the source |
+| `--patches <folder>` | Folder of the [patches](patches.md) (IPS, UPS, BPS) to apply to the identified ROMs |
+| `--patch-only` | Only writes the patched versions, not the original ROMs they replace |
 | `--categories <file>` | Category file of the MAME machines (`catver.ini`, `catlist.ini`) |
 | `--ratings <file>` | Rating file of the MAME machines (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` or `zip` |
@@ -112,10 +117,14 @@ with a game found (*Nintendo - Game Boy: 12 games found, 14/1600 ROMs (0.9 %)*),
 `--miss-list` or `--fixdat`, a line counts the complete DATs and those without any game found, which have nothing to
 export.
 
+With a folder of the patches, a line of the summary counts the patched versions and the patches not applied (*Patches:
+2 patched versions, 1 patches not applied.*); each patch not applied has its line in the log.
+
 ## Safeguards
 
 * Without `--execute`, nothing is written.
-* The source must exist, the DAT must be found, and the destination may not overlap the source. A folder of DATs the
+* The source must exist, the DAT must be found, and the destination may not overlap the source, nor the folder of
+  the patches. A folder of DATs the
   sort would refuse (two DATs of the same name, a DAT of MAME machines, software lists mixed with other DATs, every DAT
   unchecked) is refused before anything else, with code 3.
 * A real sort into a non-empty destination requires `--append`, or `--purge --yes`; a folder without the `.romsieve`

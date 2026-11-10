@@ -102,5 +102,6 @@ n'est jamais supprimé.
 ## Et ensuite ?
 
 * [Exportez](exports.md) un rapport, la liste des ROMs manquantes ou un DAT de votre collection.
+* Appliquez des [patchs](patches.md) (traductions, corrections, hacks) à vos ROMs, sans les modifier.
 * Enregistrez vos réglages dans un [profil](settings-and-profiles.md) pour les réutiliser, y compris depuis la
   [ligne de commande](command-line.md).

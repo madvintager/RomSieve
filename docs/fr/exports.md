@@ -17,6 +17,10 @@ Enregistre le résultat de la dernière exécution :
 Avec un [lot de DAT](#lot-de-dat), chaque fichier nomme aussi son DAT (champ `dat`, dernière colonne du CSV), et le
 JSON détaille ce qui a été trouvé de chaque DAT.
 
+Une [version patchée](patches.md) nomme son patch, son format et sa ROM d'origine (champs `patch`, `patch_format` et
+`patched_from` du JSON ; trois dernières colonnes du CSV, présentes seulement quand l'exécution a des versions
+patchées).
+
 ## DAT de votre collection...
 
 Génère un fichier DAT des ROMs de votre source que la dernière exécution a **retenues**, pour que d'autres
@@ -26,7 +30,9 @@ gestionnaires de ROMs (ClrMamePro, RomVault, Igir...) puissent contrôler votre 
 * **ClrMamePro** (`.dat`).
 
 Un fichier identifié par le DAT reprend sa taille et ses sommes de contrôle dans le DAT, sans être relu ; celles des
-autres fichiers sont calculées pendant l'export. Avec un DAT MAME, chaque set retenu est écrit comme sa machine du DAT
+autres fichiers sont calculées pendant l'export. Une version patchée est écrite comme un fichier non identifié, dans un
+jeu à son nom, avec ses propres sommes de contrôle : celles du fichier écrit par le tri, ou, après une simulation,
+celles du résultat du patch, appliqué de nouveau dans un fichier temporaire. Avec un DAT MAME, chaque set retenu est écrit comme sa machine du DAT
 (ROMs, disques, parent et BIOS), sans lire les archives ; un set merged est écrit avec les clones dont son archive
 contient les ROMs. Le message final compte les fichiers du DAT comme un gestionnaire de ROMs : une ROM que MAME liste
 plusieurs fois sous le même nom dans une machine compte pour une. Pendant l'export, une barre de progression montre les fichiers

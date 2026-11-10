@@ -399,6 +399,29 @@ public sealed class PatchMatchingTests : IDisposable
         reason.Args["origin"].Should().Be("Game (Europe).bin");
     }
 
+    [Fact]
+    public async Task AnOriginInAMultiDiskSet_ShouldNotBeApplied()
+    {
+        var disk1 = Data(11, 2048);
+        var disk2 = Data(12, 2048);
+        _temp.WriteBytes("src/Game (1990)(Ocean)(Disk 1 of 2).adf", disk1);
+        _temp.WriteBytes("src/Game (1990)(Ocean)(Disk 2 of 2).adf", disk2);
+        var dat = _temp.WriteText("dat/amiga.dat", $"""
+            <?xml version="1.0"?><datafile><header><name>Commodore Amiga - Games - [ADF] (TOSEC)</name><description>TOSEC</description></header>
+            <game name="Game (1990)(Ocean)(Disk 1 of 2)"><description>Game</description><rom name="Game (1990)(Ocean)(Disk 1 of 2).adf" size="2048" crc="{Crc(disk1):x8}"/></game>
+            <game name="Game (1990)(Ocean)(Disk 2 of 2)"><description>Game</description><rom name="Game (1990)(Ocean)(Disk 2 of 2).adf" size="2048" crc="{Crc(disk2):x8}"/></game></datafile>
+            """);
+        _temp.WriteBytes("patches/Game (1990)(Ocean)(Disk 1 of 2)[t Eng].bps", BpsLinear(disk1, Translate(disk1)));
+        var config = Config(dat);
+        config.NamingConvention = NamingConvention.Tosec;
+        config.Filters = new FilterConfig();
+
+        var (result, _) = await SimulateAsync(config);
+
+        result.Items.Should().NotContain(it => it.Patch != null, "a disk of a set is never patched alone");
+        result.UnappliedPatches.Should().ContainSingle().Which.Reason.Key.Should().Be("reason.patch_multi_file");
+    }
+
     // =========================================================================
     // Patch folder and runs that do not read it
     // =========================================================================

@@ -443,6 +443,72 @@ public sealed class PatchTransferTests : IDisposable
         File.ReadAllBytes(Destination("Game (USA) (Hack).nes")).Should().Equal(hacked, "the result is written as the patch produces it");
     }
 
+    [Fact]
+    public async Task AnOriginInASolid7z_ShouldGiveItsPatchedVersion_AndATrackOfADiscNone()
+    {
+        // The real 7z of the fixtures: two ADF files, and a descriptor with its track, in a single solid block
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Archives", "roms_solid.7z"), _temp.GetFilePath("src/roms.7z"));
+        var alpha = ArchiveFormatTests.Pattern("ALPHA-", 8192);
+        var track = ArchiveFormatTests.Pattern("TRACK1", 4704);
+        var cue = Ascii("FILE \"Disc (1995)(Sony) (Track 1).bin\" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n");
+        var dat = _temp.WriteText("dat/amiga.dat", $"""
+            <?xml version="1.0"?><datafile><header><name>Commodore Amiga - Games - [ADF] (TOSEC)</name><description>TOSEC</description></header>
+            <game name="Alpha (1990)(Ocean)"><description>Alpha</description><rom name="Alpha (1990)(Ocean).adf" size="8192" crc="{Crc(alpha):x8}"/></game>
+            <game name="Disc (1995)(Sony)"><description>Disc</description><rom name="Disc (1995)(Sony).cue" size="{cue.Length}" crc="{Crc(cue):x8}"/>
+            <rom name="Disc (1995)(Sony) (Track 1).bin" size="4704" crc="{Crc(track):x8}"/></game></datafile>
+            """);
+        var hacked = Translate(alpha);
+        _temp.WriteBytes("patches/Alpha (1990)(Ocean)[h Hack].bps", BpsLinear(alpha, hacked));
+        _temp.WriteBytes("patches/Disc (1995)(Sony)[t Eng].ups", Ups(track, Translate(track)));
+        var config = Config(dat);
+        config.NamingConvention = NamingConvention.Tosec;
+        config.Filters = new FilterConfig();
+
+        var result = await SortAsync(config);
+
+        PatchedVersion(result).Patch!.Origin.ArchiveMember.Should().Be("Alpha (1990)(Ocean).adf");
+        File.ReadAllBytes(Destination("Alpha (1990)(Ocean)[h Hack].adf")).Should().Equal(hacked);
+        result.UnappliedPatches.Should().ContainSingle().Which.Reason.Key.Should().Be("reason.patch_multi_file");
+        AssertNoTemporaryFile();
+    }
+
+    [Fact]
+    public async Task APartialSort_ShouldWriteThePatchedVersionsOfTheCheckedGamesOnly()
+    {
+        var dat = WriteCollection();
+        var other = Data(5, 2048);
+        _temp.WriteBytes("src/Other (USA).sfc", other);
+        _temp.WriteBytes("patches/Other (USA) (Hack).ups", Ups(other, Translate(other)));
+        dat = WriteDat(("Game (Japan)", "Game (Japan).sfc", Japan), ("Game (USA)", "Game (USA).sfc", Usa), ("Other (USA)", "Other (USA).sfc", other));
+        var config = Config(dat);
+        var simulation = await _processor.ExecuteAsync(config, isDryRun: true);
+        var selection = SelectionFilter.Create(
+            simulation.Items, simulation.Items.Where(it => it.Parsed.Title == "Game"), _services.FilterService);
+
+        var result = await _processor.ExecuteAsync(config, isDryRun: false, selection: selection);
+
+        DestinationFiles().Should().BeEquivalentTo(["Game (Japan) (T-En).sfc", "Game (USA).sfc"]);
+        result.Items.Single(it => it.Patch?.File.DisplayName == "Other (USA) (Hack).ups").IsOutsideSelection.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AFailureInTheMiddleOfAnArchive_ShouldLeaveNoArchiveNorTemporaryFile()
+    {
+        // The patched data is written first, then its archive: the archive alone fails, as a disk that fills up
+        var dat = WriteCollection();
+        var written = 0;
+        _processor.ConfigureTransferExecutor = executor => executor.WrapTargetStream = stream =>
+            Interlocked.Increment(ref written) == 2 ? new FailingStream(stream, FailingStream.DiskFull) { FailAfterBytesWritten = 1000 } : stream;
+
+        var result = await SortAsync(Config(dat, TransferMode.Zip));
+
+        PatchedVersion(result).Status.Should().Be(FileStatus.Error);
+        result.StopReason!.Key.Should().Be("log.sort_stopped_disk_full");
+        File.Exists(Destination("Game (Japan) (T-En).zip")).Should().BeFalse();
+        AssertNoTemporaryFile();
+        File.ReadAllBytes(Path.Combine(_src, "Game (Japan).sfc")).Should().Equal(Japan);
+    }
+
     // =========================================================================
     // Names, room
     // =========================================================================

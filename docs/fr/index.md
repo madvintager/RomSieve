@@ -23,7 +23,7 @@ DAT), applique vos filtres, ne garde que la meilleure version de chaque jeu si v
 
 La colonne de gauche suit les étapes d'un tri :
 
-1. **Collection** : la convention de nommage, le fichier DAT et la source.
+1. **Collection** : la convention de nommage, le fichier DAT, la source et, au besoin, le dossier des patchs.
 2. **Sélection** : ce qu'il faut garder, en deux pages, **Filtres** puis **Langues et 1G1R**. Un clic sur *Sélection*
    ouvre toujours **Filtres**.
 3. **Sortie** : la destination, le mode de transfert, les conflits, l'arborescence et les playlists.
@@ -52,10 +52,11 @@ dernière étape de réglage, et les résultats restent consultables par l'étap
 6. [Langues, régions et 1G1R](languages-regions-1g1r.md) : une seule version par jeu, dans vos langues.
 7. [Le tableau de simulation](simulation-table.md) : statuts, recherche, choix 1G1R manuels, simulations successives.
 8. [Exports](exports.md) : rapports, DAT de votre collection, ROMs manquantes et fixdat, DAT filtré du catalogue.
-9. [Sécurité, purge et annulation](safety-and-undo.md) : ce que RomSieve ne fait jamais, et comment revenir en arrière.
-10. [Ligne de commande](command-line.md) : `romsieve-cli` pour les scripts, le NAS et les tâches planifiées.
-11. [Réglages et profils](settings-and-profiles.md) : fenêtre des préférences (langue, thème, mises à jour), options avancées, réglages enregistrés, profils nommés.
-12. [Dépannage](troubleshooting.md) : questions et problèmes courants.
+9. [Patchs](patches.md) : traductions, corrections et hacks appliqués à vos ROMs, sans jamais les modifier.
+10. [Sécurité, purge et annulation](safety-and-undo.md) : ce que RomSieve ne fait jamais, et comment revenir en arrière.
+11. [Ligne de commande](command-line.md) : `romsieve-cli` pour les scripts, le NAS et les tâches planifiées.
+12. [Réglages et profils](settings-and-profiles.md) : fenêtre des préférences (langue, thème, mises à jour), options avancées, réglages enregistrés, profils nommés.
+13. [Dépannage](troubleshooting.md) : questions et problèmes courants.
 
 ## Pressé ?
 

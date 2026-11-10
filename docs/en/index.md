@@ -23,7 +23,7 @@ a clean folder tree in a destination of your choice. Every sort can be **simulat
 
 The column on the left follows the steps of a sort:
 
-1. **Collection**: the naming convention, the DAT file and the source.
+1. **Collection**: the naming convention, the DAT file, the source and, if need be, the folder of the patches.
 2. **Selection**: what to keep, on two pages, **Filters** then **Languages and 1G1R**. A click on *Selection* always opens
    **Filters**.
 3. **Output**: the destination, the transfer mode, conflicts, the directory tree and the playlists.
@@ -50,10 +50,11 @@ the results stay available from the **Results** step.
 6. [Languages, regions and 1G1R](languages-regions-1g1r.md): keep one release per game, in your languages.
 7. [The simulation table](simulation-table.md): statuses, search, manual 1G1R choices, successive simulations.
 8. [Exports](exports.md): reports, DAT of your collection, missing ROMs and fixdat, filtered DAT of the catalog.
-9. [Safety, purge and undo](safety-and-undo.md): what RomSieve never does, and how to go back.
-10. [Command line](command-line.md): `romsieve-cli` for scripts, NAS and scheduled tasks.
-11. [Settings and profiles](settings-and-profiles.md): preferences window (language, theme, updates), advanced options, saved options, named profiles.
-12. [Troubleshooting](troubleshooting.md): common questions and problems.
+9. [Patches](patches.md): translations, fixes and hacks applied to your ROMs, without ever modifying them.
+10. [Safety, purge and undo](safety-and-undo.md): what RomSieve never does, and how to go back.
+11. [Command line](command-line.md): `romsieve-cli` for scripts, NAS and scheduled tasks.
+12. [Settings and profiles](settings-and-profiles.md): preferences window (language, theme, updates), advanced options, saved options, named profiles.
+13. [Troubleshooting](troubleshooting.md): common questions and problems.
 
 ## In a hurry?
 

@@ -12,7 +12,10 @@ RomSieve manipule des collections de plusieurs téraoctets. Il est conçu pour q
 * **La destination ne peut être ni la source, ni la contenir**, ni (avec un scan récursif) se trouver à l'intérieur :
   les fichiers triés seraient réanalysés, et une purge viderait la source. RomSieve refuse ces dossiers, y compris
   quand un lien symbolique ou une jonction mène de l'un à l'autre : les chemins sont comparés tels qu'écrits, puis avec
-  leurs liens résolus. Les lecteurs réseau mappés et les montages liés (*bind mounts*) ne sont pas résolus.
+  leurs liens résolus. Les lecteurs réseau mappés et les montages liés (*bind mounts*) ne sont pas résolus. La
+  destination ne peut pas non plus chevaucher le [dossier des patchs](patches.md#dossier-des-patchs), qu'une purge ne
+  touche jamais.
+* **Un patch ne modifie jamais la ROM d'origine** : la version patchée est un nouveau fichier, écrit à côté.
 * **Rien n'est écrit hors de la destination.** Un nom de fichier lu dans une archive ou un DAT qui est un chemin absolu
   (`C:/…`, `/home/…`), contient un segment `..` ou un caractère nul pourrait écrire n'importe où sur le disque, ce que
   font exprès certaines archives trouvées sur Internet. Un tel fichier est en erreur dès la simulation, avec la raison
@@ -90,7 +93,7 @@ mode, dossiers) et, après votre confirmation, le défait :
 | Opération du tri | Annulation |
 |---|---|
 | Déplacement | Le fichier retrouve son emplacement d'origine |
-| Copie, extraction, archive ZIP, playlist, marqueur `.romsieve` | Le fichier est supprimé, s'il n'a pas changé |
+| Copie, extraction, archive ZIP, version patchée, playlist, marqueur `.romsieve` | Le fichier est supprimé, s'il n'a pas changé |
 | Hard link, lien symbolique | Le lien est supprimé (la source garde les données) |
 | Descripteur réécrit (`.cue`...) | La copie réécrite est supprimée ; en mode Déplacer, le descripteur d'origine est restauré |
 | Purge | Le contenu mis de côté dans `_purged` retrouve sa place |

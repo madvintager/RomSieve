@@ -17,6 +17,9 @@ Saves the result of the last run:
 With a [lot of DATs](#lot-of-dats), each file also names its DAT (`dat` field, last column of the CSV), and the JSON
 details what was found of each DAT.
 
+A [patched version](patches.md) names its patch, its format and its original ROM (`patch`, `patch_format` and
+`patched_from` fields of the JSON; three last columns of the CSV, only present when the run has patched versions).
+
 ## DAT of your collection...
 
 Generates a DAT file listing the ROMs of your source the last run **kept**, so that other ROM managers (ClrMamePro,
@@ -26,7 +29,9 @@ RomVault, Igir...) can check your sorted collection:
 * **ClrMamePro** (`.dat`).
 
 A file identified by the DAT takes its size and checksums from the DAT, without being read again; the checksums of the
-other files are computed while exporting. With a MAME DAT, each kept set is written as its machine in the DAT (ROMs,
+other files are computed while exporting. A patched version is written as a file not identified, in a game named
+after it, with its own checksums: those of the file the sort wrote, or, after a simulation, those of the result of the
+patch, applied again to a temporary file. With a MAME DAT, each kept set is written as its machine in the DAT (ROMs,
 disks, parent and BIOS), without reading the archives; a merged set is written with the clones whose ROMs its archive
 holds. The message at the end counts the files of the DAT as a ROM manager does: a ROM that MAME lists several times in
 a machine under the same name counts once. While the export runs, a progress bar shows the files already

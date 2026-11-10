@@ -141,6 +141,10 @@ already is an archive, and its CHDs are copied as they are (see [MAME DATs](nami
 and so is a software of a MAME list.
 
 Files **Excluded** by a filter and **Duplicates** are never written: they stay in the source, even in Move mode.
+
+A patched version (see [Patches](patches.md#transfer-modes)) is written as a copy in every mode, links included, since a
+link cannot hold modified data; in Move mode, it is written before its original ROM leaves the source, and in ZIP mode,
+it has its own archive.
 **Non-conforming** files are transferred to `_unmatched/` at the root of the destination.
 
 ### Isolate non-conforming files in _unmatched

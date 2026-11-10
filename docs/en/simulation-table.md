@@ -46,6 +46,8 @@ release won over which others.
 
 ![Table grouped by game](../images/simulation_grouped.png)
 
+* The [patched versions](patches.md) of a game follow its kept release, with the **Patched** badge (also on the
+  header of the game).
 * A game of a single file stays a plain row, without a header.
 * The files without an identified game (non-conforming names) are gathered at the end, under **No identified game**.
 * Sorting by a column orders the games by their kept release (or their first file), and the other releases of each
@@ -79,7 +81,8 @@ version, media and tracks. With a lot of DATs, the **DAT** line names the DAT of
 those, where its ROMs count as present. While some games are [unchecked](#choosing-games), a **Selection**
 line also tells whether the row will be sorted: *Checked*, *Unchecked*, or *Sorted with the set …, which needs it* for a
 MAME set taken along by the checked games; the tooltip of the row repeats it. The status always describes the whole
-simulation, the **Selection** line the partial sort. The texts can be selected and copied. The panel is folded by default;
+simulation, the **Selection** line the partial sort. For a patched version, the **Patch** line names the patch, its
+format and the original ROM with its CRC32; for an original ROM, the **Patched versions** line names them. The texts can be selected and copied. The panel is folded by default;
 it stays open or closed from one session to the next.
 
 ## Status chips
@@ -92,6 +95,10 @@ included). It does not change the other chips: an unchecked game stays **Kept**,
 you are just not sorting it this time. Click **Selection** to show only the rows the selection sorts (with the
 required MAME sets); it combines with the status chips and the search. A row unchecked while this filter is on stays
 shown, so that you can check it again, until the next change of filter.
+
+With a [folder of the patches](patches.md), the **Patched** chip counts the patched versions; click it to show them
+alone (it combines with the others). On the right, "*n* patches not applied" counts the patches that gave no patched
+version, and its tooltip names them with their reasons.
 
 With a DAT, the banner also shows the **Completion** of your collection (ROMs of the DAT found / total). With a lot of
 DATs, it gathers all its DATs, and its tooltip details each DAT with a game found, then counts the others.
