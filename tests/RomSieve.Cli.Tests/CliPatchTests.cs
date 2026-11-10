@@ -318,7 +318,7 @@ public sealed class CliPatchTests : IDisposable
         result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
         result.Output.Should().Contain("3 patched versions, 2 patches not applied, 0 patches set aside.");
         result.Output.Should().Contain("Not applied, Game (Japan) (T-Fr).ips: Neither the name of the IPS patch");
-        result.Output.Should().Contain($"ROM proposed: Game (Japan).sfc, CRC32 {Crc(Japan):X8}");
+        result.Output.Should().Contain($"ROM proposed: Game (Japan).sfc, CRC32 {Crc(Japan):X8} (The name of the patch starts with the name of this ROM)");
         result.Output.Should().Contain("A ROM proposed is never taken on its own: choose it with --link <patch> --rom <ROM> --yes");
         result.Output.Should().Contain($"Applied, {Path.Combine("hack", "Hack.ips")}: to Game (USA).sfc (thanks to readme.txt)");
         result.Output.Should().Contain("Applied, Game (Japan) (T-En).bps: to Game (Japan).sfc (the patch names its ROM)");

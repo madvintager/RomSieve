@@ -40,6 +40,7 @@ public sealed partial class PatchMatcher
     private readonly IChecksumService _checksumService;
     private readonly ICrcCacheService _crcCache;
     private readonly IReadOnlyDictionary<PatchKey, PatchLink> _links;
+    private readonly IReleaseScoringService _scoring;
     private readonly Action<LogLevel, LocalizedMessage> _log;
     private readonly List<UnappliedPatch> _unapplied = [];
     private readonly List<IgnoredPatch> _ignored = [];
@@ -58,6 +59,7 @@ public sealed partial class PatchMatcher
         IChecksumService checksumService,
         ICrcCacheService crcCache,
         IReadOnlyDictionary<PatchKey, PatchLink> links,
+        IReleaseScoringService scoring,
         Action<LogLevel, LocalizedMessage> log)
     {
         _config = config;
@@ -65,6 +67,7 @@ public sealed partial class PatchMatcher
         _checksumService = checksumService;
         _crcCache = crcCache;
         _links = links;
+        _scoring = scoring;
         _log = log;
     }
 
@@ -686,7 +689,12 @@ public sealed partial class PatchMatcher
                 .Where(b => !b.Best.IsMultiFile)
                 .DistinctBy(b => b.Best.Item, ReferenceEqualityComparer.Instance)
                 .Take(MaxSuggestions)
-                .Select(b => new PatchOriginSuggestion(b.Best.Item, b.Best.Crc32, b.Best.Offset))
+                .Select(b => new PatchOriginSuggestion(b.Best.Item, b.Best.Crc32, b.Best.Offset)
+                {
+                    Reason = patch.CrcSource == PatchCrcSource.Notes && patch.NoteOf?.GetValueOrDefault(b.Crc) is { } note
+                        ? LocalizedMessage.Create("patches.why_designated_note", ("note", note.DisplayName))
+                        : LocalizedMessage.Create("patches.why_designated_name")
+                })
                 .ToList();
             Refuse(
                 patch.File,
@@ -738,7 +746,10 @@ public sealed partial class PatchMatcher
                 "reason.patch_header_form_ambiguous",
                 ("note", patch.NoteNames),
                 ("origin", distinct[0].Item.DisplayName)),
-            [.. distinct.Select(f => new PatchOriginSuggestion(f.Item, f.Crc32, f.Offset, WithCopierHeader: f.Size == largest))]);
+            [.. distinct.Select(f => new PatchOriginSuggestion(f.Item, f.Crc32, f.Offset, WithCopierHeader: f.Size == largest)
+            {
+                Reason = LocalizedMessage.Create("patches.why_both_forms", ("note", patch.NoteNames))
+            })]);
     }
 
     /// <summary>
@@ -910,7 +921,7 @@ public sealed partial class PatchMatcher
         var originBase = Path.GetFileNameWithoutExtension(originFile);
         var originTitle = TitleOf(originBase);
         string? chosen = null;
-        foreach (var source in LabelSources(patch, folderLabel))
+        foreach (var (source, _) in LabelSources(patch, folderLabel))
         {
             var label = Label(source, originBase, originTitle, originCrc);
             if (label.Length == 0)
@@ -956,24 +967,32 @@ public sealed partial class PatchMatcher
         return $"{originName[..^originFile.Length]}{Path.GetFileNameWithoutExtension(originFile)}{separator}[{label}]{Path.GetExtension(originFile)}";
     }
 
-    /// <summary>The names a label is looked for in, in order.</summary>
-    private static IEnumerable<string> LabelSources(PatchFile patch, string? folderLabel)
+    /// <summary>Where a name of a patch comes from, to say why a ROM is proposed (<c>patches.why_source_*</c>).</summary>
+    private enum LabelSource
     {
-        yield return BaseName(patch.DisplayName);
+        Patch,
+        Archive,
+        Folder
+    }
+
+    /// <summary>The names a label is looked for in, in order, with where each comes from.</summary>
+    private static IEnumerable<(string Name, LabelSource Source)> LabelSources(PatchFile patch, string? folderLabel)
+    {
+        yield return (BaseName(patch.DisplayName), LabelSource.Patch);
         if (patch.ArchiveMember is { } member)
         {
             var segments = member.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
             if (segments.Length > 1)
             {
-                yield return segments[^2];
+                yield return (segments[^2], LabelSource.Archive);
             }
 
-            yield return Path.GetFileNameWithoutExtension(patch.SourcePath);
+            yield return (Path.GetFileNameWithoutExtension(patch.SourcePath), LabelSource.Archive);
         }
 
         if (!string.IsNullOrEmpty(folderLabel))
         {
-            yield return folderLabel;
+            yield return (folderLabel, LabelSource.Folder);
         }
     }
 
@@ -1056,40 +1075,133 @@ public sealed partial class PatchMatcher
 
     private List<PatchOriginSuggestion> SuggestOrigins(PatchFile patch, List<(Candidate Form, string Name, string Title)> origins)
     {
-        foreach (var name in LabelSources(patch, FolderLabel(patch)))
+        var sources = LabelSources(patch, FolderLabel(patch)).ToList();
+
+        // A translation is not made for a ROM already in its language: such a ROM comes after the others
+        var target = sources.Select(s => TranslationLanguage(s.Name)).FirstOrDefault(l => l is not null);
+        foreach (var (name, source) in sources)
         {
             if (IsGeneric(Tidy(name)))
             {
                 continue;
             }
 
-            var fitting = new List<(Candidate Form, bool WholeName, int Length)>();
+            var fitting = new List<(Candidate Form, bool WholeName, int Length, bool InTarget)>();
             foreach (var (form, originName, title) in origins)
             {
+                var inTarget = target is not null && _scoring.GetEffectiveLanguages(form.Item.Parsed).Contains(target);
                 if (WithoutPrefix(name, originName) is not null)
                 {
-                    fitting.Add((form, true, originName.Length));
+                    fitting.Add((form, true, originName.Length, inTarget));
                 }
                 else if (WithoutPrefix(name, title) is not null)
                 {
-                    fitting.Add((form, false, title.Length));
+                    fitting.Add((form, false, title.Length, inTarget));
                 }
             }
 
             if (fitting.Count > 0)
             {
+                var sourceText = LocalizedMessage.Create(source switch
+                {
+                    LabelSource.Archive => "patches.why_source_archive",
+                    LabelSource.Folder => "patches.why_source_folder",
+                    _ => "patches.why_source_patch"
+                });
                 return [.. fitting
-                    .OrderByDescending(f => f.WholeName)
+                    .OrderBy(f => f.InTarget)
+                    .ThenByDescending(f => f.WholeName)
                     .ThenByDescending(f => f.Length)
                     .ThenByDescending(f => SelectionFilter.IsReleaseWritten(f.Form.Item))
                     .ThenBy(f => f.Form.Item.SourcePath, StringComparer.Ordinal)
                     .ThenBy(f => f.Form.Item.ArchiveMember, StringComparer.Ordinal)
                     .Take(MaxSuggestions)
-                    .Select(f => new PatchOriginSuggestion(f.Form.Item, f.Form.Crc32, f.Form.Offset))];
+                    .Select(f =>
+                    {
+                        var why = LocalizedMessage.Create(f.WholeName ? "patches.why_name" : "patches.why_title", ("source", sourceText));
+                        return new PatchOriginSuggestion(f.Form.Item, f.Form.Crc32, f.Form.Offset)
+                        {
+                            Reason = f.InTarget
+                                ? LocalizedMessage.Create("patches.why_in_target_language", ("why", why), ("language", target!.ToUpperInvariant()))
+                                : why
+                        };
+                    })];
             }
         }
 
         return [];
+    }
+
+    /// <summary>
+    /// A translation tag of a name of a patch, in brackets or parentheses, as TOSEC and the translators write it:
+    /// <c>[tr es]</c>, <c>[tr fr-partial]</c>, <c>(T-En)</c>, <c>[T+Eng]</c>, <c>(T-Fr by Someone)</c>.
+    /// </summary>
+    [GeneratedRegex(@"[\[(]\s*tr?[\s\-+_]?([a-z]{2,3})(?![a-z])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex TranslationTagRegex();
+
+    /// <summary>The languages of three letters translators write, as the two letters of the names of the DATs.</summary>
+    private static readonly Dictionary<string, string> ThreeLetterLanguages = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["eng"] = "en",
+        ["fre"] = "fr",
+        ["fra"] = "fr",
+        ["ger"] = "de",
+        ["deu"] = "de",
+        ["spa"] = "es",
+        ["esp"] = "es",
+        ["ita"] = "it",
+        ["por"] = "pt",
+        ["bra"] = "pt",
+        ["rus"] = "ru",
+        ["jap"] = "ja",
+        ["jpn"] = "ja",
+        ["chi"] = "zh",
+        ["zho"] = "zh",
+        ["kor"] = "ko",
+        ["dut"] = "nl",
+        ["nld"] = "nl",
+        ["swe"] = "sv",
+        ["pol"] = "pl",
+        ["gre"] = "el",
+        ["fin"] = "fi",
+        ["dan"] = "da",
+        ["nor"] = "no",
+        ["cat"] = "ca",
+        ["hun"] = "hu",
+        ["cze"] = "cs",
+        ["tur"] = "tr"
+    };
+
+    /// <summary>
+    /// The languages of two letters a translation tag may give: a word in parentheses that starts with a T, such as
+    /// <c>(Tec Toy)</c>, gives none of them.
+    /// </summary>
+    private static readonly HashSet<string> TwoLetterLanguages = new(ThreeLetterLanguages.Values, StringComparer.Ordinal)
+    {
+        "ro", "sk", "sl", "uk", "bg", "hr", "sr", "lt", "lv", "et", "is", "id", "vi", "th", "ms"
+    };
+
+    /// <summary>
+    /// The language a patch translates into, from a translation tag of its name (<see cref="TranslationTagRegex"/>), as the
+    /// two lowercase letters of the names of the DATs; <see langword="null"/> without a tag, or for an unknown language.
+    /// </summary>
+    internal static string? TranslationLanguage(string name)
+    {
+        foreach (Match match in TranslationTagRegex().Matches(name))
+        {
+            var code = match.Groups[1].Value.ToLowerInvariant();
+            if (code.Length == 2 && TwoLetterLanguages.Contains(code))
+            {
+                return code;
+            }
+
+            if (ThreeLetterLanguages.TryGetValue(code, out var language))
+            {
+                return language;
+            }
+        }
+
+        return null;
     }
 
     private static string FormatCrc(uint crc) => crc.ToString("x8", CultureInfo.InvariantCulture);

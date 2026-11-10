@@ -281,7 +281,13 @@ A UPS or a BPS designates its own ROM and checks it: no other one is chosen for 
   that of its folder when the folder holds it alone (`CT Translation/patch.ips`). Generic names (`patch`, `fix`, `v1.1`…)
   do not count. The whole name comes before the title alone, then the ROM the sort writes. For a patch whose name or
   readme designates several ROMs, those ROMs; for a patch applied, the ROM it is applied to. Under each ROM, its folder
-  in the source tells two files of the same name apart. The first one is chosen, but never applied without your click.
+  in the source tells two files of the same name apart, and a line says why it is proposed ("The name of its archive
+  starts with the title of this ROM", "readme.txt designates this ROM"…). The first one is chosen, but never applied
+  without your click.
+* A **translation** is not made for a ROM already in its language: when the name of the patch has a translation tag
+  (`[tr fr]` in TOSEC, `(T-En)`, `[T+Eng]`), the ROMs already in that language (from their languages, otherwise their
+  country) come after the others, and say so. A patch `Game (T-En).ips` thus proposes `Game (Japan)` before
+  `Game (USA)`.
 * The **search**, above, looks among all the ROMs identified by the simulation, when no ROM proposed is the right one: a
   translated (`Super Mario Frères.ips` for `Super Mario Bros.`) or shortened title proposes none. All the words, in any
   order. A ROM found (a click, or Enter for the first one) joins the ROMs proposed and becomes the choice. Ctrl+F goes

@@ -225,7 +225,7 @@
                          SelectedItem="{Binding SelectedRow.SelectedOrigin, Mode=TwoWay, FallbackValue={x:Null}}">
                   <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:PatchOriginOptionViewModel">
-                      <!-- Its folder under its name: two files of the same name tell apart -->
+                      <!-- Its folder under its name: two files of the same name tell apart; then why it is proposed -->
                       <RadioButton IsHitTestVisible="False"
                                    IsChecked="{Binding $parent[ListBoxItem].IsSelected}"
                                    AutomationProperties.Name="{Binding Label}"
@@ -237,6 +237,11 @@
                                      TextTrimming="PathSegmentEllipsis"
                                      Text="{Binding Folder}"
                                      IsVisible="{Binding HasFolder}" />
+                          <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
+                                     FontStyle="Italic"
+                                     TextWrapping="Wrap"
+                                     Text="{Binding Reason}"
+                                     IsVisible="{Binding HasReason}" />
                         </StackPanel>
                       </RadioButton>
                     </DataTemplate>

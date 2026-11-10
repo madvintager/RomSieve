@@ -736,7 +736,11 @@ public sealed class CliApplication
             WriteLine("  " + Tr("cli.patches_unapplied", ("name", Describe(unapplied.File)), ("reason", _localization.Format(unapplied.Reason))));
             foreach (var suggestion in unapplied.Suggestions)
             {
-                WriteLine("    " + Tr("cli.patches_suggestion", ("origin", suggestion.Origin.DisplayName), ("form", FormText(suggestion))));
+                WriteLine("    " + Tr(
+                    "cli.patches_suggestion",
+                    ("origin", suggestion.Origin.DisplayName),
+                    ("form", FormText(suggestion)),
+                    ("why", suggestion.Reason is { } why ? _localization.Format(why) : "-")));
             }
         }
 

@@ -5,12 +5,21 @@ using RomSieve.Core.Services;
 
 namespace RomSieve.App.ViewModels;
 
-/// <summary>An identified file a patch may be meant for, in the list of the ROMs of a patch or in the search.</summary>
-public sealed class PatchOriginOptionViewModel(ProcessItem origin, string sourceDir)
+/// <summary>
+/// An identified file a patch may be meant for, in the list of the ROMs of a patch or in the search, with why it is
+/// proposed (<paramref name="reason"/>, already translated: the window is modal, the language cannot change while it is
+/// open).
+/// </summary>
+public sealed class PatchOriginOptionViewModel(ProcessItem origin, string sourceDir, string? reason = null)
 {
     public ProcessItem Origin { get; } = origin;
 
     public string Label { get; } = origin.DisplayName;
+
+    /// <summary>Why the simulation proposes it (<see cref="PatchOriginSuggestion.Reason"/>); empty for a ROM found by the search.</summary>
+    public string Reason { get; } = reason ?? string.Empty;
+
+    public bool HasReason => Reason.Length > 0;
 
     /// <summary>Where the file is: its archive, or its path.</summary>
     public string Location { get; } = !string.IsNullOrEmpty(origin.ArchivePath) ? origin.ArchivePath : origin.SourcePath;
@@ -296,9 +305,9 @@ public sealed partial class PatchRowViewModel : ObservableObject
         SelectedOrigin = option;
     }
 
-    internal void AddOrigin(ProcessItem origin)
+    internal void AddOrigin(ProcessItem origin, string? reason = null)
     {
-        Origins.Add(new PatchOriginOptionViewModel(origin, _owner.SourceDir));
+        Origins.Add(new PatchOriginOptionViewModel(origin, _owner.SourceDir, reason));
         OnPropertyChanged(nameof(HasOrigins));
     }
 

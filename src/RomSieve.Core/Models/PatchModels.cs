@@ -155,7 +155,15 @@ public sealed record UnappliedPatch(PatchFile File, LocalizedMessage Reason)
 /// <param name="WithCopierHeader">
 /// For the two forms of the same file: whether this one holds the copier header; <see langword="null"/> otherwise.
 /// </param>
-public sealed record PatchOriginSuggestion(ProcessItem Origin, uint Crc32, long Offset, bool? WithCopierHeader = null);
+public sealed record PatchOriginSuggestion(ProcessItem Origin, uint Crc32, long Offset, bool? WithCopierHeader = null)
+{
+    /// <summary>
+    /// Why the ROM is proposed (<c>patches.why_*</c>): a name of the patch starts with its name or its title, the name or a
+    /// readme of the patch designates it, a readme gives its two forms; and when it comes after the others, because it
+    /// is already in the language of a translation. <see langword="null"/> for a form read for the choice of the user.
+    /// </summary>
+    public LocalizedMessage? Reason { get; init; }
+}
 
 /// <summary>
 /// What makes a <see cref="ProcessItem"/> a patched version (<see cref="ProcessItem.Patch"/>): its patch, what the patch

@@ -288,8 +288,13 @@ demande **Pour quelle ROM est ce patch ?** :
   celui de son dossier quand ce dossier ne contient que lui (`Traduction CT/patch.ips`). Les noms génériques (`patch`,
   `fix`, `v1.1`…) ne comptent pas. La ROM entière passe avant le titre seul, puis la ROM que le tri écrit. Pour un patch
   dont le nom ou le readme désigne plusieurs ROMs, ce sont ces ROMs ; pour un patch appliqué, la ROM à laquelle il l'est.
-  Sous chaque ROM, son dossier dans la source distingue deux fichiers du même nom. La première est choisie, mais jamais
-  appliquée sans votre clic.
+  Sous chaque ROM, son dossier dans la source distingue deux fichiers du même nom, et une ligne dit pourquoi elle est
+  proposée (« Le nom de son archive commence par le titre de cette ROM », « readme.txt désigne cette ROM »…). La première
+  est choisie, mais jamais appliquée sans votre clic.
+* Une **traduction** n'est pas faite pour une ROM déjà dans sa langue : quand le nom du patch porte une étiquette de
+  traduction (`[tr fr]` chez TOSEC, `(T-En)`, `[T+Eng]`), les ROMs déjà dans cette langue (d'après leurs langues, sinon
+  leur pays) passent après les autres, et le disent. Un patch `Jeu (T-En).ips` propose ainsi `Jeu (Japan)` avant
+  `Jeu (USA)`.
 * La **recherche**, au-dessus, cherche parmi toutes les ROMs identifiées par la simulation, quand aucune ROM proposée
   n'est la bonne : un titre traduit (`Super Mario Frères.ips` pour `Super Mario Bros.`) ou abrégé n'en propose aucune.
   Tous les mots, dans n'importe quel ordre. Une ROM trouvée (clic, ou Entrée pour la première) rejoint les ROMs

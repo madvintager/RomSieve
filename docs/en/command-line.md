@@ -107,13 +107,13 @@ sort. It applies the patches even when **Apply the patches** is unchecked in the
 | `--name-from-notes` | Shows the name each IPS applied thanks to its readme would take, with the CRC32 of its ROM (`Hack.ips` becomes `Hack [47e70e08].ips`), for other tools. An IPS stored in an archive is not renamed. Does not go with the choices (code 2) |
 | `-y`, `--yes` | Saves the choices, or renames the IPS of `--name-from-notes`. Without it, the command shows what it would do, and the exit code is 6 |
 
-The list gives, for each patch not applied, its reason and the ROMs proposed for an IPS; for each patch applied, its
-ROM and what designates it (the patch itself, its name, its readme or your choice); then the patches set aside. A ROM
-proposed is never taken on its own: choose it with `--link --rom`, or in the **Patches** window of the interface. A
-patch is named by its path in the folder of the patches or by its name, case ignored; an unknown patch, a name several
-patches have, a patch that cannot be read or named twice are refused (code 2), and nothing is saved. Your choices go to
-`patch_links.json`, next to the settings file in use (`--config`): no file of a patch is changed. A choice that cannot
-be saved, or a renaming refused (a name already taken, for example), gives the code 4.
+The list gives, for each patch not applied, its reason and the ROMs proposed for an IPS, each with what proposes it; for
+each patch applied, its ROM and what designates it (the patch itself, its name, its readme or your choice); then the
+patches set aside. A ROM proposed is never taken on its own: choose it with `--link --rom`, or in the **Patches** window
+of the interface. A patch is named by its path in the folder of the patches or by its name, case ignored; an unknown
+patch, a name several patches have, a patch that cannot be read or named twice are refused (code 2), and nothing is
+saved. Your choices go to `patch_links.json`, next to the settings file in use (`--config`): no file of a patch is
+changed. A choice that cannot be saved, or a renaming refused (a name already taken, for example), gives the code 4.
 
 ## Options of `run`
 

@@ -107,14 +107,14 @@ Il applique les patchs même quand **Appliquer les patchs** est décoché dans l
 | `--name-from-notes` | Montre le nom que prendrait chaque IPS appliqué grâce à son readme, avec le CRC32 de sa ROM (`Hack.ips` devient `Hack [47e70e08].ips`), pour d'autres outils. Un IPS rangé dans une archive n'est pas renommé. Ne se combine pas avec les choix (code 2) |
 | `-y`, `--yes` | Enregistre les choix, ou renomme les IPS de `--name-from-notes`. Sans lui, la commande montre ce qu'elle ferait, et le code de sortie est 6 |
 
-La liste donne, pour chaque patch non appliqué, sa raison et les ROMs proposées pour un IPS ; pour chaque patch
-appliqué, sa ROM et ce qui la désigne (le patch lui-même, son nom, son readme ou votre choix) ; puis les patchs écartés.
-Une ROM proposée n'est jamais prise d'office : choisissez-la avec `--link --rom`, ou dans la fenêtre **Patchs** de
-l'interface. Un patch se désigne par son chemin dans le dossier des patchs ou par son nom, sans tenir compte des
-majuscules ; un patch inconnu, un nom que portent plusieurs patchs, un patch illisible ou nommé deux fois sont refusés
-(code 2), et rien n'est enregistré. Vos choix vont dans `patch_links.json`, à côté du fichier de réglages utilisé
-(`--config`) : aucun fichier de patch n'est modifié. Un choix impossible à enregistrer, ou un renommage refusé (nom
-déjà pris, par exemple), donne le code 4.
+La liste donne, pour chaque patch non appliqué, sa raison et les ROMs proposées pour un IPS, chacune avec ce qui la
+propose ; pour chaque patch appliqué, sa ROM et ce qui la désigne (le patch lui-même, son nom, son readme ou votre
+choix) ; puis les patchs écartés. Une ROM proposée n'est jamais prise d'office : choisissez-la avec `--link --rom`, ou
+dans la fenêtre **Patchs** de l'interface. Un patch se désigne par son chemin dans le dossier des patchs ou par son nom,
+sans tenir compte des majuscules ; un patch inconnu, un nom que portent plusieurs patchs, un patch illisible ou nommé
+deux fois sont refusés (code 2), et rien n'est enregistré. Vos choix vont dans `patch_links.json`, à côté du fichier de
+réglages utilisé (`--config`) : aucun fichier de patch n'est modifié. Un choix impossible à enregistrer, ou un renommage
+refusé (nom déjà pris, par exemple), donne le code 4.
 
 ## Options de `run`
 

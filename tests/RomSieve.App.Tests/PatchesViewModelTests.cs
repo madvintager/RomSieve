@@ -150,6 +150,10 @@ public sealed class PatchesViewModelTests : IDisposable
         ips.StatusText.Should().Be("Ce patch ne s'applique à aucune ROM : ni son nom ni son readme ne disent pour quelle ROM il a été fait.");
         ips.ListSummary.Should().BeEmpty();
         ips.Origins.Select(o => o.Label).Should().Equal("Game (Japan).sfc", "Game (USA).sfc");
+        ips.Origins.Select(o => o.Reason).Should().Equal(
+            ["Le nom du patch commence par le nom de cette ROM", "Le nom du patch commence par le titre de cette ROM"],
+            "each ROM proposed says why");
+        ips.Origins.Should().OnlyContain(o => o.HasReason);
         ips.Origins.Should().OnlyContain(o => !o.HasFolder, "a ROM at the root of the source shows no folder");
         ips.HasLocation.Should().BeFalse("it lies at the root of the patch folder");
         (ips.IsToMatch, ips.IsApplied, ips.IsUnfixable, ips.IsNeutral).Should().Be((true, false, false, false));
@@ -315,6 +319,7 @@ public sealed class PatchesViewModelTests : IDisposable
 
         row.SelectedOrigin!.Label.Should().Be("Super Mario Bros. (World).sfc");
         row.Origins.Should().ContainSingle("the ROM found joins those of the patch");
+        row.Origins[0].HasReason.Should().BeFalse("a ROM found by the search is not proposed by the simulation");
         row.CanApply.Should().BeTrue();
 
         // Enter in the search takes the first file found, and records nothing

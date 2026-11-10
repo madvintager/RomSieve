@@ -329,7 +329,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
                         row.KnowForms(origin, forms);
                     }
 
-                    row.AddOrigin(origin);
+                    row.AddOrigin(origin, forms.Select(f => f.Reason).OfType<LocalizedMessage>().FirstOrDefault() is { } why ? Format(why) : null);
                 }
 
                 row.SelectedOrigin = row.Origins.FirstOrDefault();
