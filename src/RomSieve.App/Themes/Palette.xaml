@@ -97,6 +97,9 @@
       <SolidColorBrush x:Key="ForcedBadgeBackgroundBrush" Color="#FFF3C4" />
       <SolidColorBrush x:Key="RequiredBadgeForegroundBrush" Color="#0B4A66" />
       <SolidColorBrush x:Key="RequiredBadgeBackgroundBrush" Color="#D9EEF7" />
+      <!-- Badge of a patched version, in the preview table -->
+      <SolidColorBrush x:Key="PatchedBadgeForegroundBrush" Color="#7B1F55" />
+      <SolidColorBrush x:Key="PatchedBadgeBackgroundBrush" Color="#FBE4F0" />
       <!-- Badge of the files transferred with a row (tracks, CHDs), next to its source name -->
       <SolidColorBrush x:Key="RelatedBadgeForegroundBrush" Color="#334155" />
       <SolidColorBrush x:Key="RelatedBadgeBackgroundBrush" Color="#E6EBF1" />
@@ -239,6 +242,9 @@
       <SolidColorBrush x:Key="ForcedBadgeBackgroundBrush" Color="#3A3014" />
       <SolidColorBrush x:Key="RequiredBadgeForegroundBrush" Color="#8FD3F2" />
       <SolidColorBrush x:Key="RequiredBadgeBackgroundBrush" Color="#12303D" />
+      <!-- Badge of a patched version, in the preview table -->
+      <SolidColorBrush x:Key="PatchedBadgeForegroundBrush" Color="#F5A9CF" />
+      <SolidColorBrush x:Key="PatchedBadgeBackgroundBrush" Color="#3A1B2C" />
       <!-- Badge of the files transferred with a row (tracks, CHDs), next to its source name -->
       <SolidColorBrush x:Key="RelatedBadgeForegroundBrush" Color="#CBD5E1" />
       <SolidColorBrush x:Key="RelatedBadgeBackgroundBrush" Color="#2B3440" />

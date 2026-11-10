@@ -29,6 +29,7 @@
   <ItemGroup>
     <!-- Temporary directories and Core services shared with the Core tests -->
     <Compile Include="..\RomSieve.Core.Tests\Fixtures\TempDirectoryFixture.cs" Link="Fixtures\TempDirectoryFixture.cs" />
+    <Compile Include="..\RomSieve.Core.Tests\Fixtures\PatchTestEncoder.cs" Link="Fixtures\PatchTestEncoder.cs" />
     <!-- Packages that the executables embed, checked against the third-party notices -->
     <Compile Include="..\RomSieve.Core.Tests\Fixtures\ShippedPackages.cs" Link="Fixtures\ShippedPackages.cs" />
   </ItemGroup>

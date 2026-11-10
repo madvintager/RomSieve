@@ -39,6 +39,8 @@ public sealed class CliApplication
     private readonly Option<bool> _datMirrorOption = new("--dir-dat-mirror");
     private readonly Option<string[]> _datOnlyOption = new("--dat-only") { AllowMultipleArgumentsPerToken = false };
     private readonly Option<string?> _chdOption = new("--chd");
+    private readonly Option<string?> _patchesOption = new("--patches");
+    private readonly Option<bool> _patchOnlyOption = new("--patch-only");
     private readonly Option<string?> _categoriesOption = new("--categories");
     private readonly Option<string?> _ratingsOption = new("--ratings");
     private readonly Option<string?> _modeOption = new("--mode");
@@ -152,6 +154,9 @@ public sealed class CliApplication
         _datOnlyOption.HelpName = Tr("cli.help_name");
         _chdOption.Description = Tr("cli.option_chd");
         _chdOption.HelpName = Tr("cli.help_directory");
+        _patchesOption.Description = Tr("cli.option_patches");
+        _patchesOption.HelpName = Tr("cli.help_directory");
+        _patchOnlyOption.Description = Tr("cli.option_patch_only");
         _categoriesOption.Description = Tr("cli.option_categories");
         _categoriesOption.HelpName = Tr("cli.help_file");
         _ratingsOption.Description = Tr("cli.option_ratings");
@@ -177,8 +182,8 @@ public sealed class CliApplication
         var run = new Command("run", Tr("cli.command_run"))
         {
             _profileOption, _sourceOption, _destinationOption, _datOption, _datRecursiveOption, _datOnlyOption, _datMirrorOption,
-            _chdOption, _categoriesOption, _ratingsOption, _modeOption, _preserveArchivesOption, _executeOption, _appendOption, _purgeOption, _yesOption,
-            _forceForeignPurgeOption, _reportOption, _missListOption, _fixDatOption
+            _chdOption, _patchesOption, _patchOnlyOption, _categoriesOption, _ratingsOption, _modeOption, _preserveArchivesOption,
+            _executeOption, _appendOption, _purgeOption, _yesOption, _forceForeignPurgeOption, _reportOption, _missListOption, _fixDatOption
         };
         run.SetAction((parseResult, cancellationToken) => RunSortAsync(parseResult, cancellationToken));
 
@@ -656,6 +661,8 @@ public sealed class CliApplication
         if (parseResult.GetValue(_datOption) is { } dat) settings.DatFile = dat;
         if (parseResult.GetValue(_datRecursiveOption)) settings.DatRecursive = true;
         if (parseResult.GetValue(_chdOption) is { } chd) settings.ChdDir = chd;
+        if (parseResult.GetValue(_patchesOption) is { } patches) settings.PatchDir = patches;
+        if (parseResult.GetValue(_patchOnlyOption)) settings.PatchOnly = true;
         if (parseResult.GetValue(_categoriesOption) is { } categories) settings.MameCategoryFile = categories;
         if (parseResult.GetValue(_ratingsOption) is { } ratings) settings.MameRatingFile = ratings;
         if (parseResult.GetValue(_modeOption) is { } mode) settings.TransferMode = EnumExtensions.ParseTransferMode(mode);
@@ -878,6 +885,11 @@ public sealed class CliApplication
         if (stats.AlreadyInDestinationCount > 0)
         {
             WriteLine(Tr("cli.summary_already_in_destination", ("count", stats.AlreadyInDestinationCount)));
+        }
+
+        if (stats.PatchedCount > 0 || stats.UnappliedPatches.Count > 0)
+        {
+            WriteLine(Tr("cli.summary_patches", ("patched", stats.PatchedCount), ("unapplied", stats.UnappliedPatches.Count)));
         }
 
         if (hasDat)

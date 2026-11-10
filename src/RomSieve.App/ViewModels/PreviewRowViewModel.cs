@@ -110,6 +110,10 @@ public abstract partial class PreviewRowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isRequiredSet;
 
+    /// <summary>Whether the row is a patched version (<see cref="ProcessItem.Patch"/>): shows a "patched" badge.</summary>
+    [ObservableProperty]
+    private bool _isPatched;
+
     /// <summary>Whether the row is a file shown below the header of its game, which the view indents.</summary>
     [ObservableProperty]
     private bool _isGroupMember;

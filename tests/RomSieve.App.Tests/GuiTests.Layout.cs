@@ -111,7 +111,8 @@ public sealed partial class GuiTests
                 {
                     "LblChdDir", "EditChdDir", "BtnBrowseChdDir",
                     "LblMameCategoryFile", "EditMameCategoryFile", "BtnBrowseMameCategoryFile",
-                    "LblMameRatingFile", "EditMameRatingFile", "BtnBrowseMameRatingFile"
+                    "LblMameRatingFile", "EditMameRatingFile", "BtnBrowseMameRatingFile",
+                    "LblPatchDir", "EditPatchDir", "BtnBrowsePatchDir", "ChkPatchOnly"
                 })
                 {
                     var control = window.FindControl<Control>(name)!;
@@ -467,6 +468,7 @@ public sealed partial class GuiTests
                     (WorkflowStep.Collection, "EditChdDir", "BtnClearChdDir", v => vm.Directories.ChdDir = v, () => vm.Directories.ChdDir),
                     (WorkflowStep.Collection, "EditMameCategoryFile", "BtnClearMameCategoryFile", v => vm.Directories.MameCategoryFile = v, () => vm.Directories.MameCategoryFile),
                     (WorkflowStep.Collection, "EditMameRatingFile", "BtnClearMameRatingFile", v => vm.Directories.MameRatingFile = v, () => vm.Directories.MameRatingFile),
+                    (WorkflowStep.Collection, "EditPatchDir", "BtnClearPatchDir", v => vm.Directories.PatchDir = v, () => vm.Directories.PatchDir),
                     (WorkflowStep.Output, "EditDest", "BtnClearDest", v => vm.Directories.DestinationDir = v, () => vm.Directories.DestinationDir)
                 };
                 foreach (var (step, fieldName, crossName, set, get) in fields)

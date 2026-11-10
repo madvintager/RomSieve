@@ -360,14 +360,15 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
 
     /// <summary>
     /// Whether a file can be forced as the 1G1R winner of its game: a release of a game, which a non-conforming file,
-    /// a file in error, or a file the identification set aside (missing from the DAT, even excluded by its name) never
-    /// is. The release selection ignores such a file anyway.
+    /// a file in error, a file the identification set aside (missing from the DAT, even excluded by its name) or a
+    /// patched version never is. The release selection ignores such a file anyway.
     /// </summary>
     private static bool CanBeForcedWinner(ProcessItem item) =>
         item.Parsed.IsConform
         && item.Status != FileStatus.Unmatched
         && item.Status != FileStatus.Error
-        && item.IdentificationFailure == IdentificationFailure.None;
+        && item.IdentificationFailure == IdentificationFailure.None
+        && item.Patch is null;
 
     public bool CanResetSelected1G1ROverride =>
         !_getIsRunning() && GetOverrideKey(SelectedRow) is { } key && _manual1G1RWinners.ContainsKey(key);
@@ -417,6 +418,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
             return;
         }
 
+        // A patched version stays outside the 1G1R: it is never the winner of its game
         var item = row.Item;
         if (!CanBeForcedWinner(item))
         {
@@ -1074,10 +1076,12 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
                 continue;
             }
 
+            // The kept release first, then the patched versions of the game, then its other files
             var rows = group.Rows
                 .Where(r => r.Item.Is1G1RWinner)
                 .OrderBy(r => r.DiskSortKey.DiscNum)
-                .Concat(group.Rows.Where(r => !r.Item.Is1G1RWinner))
+                .Concat(group.Rows.Where(r => !r.Item.Is1G1RWinner && r.Item.Patch is not null))
+                .Concat(group.Rows.Where(r => !r.Item.Is1G1RWinner && r.Item.Patch is null))
                 .ToList();
             var shownRows = rows.Where(visible.Contains).ToList();
 
@@ -1146,6 +1150,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
         header.StatusLabel = lead.StatusLabel;
         header.IsForcedWinner = rows.Any(r => r.IsForcedWinner);
         header.IsRequiredSet = rows.Any(r => r.IsRequiredSet);
+        header.IsPatched = rows.Any(r => r.IsPatched);
         header.Change = rows.Any(r => r.Change == PreviewRowChange.Modified)
             ? PreviewRowChange.Modified
             : rows.Any(r => r.Change == PreviewRowChange.Added)
@@ -1285,6 +1290,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
         var activeFilters = _getActiveStatusFilters();
         var changedOnly = activeFilters.Contains(StatsBannerViewModel.ChangedFilterKey);
         var checkedOnly = activeFilters.Contains(StatsBannerViewModel.SelectionFilterKey);
+        var patchedOnly = activeFilters.Contains(StatsBannerViewModel.PatchedFilterKey);
         var statusCount = activeFilters.Count(StatsBannerViewModel.IsStatusFilterKey);
         var query = SearchQuery.Parse(PreviewSearchText);
         var criterionGames = _criterionGames;
@@ -1299,6 +1305,7 @@ public sealed partial class PreviewTableViewModel : ViewModelBase
                     && criterionGames.Contains(row.CanonicalGameKey)))
             && (!changedOnly || row.IsChangedSinceLastRun)
             && (!checkedOnly || row.IsSortChecked)
+            && (!patchedOnly || row.Item.Patch is not null)
             && (query.IsEmpty || query.Matches(row.SearchTitle, row.SearchSource, row.SearchCategory, row.SearchDat));
     }
 

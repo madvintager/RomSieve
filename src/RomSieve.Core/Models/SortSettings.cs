@@ -36,6 +36,12 @@ public sealed class SortSettings
     /// <summary>Folder of the CHDs of a MAME collection, read in addition to the source (MAME runs only); empty: none.</summary>
     public string ChdDir { get; set; } = string.Empty;
 
+    /// <summary>Folder of the patches (IPS, IPS32, UPS, BPS), read in addition to the source; empty: none.</summary>
+    public string PatchDir { get; set; } = string.Empty;
+
+    /// <summary>Whether only the patched versions are written, not the original ROMs they replace (<see cref="SortConfig.PatchOnly"/>).</summary>
+    public bool PatchOnly { get; set; }
+
     /// <summary>Category file of the MAME machines (MAME runs only); empty: none.</summary>
     public string MameCategoryFile { get; set; } = string.Empty;
 

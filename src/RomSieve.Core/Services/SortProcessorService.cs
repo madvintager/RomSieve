@@ -440,6 +440,9 @@ public sealed class SortProcessorService : ISortProcessorService
             }
         }
 
+        stats.PatchedCount = processedItems.Count(it => it.Patch is not null && it.Status == FileStatus.Valid);
+        stats.UnappliedPatches = unappliedPatches;
+
         if (Fat32Limit.CreateLogMessage(Fat32Limit.FindOversizedOutputFiles(processedItems, config))
             is { } fat32Warning)
         {
@@ -1520,7 +1523,8 @@ public sealed class SortProcessorService : ISortProcessorService
             DatNameMatchedCount = baseStats?.DatNameMatchedCount ?? 0,
             DatMissingCount = baseStats?.DatMissingCount ?? 0,
             DatCompletionPct = baseStats?.DatCompletionPct ?? 0.0,
-            PerDat = baseStats?.PerDat
+            PerDat = baseStats?.PerDat,
+            UnappliedPatches = baseStats?.UnappliedPatches ?? []
         };
 
         foreach (var it in items)
@@ -1531,6 +1535,11 @@ public sealed class SortProcessorService : ISortProcessorService
                 case FileStatus.Valid:
                     stats.ValidCount++;
                     stats.ValidBytes += itemTotalBytes;
+                    if (it.Patch is not null)
+                    {
+                        stats.PatchedCount++;
+                    }
+
                     break;
                 case FileStatus.Excluded when it.IsOutsideSelection:
                     stats.NotSelectedCount++;
@@ -1658,6 +1667,14 @@ public sealed class SortProcessorService : ISortProcessorService
                     json.WriteString("dat", item.DatName ?? string.Empty);
                 }
 
+                // A patched version names its patch and its original ROM; any other file has neither field
+                if (item.Patch is { } patch)
+                {
+                    json.WriteString("patch", DescribePatch(patch.File));
+                    json.WriteString("patch_format", patch.Format.ToDisplayName());
+                    json.WriteString("patched_from", DescribeOrigin(patch.Origin));
+                }
+
                 json.WriteEndObject();
                 if (json.BytesPending > ExportFlushThreshold)
                 {
@@ -1680,13 +1697,17 @@ public sealed class SortProcessorService : ISortProcessorService
             // The files of a lot name their DAT, in a last column
             var list = items as IReadOnlyCollection<ProcessItem> ?? [.. items];
             var namesDats = list.Any(it => it.DatName is not null);
+
+            // The patched versions name their patch, in three last columns, only when the run has some
+            var namesPatches = list.Any(it => it.Patch is not null);
             string[] headers =
             [
                 "source_file", "archive_member", "source_path", "crc32", "size_bytes",
                 "is_tosec_conform", "title", "version", "publisher", "date",
                 "system", "video", "country", "language", "dump_status",
                 "status", "status_reason", "is_1g1r_winner", "winner_reference",
-                "target_path", "error_message", .. namesDats ? new[] { "dat" } : []
+                "target_path", "error_message", .. namesDats ? new[] { "dat" } : [],
+                .. namesPatches ? new[] { "patch", "patch_format", "patched_from" } : []
             ];
 
             await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), ExportFlushThreshold);
@@ -1717,13 +1738,26 @@ public sealed class SortProcessorService : ISortProcessorService
                     EscapeCsv(item.WinnerReference ?? string.Empty),
                     EscapeCsv(item.FinalTargetPath ?? item.TargetPath ?? string.Empty),
                     EscapeCsv(item.ErrorMessage ?? string.Empty),
-                    .. namesDats ? new[] { EscapeCsv(item.DatName ?? string.Empty) } : []
+                    .. namesDats ? new[] { EscapeCsv(item.DatName ?? string.Empty) } : [],
+                    .. namesPatches
+                        ? item.Patch is { } patch
+                            ? new[] { EscapeCsv(DescribePatch(patch.File)), EscapeCsv(patch.Format.ToDisplayName()), EscapeCsv(DescribeOrigin(patch.Origin)) }
+                            : new[] { string.Empty, string.Empty, string.Empty }
+                        : []
                 ];
                 await writer.WriteLineAsync(string.Join(";", row).AsMemory(), cancellationToken).ConfigureAwait(false);
             }
 
             await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
         });
+
+    /// <summary>A patch for the reports: its file, or its archive followed by its member.</summary>
+    private static string DescribePatch(PatchFile file) =>
+        file.ArchiveMember is { } member ? Path.Combine(file.SourcePath, member) : file.SourcePath;
+
+    /// <summary>The original ROM of a patched version for the reports: its file, or its archive followed by its member.</summary>
+    private static string DescribeOrigin(ProcessItem origin) =>
+        origin.ArchiveMember is { } member ? Path.Combine(origin.SourcePath, member) : origin.SourcePath;
 
     /// <summary>
     /// Writes an export to <paramref name="outputPath"/> as <paramref name="write"/> produces it. An export that fails or
@@ -1956,6 +1990,13 @@ public sealed class SortProcessorService : ISortProcessorService
         CancellationToken cancellationToken = default)
     {
         RefuseSourceOverwrite(outputPath, datCatalog);
+        if (computeMissingHashes)
+        {
+            var list = items as IReadOnlyCollection<ProcessItem> ?? [.. items];
+            await ComputePatchedChecksumsAsync(list, cancellationToken).ConfigureAwait(false);
+            items = list;
+        }
+
         if (datCatalog?.Dats is not null && headerOverride is null)
         {
             return await ExportLotDatsAsync(items, outputPath, format, datCatalog, validOnly, computeMissingHashes, progress, cancellationToken).ConfigureAwait(false);
@@ -1973,6 +2014,80 @@ public sealed class SortProcessorService : ISortProcessorService
                 progress,
                 cancellationToken).ConfigureAwait(false)
             : await ExportSoftwareListDatsAsync(items, outputPath, format, datCatalog, validOnly, computeMissingHashes, progress, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Checksums of the patched versions for the DAT of the collection, which writes them as files not identified: their
+    /// own data, never that of their patch (their <see cref="ProcessItem.SourcePath"/>). After a real sort, the file it
+    /// wrote is read, if it is still the result; otherwise (a simulation, an archive of ZIP mode), the patch is applied
+    /// again to a file of the temporary folder of the system, read, then deleted. A patched version that cannot be read keeps the checksums it
+    /// has (the CRC32 of a UPS or a BPS).
+    /// </summary>
+    private async Task ComputePatchedChecksumsAsync(IReadOnlyCollection<ProcessItem> items, CancellationToken cancellationToken)
+    {
+        foreach (var item in items)
+        {
+            if (item.Patch is not { } version || item.Status != FileStatus.Valid || (item.Md5 is not null && item.Sha1 is not null))
+            {
+                continue;
+            }
+
+            var folder = Path.Combine(Path.GetTempPath(), "romsieve_patch_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                // The file a real sort wrote, when it is still the patched version: same size, and the CRC32 the writing
+                // checked (a ZIP archive, or a file the destination held before a simulation, is not)
+                (string Crc, string? Md5, string? Sha1)? checksums = null;
+                if (item.FinalTargetPath is { } written
+                    && !string.IsNullOrEmpty(item.Crc32)
+                    && File.Exists(written)
+                    && new FileInfo(written).Length == item.FileSize)
+                {
+                    var read = await _checksumService.ComputeFileChecksumsAsync(written, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    if (string.Equals(read.Crc32, item.Crc32, StringComparison.OrdinalIgnoreCase))
+                    {
+                        checksums = read;
+                    }
+                }
+
+                if (checksums is null)
+                {
+                    Directory.CreateDirectory(folder);
+                    var result = Path.Combine(folder, "result.bin");
+                    await PatchApplier.ApplyAsync(
+                        _patchService,
+                        _checksumService,
+                        version,
+                        result,
+                        Path.Combine(folder, "origin.bin"),
+                        path => path,
+                        stream => stream,
+                        stream => stream,
+                        cancellationToken).ConfigureAwait(false);
+                    checksums = await _checksumService.ComputeFileChecksumsAsync(result, cancellationToken: cancellationToken).ConfigureAwait(false);
+                }
+
+                (item.Crc32, item.Md5, item.Sha1) = checksums.Value;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                // Left with the checksums it has: the DAT never reads the patch in its place
+            }
+            finally
+            {
+                if (Directory.Exists(folder))
+                {
+                    try
+                    {
+                        Directory.Delete(folder, recursive: true);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        // A folder of the temporary folder of the system, cleaned by the system
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

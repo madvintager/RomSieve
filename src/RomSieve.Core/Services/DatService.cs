@@ -2532,7 +2532,8 @@ public sealed partial class DatService : IDatService
             sha1 = string.IsNullOrEmpty(datEntry.Sha1) ? sha1 : datEntry.Sha1.ToLowerInvariant();
         }
 
-        if (!computeMissing || (!string.IsNullOrEmpty(crc) && !string.IsNullOrEmpty(md5) && !string.IsNullOrEmpty(sha1)))
+        // A patched version is not its source, which is its patch: its checksums are computed before, or left as they are
+        if (item.Patch is not null || !computeMissing || (!string.IsNullOrEmpty(crc) && !string.IsNullOrEmpty(md5) && !string.IsNullOrEmpty(sha1)))
         {
             return (size, crc, md5, sha1);
         }

@@ -44,6 +44,15 @@ public sealed class ProcessStats
     /// counted in <see cref="DuplicateCount"/> too.
     /// </summary>
     public int AlreadyInDestinationCount { get; set; }
+
+    /// <summary>
+    /// Patched versions the sort writes (<see cref="ProcessItem.Patch"/>), or that a simulation would write: counted in
+    /// <see cref="ValidCount"/> too.
+    /// </summary>
+    public int PatchedCount { get; set; }
+
+    /// <summary>Patches of the patch folder that gave no patched version, and why.</summary>
+    public IReadOnlyList<UnappliedPatch> UnappliedPatches { get; set; } = [];
     public int ErrorCount { get; set; }
     public int ProcessedCount { get; set; }
     public long ProcessedBytes { get; set; }

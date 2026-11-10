@@ -1367,6 +1367,59 @@
                 </Grid>
               </StackPanel>
             </Border>
+
+            <!-- Patches (IPS, IPS32, UPS, BPS) applied to the identified ROMs: their folder, read in addition to the
+                 source, and whether only the patched versions are written. Always shown, whatever the convention -->
+            <Border x:Name="CardPatches" Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="card-title">
+                  <Run Text="{Binding I18n[tab1.card_patches]}" /> <Run Classes="optional" Text="{Binding I18n[tab1.optional]}" />
+                </TextBlock>
+                <!-- One row, so that the Collection step needs no scrolling at the default size: the tooltip of the
+                     field says what a patch folder does -->
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CollectionLabel" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="6" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+
+                  <TextBlock x:Name="LblPatchDir" Classes="form-label" Text="{Binding I18n[tab1.lbl_patch_dir]}" />
+                  <TextBox x:Name="EditPatchDir"
+                           Grid.Column="2"
+                           FontSize="11"
+                           ToolTip.Tip="{Binding I18n[tab1.tooltip_patch_dir]}"
+                           Watermark="{Binding I18n[tab1.edit_patch_dir_placeholder]}"
+                           Text="{Binding Directories.PatchDir, Mode=TwoWay}">
+                    <TextBox.InnerRightContent>
+                      <Button x:Name="BtnClearPatchDir"
+                              Classes="field-clear"
+                              ToolTip.Tip="{Binding I18n[tab1.tooltip_clear_patch_dir]}"
+                              AutomationProperties.Name="{Binding I18n[tab1.tooltip_clear_patch_dir]}"
+                              IsVisible="{Binding Directories.PatchDir, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                              Command="{Binding Directories.ClearPatchDirCommand}" />
+                    </TextBox.InnerRightContent>
+                  </TextBox>
+                  <Button x:Name="BtnBrowsePatchDir"
+                          Grid.Column="4"
+                          Content="{Binding I18n[tab1.btn_browse]}"
+                          ToolTip.Tip="{Binding I18n[tab1.tooltip_patch_dir]}"
+                          FontSize="11"
+                          Command="{Binding Directories.BrowsePatchDirCommand}" />
+                  <CheckBox x:Name="ChkPatchOnly"
+                            Grid.Column="6"
+                            Content="{Binding I18n[tab1.chk_patch_only]}"
+                            ToolTip.Tip="{Binding I18n[tab1.tooltip_patch_only]}"
+                            ToolTip.ShowOnDisabled="True"
+                            IsEnabled="{Binding Directories.HasPatchDir}"
+                            IsChecked="{Binding Directories.PatchOnly, Mode=TwoWay}" />
+                </Grid>
+              </StackPanel>
+            </Border>
           </StackPanel>
         </ScrollViewer>
       </Border>
@@ -3133,6 +3186,13 @@
                               IsVisible="{Binding StatsBanner.IsSelectionChipVisible}"
                               IsChecked="{Binding StatsBanner.SelectionChip.IsChecked, Mode=OneWay}"
                               Command="{Binding StatsBanner.SelectionChip.ClickCommand}" />
+                <ToggleButton x:Name="ChipPatched"
+                              Classes="stat-chip"
+                              Content="{Binding StatsBanner.PatchedChip.Text}"
+                              ToolTip.Tip="{Binding StatsBanner.PatchedChip.Tooltip}"
+                              IsVisible="{Binding StatsBanner.IsPatchedChipVisible}"
+                              IsChecked="{Binding StatsBanner.PatchedChip.IsChecked, Mode=OneWay}"
+                              Command="{Binding StatsBanner.PatchedChip.ClickCommand}" />
               </StackPanel>
 
               <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
@@ -3164,6 +3224,15 @@
                            Text="{Binding StatsBanner.AlreadyInDestinationText}"
                            ToolTip.Tip="{Binding StatsBanner.AlreadyInDestinationTooltip}"
                            IsVisible="{Binding StatsBanner.IsAlreadyInDestinationVisible}"
+                           Foreground="{DynamicResource SizeWarningForegroundBrush}"
+                           FontSize="11"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center" />
+                <!-- Patches of the patch folder that gave no patched version, named with their reason in the tooltip -->
+                <TextBlock x:Name="LblUnappliedPatches"
+                           Text="{Binding StatsBanner.UnappliedPatchesText}"
+                           ToolTip.Tip="{Binding StatsBanner.UnappliedPatchesTooltip}"
+                           IsVisible="{Binding StatsBanner.IsUnappliedPatchesVisible}"
                            Foreground="{DynamicResource SizeWarningForegroundBrush}"
                            FontSize="11"
                            FontWeight="Bold"
@@ -3373,7 +3442,7 @@
                   <Grid x:Name="GridDetail"
                         IsVisible="{Binding PreviewTable.SelectedPreviewItem, Converter={x:Static ObjectConverters.IsNotNull}}"
                         ColumnDefinitions="Auto,8,*,16,Auto,8,Auto"
-                        RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                        RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                     <!-- The same gap under every line, carried by its texts rather than by spacer rows: a hidden line (no
                          CHD, no MAME set...) then leaves no gap of its own, and the lines stay evenly spaced -->
                     <Grid.Styles>
@@ -3426,6 +3495,13 @@
                     <SelectableTextBlock x:Name="LblDetailDat" Grid.Row="9" Grid.Column="2" Grid.ColumnSpan="5" FontSize="11" TextWrapping="Wrap"
                                          Text="{Binding PreviewTable.SelectedPreviewItem.DetailDatText}"
                                          IsVisible="{Binding PreviewTable.SelectedPreviewItem.DetailDatText, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}" />
+                    <!-- The patch of a patched version and its original ROM, or the patched versions of an original ROM -->
+                    <TextBlock Grid.Row="10" Grid.Column="0" FontSize="11" FontWeight="SemiBold"
+                               Text="{Binding PreviewTable.SelectedPreviewItem.DetailPatchLabel, FallbackValue=''}"
+                               IsVisible="{Binding PreviewTable.SelectedPreviewItem.DetailPatchText, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}" />
+                    <SelectableTextBlock x:Name="LblDetailPatch" Grid.Row="10" Grid.Column="2" Grid.ColumnSpan="5" FontSize="11" TextWrapping="Wrap"
+                                         Text="{Binding PreviewTable.SelectedPreviewItem.DetailPatchText}"
+                                         IsVisible="{Binding PreviewTable.SelectedPreviewItem.DetailPatchText, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}" />
                     <!-- What the MAME set holds compared with its machine -->
                     <TextBlock Grid.Row="4" Grid.Column="0" FontSize="11" FontWeight="SemiBold"
                                Text="{Binding I18n[panel4.detail_mame_set]}"
@@ -3711,6 +3787,19 @@
                                        FontSize="11"
                                        FontWeight="SemiBold"
                                        Foreground="{DynamicResource RequiredBadgeForegroundBrush}" />
+                          </Border>
+                          <!-- Patched version of a ROM of the source, written next to it -->
+                          <Border x:Name="PatchedBadge"
+                                  IsVisible="{Binding IsPatched}"
+                                  VerticalAlignment="Center"
+                                  Padding="6,0"
+                                  CornerRadius="3"
+                                  Background="{DynamicResource PatchedBadgeBackgroundBrush}"
+                                  ToolTip.Tip="{Binding $parent[Window].((vm:MainViewModel)DataContext).I18n[panel4.tooltip_patched]}">
+                            <TextBlock Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).I18n[panel4.badge_patched]}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PatchedBadgeForegroundBrush}" />
                           </Border>
                         </StackPanel>
                       </DataTemplate>

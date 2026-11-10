@@ -121,6 +121,13 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
             isChecked: false,
             OnChipToggled);
 
+        PatchedChip = new StatFilterChipViewModel(
+            PatchedFilterKey,
+            _localization.Tr("stats.patched", ("count", 0)),
+            _localization.Tr("stats.tooltip_filter_patched"),
+            isChecked: false,
+            OnChipToggled);
+
         _volumeText = FormatVolume(0);
         _volumeTooltip = _localization.Tr("panel4.tooltip_volume");
         _datStatsTooltip = _localization.Tr("panel4.tooltip_dat_stats");
@@ -137,6 +144,15 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
     /// <see cref="ChangedFilterKey"/>, it combines with the status chips and is not a status itself.
     /// </summary>
     public const string SelectionFilterKey = "selection";
+
+    /// <summary>
+    /// Key of the chip showing only the patched versions (<see cref="ProcessItem.Patch"/>). Like
+    /// <see cref="ChangedFilterKey"/>, it combines with the status chips and is not a status itself.
+    /// </summary>
+    public const string PatchedFilterKey = "patched";
+
+    /// <summary>Most patches not applied named in the tooltip of their count; the others are only counted.</summary>
+    public const int MaxListedUnappliedPatches = 10;
 
     /// <summary>
     /// Event triggered when the active set of status filters changes.
@@ -206,10 +222,31 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Whether a filter key is a status (and not the chip of the changed rows or of the selection).</summary>
+    /// <summary>Chip of the patched versions, visible when the run has some.</summary>
+    public StatFilterChipViewModel PatchedChip { get; }
+
+    /// <summary>Whether the run has patched versions, which shows <see cref="PatchedChip"/>.</summary>
+    [ObservableProperty]
+    private bool _isPatchedChipVisible;
+
+    /// <summary>Patches of the patch folder that gave no patched version: counted, and named in the tooltip.</summary>
+    [ObservableProperty]
+    private bool _isUnappliedPatchesVisible;
+
+    [ObservableProperty]
+    private string _unappliedPatchesText = string.Empty;
+
+    [ObservableProperty]
+    private string _unappliedPatchesTooltip = string.Empty;
+
+    /// <summary>
+    /// Whether a filter key is a status (and not the chip of the changed rows, of the selection or of the patched
+    /// versions).
+    /// </summary>
     public static bool IsStatusFilterKey(string key) =>
         !string.Equals(key, ChangedFilterKey, StringComparison.OrdinalIgnoreCase)
-        && !string.Equals(key, SelectionFilterKey, StringComparison.OrdinalIgnoreCase);
+        && !string.Equals(key, SelectionFilterKey, StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(key, PatchedFilterKey, StringComparison.OrdinalIgnoreCase);
 
     public IReadOnlyList<StatFilterChipViewModel> StatusChips =>
         [ValidChip, ExcludedChip, UnmatchedChip, DuplicateChip];
@@ -291,6 +328,13 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
         _preserveArchives = preserveArchives;
         _oversizedFiles = oversizedFiles ?? [];
         RefreshLabelsFromLastStats();
+
+        // A run without patched version has no chip of them, nor its filter
+        if (_lastStats.PatchedCount == 0 && _activeFilters.Remove(PatchedFilterKey))
+        {
+            SyncChipCheckedStates();
+            FilterChanged?.Invoke(this, new HashSet<string>(_activeFilters, StringComparer.OrdinalIgnoreCase));
+        }
     }
 
     /// <summary>
@@ -340,6 +384,7 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
         DuplicateChip.Tooltip = _localization.Tr("stats.tooltip_filter_status");
         ChangedChip.Tooltip = _localization.Tr("stats.tooltip_filter_changed");
         SelectionChip.Tooltip = _localization.Tr("stats.tooltip_filter_selection");
+        PatchedChip.Tooltip = _localization.Tr("stats.tooltip_filter_patched");
         RefreshLabelsFromLastStats();
     }
 
@@ -429,6 +474,34 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
         Fat32WarningTooltip = string.Join(Environment.NewLine, lines);
     }
 
+    /// <summary>Patches not applied: their number, and in the tooltip each of them with its reason.</summary>
+    private void RefreshUnappliedPatches()
+    {
+        var unapplied = _lastStats.UnappliedPatches;
+        IsUnappliedPatchesVisible = unapplied.Count > 0;
+        if (unapplied.Count == 0)
+        {
+            UnappliedPatchesText = string.Empty;
+            UnappliedPatchesTooltip = string.Empty;
+            return;
+        }
+
+        UnappliedPatchesText = _localization.Tr("stats.unapplied_patches", ("count", unapplied.Count));
+        var lines = new List<string> { _localization.Tr("stats.tooltip_unapplied_patches") };
+        lines.AddRange(unapplied
+            .Take(MaxListedUnappliedPatches)
+            .Select(p => _localization.Tr(
+                "stats.tooltip_unapplied_patch",
+                ("name", p.File.DisplayName),
+                ("reason", _localization.Format(p.Reason)))));
+        if (unapplied.Count > MaxListedUnappliedPatches)
+        {
+            lines.Add(_localization.Tr("stats.tooltip_unapplied_more", ("count", unapplied.Count - MaxListedUnappliedPatches)));
+        }
+
+        UnappliedPatchesTooltip = string.Join(Environment.NewLine, lines);
+    }
+
     /// <summary>Exact byte count with the digit grouping of the interface language.</summary>
     private string FormatExactBytes(long bytes)
     {
@@ -479,6 +552,7 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
         DuplicateChip.IsChecked = _activeFilters.Contains("duplicate");
         ChangedChip.IsChecked = _activeFilters.Contains(ChangedFilterKey);
         SelectionChip.IsChecked = _activeFilters.Contains(SelectionFilterKey);
+        PatchedChip.IsChecked = _activeFilters.Contains(PatchedFilterKey);
     }
 
     private void RefreshLabelsFromLastStats()
@@ -490,8 +564,11 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
         DuplicateChip.Text = _localization.Tr("stats.duplicates", ("count", _lastStats.DuplicateCount));
         ChangedChip.Text = _localization.Tr("stats.changed", ("count", _changedRowCount ?? 0));
         SelectionChip.Text = _localization.Tr("stats.selection", ("count", _selectedUnitCount ?? 0));
+        PatchedChip.Text = _localization.Tr("stats.patched", ("count", _lastStats.PatchedCount));
+        IsPatchedChipVisible = _lastStats.PatchedCount > 0;
         RefreshVolume();
         RefreshFat32Warning();
+        RefreshUnappliedPatches();
 
         var alreadyInDestination = _lastStats.AlreadyInDestinationCount;
         IsAlreadyInDestinationVisible = alreadyInDestination > 0;

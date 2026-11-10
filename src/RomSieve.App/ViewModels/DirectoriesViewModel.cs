@@ -237,6 +237,21 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     private string _chdDir = string.Empty;
 
     /// <summary>
+    /// Folder of the patches (IPS, IPS32, UPS, BPS), read in addition to the source: each patch whose original ROM is
+    /// identified gives a patched version. Empty: none. Always shown, whatever the convention.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPatchDir))]
+    private string _patchDir = string.Empty;
+
+    /// <summary>Whether only the patched versions are written, not the original ROMs they replace.</summary>
+    [ObservableProperty]
+    private bool _patchOnly;
+
+    /// <summary>Whether a patch folder is given: the option to write the patched versions only is greyed out otherwise.</summary>
+    public bool HasPatchDir => !string.IsNullOrWhiteSpace(PatchDir);
+
+    /// <summary>
     /// Whether the effective convention is MAME: the MAME files (CHD folder, categories, ratings) are then read, and the
     /// CHD folder checked against the destination. They are always shown, kept for the next MAME sort otherwise.
     /// </summary>
@@ -586,6 +601,17 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     }
 
     [RelayCommand]
+    public async Task BrowsePatchDirAsync()
+    {
+        var startDir = PatchDir?.Trim() ?? string.Empty;
+        var folder = await _dialogService.PickFolderAsync(_localization.Tr("dialog.browse_patch_title"), startDir);
+        if (!string.IsNullOrEmpty(folder))
+        {
+            PatchDir = folder;
+        }
+    }
+
+    [RelayCommand]
     public async Task BrowseMameCategoryFileAsync()
     {
         var current = MameCategoryFile?.Trim() ?? string.Empty;
@@ -750,6 +776,9 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
     [RelayCommand]
     public void ClearChdDir() => ChdDir = string.Empty;
+
+    [RelayCommand]
+    public void ClearPatchDir() => PatchDir = string.Empty;
 
     [RelayCommand]
     public void ClearMameCategoryFile() => MameCategoryFile = string.Empty;
@@ -1244,6 +1273,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         settings.FolderPerDat = FolderPerDat;
         settings.DatFolderMirror = DatFolderMirror;
         settings.ChdDir = ChdDir;
+        settings.PatchDir = PatchDir;
+        settings.PatchOnly = PatchOnly;
         settings.MameCategoryFile = MameCategoryFile;
         settings.MameRatingFile = MameRatingFile;
         settings.NamingConvention = SelectedNamingConvention;
@@ -1289,6 +1320,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         FolderPerDat = settings.FolderPerDat;
         DatFolderMirror = settings.DatFolderMirror;
         ChdDir = settings.ChdDir;
+        PatchDir = settings.PatchDir;
+        PatchOnly = settings.PatchOnly;
         MameCategoryFile = settings.MameCategoryFile;
         MameRatingFile = settings.MameRatingFile;
         SelectedNamingConvention = settings.NamingConvention;

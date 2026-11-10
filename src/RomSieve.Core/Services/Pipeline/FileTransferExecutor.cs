@@ -348,6 +348,12 @@ public sealed partial class FileTransferExecutor
                 return (false, _i18n.Tr(chdOverlapKey));
             }
 
+            // Nor the patch folder
+            if (SortConfigValidator.GetPatchDirErrorKey(_config.PatchDir, destDir) is { } patchOverlapKey)
+            {
+                return (false, _i18n.Tr(patchOverlapKey));
+            }
+
             _log(LogLevel.Info, LocalizedMessage.Create("log.purging_destination", ("path", destDir)));
             try
             {
@@ -1071,59 +1077,21 @@ public sealed partial class FileTransferExecutor
 
     /// <summary>
     /// Applies the patch of <paramref name="item"/> to its origin, read only, and writes the result to
-    /// <paramref name="writePath"/>. An origin in an archive is first extracted next to <paramref name="targetPath"/>
-    /// (a patch reads its source anywhere, which a compressed member does not allow), then deleted in every case: no
-    /// size limit, no memory taken, and a file a stopped sort leaves is cleaned like any replacement of the target. The
-    /// CRC32 of the data read must be the one the patch was matched by: a file changed since is refused, even for an IPS.
+    /// <paramref name="writePath"/> (<see cref="PatchApplier.ApplyAsync"/>). An origin in an archive is first extracted
+    /// next to <paramref name="targetPath"/>, named as a replacement of it: a file a stopped sort leaves is cleaned like
+    /// any replacement of the target, and no scan takes it for a file of the collection.
     /// </summary>
-    private async Task<PatchResult> WritePatchedAsync(ProcessItem item, string targetPath, string writePath, CancellationToken cancellationToken)
-    {
-        var version = item.Patch!;
-        var origin = version.Origin;
-        byte[] patch;
-        await using (var patchStream = WrapSource(version.File.ArchiveMember is { } member
-                         ? _checksumService.OpenArchiveMember(version.File.SourcePath, member)
-                         : new FileStream(version.File.SourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize, FileOptions.Asynchronous)))
-        {
-            patch = await _patchService.ReadPatchAsync(patchStream, cancellationToken).ConfigureAwait(false);
-        }
-
-        string? extracted = null;
-        try
-        {
-            string sourcePath;
-            if (!string.IsNullOrEmpty(origin.ArchivePath) && !string.IsNullOrEmpty(origin.ArchiveMember))
-            {
-                extracted = DestinationGuard.CreateReplacementPath(targetPath);
-                await using (var memberStream = _checksumService.OpenArchiveMember(origin.ArchivePath, origin.ArchiveMember))
-                await using (var copy = new FileStream(_organizer.FormatWindowsExtendedPath(extracted), FileMode.Create, FileAccess.Write, FileShare.None, CopyBufferSize, useAsync: true))
-                {
-                    await CopyStreamAsync(WrapSource(memberStream), copy, cancellationToken).ConfigureAwait(false);
-                }
-
-                sourcePath = extracted;
-            }
-            else
-            {
-                sourcePath = origin.SourcePath;
-            }
-
-            await using var source = WrapSource(new FileStream(_organizer.FormatWindowsExtendedPath(sourcePath), FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize, FileOptions.Asynchronous));
-            await using var target = WrapTarget(new FileStream(_organizer.FormatWindowsExtendedPath(writePath), FileMode.Create, FileAccess.ReadWrite, FileShare.None, CopyBufferSize, useAsync: true));
-            var result = await _patchService.ApplyAsync(patch, source, version.SourceOffset, version.SourceLength, target, cancellationToken).ConfigureAwait(false);
-            await target.FlushAsync(cancellationToken).ConfigureAwait(false);
-            if (result.SourceCrc32 != version.SourceCrc32)
-            {
-                throw PatchErrors.SourceCrc(version.SourceCrc32, result.SourceCrc32);
-            }
-
-            return result;
-        }
-        finally
-        {
-            DeleteTemporary(extracted);
-        }
-    }
+    private Task<PatchResult> WritePatchedAsync(ProcessItem item, string targetPath, string writePath, CancellationToken cancellationToken) =>
+        PatchApplier.ApplyAsync(
+            _patchService,
+            _checksumService,
+            item.Patch!,
+            writePath,
+            DestinationGuard.CreateReplacementPath(targetPath),
+            _organizer.FormatWindowsExtendedPath,
+            WrapSource,
+            WrapTarget,
+            cancellationToken);
 
     /// <summary>A patched version in error: its patch refused it, and why (<c>patch.error_*</c>).</summary>
     private void FailPatched(ProcessItem item, PatchException exception)
@@ -1143,18 +1111,9 @@ public sealed partial class FileTransferExecutor
     /// <summary>Deletes a temporary file of a transfer, best effort: one left behind is removed by a later sort.</summary>
     private void DeleteTemporary(string? path)
     {
-        if (path is null)
+        if (path is not null)
         {
-            return;
-        }
-
-        try
-        {
-            File.Delete(_organizer.FormatWindowsExtendedPath(path));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Named as a replacement of the target: the next write of the same target removes it
+            PatchApplier.TryDelete(_organizer.FormatWindowsExtendedPath(path));
         }
     }
 

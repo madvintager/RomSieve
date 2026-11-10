@@ -238,6 +238,7 @@ public sealed partial class NavigationViewModel : ViewModelBase
                 break;
             case nameof(DirectoriesViewModel.DestinationDir):
             case nameof(DirectoriesViewModel.ChdDir):
+            case nameof(DirectoriesViewModel.PatchDir):
             case nameof(DirectoriesViewModel.IsMameConvention):
                 RefreshOutputIndicator();
                 break;
@@ -303,6 +304,10 @@ public sealed partial class NavigationViewModel : ViewModelBase
         else if (_directories.IsMameConvention && SortConfigValidator.GetChdDirErrorKey(_directories.ChdDir, destination) is not null)
         {
             key = "nav.state_destination_overlap_chd";
+        }
+        else if (SortConfigValidator.GetPatchDirErrorKey(_directories.PatchDir, destination) is not null)
+        {
+            key = "nav.state_destination_overlap_patches";
         }
 
         OutputEntry.SetIndicator(

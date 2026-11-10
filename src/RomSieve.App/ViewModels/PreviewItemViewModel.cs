@@ -148,6 +148,17 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
     private string _detailDatText = string.Empty;
 
     /// <summary>
+    /// Label of the patch line of the detail panel: the patch of a patched version, or the patched versions of an
+    /// original ROM; empty for any other file.
+    /// </summary>
+    [ObservableProperty]
+    private string _detailPatchLabel = string.Empty;
+
+    /// <summary>The patch, its format and the original ROM of a patched version, or the patched versions of an origin.</summary>
+    [ObservableProperty]
+    private string _detailPatchText = string.Empty;
+
+    /// <summary>
     /// Canonical game key of the row, computed once for each parse result of the item
     /// (the pipeline replaces <see cref="ProcessItem.Parsed"/> instead of modifying it).
     /// </summary>
@@ -283,6 +294,8 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
         IsTitleBold = Item.Is1G1RWinner;
         IsForcedWinner = IsManualWinner(Item);
         IsRequiredSet = IsRequiredMameSet(Item);
+        IsPatched = Item.Patch is not null;
+        (DetailPatchLabel, DetailPatchText) = FormatDetailPatch(Item, _localization);
 
         var (diskText, sortKey) = FormatItemDisk(parsed, _localization);
         DiskDisplay = diskText;
@@ -616,6 +629,30 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
     /// Checksum of the detail panel: the SHA-1 of a CHD (the global SHA-1 of its header, which identifies it in a DAT),
     /// otherwise the CRC32 of the file; none for a whole archive (a MAME set) or a file whose CRC was not computed.
     /// </summary>
+    /// <summary>
+    /// Patch line of the detail panel: for a patched version, its patch, the format and the original ROM with the CRC32
+    /// the patch was matched by; for an original ROM, the names of its patched versions; nothing otherwise.
+    /// </summary>
+    public static (string Label, string Text) FormatDetailPatch(ProcessItem item, ILocalizationService localization)
+    {
+        if (item.Patch is { } patch)
+        {
+            return (
+                localization.Tr("panel4.detail_patch"),
+                localization.Tr(
+                    "panel4.detail_patch_text",
+                    ("patch", patch.File.DisplayName),
+                    ("format", patch.Format.ToDisplayName()),
+                    ("origin", patch.Origin.DisplayName),
+                    ("crc", patch.SourceCrc32.ToString("X8", CultureInfo.InvariantCulture))));
+        }
+
+        return item.PatchedVersions.Count > 0
+            ? (localization.Tr("panel4.detail_patched_versions"),
+                string.Join(", ", item.PatchedVersions.Select(p => p.TargetFilename ?? p.DisplayName)))
+            : (string.Empty, string.Empty);
+    }
+
     public static (string Label, string Text) GetDetailChecksum(ProcessItem item)
     {
         if (item.Chd is { Sha1.Length: > 0 } chd)

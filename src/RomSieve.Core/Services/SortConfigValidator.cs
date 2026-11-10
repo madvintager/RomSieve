@@ -78,15 +78,33 @@ public static class SortConfigValidator
     /// <summary>
     /// Localization key of the error message describing how the destination overlaps a folder the sort reads: the source,
     /// then, for a run that sorts MAME sets (<paramref name="isMameRun"/>, <see cref="MameSetIdentifier.IsMameRun"/>), the
-    /// CHD folder (always read recursively); <c>null</c> when it overlaps none. Any other run never reads the CHD folder,
-    /// which stays in the configuration for the next MAME sort: it is then a folder like any other.
+    /// CHD folder (always read recursively), then the patch folder; <c>null</c> when it overlaps none. Any other run never
+    /// reads the CHD folder, which stays in the configuration for the next MAME sort: it is then a folder like any other.
+    /// The patch folder is checked whatever the run, even one that does not read it: a purge of a destination that holds
+    /// it would put the patches in quarantine.
     /// </summary>
     public static string? GetErrorKey(SortConfig config, bool isMameRun)
     {
         ArgumentNullException.ThrowIfNull(config);
         return GetErrorKey(GetPathOverlap(config.SourceDir, config.DestinationDir, config.Recursive))
-               ?? (isMameRun ? GetChdDirErrorKey(config.ChdDir, config.DestinationDir) : null);
+               ?? (isMameRun ? GetChdDirErrorKey(config.ChdDir, config.DestinationDir) : null)
+               ?? GetPatchDirErrorKey(config.PatchDir, config.DestinationDir);
     }
+
+    /// <summary>
+    /// Localization key of the error message describing how the destination overlaps the patch folder (read recursively),
+    /// or <c>null</c>.
+    /// </summary>
+    public static string? GetPatchDirErrorKey(string? patchDir, string destinationDir) =>
+        string.IsNullOrWhiteSpace(patchDir)
+            ? null
+            : GetPathOverlap(patchDir, destinationDir, recursive: true) switch
+            {
+                PathOverlap.Identical => "dialog.error_same_patch_dest",
+                PathOverlap.DestinationContainsSource => "dialog.error_dest_contains_patches",
+                PathOverlap.DestinationInsideSource => "dialog.error_dest_inside_patches",
+                _ => null
+            };
 
     /// <summary>Localization key of the error message describing how the destination overlaps the CHD folder, or <c>null</c>.</summary>
     public static string? GetChdDirErrorKey(string? chdDir, string destinationDir) =>

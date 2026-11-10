@@ -47,6 +47,8 @@ public static class SortSettingsSerializer
         data["folder_per_dat"] = s.FolderPerDat;
         data["dat_folder_mirror"] = s.DatFolderMirror;
         data["chd_dir"] = s.ChdDir.Trim();
+        data["patch_dir"] = s.PatchDir.Trim();
+        data["patch_only"] = s.PatchOnly;
         data["mame_category_file"] = s.MameCategoryFile.Trim();
         data["mame_rating_file"] = s.MameRatingFile.Trim();
         data["naming_convention"] = s.NamingConvention.ToConfigString();
@@ -174,6 +176,8 @@ public static class SortSettingsSerializer
             FolderPerDat = s.FolderPerDat,
             DatFolderMirror = s.DatFolderMirror,
             ChdDir = string.IsNullOrWhiteSpace(s.ChdDir) ? null : s.ChdDir.Trim(),
+            PatchDir = string.IsNullOrWhiteSpace(s.PatchDir) ? null : s.PatchDir.Trim(),
+            PatchOnly = s.PatchOnly,
             MameCategoryFile = string.IsNullOrWhiteSpace(s.MameCategoryFile) ? null : s.MameCategoryFile.Trim(),
             MameRatingFile = string.IsNullOrWhiteSpace(s.MameRatingFile) ? null : s.MameRatingFile.Trim(),
             NamingConvention = s.NamingConvention,
@@ -266,6 +270,8 @@ public static class SortSettingsSerializer
         if (TryGetBool(data, "folder_per_dat", out var folderPerDat)) s.FolderPerDat = folderPerDat;
         if (TryGetBool(data, "dat_folder_mirror", out var datFolderMirror)) s.DatFolderMirror = datFolderMirror;
         if (TryGetString(data, "chd_dir", out var chdDir)) s.ChdDir = chdDir;
+        if (TryGetString(data, "patch_dir", out var patchDir)) s.PatchDir = patchDir;
+        if (TryGetBool(data, "patch_only", out var patchOnly)) s.PatchOnly = patchOnly;
         if (TryGetString(data, "mame_category_file", out var categoryFile)) s.MameCategoryFile = categoryFile;
         if (TryGetString(data, "mame_rating_file", out var ratingFile)) s.MameRatingFile = ratingFile;
         if (TryGetString(data, "naming_convention", out var convention)) s.NamingConvention = EnumExtensions.ParseNamingConvention(convention);
