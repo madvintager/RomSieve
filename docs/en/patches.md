@@ -282,18 +282,19 @@ A UPS or a BPS designates its own ROM and checks it: no other one is chosen for 
   do not count. The whole name comes before the title alone, then the ROM the sort writes. For a patch whose name or
   readme designates several ROMs, those ROMs; for a patch applied, the ROM it is applied to. Under each ROM, its folder
   in the source tells two files of the same name apart, and a line says why it is proposed ("The name of its archive
-  starts with the title of this ROM", "readme.txt designates this ROM"…). On the right, its status in the simulation
-  (**Valid**, **Excluded**, **Duplicate**, as in the table), with its reason in a tooltip: a ROM 1G1R or a filter leaves
-  out is proposed too, since a translation is often made for it. The first one is chosen, but never applied without your
-  click.
+  starts with the title of this ROM", "readme.txt designates this ROM"…). On the right, its CRC32 (in the DAT) and its
+  status in the simulation (**Valid**, **Excluded**, **Duplicate**, as in the table), with its reason in a tooltip: a
+  ROM 1G1R or a filter leaves out is proposed too, since a translation is often made for it. The first one is chosen,
+  but never applied without your click.
 * A **translation** is not made for a ROM already in its language: when the name of the patch has a translation tag
   (`[tr fr]` in TOSEC, `(T-En)`, `[T+Eng]`), the ROMs already in that language (from their languages, otherwise their
   country) come after the others, and say so. A patch `Game (T-En).ips` thus proposes `Game (Japan)` before
   `Game (USA)`.
-* The **search**, above, looks among all the ROMs identified by the simulation, when no ROM proposed is the right one: a
-  translated (`Super Mario Frères.ips` for `Super Mario Bros.`) or shortened title proposes none. All the words, in any
-  order. A ROM found (a click, or Enter for the first one) joins the ROMs proposed and becomes the choice. Ctrl+F goes
-  to the search.
+* The **search**, above, looks by name or CRC32 among all the ROMs identified by the simulation, when no ROM proposed is
+  the right one: a translated (`Super Mario Frères.ips` for `Super Mario Bros.`) or shortened title proposes none. All
+  the words, in any order. Each result (**Other ROMs**) shows its CRC32 and status on the right, with its full path in
+  a tooltip. A ROM found (a click, or Enter for the first one) joins the ROMs proposed and becomes the choice. Ctrl+F
+  goes to the search.
 * **Form** only shows for a ROM with a copier header (NES, Super Nintendo, Lynx): the CRC32 with or without the header.
   An IPS does not tell which one it was made for: its readme usually does.
 

@@ -32,6 +32,11 @@ public sealed class PatchOriginOptionViewModel(ProcessItem origin, string source
     /// <summary>The tooltip of <see cref="StatusLabel"/>: none without a reason.</summary>
     public string? StatusTip => StatusReason.Length > 0 ? StatusReason : null;
 
+    /// <summary>CRC32 of the form identified by the DAT, in uppercase hexadecimal; empty without one.</summary>
+    public string Crc32 { get; } = string.IsNullOrEmpty(origin.Crc32) ? string.Empty : origin.Crc32.ToUpperInvariant();
+
+    public bool HasCrc32 => Crc32.Length > 0;
+
     /// <summary>Where the file is: its archive, or its path.</summary>
     public string Location { get; } = !string.IsNullOrEmpty(origin.ArchivePath) ? origin.ArchivePath : origin.SourcePath;
 
@@ -60,6 +65,9 @@ public sealed class PatchOriginOptionViewModel(ProcessItem origin, string source
 
     /// <summary>Name normalized for the search, once.</summary>
     internal string SearchName { get; } = SearchQuery.Normalize(origin.DisplayName);
+
+    /// <summary>CRC32 normalized for the search, once.</summary>
+    internal string SearchCrc32 { get; } = SearchQuery.Normalize(origin.Crc32);
 }
 
 /// <summary>A form of the data of an origin, with or without its copier header: the one the patch applies to.</summary>

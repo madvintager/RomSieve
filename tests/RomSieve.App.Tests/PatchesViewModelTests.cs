@@ -317,11 +317,20 @@ public sealed class PatchesViewModelTests : IDisposable
         window.SelectedRow = row;
         window.OriginSearchText = "mario world";
         window.HasSearchResults.Should().BeTrue();
+        var marioData = Data(3, 512);
+        var marioCrc = $"{Crc(marioData):X8}";
+        window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
+        window.OriginSearchResults[0].HasCrc32.Should().BeTrue();
+        window.OriginSearchResults[0].Crc32.Should().Be(marioCrc);
+
+        // Searching by CRC32 (case-insensitive) finds the same ROM
+        window.OriginSearchText = marioCrc.ToLowerInvariant();
         window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
         window.SelectedSearchResult = window.OriginSearchResults[0];
         await row.FormsLoading;
 
         row.SelectedOrigin!.Label.Should().Be("Super Mario Bros. (World).sfc");
+        row.SelectedOrigin.Crc32.Should().Be(marioCrc);
         row.Origins.Should().ContainSingle("the ROM found joins those of the patch");
         row.Origins[0].HasReason.Should().BeFalse("a ROM found by the search is not proposed by the simulation");
         row.CanApply.Should().BeTrue();

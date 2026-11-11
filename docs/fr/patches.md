@@ -290,17 +290,18 @@ demande **Pour quelle ROM est ce patch ?** :
   dont le nom ou le readme désigne plusieurs ROMs, ce sont ces ROMs ; pour un patch appliqué, la ROM à laquelle il l'est.
   Sous chaque ROM, son dossier dans la source distingue deux fichiers du même nom, et une ligne dit pourquoi elle est
   proposée (« Le nom de son archive commence par le titre de cette ROM », « readme.txt désigne cette ROM »…). À droite,
-  son statut dans la simulation (**Retenu**, **Exclu**, **Doublon**, comme dans le tableau), avec sa raison en infobulle :
-  une ROM que le 1G1R ou un filtre écarte est proposée elle aussi, puisqu'une traduction est souvent faite pour elle. La
-  première est choisie, mais jamais appliquée sans votre clic.
+  son CRC32 (dans le DAT) et son statut dans la simulation (**Retenu**, **Exclu**, **Doublon**, comme dans le tableau),
+  avec sa raison en infobulle : une ROM que le 1G1R ou un filtre écarte est proposée elle aussi, puisqu'une traduction
+  est souvent faite pour elle. La première est choisie, mais jamais appliquée sans votre clic.
 * Une **traduction** n'est pas faite pour une ROM déjà dans sa langue : quand le nom du patch porte une étiquette de
   traduction (`[tr fr]` chez TOSEC, `(T-En)`, `[T+Eng]`), les ROMs déjà dans cette langue (d'après leurs langues, sinon
   leur pays) passent après les autres, et le disent. Un patch `Jeu (T-En).ips` propose ainsi `Jeu (Japan)` avant
   `Jeu (USA)`.
-* La **recherche**, au-dessus, cherche parmi toutes les ROMs identifiées par la simulation, quand aucune ROM proposée
-  n'est la bonne : un titre traduit (`Super Mario Frères.ips` pour `Super Mario Bros.`) ou abrégé n'en propose aucune.
-  Tous les mots, dans n'importe quel ordre. Une ROM trouvée (clic, ou Entrée pour la première) rejoint les ROMs
-  proposées et devient le choix. Ctrl+F mène à la recherche.
+* La **recherche**, au-dessus, cherche par nom ou par CRC32 parmi toutes les ROMs identifiées par la simulation, quand
+  aucune ROM proposée n'est la bonne : un titre traduit (`Super Mario Frères.ips` pour `Super Mario Bros.`) ou abrégé
+  n'en propose aucune. Tous les mots, dans n'importe quel ordre. Chaque résultat (**Autres ROMs**) donne à droite son
+  CRC32 et son statut, avec son chemin complet en infobulle. Une ROM trouvée (clic, ou Entrée pour la première) rejoint
+  les ROMs proposées et devient le choix. Ctrl+F mène à la recherche.
 * **Forme** n'apparaît que pour une ROM à en-tête copieur (NES, Super Nintendo, Lynx) : le CRC32 avec ou sans l'en-tête.
   Un IPS ne dit pas pour laquelle il a été fait : son readme le dit en général.
 

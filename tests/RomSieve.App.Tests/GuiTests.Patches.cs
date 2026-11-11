@@ -362,11 +362,16 @@ public sealed partial class GuiTests
                 MainWindow.ApplyTheme(UiTheme.Light);
                 Settle(patchesWindow);
 
-                // Each ROM proposed shows its folder in the source
+                // Each ROM proposed shows its folder in the source and its CRC32, with its full path in the tooltip
                 var origins = patchesWindow.FindControl<ListBox>("ListPatchOrigins")!;
+                var usaCrc = $"{PatchTestEncoder.Crc(usa):X8}";
+                var worldCrc = $"{PatchTestEncoder.Crc(world):X8}";
                 origins.GetVisualDescendants().OfType<TextBlock>().Should().Contain(t => t.Text == "usa" && t.IsEffectivelyVisible, "its folder in the source");
+                origins.GetVisualDescendants().OfType<TextBlock>().Should().Contain(t => t.Text == usaCrc && t.IsEffectivelyVisible, "its CRC32");
+                origins.GetVisualDescendants().OfType<DockPanel>().Should().Contain(d => Equals(ToolTip.GetTip(d), Path.Combine(source, "usa", "Game (USA).sfc")));
 
-                // Ctrl+F, a search, Enter: the first file found is chosen, nothing is recorded
+                // Ctrl+F, a search, Enter: the results show the CRC32 instead of the path (kept in the tooltip); the first
+                // file found is chosen, nothing is recorded
                 var row = shown.SelectedRow!;
                 row.Name.Should().Be("Game (T-Fr).ips");
                 patchesWindow.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, "f");
@@ -376,6 +381,12 @@ public sealed partial class GuiTests
                 patchesWindow.KeyTextInput("world");
                 Settle(patchesWindow);
                 shown.OriginSearchText.Should().Be("world");
+                var results = patchesWindow.FindControl<ListBox>("ListPatchOriginResults")!;
+                results.IsEffectivelyVisible.Should().BeTrue();
+                var worldPath = Path.Combine(source, "Other (World).sfc");
+                results.GetVisualDescendants().OfType<TextBlock>().Should().Contain(t => t.Text == worldCrc && t.IsEffectivelyVisible, "the search shows the CRC32");
+                results.GetVisualDescendants().OfType<TextBlock>().Should().NotContain(t => t.Text == worldPath, "the full path is no longer shown in the row");
+                results.GetVisualDescendants().OfType<Grid>().Should().Contain(g => Equals(ToolTip.GetTip(g), worldPath), "the full path stays in the tooltip");
                 patchesWindow.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
                 await row.FormsLoading;
                 Settle(patchesWindow);
@@ -385,10 +396,17 @@ public sealed partial class GuiTests
 
                 if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
                 {
-                    // A choice made, to show « Back to the automatic choice », « Undo » and the ROM written in the name
-                    await shown.ApplyCommand.ExecuteAsync(null);
                     patchesWindow.Width = patchesWindow.MinWidth;
                     patchesWindow.Height = patchesWindow.MinHeight;
+                    Settle(patchesWindow);
+                    foreach (var tb in origins.GetVisualDescendants().OfType<TextBlock>().Concat(results.GetVisualDescendants().OfType<TextBlock>())
+                                 .Where(t => t.IsEffectivelyVisible && (t.Text == usaCrc || t.Text == worldCrc || t.Text == "Retenu")))
+                    {
+                        AssertNotTrimmed(tb, $"origin CRC32 or status '{tb.Text}'");
+                    }
+
+                    // A choice made, to show « Back to the automatic choice », « Undo » and the ROM written in the name
+                    await shown.ApplyCommand.ExecuteAsync(null);
                     foreach (var locale in new[] { "fr", "en", "es" })
                     {
                         vm.UiLocale = locale;
@@ -589,6 +607,120 @@ public sealed partial class GuiTests
             finally
             {
                 window.Close();
+            }
+        });
+    }
+
+    /// <summary>
+    /// CRC32 and status columns stay left-aligned across kept, excluded and duplicate ROMs, both on initial open and
+    /// after switching patches or searching, and fit without clipping in every language.
+    /// </summary>
+    [Fact]
+    public async Task PatchesWindow_OriginsAndSearchResults_ShouldLeftAlignCrc32AndStatus_AfterSwitchingPatch()
+    {
+        var source = Path.Combine(_tempDir, "align_src");
+        var patches = Path.Combine(_tempDir, "align_patches");
+        Directory.CreateDirectory(Path.Combine(source, "backup"));
+        Directory.CreateDirectory(patches);
+
+        var romA1 = System.Text.Encoding.ASCII.GetBytes(new string('A', 4096));
+        var romA2 = System.Text.Encoding.ASCII.GetBytes(new string('B', 4096));
+        var romB1 = System.Text.Encoding.ASCII.GetBytes(new string('C', 4096));
+        var romB2 = System.Text.Encoding.ASCII.GetBytes(new string('D', 4096));
+        File.WriteAllBytes(Path.Combine(source, "Alpha (Europe).sfc"), romA1);
+        File.WriteAllBytes(Path.Combine(source, "Alpha (Japan).sfc"), romA2);
+        File.WriteAllBytes(Path.Combine(source, "Bravo (Europe).sfc"), romB1);
+        File.WriteAllBytes(Path.Combine(source, "backup", "Bravo (Europe).sfc"), romB1);
+        File.WriteAllBytes(Path.Combine(source, "Bravo (Japan).sfc"), romB2);
+
+        var dat = Path.Combine(_tempDir, "align.dat");
+        File.WriteAllText(dat, $"""
+            <?xml version="1.0"?><datafile><header><name>Nintendo - SNES</name><homepage>No-Intro</homepage></header>
+            <game name="Alpha"><description>Alpha</description><rom name="Alpha (Europe).sfc" size="4096" crc="{PatchTestEncoder.Crc(romA1):x8}"/></game>
+            <game name="Alpha (Japan)" cloneof="Alpha"><description>Alpha (Japan)</description><rom name="Alpha (Japan).sfc" size="4096" crc="{PatchTestEncoder.Crc(romA2):x8}"/></game>
+            <game name="Bravo"><description>Bravo</description><rom name="Bravo (Europe).sfc" size="4096" crc="{PatchTestEncoder.Crc(romB1):x8}"/></game>
+            <game name="Bravo (Japan)" cloneof="Bravo"><description>Bravo (Japan)</description><rom name="Bravo (Japan).sfc" size="4096" crc="{PatchTestEncoder.Crc(romB2):x8}"/></game>
+            </datafile>
+            """);
+
+        // Two IPS patches whose titles propose kept, excluded and duplicate ROMs
+        var dummy = System.Text.Encoding.ASCII.GetBytes(new string('Z', 4096));
+        File.WriteAllBytes(Path.Combine(patches, "Alpha (T-Fr).ips"), PatchTestEncoder.IpsDiff(dummy, [.. dummy, .. "Fr"u8.ToArray()]));
+        File.WriteAllBytes(Path.Combine(patches, "Bravo (T-Fr).ips"), PatchTestEncoder.IpsDiff(dummy, [.. dummy, .. "Fr2"u8.ToArray()]));
+
+        var vm = CreateViewModel();
+        vm.Directories.SourceDir = source;
+        vm.Directories.DestinationDir = Path.Combine(_tempDir, "align_dst");
+        vm.Directories.DatFilePath = dat;
+        vm.Directories.PatchDir = patches;
+        vm.Priorities.CountriesText = "Europe";
+        await vm.Execution.SimulateAsync();
+
+        await RunOnUiThreadAsync(async () =>
+        {
+            var shown = vm.Patches;
+            shown.Load();
+            await Task.WhenAll(shown.Rows.Select(r => r.FormsLoading));
+            var patchesWindow = new PatchesWindow { DataContext = shown };
+            patchesWindow.Show();
+            try
+            {
+                Settle(patchesWindow);
+                var origins = patchesWindow.FindControl<ListBox>("ListPatchOrigins")!;
+                var results = patchesWindow.FindControl<ListBox>("ListPatchOriginResults")!;
+
+                void AssertAligned(ListBox box, string context, int minRows = 2)
+                {
+                    var rows = box.GetVisualDescendants().OfType<ListBoxItem>().Where(i => i.IsEffectivelyVisible).ToList();
+                    rows.Should().HaveCountGreaterOrEqualTo(minRows, context);
+
+                    var crcBlocks = rows.Select(r => r.GetVisualDescendants().OfType<TextBlock>()
+                        .First(t => t.Classes.Contains("crc") && t.IsEffectivelyVisible)).ToList();
+                    var crcX = crcBlocks.Select(t => BoundsIn(patchesWindow, t).Left).ToList();
+                    crcX.Distinct().Should().HaveCount(1, $"{context}: CRCs should be left-aligned ({string.Join(", ", crcX)})");
+
+                    var statusBlocks = rows.Select(r =>
+                    {
+                        var model = (PatchOriginOptionViewModel)r.DataContext!;
+                        return r.GetVisualDescendants().OfType<TextBlock>()
+                            .First(t => t.Text == model.StatusLabel && t.IsEffectivelyVisible);
+                    }).ToList();
+                    var statusX = statusBlocks.Select(t => BoundsIn(patchesWindow, t).Left).ToList();
+                    statusX.Distinct().Should().HaveCount(1, $"{context}: status labels should be left-aligned ({string.Join(", ", statusX)})");
+
+                    if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
+                    {
+                        foreach (var block in crcBlocks.Concat(statusBlocks))
+                        {
+                            AssertNotTrimmed(block, $"{context} ({block.Text})");
+                        }
+                    }
+                }
+
+                AssertAligned(origins, "origins initially");
+
+                // Switch from the first patch to the second patch (contains Valid, Duplicate and Excluded)
+                shown.SelectedRow = shown.Rows[1];
+                Settle(patchesWindow);
+                AssertAligned(origins, "origins after switching patch", minRows: 3);
+
+                // Verify the search results list with Valid, Duplicate and Excluded
+                shown.OriginSearchText = "a";
+                Settle(patchesWindow);
+                AssertAligned(results, "search results", minRows: 3);
+
+                // Verify column widths adapt cleanly when the UI language changes
+                foreach (var locale in new[] { "en", "es", "fr" })
+                {
+                    vm.UiLocale = locale;
+                    Settle(patchesWindow);
+                    AssertAligned(origins, $"origins ({locale})", minRows: 3);
+                    AssertAligned(results, $"search results ({locale})", minRows: 3);
+                }
+            }
+            finally
+            {
+                patchesWindow.Close();
             }
         });
     }

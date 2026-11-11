@@ -534,7 +534,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         var query = SearchQuery.Parse(value);
         OriginSearchResults.ReplaceAll(query.IsEmpty || !CanSearch
             ? []
-            : _searchable.Where(o => query.Matches(o.SearchName)).Take(MaxSearchResults));
+            : _searchable.Where(o => query.Matches(o.SearchName, o.SearchCrc32)).Take(MaxSearchResults));
         OnPropertyChanged(nameof(HasSearchResults));
     }
 

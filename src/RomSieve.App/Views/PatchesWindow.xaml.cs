@@ -1,7 +1,10 @@
+using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using RomSieve.App.ViewModels;
 
 namespace RomSieve.App.Views;
@@ -12,9 +15,87 @@ namespace RomSieve.App.Views;
 /// </summary>
 public partial class PatchesWindow : Window
 {
+    private const string OriginCrcWidthKey = "OriginCrcWidth";
+    private const string OriginStatusWidthKey = "OriginStatusWidth";
+    private PatchesViewModel? _observedVm;
+
     public PatchesWindow()
     {
+        Resources[OriginCrcWidthKey] = double.NaN;
+        Resources[OriginStatusWidthKey] = double.NaN;
         AvaloniaXamlLoader.Load(this);
+    }
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        DetachObservedVm();
+        if (DataContext is PatchesViewModel vm)
+        {
+            _observedVm = vm;
+            vm.I18n.PropertyChanged += OnTranslationsChanged;
+            UpdateOriginColumnWidths(vm);
+        }
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if ((change.Property == FontFamilyProperty || change.Property == FontSizeProperty)
+            && DataContext is PatchesViewModel vm)
+        {
+            UpdateOriginColumnWidths(vm);
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        DetachObservedVm();
+        base.OnClosed(e);
+    }
+
+    private void DetachObservedVm()
+    {
+        if (_observedVm is not null)
+        {
+            _observedVm.I18n.PropertyChanged -= OnTranslationsChanged;
+            _observedVm = null;
+        }
+    }
+
+    private void OnTranslationsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (DataContext is PatchesViewModel vm)
+        {
+            UpdateOriginColumnWidths(vm);
+        }
+    }
+
+    /// <summary>
+    /// Fixed column widths from the active fonts and status labels: keeps CRC32 and status left-aligned across every row
+    /// of both lists, whatever the order in which Avalonia measures or recycles their containers.
+    /// </summary>
+    private void UpdateOriginColumnWidths(PatchesViewModel vm)
+    {
+        var crcFont = this.TryFindResource("CrcFontFamily", out var resource) && resource is FontFamily found ? found : FontFamily;
+        var crcWidth = "0123456789ABCDEF"
+            .Max(digit => MeasureTextWidth(new string(digit, 8), crcFont, FontSize));
+        var statusWidth = new[] { "status.valid", "status.excluded", "status.duplicate" }
+            .Max(key => MeasureTextWidth(vm.I18n[key], FontFamily, FontSize));
+        Resources[OriginCrcWidthKey] = Math.Ceiling(crcWidth) + 1;
+        Resources[OriginStatusWidthKey] = Math.Ceiling(statusWidth) + 1;
+    }
+
+    private static double MeasureTextWidth(string text, FontFamily fontFamily, double fontSize)
+    {
+        var sample = new TextBlock
+        {
+            FontFamily = fontFamily,
+            FontSize = fontSize,
+            Text = text
+        };
+        sample.Measure(Size.Infinity);
+        return sample.DesiredSize.Width;
     }
 
     /// <summary>Ctrl+F goes to the search of a ROM, as in the table of the main window.</summary>
