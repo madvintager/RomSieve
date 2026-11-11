@@ -123,6 +123,30 @@ public sealed class SearchQuery
         return true;
     }
 
+    /// <summary>
+    /// Whether <paramref name="termMatches"/> holds for every term to find and for no term to leave out.
+    /// </summary>
+    public bool Matches(Func<string, bool> termMatches)
+    {
+        foreach (var term in _excluded)
+        {
+            if (termMatches(term))
+            {
+                return false;
+            }
+        }
+
+        foreach (var term in _included)
+        {
+            if (!termMatches(term))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static bool AnyContains(ReadOnlySpan<string> fields, string term)
     {
         foreach (var field in fields)

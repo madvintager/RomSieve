@@ -297,11 +297,12 @@ demande **Pour quelle ROM est ce patch ?** :
   traduction (`[tr fr]` chez TOSEC, `(T-En)`, `[T+Eng]`), les ROMs déjà dans cette langue (d'après leurs langues, sinon
   leur pays) passent après les autres, et le disent. Un patch `Jeu (T-En).ips` propose ainsi `Jeu (Japan)` avant
   `Jeu (USA)`.
-* La **recherche**, au-dessus, cherche par nom ou par CRC32 parmi toutes les ROMs identifiées par la simulation, quand
-  aucune ROM proposée n'est la bonne : un titre traduit (`Super Mario Frères.ips` pour `Super Mario Bros.`) ou abrégé
-  n'en propose aucune. Tous les mots, dans n'importe quel ordre. Chaque résultat (**Autres ROMs**) donne à droite son
-  CRC32 et son statut, avec son chemin complet en infobulle. Une ROM trouvée (clic, ou Entrée pour la première) rejoint
-  les ROMs proposées et devient le choix. Ctrl+F mène à la recherche.
+* La **recherche**, au-dessus, cherche par nom ou par CRC32 (au moins 6 chiffres hexadécimaux, avec ou sans `0x`) parmi
+  toutes les ROMs identifiées par la simulation, quand aucune ROM proposée n'est la bonne : un titre traduit
+  (`Super Mario Frères.ips` pour `Super Mario Bros.`) ou abrégé n'en propose aucune. Tous les mots, dans n'importe quel
+  ordre. Chaque résultat (**Autres ROMs**) donne à droite son CRC32 et son statut, avec son chemin complet en infobulle.
+  Une ROM trouvée (clic, ou Entrée pour la première) rejoint les ROMs proposées et devient le choix. Ctrl+F mène à la
+  recherche.
 * **Forme** n'apparaît que pour une ROM à en-tête copieur (NES, Super Nintendo, Lynx) : le CRC32 avec ou sans l'en-tête.
   Un IPS ne dit pas pour laquelle il a été fait : son readme le dit en général.
 

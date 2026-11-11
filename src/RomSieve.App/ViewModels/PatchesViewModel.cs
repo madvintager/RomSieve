@@ -534,7 +534,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         var query = SearchQuery.Parse(value);
         OriginSearchResults.ReplaceAll(query.IsEmpty || !CanSearch
             ? []
-            : _searchable.Where(o => query.Matches(o.SearchName, o.SearchCrc32)).Take(MaxSearchResults));
+            : _searchable.Where(o => o.Matches(query)).Take(MaxSearchResults));
         OnPropertyChanged(nameof(HasSearchResults));
     }
 
@@ -919,14 +919,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
     /// </summary>
     internal PatchOriginOptionViewModel Option(ProcessItem origin, string? why = null)
     {
-        var label = Tr(origin.Status switch
-        {
-            FileStatus.Valid => "status.valid",
-            FileStatus.Excluded => "status.excluded",
-            FileStatus.Duplicate => "status.duplicate",
-            FileStatus.Unmatched => "status.unmatched",
-            _ => "status.error"
-        });
+        var label = Tr(PreviewItemViewModel.GetStatusLabelKey(origin.Status));
         var reason = origin.StatusReason is { } statusReason ? Format(statusReason) : string.Empty;
         return new PatchOriginOptionViewModel(origin, SourceDir, (label, reason), why);
     }

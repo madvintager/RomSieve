@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using RomSieve.App.ViewModels;
+using RomSieve.Core.Models;
 
 namespace RomSieve.App.Views;
 
@@ -80,7 +81,8 @@ public partial class PatchesWindow : Window
         var crcFont = this.TryFindResource("CrcFontFamily", out var resource) && resource is FontFamily found ? found : FontFamily;
         var crcWidth = "0123456789ABCDEF"
             .Max(digit => MeasureTextWidth(new string(digit, 8), crcFont, FontSize));
-        var statusWidth = new[] { "status.valid", "status.excluded", "status.duplicate" }
+        var statusWidth = Enum.GetValues<FileStatus>()
+            .Select(PreviewItemViewModel.GetStatusLabelKey)
             .Max(key => MeasureTextWidth(vm.I18n[key], FontFamily, FontSize));
         Resources[OriginCrcWidthKey] = Math.Ceiling(crcWidth) + 1;
         Resources[OriginStatusWidthKey] = Math.Ceiling(statusWidth) + 1;

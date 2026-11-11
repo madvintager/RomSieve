@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
@@ -693,6 +694,17 @@ public sealed partial class GuiTests
                         foreach (var block in crcBlocks.Concat(statusBlocks))
                         {
                             AssertNotTrimmed(block, $"{context} ({block.Text})");
+                            var probe = new TextBlock
+                            {
+                                Text = block.Text,
+                                FontFamily = block.FontFamily,
+                                FontSize = block.FontSize,
+                                FontWeight = block.FontWeight
+                            };
+                            probe.Measure(Size.Infinity);
+                            probe.DesiredSize.Width.Should().BeLessThanOrEqualTo(
+                                block.Bounds.Width + 1,
+                                $"{context} ({block.Text}) fits inside its fixed column width");
                         }
                     }
                 }
@@ -709,13 +721,34 @@ public sealed partial class GuiTests
                 Settle(patchesWindow);
                 AssertAligned(results, "search results", minRows: 3);
 
-                // Verify column widths adapt cleanly when the UI language changes
+                // Verify column widths adapt cleanly when the UI language changes, and fit every FileStatus label
                 foreach (var locale in new[] { "en", "es", "fr" })
                 {
                     vm.UiLocale = locale;
                     Settle(patchesWindow);
                     AssertAligned(origins, $"origins ({locale})", minRows: 3);
                     AssertAligned(results, $"search results ({locale})", minRows: 3);
+
+                    if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
+                    {
+                        var sampleStatus = origins.GetVisualDescendants().OfType<TextBlock>()
+                            .First(t => t.Classes.Contains("origin-status") && t.IsEffectivelyVisible);
+                        foreach (var status in Enum.GetValues<FileStatus>())
+                        {
+                            var label = shown.I18n[PreviewItemViewModel.GetStatusLabelKey(status)];
+                            var probe = new TextBlock
+                            {
+                                Text = label,
+                                FontFamily = sampleStatus.FontFamily,
+                                FontSize = sampleStatus.FontSize,
+                                FontWeight = sampleStatus.FontWeight
+                            };
+                            probe.Measure(Size.Infinity);
+                            probe.DesiredSize.Width.Should().BeLessThanOrEqualTo(
+                                sampleStatus.Bounds.Width + 1,
+                                $"status '{label}' ({status}, {locale}) fits inside the fixed status column");
+                        }
+                    }
                 }
             }
             finally

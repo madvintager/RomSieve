@@ -62,4 +62,14 @@ public sealed class SearchQueryTests
         Matches(SearchQuery.Exact("Game B"), "Game B (Europe)").Should().BeTrue();
         Matches(SearchQuery.Exact("Game B"), "Game A (Brazil)").Should().BeFalse("its words found apart would find another game");
     }
+
+    [Fact]
+    public void Matches_WithPredicate_ShouldRequireAllIncludedTermsAndNoExcludedTerm()
+    {
+        var query = SearchQuery.Parse("mario 3 -usa");
+
+        query.Matches(term => term is "mario" or "3").Should().BeTrue();
+        query.Matches(term => term is "mario").Should().BeFalse("one included term is missing");
+        query.Matches(term => term is "mario" or "3" or "usa").Should().BeFalse("an excluded term matches");
+    }
 }

@@ -7,7 +7,7 @@ namespace RomSieve.App.ViewModels;
 
 /// <summary>
 /// An identified file a patch may be meant for, in the list of the ROMs of a patch or in the search, with what the
-/// simulation made of it (<paramref name="status"/>: kept, excluded, duplicate, and why) and why it is proposed
+/// simulation made of it (<paramref name="status"/>: status label and why) and why it is proposed
 /// (<paramref name="reason"/>), both already translated: the window is modal, the language cannot change while it is
 /// open. A file left out by the 1G1R or a filter may be proposed: a translation is often made for a release the 1G1R
 /// leaves out.
@@ -23,7 +23,7 @@ public sealed class PatchOriginOptionViewModel(ProcessItem origin, string source
 
     public bool HasReason => Reason.Length > 0;
 
-    /// <summary>Its status in the last simulation, as the table shows it: kept, excluded or duplicate.</summary>
+    /// <summary>Its status in the last simulation, as the table shows it.</summary>
     public string StatusLabel { get; } = status.Label;
 
     /// <summary>Why the simulation gave it that status, for the tooltip of <see cref="StatusLabel"/>.</summary>
@@ -68,6 +68,43 @@ public sealed class PatchOriginOptionViewModel(ProcessItem origin, string source
 
     /// <summary>CRC32 normalized for the search, once.</summary>
     internal string SearchCrc32 { get; } = SearchQuery.Normalize(origin.Crc32);
+
+    /// <summary>
+    /// Matches a search term against the ROM name, and against its CRC32 only when the term is a 6-to-8-digit
+    /// hexadecimal word (with an optional <c>0x</c> prefix): short words such as <c>3</c>, <c>de</c> or <c>bad</c>
+    /// would otherwise match random CRC32s.
+    /// </summary>
+    internal bool Matches(SearchQuery query) =>
+        query.Matches(term =>
+            SearchName.Contains(term, StringComparison.Ordinal)
+            || (SearchCrc32.Length > 0 && TryExtractCrcHex(term, out var hex) && SearchCrc32.AsSpan().Contains(hex, StringComparison.Ordinal)));
+
+    private static bool TryExtractCrcHex(string normalizedTerm, out ReadOnlySpan<char> hex)
+    {
+        var span = normalizedTerm.AsSpan();
+        if (span.StartsWith("0x", StringComparison.Ordinal))
+        {
+            span = span[2..];
+        }
+
+        if (span.Length is < 6 or > 8)
+        {
+            hex = default;
+            return false;
+        }
+
+        foreach (var ch in span)
+        {
+            if (!char.IsAsciiHexDigit(ch))
+            {
+                hex = default;
+                return false;
+            }
+        }
+
+        hex = span;
+        return true;
+    }
 }
 
 /// <summary>A form of the data of an origin, with or without its copier header: the one the patch applies to.</summary>

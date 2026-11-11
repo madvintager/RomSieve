@@ -62,6 +62,8 @@
       <Setter Property="HorizontalAlignment" Value="Left" />
       <Setter Property="TextAlignment" Value="Left" />
       <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextWrapping" Value="NoWrap" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
       <Setter Property="FontFamily" Value="{StaticResource CrcFontFamily}" />
       <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
     </Style>
@@ -70,6 +72,8 @@
       <Setter Property="HorizontalAlignment" Value="Left" />
       <Setter Property="TextAlignment" Value="Left" />
       <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextWrapping" Value="NoWrap" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
       <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
     </Style>
     <Style Selector="Border.panel">

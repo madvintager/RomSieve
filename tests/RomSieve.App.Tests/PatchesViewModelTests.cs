@@ -323,8 +323,33 @@ public sealed class PatchesViewModelTests : IDisposable
         window.OriginSearchResults[0].HasCrc32.Should().BeTrue();
         window.OriginSearchResults[0].Crc32.Should().Be(marioCrc);
 
-        // Searching by CRC32 (case-insensitive) finds the same ROM
+        // Searching by CRC32 (case-insensitive, with or without 0x, 6 to 8 hex digits) finds the same ROM
         window.OriginSearchText = marioCrc.ToLowerInvariant();
+        window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
+        window.OriginSearchText = $"0x{marioCrc.ToLowerInvariant()}";
+        window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
+        window.OriginSearchText = $"0X{marioCrc}";
+        window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
+        window.OriginSearchText = marioCrc[..6];
+        window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
+        window.OriginSearchText = $"0x{marioCrc[..6]}";
+        window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
+        window.OriginSearchText = $"mario 0x{marioCrc}";
+        window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
+
+        // Short hex fragments (< 6 digits) do not match the CRC32
+        window.OriginSearchText = marioCrc[..5];
+        window.OriginSearchResults.Should().BeEmpty();
+        window.OriginSearchText = $"0x{marioCrc[..5]}";
+        window.OriginSearchResults.Should().BeEmpty();
+        window.OriginSearchText = $"mario {marioCrc[0]}";
+        window.OriginSearchResults.Should().BeEmpty();
+        window.OriginSearchText = $"mario -{marioCrc[0]}";
+        window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
+        window.OriginSearchText = $"mario -0x{marioCrc}";
+        window.OriginSearchResults.Should().BeEmpty();
+
+        window.OriginSearchText = marioCrc;
         window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
         window.SelectedSearchResult = window.OriginSearchResults[0];
         await row.FormsLoading;
@@ -347,6 +372,51 @@ public sealed class PatchesViewModelTests : IDisposable
         window.CanSearch.Should().BeFalse("no ROM can be chosen for a BPS");
         window.OriginSearchText = "game";
         window.OriginSearchResults.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void OriginSearch_ShouldIgnoreShortWordsMadeOfHexDigits_AndMatchHexCrcFrom6Digits()
+    {
+        var mario = new PatchOriginOptionViewModel(
+            new ProcessItem
+            {
+                SourcePath = "Super Mario World (USA).sfc",
+                FileSize = 512,
+                Parsed = _services.NoIntroParser.ParseRomFilename("Super Mario World (USA).sfc"),
+                Crc32 = "3debad01"
+            },
+            string.Empty,
+            ("Retenu", string.Empty));
+        var racer = new PatchOriginOptionViewModel(
+            new ProcessItem
+            {
+                SourcePath = "F-Zero (USA).sfc",
+                FileSize = 512,
+                Parsed = _services.NoIntroParser.ParseRomFilename("F-Zero (USA).sfc"),
+                Crc32 = "ace0cafe"
+            },
+            string.Empty,
+            ("Retenu", string.Empty));
+
+        foreach (var query in new[] { "mario 3", "mario de", "mario bad", "3deba", "0xbad", "0x3deba", "mario -3", "mario -de", "mario -bad" })
+        {
+            var expected = query.StartsWith("mario -", StringComparison.Ordinal);
+            mario.Matches(SearchQuery.Parse(query)).Should().Be(expected, $"query '{query}' should {(expected ? "not exclude" : "not match")} by CRC32");
+        }
+
+        foreach (var query in new[] { "ace", "cafe", "0xace", "0xcafe", "ace0c", "zero ace", "zero -ace" })
+        {
+            var expected = query == "zero -ace";
+            racer.Matches(SearchQuery.Parse(query)).Should().Be(expected, $"query '{query}' should {(expected ? "not exclude" : "not match")} by CRC32");
+        }
+
+        foreach (var query in new[] { "3debad", "ebad01", "3debad01", "0x3debad", "0x3debad01", "0X3DEBAD01", "mario 0x3debad01" })
+        {
+            mario.Matches(SearchQuery.Parse(query)).Should().BeTrue($"query '{query}' should match CRC32");
+        }
+
+        mario.Matches(SearchQuery.Parse("mario -0x3debad01")).Should().BeFalse();
+        mario.Matches(SearchQuery.Parse("mario -3debad")).Should().BeFalse();
     }
 
     [Fact]

@@ -577,7 +577,7 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
         return rawTarget;
     }
 
-    private static string GetStatusLabelKey(FileStatus status) =>
+    internal static string GetStatusLabelKey(FileStatus status) =>
         status switch
         {
             FileStatus.Valid => "status.valid",

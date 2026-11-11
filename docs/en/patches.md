@@ -290,11 +290,11 @@ A UPS or a BPS designates its own ROM and checks it: no other one is chosen for 
   (`[tr fr]` in TOSEC, `(T-En)`, `[T+Eng]`), the ROMs already in that language (from their languages, otherwise their
   country) come after the others, and say so. A patch `Game (T-En).ips` thus proposes `Game (Japan)` before
   `Game (USA)`.
-* The **search**, above, looks by name or CRC32 among all the ROMs identified by the simulation, when no ROM proposed is
-  the right one: a translated (`Super Mario Frères.ips` for `Super Mario Bros.`) or shortened title proposes none. All
-  the words, in any order. Each result (**Other ROMs**) shows its CRC32 and status on the right, with its full path in
-  a tooltip. A ROM found (a click, or Enter for the first one) joins the ROMs proposed and becomes the choice. Ctrl+F
-  goes to the search.
+* The **search**, above, looks by name or CRC32 (at least 6 hexadecimal digits, with or without `0x`) among all the
+  ROMs identified by the simulation, when no ROM proposed is the right one: a translated (`Super Mario Frères.ips` for
+  `Super Mario Bros.`) or shortened title proposes none. All the words, in any order. Each result (**Other ROMs**) shows
+  its CRC32 and status on the right, with its full path in a tooltip. A ROM found (a click, or Enter for the first one)
+  joins the ROMs proposed and becomes the choice. Ctrl+F goes to the search.
 * **Form** only shows for a ROM with a copier header (NES, Super Nintendo, Lynx): the CRC32 with or without the header.
   An IPS does not tell which one it was made for: its readme usually does.
 
