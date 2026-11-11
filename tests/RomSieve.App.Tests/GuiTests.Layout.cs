@@ -366,6 +366,7 @@ public sealed partial class GuiTests
             FontStyle = sample.FontStyle,
             FontWeight = sample.FontWeight,
             FontStretch = sample.FontStretch,
+            LetterSpacing = sample.LetterSpacing,
             Padding = sample.Padding
         };
         probe.Measure(Size.Infinity);
