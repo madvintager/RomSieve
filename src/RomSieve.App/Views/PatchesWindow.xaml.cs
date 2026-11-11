@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -18,7 +17,6 @@ public partial class PatchesWindow : Window
 {
     private const string OriginCrcWidthKey = "OriginCrcWidth";
     private const string OriginStatusWidthKey = "OriginStatusWidth";
-    private PatchesViewModel? _observedVm;
 
     public PatchesWindow()
     {
@@ -30,11 +28,8 @@ public partial class PatchesWindow : Window
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        DetachObservedVm();
         if (DataContext is PatchesViewModel vm)
         {
-            _observedVm = vm;
-            vm.I18n.PropertyChanged += OnTranslationsChanged;
             UpdateOriginColumnWidths(vm);
         }
     }
@@ -44,29 +39,6 @@ public partial class PatchesWindow : Window
         base.OnPropertyChanged(change);
         if ((change.Property == FontFamilyProperty || change.Property == FontSizeProperty)
             && DataContext is PatchesViewModel vm)
-        {
-            UpdateOriginColumnWidths(vm);
-        }
-    }
-
-    protected override void OnClosed(EventArgs e)
-    {
-        DetachObservedVm();
-        base.OnClosed(e);
-    }
-
-    private void DetachObservedVm()
-    {
-        if (_observedVm is not null)
-        {
-            _observedVm.I18n.PropertyChanged -= OnTranslationsChanged;
-            _observedVm = null;
-        }
-    }
-
-    private void OnTranslationsChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (DataContext is PatchesViewModel vm)
         {
             UpdateOriginColumnWidths(vm);
         }

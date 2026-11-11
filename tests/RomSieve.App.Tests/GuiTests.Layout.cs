@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.LogicalTree;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using RomSieve.App.ViewModels;
 using RomSieve.App.Views;
@@ -341,11 +342,34 @@ public sealed partial class GuiTests
 
     private static void AssertNotTrimmed(Control control, string because)
     {
+        // A fixed Width caps DesiredSize.Width during Measure, so a single-line TextBlock must be probed without Width
+        if (control is TextBlock text && !double.IsNaN(text.Width) && text.TextWrapping == TextWrapping.NoWrap)
+        {
+            AssertTextFits(text, text.Text ?? string.Empty, because);
+            return;
+        }
+
         // The desired size includes the margin, which the bounds leave out
         control.Measure(Size.Infinity);
         var desired = control.DesiredSize.Width - control.Margin.Left - control.Margin.Right;
         desired.Should().BeLessThanOrEqualTo(control.Bounds.Width + 1, $"{because} is not cut");
         control.InvalidateMeasure();
+    }
+
+    private static void AssertTextFits(TextBlock sample, string text, string because)
+    {
+        var probe = new TextBlock
+        {
+            Text = text,
+            FontFamily = sample.FontFamily,
+            FontSize = sample.FontSize,
+            FontStyle = sample.FontStyle,
+            FontWeight = sample.FontWeight,
+            FontStretch = sample.FontStretch,
+            Padding = sample.Padding
+        };
+        probe.Measure(Size.Infinity);
+        probe.DesiredSize.Width.Should().BeLessThanOrEqualTo(sample.Bounds.Width + 1, $"{because} is not cut");
     }
 
     /// <summary>

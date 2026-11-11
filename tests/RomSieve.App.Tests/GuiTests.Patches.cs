@@ -1,4 +1,3 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
@@ -660,74 +659,79 @@ public sealed partial class GuiTests
         await RunOnUiThreadAsync(async () =>
         {
             var shown = vm.Patches;
-            shown.Load();
-            await Task.WhenAll(shown.Rows.Select(r => r.FormsLoading));
-            var patchesWindow = new PatchesWindow { DataContext = shown };
-            patchesWindow.Show();
-            try
+
+            void AssertAligned(PatchesWindow patchesWindow, ListBox box, string context, int minRows = 2)
             {
-                Settle(patchesWindow);
-                var origins = patchesWindow.FindControl<ListBox>("ListPatchOrigins")!;
-                var results = patchesWindow.FindControl<ListBox>("ListPatchOriginResults")!;
+                var rows = box.GetVisualDescendants().OfType<ListBoxItem>().Where(i => i.IsEffectivelyVisible).ToList();
+                rows.Should().HaveCountGreaterOrEqualTo(minRows, context);
 
-                void AssertAligned(ListBox box, string context, int minRows = 2)
+                var crcBlocks = rows.Select(r => r.GetVisualDescendants().OfType<TextBlock>()
+                    .First(t => t.Classes.Contains("crc") && t.IsEffectivelyVisible)).ToList();
+                var crcX = crcBlocks.Select(t => BoundsIn(patchesWindow, t).Left).ToList();
+                crcX.Distinct().Should().HaveCount(1, $"{context}: CRCs should be left-aligned ({string.Join(", ", crcX)})");
+
+                var statusBlocks = rows.Select(r =>
                 {
-                    var rows = box.GetVisualDescendants().OfType<ListBoxItem>().Where(i => i.IsEffectivelyVisible).ToList();
-                    rows.Should().HaveCountGreaterOrEqualTo(minRows, context);
+                    var model = (PatchOriginOptionViewModel)r.DataContext!;
+                    return r.GetVisualDescendants().OfType<TextBlock>()
+                        .First(t => t.Classes.Contains("origin-status") && t.Text == model.StatusLabel && t.IsEffectivelyVisible);
+                }).ToList();
+                var statusX = statusBlocks.Select(t => BoundsIn(patchesWindow, t).Left).ToList();
+                statusX.Distinct().Should().HaveCount(1, $"{context}: status labels should be left-aligned ({string.Join(", ", statusX)})");
 
-                    var crcBlocks = rows.Select(r => r.GetVisualDescendants().OfType<TextBlock>()
-                        .First(t => t.Classes.Contains("crc") && t.IsEffectivelyVisible)).ToList();
-                    var crcX = crcBlocks.Select(t => BoundsIn(patchesWindow, t).Left).ToList();
-                    crcX.Distinct().Should().HaveCount(1, $"{context}: CRCs should be left-aligned ({string.Join(", ", crcX)})");
-
-                    var statusBlocks = rows.Select(r =>
+                if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
+                {
+                    foreach (var block in crcBlocks.Concat(statusBlocks))
                     {
-                        var model = (PatchOriginOptionViewModel)r.DataContext!;
-                        return r.GetVisualDescendants().OfType<TextBlock>()
-                            .First(t => t.Text == model.StatusLabel && t.IsEffectivelyVisible);
-                    }).ToList();
-                    var statusX = statusBlocks.Select(t => BoundsIn(patchesWindow, t).Left).ToList();
-                    statusX.Distinct().Should().HaveCount(1, $"{context}: status labels should be left-aligned ({string.Join(", ", statusX)})");
-
-                    if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
-                    {
-                        foreach (var block in crcBlocks.Concat(statusBlocks))
-                        {
-                            AssertNotTrimmed(block, $"{context} ({block.Text})");
-                            var probe = new TextBlock
-                            {
-                                Text = block.Text,
-                                FontFamily = block.FontFamily,
-                                FontSize = block.FontSize,
-                                FontWeight = block.FontWeight
-                            };
-                            probe.Measure(Size.Infinity);
-                            probe.DesiredSize.Width.Should().BeLessThanOrEqualTo(
-                                block.Bounds.Width + 1,
-                                $"{context} ({block.Text}) fits inside its fixed column width");
-                        }
+                        AssertNotTrimmed(block, $"{context} ({block.Text})");
                     }
                 }
+            }
 
-                AssertAligned(origins, "origins initially");
+            shown.Load();
+            await Task.WhenAll(shown.Rows.Select(r => r.FormsLoading));
+            var initialWindow = new PatchesWindow { DataContext = shown };
+            initialWindow.Show();
+            try
+            {
+                Settle(initialWindow);
+                var origins = initialWindow.FindControl<ListBox>("ListPatchOrigins")!;
+                var results = initialWindow.FindControl<ListBox>("ListPatchOriginResults")!;
+
+                AssertAligned(initialWindow, origins, "origins initially");
 
                 // Switch from the first patch to the second patch (contains Valid, Duplicate and Excluded)
                 shown.SelectedRow = shown.Rows[1];
-                Settle(patchesWindow);
-                AssertAligned(origins, "origins after switching patch", minRows: 3);
+                Settle(initialWindow);
+                AssertAligned(initialWindow, origins, "origins after switching patch", minRows: 3);
 
                 // Verify the search results list with Valid, Duplicate and Excluded
                 shown.OriginSearchText = "a";
-                Settle(patchesWindow);
-                AssertAligned(results, "search results", minRows: 3);
+                Settle(initialWindow);
+                AssertAligned(initialWindow, results, "search results", minRows: 3);
+            }
+            finally
+            {
+                initialWindow.Close();
+            }
 
-                // Verify column widths adapt cleanly when the UI language changes, and fit every FileStatus label
-                foreach (var locale in new[] { "en", "es", "fr" })
+            // Verify column widths fit aligned columns and every FileStatus label when opened in each UI language
+            foreach (var locale in new[] { "en", "es", "fr" })
+            {
+                vm.UiLocale = locale;
+                shown.Load();
+                await Task.WhenAll(shown.Rows.Select(r => r.FormsLoading));
+                var localizedWindow = new PatchesWindow { DataContext = shown };
+                localizedWindow.Show();
+                try
                 {
-                    vm.UiLocale = locale;
-                    Settle(patchesWindow);
-                    AssertAligned(origins, $"origins ({locale})", minRows: 3);
-                    AssertAligned(results, $"search results ({locale})", minRows: 3);
+                    shown.SelectedRow = shown.Rows[1];
+                    shown.OriginSearchText = "a";
+                    Settle(localizedWindow);
+                    var origins = localizedWindow.FindControl<ListBox>("ListPatchOrigins")!;
+                    var results = localizedWindow.FindControl<ListBox>("ListPatchOriginResults")!;
+                    AssertAligned(localizedWindow, origins, $"origins ({locale})", minRows: 3);
+                    AssertAligned(localizedWindow, results, $"search results ({locale})", minRows: 3);
 
                     if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
                     {
@@ -736,24 +740,14 @@ public sealed partial class GuiTests
                         foreach (var status in Enum.GetValues<FileStatus>())
                         {
                             var label = shown.I18n[PreviewItemViewModel.GetStatusLabelKey(status)];
-                            var probe = new TextBlock
-                            {
-                                Text = label,
-                                FontFamily = sampleStatus.FontFamily,
-                                FontSize = sampleStatus.FontSize,
-                                FontWeight = sampleStatus.FontWeight
-                            };
-                            probe.Measure(Size.Infinity);
-                            probe.DesiredSize.Width.Should().BeLessThanOrEqualTo(
-                                sampleStatus.Bounds.Width + 1,
-                                $"status '{label}' ({status}, {locale}) fits inside the fixed status column");
+                            AssertTextFits(sampleStatus, label, $"status '{label}' ({status}, {locale})");
                         }
                     }
                 }
-            }
-            finally
-            {
-                patchesWindow.Close();
+                finally
+                {
+                    localizedWindow.Close();
+                }
             }
         });
     }

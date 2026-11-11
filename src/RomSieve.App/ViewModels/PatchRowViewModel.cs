@@ -35,8 +35,6 @@ public sealed class PatchOriginOptionViewModel(ProcessItem origin, string source
     /// <summary>CRC32 of the form identified by the DAT, in uppercase hexadecimal; empty without one.</summary>
     public string Crc32 { get; } = string.IsNullOrEmpty(origin.Crc32) ? string.Empty : origin.Crc32.ToUpperInvariant();
 
-    public bool HasCrc32 => Crc32.Length > 0;
-
     /// <summary>Where the file is: its archive, or its path.</summary>
     public string Location { get; } = !string.IsNullOrEmpty(origin.ArchivePath) ? origin.ArchivePath : origin.SourcePath;
 

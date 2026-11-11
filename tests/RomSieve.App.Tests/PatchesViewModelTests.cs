@@ -320,7 +320,6 @@ public sealed class PatchesViewModelTests : IDisposable
         var marioData = Data(3, 512);
         var marioCrc = $"{Crc(marioData):X8}";
         window.OriginSearchResults.Select(o => o.Label).Should().Equal("Super Mario Bros. (World).sfc");
-        window.OriginSearchResults[0].HasCrc32.Should().BeTrue();
         window.OriginSearchResults[0].Crc32.Should().Be(marioCrc);
 
         // Searching by CRC32 (case-insensitive, with or without 0x, 6 to 8 hex digits) finds the same ROM
