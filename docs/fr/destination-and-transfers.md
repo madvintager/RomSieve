@@ -185,10 +185,10 @@ vérifiés. Le tri est plus lent, puisque chaque fichier est lu deux fois.
 
 ### Conserver les archives contenant un seul jeu
 
-**Conserver les archives contenant un seul jeu**, sous *Vérifier les fichiers copiés*, est décochée par défaut. Cochée,
-une archive de la source (ZIP, 7z, RAR) est écrite telle quelle, au lieu que son contenu soit extrait, quand elle
-contient un seul jeu (un fichier, ou un descripteur et ses pistes) et que le tri retient tous ses fichiers. Une archive
-qui contient un fichier de plus, comme un lisez-moi ou un `.nfo`, voit son contenu extrait, comme sans l'option.
+**Conserver les archives contenant un seul jeu**, à côté de *Vérifier les fichiers copiés*, est décochée par défaut.
+Cochée, une archive de la source (ZIP, 7z, RAR) est écrite telle quelle, au lieu que son contenu soit extrait, quand
+elle contient un seul jeu (un fichier, ou un descripteur et ses pistes) et que le tri retient tous ses fichiers. Une
+archive qui contient un fichier de plus, comme un lisez-moi ou un `.nfo`, voit son contenu extrait, comme sans l'option.
 
 L'archive est copiée, déplacée (instantanément sur un même disque ; d'un disque à l'autre, copiée, puis supprimée) ou
 liée, selon le mode : une image de disque de plusieurs gigaoctets n'est ni décompressée ni recompressée. L'option est
@@ -203,6 +203,8 @@ grisée en mode ZIP, qui écrit toujours une nouvelle archive TorrentZip.
 * L'espace requis sur la destination et l'alerte FAT32 comptent la taille de l'archive, pas celle de son contenu.
 * La playlist `.m3u` d'un jeu multi-disques liste les archives de ses disques. Certains émulateurs ouvrent un `.cue`
   dans un `.zip`, mais la plupart n'en ouvrent aucun dans un `.7z` ou un `.rar`.
+* La version patchée d'une ROM contenue dans une archive conservée est un fichier à part, écrit là où vont les versions
+  patchées : le patch lit la ROM dans l'archive, qui reste intacte ([Patchs](patches.md)).
 
 ## Conflits
 

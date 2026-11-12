@@ -185,10 +185,10 @@ every file is read twice.
 
 ### Preserve single-game archives
 
-**Preserve single-game archives**, below *Verify copied files*, is unchecked by default. Checked, a source archive (ZIP,
-7z, RAR) is written as it is, instead of having its content extracted, when it holds a single game (one file, or a
-descriptor and its tracks) and the sort keeps every file it holds. An archive that holds one more file, such as a readme
-or a `.nfo`, has its content extracted, as without the option.
+**Preserve single-game archives**, next to *Verify copied files*, is unchecked by default. Checked, a source archive
+(ZIP, 7z, RAR) is written as it is, instead of having its content extracted, when it holds a single game (one file, or
+a descriptor and its tracks) and the sort keeps every file it holds. An archive that holds one more file, such as a
+readme or a `.nfo`, has its content extracted, as without the option.
 
 The archive is copied, moved (instantly on the same disk; across disks, copied, then deleted) or linked, according to
 the mode: a disc image of several gigabytes is neither decompressed nor compressed again. The option is greyed out in
@@ -202,6 +202,8 @@ ZIP mode, which always writes a new TorrentZip archive.
 * The space needed on the destination and the FAT32 warning count the size of the archive, not that of its content.
 * The `.m3u` playlist of a multi-disk game lists the archives of its disks. Some emulators open a `.cue` inside a
   `.zip`, but most open none inside a `.7z` or a `.rar`.
+* The patched version of a ROM held in a preserved archive is a file of its own, written where the patched versions
+  go: the patch reads the ROM inside the archive, which stays intact ([Patches](patches.md)).
 
 ## Conflicts
 

@@ -433,6 +433,39 @@ public sealed class PatchTransferTests : IDisposable
         AssertNoTemporaryFile();
     }
 
+    [Theory]
+    [InlineData(TransferMode.Copy)]
+    [InlineData(TransferMode.Move)]
+    public async Task AnOriginInAPreservedArchive_ShouldBePatchedFromTheArchive_WhichIsWrittenAsItIs(TransferMode mode)
+    {
+        var zip = _temp.GetFilePath("src/Game (Japan).zip");
+        using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+        {
+            using var stream = archive.CreateEntry("Game (Japan).sfc").Open();
+            stream.Write(Japan);
+        }
+
+        var before = File.ReadAllBytes(zip);
+        var dat = WriteDat(("Game (Japan)", "Game (Japan).sfc", Japan));
+        _temp.WriteBytes("patches/Game (Japan) (T-En).bps", BpsLinear(Japan, Translated));
+
+        var config = Config(dat, mode);
+        config.PreserveArchives = true;
+        var result = await SortAsync(config);
+
+        var patched = PatchedVersion(result);
+        patched.Status.Should().Be(FileStatus.Valid);
+        patched.PreservesArchive.Should().BeFalse("a patched version is a file of its own, never an archive of the source");
+        var origin = result.Items.Single(it => it.Patch is null);
+        origin.Status.Should().Be(FileStatus.Valid);
+        origin.PreservesArchive.Should().BeTrue();
+        DestinationFiles().Should().BeEquivalentTo(["Game (Japan) [T-En].sfc", "Game (Japan).zip"]);
+        File.ReadAllBytes(Destination("Game (Japan) [T-En].sfc")).Should().Equal(Translated, "the patch read its origin in the archive");
+        File.ReadAllBytes(Destination("Game (Japan).zip")).Should().Equal(before, "the archive is written as it is");
+        File.Exists(zip).Should().Be(mode == TransferMode.Copy, "a move takes the archive after its patched version is written");
+        AssertNoTemporaryFile();
+    }
+
     [Fact]
     public async Task AnOriginWithACopierHeader_ShouldGiveTheResultOfThePatchWithoutTheHeader()
     {

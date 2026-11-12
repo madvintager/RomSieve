@@ -179,7 +179,10 @@ public sealed partial class GuiTests
                     if (page.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault() is { } scroller && step != WorkflowStep.Languages)
                     {
                         scroller.Extent.Width.Should().BeLessThanOrEqualTo(scroller.Viewport.Width + 1, $"{step} never scrolls sideways");
-                        if (isDefaultSize)
+                        // The Output step puts two boxes of its writing frame on a line, which the stand-in font of the
+                        // session, far wider than the real ones, cannot do: measured with the real fonts only
+                        // (OutputStep_ShouldNeedNoScrollingAtTheDefaultSize, in each language)
+                        if (isDefaultSize && (step != WorkflowStep.Output || Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1"))
                         {
                             scroller.Extent.Height.Should().BeLessThanOrEqualTo(scroller.Viewport.Height + 1, $"{step} needs no scrolling at the default size");
                         }
@@ -191,6 +194,49 @@ public sealed partial class GuiTests
                 Settle(window);
                 window.FindControl<ItemsControl>("ChipsLanguages")!.FindAncestorOfType<ScrollViewer>()!.Bounds.Height
                     .Should().BeGreaterThan(40, "the chips keep room to be read and reordered");
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>
+    /// The Output step needs no scrolling at the default size in any language, with a folder of the patches (the row of
+    /// the patched versions and the line of a patched version in the preview): the verification of the copies and the
+    /// preservation of the archives share a line of the writing frame. Measured with the real fonts only
+    /// (ROMSIEVE_HEADLESS_SKIA=1): the stand-in font of the session puts each box on a line of its own.
+    /// </summary>
+    [Theory]
+    [InlineData("fr")]
+    [InlineData("en")]
+    [InlineData("es")]
+    public async Task OutputStep_ShouldNeedNoScrollingAtTheDefaultSize(string locale)
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            vm.UiLocale = locale;
+            vm.Directories.PatchDir = Path.Combine(_tempDir, "patches");
+            var window = new MainWindow(vm) { Width = 1280, Height = 700 };
+            window.Show();
+            try
+            {
+                vm.Navigation.CurrentStep = WorkflowStep.Output;
+                Settle(window);
+
+                var writingOptions = window.FindControl<WrapPanel>("PanelWritingOptions")!;
+                writingOptions.Children.Select(c => c.Name).Should().Equal("ChkVerifyCopies", "ChkPreserveArchives");
+                if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
+                {
+                    var verify = window.FindControl<CheckBox>("ChkVerifyCopies")!;
+                    var preserve = window.FindControl<CheckBox>("ChkPreserveArchives")!;
+                    BoundsIn(window, preserve).Top.Should().BeApproximately(BoundsIn(window, verify).Top, 1, $"the two boxes share a line ({locale})");
+
+                    var scroller = window.FindControl<Control>("PageOutput")!.GetVisualDescendants().OfType<ScrollViewer>().First();
+                    scroller.Extent.Height.Should().BeLessThanOrEqualTo(scroller.Viewport.Height + 1, $"the Output step needs no scrolling ({locale})");
+                }
             }
             finally
             {
