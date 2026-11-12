@@ -2537,34 +2537,49 @@ public sealed partial class DatService : IDatService
             return (size, crc, md5, sha1);
         }
 
-        if (!string.IsNullOrEmpty(item.ArchivePath) &&
-            !string.IsNullOrEmpty(item.ArchiveMember) &&
-            File.Exists(item.ArchivePath))
+        string? archivePathToOpen = null;
+        if (!string.IsNullOrEmpty(item.ArchiveMember))
+        {
+            if (!string.IsNullOrEmpty(item.ArchivePath) && File.Exists(item.ArchivePath))
+            {
+                archivePathToOpen = item.ArchivePath;
+            }
+            else if (item.PreservesArchive && !string.IsNullOrEmpty(item.FinalTargetPath) && File.Exists(item.FinalTargetPath))
+            {
+                archivePathToOpen = item.FinalTargetPath;
+            }
+        }
+
+        if (archivePathToOpen is not null)
         {
             try
             {
-                await using var stream = _checksumService.OpenArchiveMember(item.ArchivePath, item.ArchiveMember);
+                await using var stream = _checksumService.OpenArchiveMember(archivePathToOpen, item.ArchiveMember!);
                 if (string.IsNullOrEmpty(crc))
                 {
                     crc = stream.ExpectedCrc32;
                 }
 
-                if (string.IsNullOrEmpty(md5) || string.IsNullOrEmpty(sha1))
+                if (string.IsNullOrEmpty(md5) || string.IsNullOrEmpty(sha1) || string.IsNullOrEmpty(crc))
                 {
                     using var hMd5 = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
                     using var hSha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+                    var hCrc = new System.IO.Hashing.Crc32();
                     var buffer = new byte[65536];
                     int read;
                     while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
                     {
-                        hMd5.AppendData(buffer, 0, read);
-                        hSha1.AppendData(buffer, 0, read);
+                        if (string.IsNullOrEmpty(md5)) hMd5.AppendData(buffer, 0, read);
+                        if (string.IsNullOrEmpty(sha1)) hSha1.AppendData(buffer, 0, read);
+                        if (string.IsNullOrEmpty(crc)) hCrc.Append(buffer.AsSpan(0, read));
                     }
 
+                    if (string.IsNullOrEmpty(crc))
+                        crc = Convert.ToHexStringLower(hCrc.GetCurrentHash());
                     if (string.IsNullOrEmpty(md5))
-                        md5 = Convert.ToHexString(hMd5.GetHashAndReset()).ToLowerInvariant();
+                        md5 = Convert.ToHexStringLower(hMd5.GetHashAndReset());
                     if (string.IsNullOrEmpty(sha1))
-                        sha1 = Convert.ToHexString(hSha1.GetHashAndReset()).ToLowerInvariant();
+                        sha1 = Convert.ToHexStringLower(hSha1.GetHashAndReset());
                 }
             }
             catch
@@ -2572,7 +2587,7 @@ public sealed partial class DatService : IDatService
                 // Ignore archive errors
             }
         }
-        else
+        else if (!item.PreservesArchive)
         {
             var candidatePaths = new List<string>();
             if (!string.IsNullOrEmpty(item.FinalTargetPath) && File.Exists(item.FinalTargetPath))

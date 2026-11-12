@@ -364,7 +364,7 @@ public sealed partial class ExecutionViewModel : ViewModelBase
 
         var stats = _processorService.RecomputeStats(written);
         var summary = BuildSummary(config, stats, gameCount, requiredSets, isPartOfSimulation);
-        var oversized = Fat32Limit.FindOversizedOutputFiles(written, config.TransferMode).Count;
+        var oversized = Fat32Limit.FindOversizedOutputFiles(written, config).Count;
         if (oversized > 0)
         {
             summary = _localization.Tr("panel4.summary_partial_fat32", ("summary", summary), ("count", oversized));

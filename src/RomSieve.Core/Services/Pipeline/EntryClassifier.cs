@@ -625,6 +625,8 @@ public sealed class EntryClassifier
                 Sha1 = fingerprint.Sha1,
                 ArchivePath = archPath,
                 ArchiveMember = archMember,
+                ArchiveTotalMemberCount = entry.ArchiveTotalMemberCount,
+                ArchiveFileSize = entry.ArchiveFileSize,
                 Status = FileStatus.Unmatched,
                 StatusReason = sha1Mismatch ?? LocalizedMessage.Create("reason.unmatched_not_in_dat"),
                 IdentificationFailure = sha1Mismatch is null ? IdentificationFailure.NotInDat : IdentificationFailure.Sha1Mismatch
@@ -648,7 +650,9 @@ public sealed class EntryClassifier
             FileSize = fileSize,
             Parsed = directParsed,
             ArchivePath = archPath,
-            ArchiveMember = archMember
+            ArchiveMember = archMember,
+            ArchiveTotalMemberCount = entry.ArchiveTotalMemberCount,
+            ArchiveFileSize = entry.ArchiveFileSize
         };
 
         ApplyInitialFilters(directItem);
@@ -830,6 +834,8 @@ public sealed class EntryClassifier
             DatGameName = game?.Name,
             ArchivePath = entry.ArchivePath,
             ArchiveMember = entry.ArchiveMember,
+            ArchiveTotalMemberCount = entry.ArchiveTotalMemberCount,
+            ArchiveFileSize = entry.ArchiveFileSize,
             IsMultidisk = isMulti
         };
 

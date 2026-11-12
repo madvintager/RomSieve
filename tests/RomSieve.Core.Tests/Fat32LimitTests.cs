@@ -161,4 +161,39 @@ public sealed class Fat32LimitTests
                 ("count", 3),
                 ("examples", "Large.iso, Medium.iso, Small.iso")));
     }
+
+    [Fact]
+    public void FindOversizedOutputFiles_WithArchiveSingleGame_ShouldRespectPreserveArchivesOption()
+    {
+        var item = Item("Game.iso", 5 * GiB);
+        item.ArchivePath = Path.Combine(Path.GetTempPath(), "fat32_src", "Game.zip");
+        item.ArchiveTotalMemberCount = 1;
+        item.ArchiveFileSize = 3 * GiB;
+
+        // When preserveArchives is false (default), the uncompressed 5 GiB ISO is extracted, so it exceeds FAT32 limit
+        var oversizedDefault = Fat32Limit.FindOversizedOutputFiles([item], TransferMode.Copy, preserveArchives: false);
+        oversizedDefault.Should().ContainSingle();
+        oversizedDefault[0].Size.Should().Be(5 * GiB);
+
+        // When preserveArchives is true, the 3 GiB archive is preserved intact and fits on FAT32
+        var oversizedPreserved = Fat32Limit.FindOversizedOutputFiles([item], TransferMode.Copy, preserveArchives: true);
+        oversizedPreserved.Should().BeEmpty();
+
+        // If the archive itself is over 4 GiB, it is reported with the archive size
+        item.ArchiveFileSize = 6 * GiB;
+        var oversizedLargeArchive = Fat32Limit.FindOversizedOutputFiles([item], TransferMode.Copy, preserveArchives: true);
+        oversizedLargeArchive.Should().ContainSingle();
+        oversizedLargeArchive[0].Size.Should().Be(6 * GiB);
+
+        // If the archive is 6 GiB but the extracted member is 3 GiB, with preserveArchives=false it fits on FAT32
+        item.FileSize = 3 * GiB;
+        var oversizedExtractedSmall = Fat32Limit.FindOversizedOutputFiles([item], TransferMode.Copy, preserveArchives: false);
+        oversizedExtractedSmall.Should().BeEmpty();
+
+        // When preserveArchives parameter is omitted, it takes item.PreservesArchive
+        item.PreservesArchive = true;
+        var oversizedFromItem = Fat32Limit.FindOversizedOutputFiles([item], TransferMode.Copy);
+        oversizedFromItem.Should().ContainSingle();
+        oversizedFromItem[0].Size.Should().Be(6 * GiB);
+    }
 }

@@ -126,7 +126,7 @@ details), and the sentence of the selected mode stays under the list.
 | Mode | What happens | Source | Notes |
 |---|---|---|---|
 | **Copy** | Files are copied | Unchanged | The safest choice. |
-| **Move** | Files are moved | Emptied of the kept files | Instant on the same disk; across disks, copied, written to the disk, then deleted. An inspected archive is never moved: its members are extracted. |
+| **Move** | Files are moved | Emptied of the kept files | Instant on the same disk; across disks, copied, written to the disk, then deleted. An inspected archive is never moved: its members are extracted (except when *Preserve single-game archives* is active). |
 | **Hard link** | A second name for the same data | Unchanged | No extra space. Same disk only; not on FAT32 / exFAT. An emulator that writes to the file (an ADF floppy in WinUAE, for instance) also changes the one in the source: they are the same data. |
 | **Symlink** | A shortcut pointing to the source | Must stay in place | No extra space. On Windows, creating symbolic links may require the Developer Mode or administrator rights. An emulator that writes to the file changes the one in the source. |
 | **ZIP** | One ZIP archive per file | Unchanged | A descriptor and its tracks share one archive. |
@@ -158,6 +158,23 @@ its CRC32 is compared with the data read from the source (in ZIP mode, every fil
 signature of the archive). On a mismatch (faulty disk, cable, network), the copy is
 deleted, the source is kept, and the file is marked in error. Links are not verified. This slows the sort down, since
 every file is read twice.
+
+### Preserve single-game archives
+
+Below **Verify copied files**, the option **Preserve single-game archives** (disabled by default) allows source archives
+(ZIP, 7z, RAR) to be transferred intact when they contain exactly one game (or an optical descriptor and its companion tracks)
+and all their members are kept by the sort. An archive holding an extra file (such as a readme or a `.nfo` file) is not preserved
+as an archive and has its members extracted, since it must contain exactly one game and all its files.
+
+Instead of extracting large files (such as multi-gigabyte ISO disc images) to copy or recompress them, RomSieve directly
+transfers the original container (copy, immediate move on the same disk or after copy to another disk, hard link, or symlink). The archive's extension
+(`.7z`, `.zip`, `.rar`) is preserved on the target file, and the files inside retain their original names inside the archive,
+even when the DAT gives them a different name.
+When this option is checked, destination space and FAT32 limits are calculated using the archive's size rather than the uncompressed content size.
+This option is disabled in ZIP mode (since TorrentZip requires standardized recompression).
+
+> With this option enabled, `.m3u` playlists generated for multi-disc games will directly reference the archive containers (`.zip`, `.7z`, `.rar`).
+> Depending on the emulator, opening a `.cue` descriptor located inside a `.zip` may be supported, but most emulators cannot open a `.cue` inside a `.7z` or `.rar` archive.
 
 ## Conflicts
 

@@ -48,6 +48,12 @@ public sealed class SortSettings
     public TransferMode TransferMode { get; set; } = TransferMode.Copy;
     public CollisionMode CollisionMode { get; set; } = CollisionMode.Rename;
     public bool VerifyCopies { get; set; }
+
+    /// <summary>
+    /// When an archive (ZIP, 7z, RAR) contains a single game and all its files are kept, copies or moves the archive as
+    /// a whole instead of extracting its content.
+    /// </summary>
+    public bool PreserveArchives { get; set; }
     public bool IsolateUnmatched { get; set; } = true;
     public int HashingParallelism { get; set; } = 1;
     public bool VerifySha1 { get; set; }

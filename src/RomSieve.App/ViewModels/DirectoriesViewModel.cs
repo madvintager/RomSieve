@@ -395,6 +395,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     [NotifyPropertyChangedFor(nameof(IsTransferHardLink))]
     [NotifyPropertyChangedFor(nameof(IsTransferSymbolicLink))]
     [NotifyPropertyChangedFor(nameof(IsTransferZip))]
+    [NotifyPropertyChangedFor(nameof(CanPreserveArchives))]
     private TransferMode _selectedTransferMode = TransferMode.Copy;
 
     partial void OnSelectedTransferModeChanged(TransferMode value) => TransferModeHint = TransferModeHintFor(value);
@@ -429,11 +430,16 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         set { if (value) SelectedTransferMode = TransferMode.Zip; }
     }
 
+    public bool CanPreserveArchives => SelectedTransferMode != TransferMode.Zip;
+
     [ObservableProperty]
     private CollisionMode _selectedCollisionMode = CollisionMode.Rename;
 
     [ObservableProperty]
     private bool _verifyCopies;
+
+    [ObservableProperty]
+    private bool _preserveArchives;
 
     /// <summary>Whether the sort writes the non-conforming files in <c>_unmatched</c> of the destination.</summary>
     [ObservableProperty]
@@ -1247,6 +1253,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         settings.TransferMode = SelectedTransferMode;
         settings.CollisionMode = SelectedCollisionMode;
         settings.VerifyCopies = VerifyCopies;
+        settings.PreserveArchives = PreserveArchives;
         settings.IsolateUnmatched = IsolateUnmatched;
         settings.HashingParallelism = HashingParallelism;
         settings.VerifySha1 = VerifySha1;
@@ -1291,6 +1298,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         SelectedTransferMode = settings.TransferMode;
         SelectedCollisionMode = settings.CollisionMode;
         VerifyCopies = settings.VerifyCopies;
+        PreserveArchives = settings.PreserveArchives;
         IsolateUnmatched = settings.IsolateUnmatched;
         HashingParallelism = settings.HashingParallelism;
         VerifySha1 = settings.VerifySha1;

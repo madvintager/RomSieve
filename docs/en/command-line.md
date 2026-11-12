@@ -87,6 +87,7 @@ the settings keep no game, no file is written and the exit code is 4.
 | `--categories <file>` | Category file of the MAME machines (`catver.ini`, `catlist.ini`) |
 | `--ratings <file>` | Rating file of the MAME machines (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` or `zip` |
+| `--preserve-archives` | Preserves single-game source archives without extracting them (copy, move, hardlink, symlink modes) |
 | `--append` | Completes a non-empty destination |
 | `--purge` | Purges a non-empty destination first (requires `--execute` and `--yes`) |
 | `-y`, `--yes` | Confirms a purge or an undo |

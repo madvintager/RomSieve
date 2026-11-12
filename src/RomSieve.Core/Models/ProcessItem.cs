@@ -12,7 +12,9 @@ public sealed record ScanEntry(
     string? ArchivePath = null,
     string? ArchiveMember = null,
     string? PrecomputedCrc = null,
-    IReadOnlyList<ScanEntry>? RelatedEntries = null
+    IReadOnlyList<ScanEntry>? RelatedEntries = null,
+    int ArchiveTotalMemberCount = 0,
+    long ArchiveFileSize = 0
 )
 {
     public string DisplayName => !string.IsNullOrEmpty(ArchiveMember)
@@ -242,6 +244,36 @@ public sealed class ProcessItem
     /// another archive in ZIP mode, nor renamed on a collision, since MAME finds a set by its file name only.
     /// </summary>
     public bool IsWholeArchive { get; set; }
+
+    /// <summary>Total number of members in the archive this item was read from, or 0 if not from an archive.</summary>
+    public int ArchiveTotalMemberCount { get; set; }
+
+    /// <summary>File size of the archive on disk, or 0 if not from an archive.</summary>
+    public long ArchiveFileSize { get; set; }
+
+    /// <summary>
+    /// Whether this item is transferred as its original compressed archive instead of having its member extracted.
+    /// </summary>
+    public bool PreservesArchive { get; set; }
+
+    /// <summary>
+    /// Whether this item represents a single-game source archive that is preserved intact without extracting its members.
+    /// Only applies to kept games (<see cref="FileStatus.Valid"/>) when archive preservation is enabled and not in ZIP mode.
+    /// </summary>
+    public bool PreservesSourceArchive(bool preserveArchives, TransferMode transferMode) =>
+        preserveArchives &&
+        transferMode != TransferMode.Zip &&
+        (Status == FileStatus.Valid || (IsOutsideSelection && ReleaseStatus == FileStatus.Valid)) &&
+        !IsWholeArchive &&
+        !string.IsNullOrEmpty(ArchivePath) &&
+        ArchiveTotalMemberCount > 0 &&
+        ArchiveTotalMemberCount == 1 + RelatedItems.Count;
+
+    /// <summary>
+    /// Whether this item represents a single-game source archive that is preserved intact (<see cref="PreservesSourceArchive(bool, TransferMode)"/>).
+    /// </summary>
+    public bool PreservesSourceArchive(SortConfig config) =>
+        PreservesSourceArchive(config.PreserveArchives, config.TransferMode);
 
     /// <summary>Comparison of a MAME set with its machine of the DAT; <see langword="null"/> for any other item.</summary>
     public MameSetInfo? MameSet { get; set; }

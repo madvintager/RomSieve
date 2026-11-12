@@ -87,6 +87,7 @@ réglages ne gardent aucun jeu, aucun fichier n'est écrit et le code de sortie 
 | `--categories <fichier>` | Fichier de catégories des machines MAME (`catver.ini`, `catlist.ini`) |
 | `--ratings <fichier>` | Fichier de notes des machines MAME (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` ou `zip` |
+| `--preserve-archives` | Conserve les archives source contenant un seul jeu sans les extraire (modes copy, move, hardlink, symlink) |
 | `--append` | Complète une destination non vide |
 | `--purge` | Purge d'abord une destination non vide (exige `--execute` et `--yes`) |
 | `-y`, `--yes` | Confirme une purge ou une annulation |

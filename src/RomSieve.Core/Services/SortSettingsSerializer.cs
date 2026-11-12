@@ -56,6 +56,7 @@ public static class SortSettingsSerializer
         data["transfer_mode"] = s.TransferMode.ToConfigString();
         data["collision_mode"] = s.CollisionMode.ToConfigString();
         data["verify_copies"] = s.VerifyCopies;
+        data["preserve_archives"] = s.PreserveArchives;
         data["isolate_unmatched"] = s.IsolateUnmatched;
         data["hashing_parallelism"] = s.HashingParallelism;
         data["verify_sha1"] = s.VerifySha1;
@@ -155,6 +156,7 @@ public static class SortSettingsSerializer
             TransferMode = s.TransferMode,
             CollisionMode = s.CollisionMode,
             VerifyCopies = s.VerifyCopies,
+            PreserveArchives = s.PreserveArchives,
             IsolateUnmatched = s.IsolateUnmatched,
             HashingParallelism = s.HashingParallelism,
             VerifySha1 = s.VerifySha1,
@@ -273,6 +275,7 @@ public static class SortSettingsSerializer
         if (TryGetString(data, "transfer_mode", out var transfer)) s.TransferMode = EnumExtensions.ParseTransferMode(transfer);
         if (TryGetString(data, "collision_mode", out var collision)) s.CollisionMode = EnumExtensions.ParseCollisionMode(collision);
         if (TryGetBool(data, "verify_copies", out var verifyCopies)) s.VerifyCopies = verifyCopies;
+        if (TryGetBool(data, "preserve_archives", out var preserveArchives)) s.PreserveArchives = preserveArchives;
         if (TryGetBool(data, "isolate_unmatched", out var isolateUnmatched)) s.IsolateUnmatched = isolateUnmatched;
         if (TryGetBool(data, "verify_sha1", out var verifySha1)) s.VerifySha1 = verifySha1;
         if (TryGetBool(data, "verify_archive_contents", out var verifyArchives)) s.VerifyArchiveContents = verifyArchives;

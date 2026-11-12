@@ -857,8 +857,10 @@ public sealed partial class MainViewModel : ViewModelBase
     /// </summary>
     private void UpdateStatsBanner(IReadOnlyCollection<ProcessItem> items, ProcessStats stats)
     {
-        var transferMode = Execution.LastExecutedConfig?.TransferMode ?? TransferMode.Copy;
-        StatsBanner.UpdateStats(stats, transferMode, Fat32Limit.FindOversizedOutputFiles(items, transferMode));
+        var config = Execution.LastExecutedConfig;
+        var transferMode = config?.TransferMode ?? TransferMode.Copy;
+        var preserveArchives = config?.PreserveArchives ?? false;
+        StatsBanner.UpdateStats(stats, transferMode, Fat32Limit.FindOversizedOutputFiles(items, transferMode, preserveArchives), preserveArchives);
     }
 
     private void OnRunFailed(object? sender, EventArgs e)

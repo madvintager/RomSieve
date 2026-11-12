@@ -854,6 +854,25 @@ public sealed class CliApplicationTests : IDisposable
             .And.Contain($"Crash report saved in: {report}");
     }
 
+    [Fact]
+    public async Task Run_WithPreserveArchives_ShouldCopyArchiveIntact()
+    {
+        var zipName = "Game (USA).zip";
+        var zipPath = Path.Combine(_source, zipName);
+        using (var zip = System.IO.Compression.ZipFile.Open(zipPath, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            var entry = zip.CreateEntry("Game (USA).iso");
+            using var s = entry.Open();
+            s.Write("iso content"u8);
+        }
+
+        WriteConfig();
+
+        var run = await RunAsync("run", "--execute", "--preserve-archives");
+        run.ExitCode.Should().Be(ExitCodes.Success, run.Error);
+        DestinationFiles().Should().Contain(zipName);
+    }
+
     /// <summary>Standard output that fails at the first write, as a closed pipe would.</summary>
     private sealed class FailingWriter : StringWriter
     {

@@ -42,6 +42,7 @@ public sealed class CliApplication
     private readonly Option<string?> _categoriesOption = new("--categories");
     private readonly Option<string?> _ratingsOption = new("--ratings");
     private readonly Option<string?> _modeOption = new("--mode");
+    private readonly Option<bool> _preserveArchivesOption = new("--preserve-archives");
     private readonly Option<bool> _executeOption = new("--execute");
     private readonly Option<bool> _appendOption = new("--append");
     private readonly Option<bool> _purgeOption = new("--purge");
@@ -157,6 +158,7 @@ public sealed class CliApplication
         _ratingsOption.HelpName = Tr("cli.help_file");
         _modeOption.Description = Tr("cli.option_mode");
         _modeOption.AcceptOnlyFromAmong(TransferModeNames);
+        _preserveArchivesOption.Description = Tr("cli.option_preserve_archives");
         _executeOption.Description = Tr("cli.option_execute");
         _appendOption.Description = Tr("cli.option_append");
         _purgeOption.Description = Tr("cli.option_purge");
@@ -175,7 +177,7 @@ public sealed class CliApplication
         var run = new Command("run", Tr("cli.command_run"))
         {
             _profileOption, _sourceOption, _destinationOption, _datOption, _datRecursiveOption, _datOnlyOption, _datMirrorOption,
-            _chdOption, _categoriesOption, _ratingsOption, _modeOption, _executeOption, _appendOption, _purgeOption, _yesOption,
+            _chdOption, _categoriesOption, _ratingsOption, _modeOption, _preserveArchivesOption, _executeOption, _appendOption, _purgeOption, _yesOption,
             _forceForeignPurgeOption, _reportOption, _missListOption, _fixDatOption
         };
         run.SetAction((parseResult, cancellationToken) => RunSortAsync(parseResult, cancellationToken));
@@ -657,6 +659,7 @@ public sealed class CliApplication
         if (parseResult.GetValue(_categoriesOption) is { } categories) settings.MameCategoryFile = categories;
         if (parseResult.GetValue(_ratingsOption) is { } ratings) settings.MameRatingFile = ratings;
         if (parseResult.GetValue(_modeOption) is { } mode) settings.TransferMode = EnumExtensions.ParseTransferMode(mode);
+        if (parseResult.GetResult(_preserveArchivesOption) is not null) settings.PreserveArchives = parseResult.GetValue(_preserveArchivesOption);
         if (parseResult.GetValue(_appendOption)) settings.AppendToDestination = true;
     }
 

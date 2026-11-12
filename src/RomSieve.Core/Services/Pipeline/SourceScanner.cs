@@ -233,6 +233,15 @@ public sealed class SourceScanner
                     var members = _headerCache?.GetArchiveMembers(fp, _checksumService) ?? _checksumService.GetArchiveMembers(fp);
                     if (members.Count > 0)
                     {
+                        long archiveSize = 0;
+                        try
+                        {
+                            archiveSize = new FileInfo(fp).Length;
+                        }
+                        catch (IOException)
+                        {
+                        }
+
                         var claimedZipMembers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         var descZipCompanions = new Dictionary<string, List<ArchiveMember>>(StringComparer.OrdinalIgnoreCase);
                         var descMembers = members.Where(m => _opticalService.IsDescriptor(m.MemberName)).ToList();
@@ -290,7 +299,9 @@ public sealed class SourceScanner
                                         FileSize: cMember.Size,
                                         ArchivePath: fp,
                                         ArchiveMember: cMember.MemberName,
-                                        PrecomputedCrc: cMember.Crc32));
+                                        PrecomputedCrc: cMember.Crc32,
+                                        ArchiveTotalMemberCount: members.Count,
+                                        ArchiveFileSize: archiveSize));
                                 }
                             }
 
@@ -300,7 +311,9 @@ public sealed class SourceScanner
                                 ArchivePath: fp,
                                 ArchiveMember: m.MemberName,
                                 PrecomputedCrc: m.Crc32,
-                                RelatedEntries: related));
+                                RelatedEntries: related,
+                                ArchiveTotalMemberCount: members.Count,
+                                ArchiveFileSize: archiveSize));
                         }
                         continue;
                     }

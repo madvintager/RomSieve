@@ -127,7 +127,7 @@ détail), et la phrase du mode choisi reste affichée sous la liste.
 | Mode | Effet | Source | Remarques |
 |---|---|---|---|
 | **Copier** | Les fichiers sont copiés | Inchangée | Le choix le plus sûr. |
-| **Déplacer** | Les fichiers sont déplacés | Vidée des fichiers retenus | Instantané sur un même disque ; d'un disque à l'autre, copie, écriture sur le disque, puis suppression. Une archive inspectée n'est jamais déplacée : ses fichiers sont extraits. |
+| **Déplacer** | Les fichiers sont déplacés | Vidée des fichiers retenus | Instantané sur un même disque ; d'un disque à l'autre, copie, écriture sur le disque, puis suppression. Une archive inspectée n'est jamais déplacée : ses fichiers sont extraits (sauf avec *Conserver les archives contenant un seul jeu*). |
 | **Hard link** | Un second nom pour les mêmes données | Inchangée | Aucun espace supplémentaire. Sur un même disque uniquement ; pas en FAT32 / exFAT. Un émulateur qui écrit dans le fichier (une disquette ADF sous WinUAE, par exemple) modifie aussi celui de la source : ce sont les mêmes données. |
 | **Symlink** | Un raccourci vers la source | Doit rester en place | Aucun espace supplémentaire. Sous Windows, créer des liens symboliques peut exiger le mode développeur ou les droits d'administrateur. Un émulateur qui écrit dans le fichier modifie celui de la source. |
 | **ZIP** | Une archive ZIP par fichier | Inchangée | Un descripteur et ses pistes partagent la même archive. |
@@ -159,6 +159,23 @@ relu, et son CRC32 est comparé à celui des données lues à la source (en mode
 signature TorrentZip de l'archive). En cas d'écart (disque, câble ou réseau
 défaillant), la copie est supprimée, la source est conservée et le fichier est marqué en erreur. Les liens ne sont pas
 vérifiés. Le tri est plus lent, puisque chaque fichier est lu deux fois.
+
+### Conserver les archives contenant un seul jeu
+
+Sous **Vérifier les fichiers copiés**, l'option **Conserver les archives contenant un seul jeu** (désactivée par défaut)
+permet de transférer intactes les archives source (ZIP, 7z, RAR) lorsqu'elles contiennent exactement un jeu (ou un descripteur optique
+et ses pistes associées) et que tous leurs membres sont retenus par le tri. Une archive contenant un fichier annexe (comme un lisez-moi ou un fichier `.nfo`)
+n'est pas conservée sous forme d'archive et voit ses membres extraits, car il faut exactement un jeu et tous ses fichiers.
+
+Au lieu d'extraire de volumineux fichiers (par exemple des images disques ISO de plusieurs gigaoctets) pour les copier ou les
+recompresser, RomSieve transfère directement le conteneur d'origine (copie, déplacement direct sur un même disque ou après copie vers un autre disque, lien
+physique ou symbolique). L'extension de l'archive (`.7z`, `.zip`, `.rar`) est conservée sur le fichier cible, et les fichiers qu'elle contient
+gardent leur nom d'origine à l'intérieur de l'archive, même quand le DAT leur donne un nom différent.
+Quand cette option est cochée, l'espace requis et les limites FAT32 sont calculés d'après la taille de l'archive plutôt que celle de son contenu décompressé.
+Cette option est grisée en mode ZIP (TorrentZip exigeant une recompression normalisée).
+
+> Avec cette option, les playlists `.m3u` créées pour les jeux multi-disques pointeront directement vers les conteneurs d'archives (`.zip`, `.7z`, `.rar`).
+> Selon l'émulateur, l'ouverture d'un descripteur `.cue` situé dans un `.zip` peut être prise en charge, mais la plupart des émulateurs ne savent pas ouvrir un `.cue` à l'intérieur d'un `.7z` ou d'un `.rar`.
 
 ## Conflits
 

@@ -121,7 +121,9 @@ public sealed partial class FileTransferExecutor
         }
 
         // Counted as written before its transfer: now counted in error
-        var bytes = item.FileSize + item.RelatedItems.Sum(r => r.FileSize);
+        var bytes = expected == FileStatus.Valid && item.PreservesArchive && item.ArchiveFileSize > 0
+            ? item.ArchiveFileSize
+            : (item.FileSize + item.RelatedItems.Sum(r => r.FileSize));
         if (expected == FileStatus.Valid)
         {
             stats.ValidCount--;
@@ -517,6 +519,15 @@ public sealed partial class FileTransferExecutor
 
         // A file left out of a partial sort shows the target the full sort would have given it
         var targetFilename = !string.IsNullOrEmpty(item.TargetFilename) ? item.TargetFilename : displayName;
+        if (item.PreservesSourceArchive(_config))
+        {
+            item.PreservesArchive = true;
+            targetFilename = Path.ChangeExtension(targetFilename, Path.GetExtension(item.ArchivePath));
+            foreach (var rel in item.RelatedItems)
+            {
+                rel.PreservesArchive = true;
+            }
+        }
         var targetPath = item.IsOutsideSelection && item.ReleaseStatus == FileStatus.Unmatched
             ? ToTargetPath(item, Path.Combine(destDir, PathOrganizerService.UnmatchedFolderName, displayName))
             : _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item));
@@ -541,7 +552,7 @@ public sealed partial class FileTransferExecutor
             relItem.EliminatedBy = item.EliminatedBy;
             relItem.IsOutsideSelection = item.IsOutsideSelection;
 
-            var relTarget = UsesZip(item) ? targetPath : Path.Combine(finalParent, GetRelatedTargetName(relItem));
+            var relTarget = UsesZip(item) || item.PreservesSourceArchive(_config) ? targetPath : Path.Combine(finalParent, GetRelatedTargetName(relItem));
             relItem.TargetPath = relTarget;
             relItem.FinalTargetPath = relTarget;
         }
@@ -561,6 +572,15 @@ public sealed partial class FileTransferExecutor
 
         var displayName = item.DisplayName;
         var targetFilename = !string.IsNullOrEmpty(item.TargetFilename) ? item.TargetFilename : displayName;
+        if (item.PreservesSourceArchive(_config))
+        {
+            item.PreservesArchive = true;
+            targetFilename = Path.ChangeExtension(targetFilename, Path.GetExtension(item.ArchivePath));
+            foreach (var rel in item.RelatedItems)
+            {
+                rel.PreservesArchive = true;
+            }
+        }
         var candidateTarget = _organizer.BuildTargetPath(item.Parsed, targetFilename, _config, item.IsMultiMedia, PlacementOf(item));
 
         item.TargetPath = candidateTarget;
@@ -587,7 +607,9 @@ public sealed partial class FileTransferExecutor
         else
         {
             stats.ValidCount++;
-            stats.ValidBytes += item.FileSize + item.RelatedItems.Sum(r => r.FileSize);
+            stats.ValidBytes += item.PreservesArchive && item.ArchiveFileSize > 0
+                ? item.ArchiveFileSize
+                : (item.FileSize + item.RelatedItems.Sum(r => r.FileSize));
             item.Status = FileStatus.Valid;
 
             if (UsesZip(item))
@@ -596,6 +618,19 @@ public sealed partial class FileTransferExecutor
                 if (item.Status == FileStatus.Valid)
                 {
                     LogWritten(LogLevel.Ok, LocalizedMessage.Create("log.item_target", ("name", displayName), ("target", Path.GetRelativePath(destDir, set.PrimaryTarget))));
+                }
+
+                CompleteSet(item, set, FileStatus.Valid, stats);
+                return;
+            }
+
+            if (item.PreservesSourceArchive(_config))
+            {
+                await TransferPreservedArchiveAsync(item, set, cancellationToken).ConfigureAwait(false);
+                if (item.Status == FileStatus.Valid)
+                {
+                    var relDisp = Path.GetRelativePath(destDir, set.PrimaryTarget);
+                    LogWritten(LogLevel.Ok, LocalizedMessage.Create("log.item_target", ("name", displayName), ("target", relDisp)));
                 }
 
                 CompleteSet(item, set, FileStatus.Valid, stats);
@@ -679,7 +714,7 @@ public sealed partial class FileTransferExecutor
     private TargetSet ResolveItemSet(ProcessItem item, string candidateTarget, ISet<string> claimedPaths)
     {
         var collisionMode = GetCollisionMode(item);
-        if (UsesZip(item))
+        if (UsesZip(item) || item.PreservesSourceArchive(_config))
         {
             // The companions go into the archive of their item: only the archive itself may collide
             var (zipPaths, zipSkipped) = _organizer.ResolveSetCollision([candidateTarget], collisionMode, claimedPaths);
@@ -822,6 +857,37 @@ public sealed partial class FileTransferExecutor
                 _log(LogLevel.Error, LocalizedMessage.Create("log.transfer_error", ("name", item.DisplayName), ("error", ex.Message)));
                 NoteFailure(item, ex);
             }
+        }
+    }
+
+    /// <summary>
+    /// Preserved archive mode: transfers the source archive itself (<see cref="ProcessItem.ArchivePath"/>) to
+    /// <see cref="TargetSet.PrimaryTarget"/> instead of extracting its member.
+    /// </summary>
+    private async Task TransferPreservedArchiveAsync(ProcessItem item, TargetSet set, CancellationToken cancellationToken)
+    {
+        var targetPath = set.PrimaryTarget;
+        if (string.IsNullOrEmpty(targetPath) || IsOutsideDestination(item, targetPath) || _isDryRun)
+        {
+            foreach (var relItem in item.RelatedItems)
+            {
+                relItem.Status = item.Status;
+                relItem.StatusReason = item.StatusReason;
+                relItem.TargetPath = targetPath;
+                relItem.FinalTargetPath = targetPath;
+            }
+            return;
+        }
+
+        await PerformTransferAsync(item, cancellationToken, sourcePathOverride: item.ArchivePath).ConfigureAwait(false);
+
+        foreach (var relItem in item.RelatedItems)
+        {
+            relItem.Status = item.Status;
+            relItem.StatusReason = item.StatusReason;
+            relItem.ErrorMessage = item.ErrorMessage;
+            relItem.TargetPath = targetPath;
+            relItem.FinalTargetPath = targetPath;
         }
     }
 
@@ -1087,7 +1153,7 @@ public sealed partial class FileTransferExecutor
         }
     }
 
-    public async Task PerformTransferAsync(ProcessItem item, CancellationToken cancellationToken = default)
+    public async Task PerformTransferAsync(ProcessItem item, CancellationToken cancellationToken = default, string? sourcePathOverride = null)
     {
         var targetPath = item.FinalTargetPath;
         if (string.IsNullOrEmpty(targetPath) || IsOutsideDestination(item, targetPath) || _isDryRun)
@@ -1112,7 +1178,7 @@ public sealed partial class FileTransferExecutor
             _currentTargetInProgress = writePath;
             JournalOperation operation;
 
-            if (!string.IsNullOrEmpty(item.ArchivePath) && !string.IsNullOrEmpty(item.ArchiveMember))
+            if (sourcePathOverride is null && !string.IsNullOrEmpty(item.ArchivePath) && !string.IsNullOrEmpty(item.ArchiveMember))
             {
                 // Extraction of a ZIP, 7z or RAR member (the archive stays in place, even for a move)
                 string crc;
@@ -1138,65 +1204,66 @@ public sealed partial class FileTransferExecutor
             }
             else
             {
+                var sourcePath = sourcePathOverride ?? item.SourcePath;
                 switch (_config.TransferMode)
                 {
                     case TransferMode.Move:
                         _volumeRoots ??= VolumeLocator.GetVolumeRoots();
                         if (VolumeLocator.AreOnSameVolume(
-                                Path.GetFullPath(item.SourcePath),
+                                Path.GetFullPath(sourcePath),
                                 Path.GetFullPath(targetPath),
                                 _volumeRoots,
                                 ignoreCase: OperatingSystem.IsWindows()))
                         {
                             // Same volume: atomic rename, which never leaves a partial file and keeps the target on
                             // failure. Once done, the target is the only copy of the file: never deleted by a cleanup.
-                            var length = new FileInfo(item.SourcePath).Length;
+                            var length = new FileInfo(sourcePath).Length;
                             _currentTargetInProgress = null;
-                            File.Move(item.SourcePath, extendedTarget, overwrite: true);
-                            operation = new JournalOperation(JournalOperationKind.Move, targetPath, item.SourcePath, Size: length);
+                            File.Move(sourcePath, extendedTarget, overwrite: true);
+                            operation = new JournalOperation(JournalOperationKind.Move, targetPath, sourcePath, Size: length);
                         }
                         else
                         {
                             // Different volumes: cancellable copy, then deletion of the source once the copy is complete,
                             // on the disk (a power cut or a disk unplugged right after would otherwise lose the file) and
                             // verified, when enabled
-                            var crc = await CopyFileAsync(item.SourcePath, extendedWrite, WrapSourceStream, WrapTargetStream, FlushToDisk, cancellationToken).ConfigureAwait(false);
+                            var crc = await CopyFileAsync(sourcePath, extendedWrite, WrapSourceStream, WrapTargetStream, FlushToDisk, cancellationToken).ConfigureAwait(false);
                             await VerifyTargetAsync(extendedWrite, crc, cancellationToken).ConfigureAwait(false);
                             ReplaceTarget(writePath, targetPath);
                             _currentTargetInProgress = targetPath;
                             var length = new FileInfo(extendedTarget).Length;
-                            File.Delete(item.SourcePath);
+                            File.Delete(sourcePath);
 
                             // The source is gone: the target is now the only copy of the file
                             _currentTargetInProgress = null;
-                            operation = new JournalOperation(JournalOperationKind.Move, targetPath, item.SourcePath, Size: length, Crc: crc);
+                            operation = new JournalOperation(JournalOperationKind.Move, targetPath, sourcePath, Size: length, Crc: crc);
                         }
-                        _crcCache?.Rename(item.SourcePath, targetPath);
+                        _crcCache?.Rename(sourcePath, targetPath);
                         break;
 
                     case TransferMode.HardLink:
-                        CreateHardLinkCrossPlatform(item.SourcePath, extendedWrite);
+                        CreateHardLinkCrossPlatform(sourcePath, extendedWrite);
                         ReplaceTarget(writePath, targetPath);
                         _currentTargetInProgress = targetPath;
-                        operation = new JournalOperation(JournalOperationKind.HardLink, targetPath, item.SourcePath, Size: new FileInfo(extendedTarget).Length);
+                        operation = new JournalOperation(JournalOperationKind.HardLink, targetPath, sourcePath, Size: new FileInfo(extendedTarget).Length);
                         break;
 
                     case TransferMode.SymbolicLink:
-                        File.CreateSymbolicLink(extendedWrite, item.SourcePath);
+                        File.CreateSymbolicLink(extendedWrite, sourcePath);
                         ReplaceTarget(writePath, targetPath);
                         _currentTargetInProgress = targetPath;
-                        operation = new JournalOperation(JournalOperationKind.SymbolicLink, targetPath, item.SourcePath);
+                        operation = new JournalOperation(JournalOperationKind.SymbolicLink, targetPath, sourcePath);
                         break;
 
                     default:
                         {
-                            var crc = await CopyFileAsync(item.SourcePath, extendedWrite, WrapSourceStream, WrapTargetStream, flushToDisk: null, cancellationToken).ConfigureAwait(false);
+                            var crc = await CopyFileAsync(sourcePath, extendedWrite, WrapSourceStream, WrapTargetStream, flushToDisk: null, cancellationToken).ConfigureAwait(false);
                             await VerifyTargetAsync(extendedWrite, crc, cancellationToken).ConfigureAwait(false);
                             ReplaceTarget(writePath, targetPath);
 
                             // Complete but not journaled yet: removed if what follows fails, the source being untouched
                             _currentTargetInProgress = targetPath;
-                            operation = new JournalOperation(JournalOperationKind.Copy, targetPath, item.SourcePath, Size: new FileInfo(extendedTarget).Length, Crc: crc);
+                            operation = new JournalOperation(JournalOperationKind.Copy, targetPath, sourcePath, Size: new FileInfo(extendedTarget).Length, Crc: crc);
                             break;
                         }
                 }
@@ -1426,7 +1493,7 @@ public sealed partial class FileTransferExecutor
             return;
         }
 
-        string[] descriptorExts = [".cue", ".gdi", ".chd", ".iso"];
+        string[] descriptorExts = [".cue", ".gdi", ".chd", ".iso", ".zip", ".7z", ".rar"];
         var generatedM3uPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var groupItems in playlistReleases)

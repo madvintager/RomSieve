@@ -28,6 +28,17 @@ public static class DestinationSpace
         long total = 0;
         foreach (var item in items.Where(SelectionFilter.IsWritten))
         {
+            if (item.PreservesSourceArchive(config))
+            {
+                var isRenamed = config.TransferMode == TransferMode.Move &&
+                                VolumeLocator.AreOnSameVolume(Path.GetFullPath(item.ArchivePath!), destination, volumeRoots, ignoreCase);
+                if (!isRenamed)
+                {
+                    total += item.ArchiveFileSize > 0 ? item.ArchiveFileSize : item.FileSize;
+                }
+                continue;
+            }
+
             foreach (var file in item.RelatedItems.Prepend(item))
             {
                 var isRenamed = config.TransferMode == TransferMode.Move &&

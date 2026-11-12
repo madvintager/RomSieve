@@ -431,7 +431,7 @@ public sealed class SortProcessorService : ISortProcessorService
             }
         }
 
-        if (Fat32Limit.CreateLogMessage(Fat32Limit.FindOversizedOutputFiles(processedItems, config.TransferMode))
+        if (Fat32Limit.CreateLogMessage(Fat32Limit.FindOversizedOutputFiles(processedItems, config))
             is { } fat32Warning)
         {
             Log(LogLevel.Warn, fat32Warning);

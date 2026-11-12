@@ -23,7 +23,8 @@ public static class Fat32Limit
     /// </summary>
     public static IReadOnlyList<OversizedOutputFile> FindOversizedOutputFiles(
         IEnumerable<ProcessItem> items,
-        TransferMode transferMode)
+        TransferMode transferMode,
+        bool? preserveArchives = null)
     {
         if (transferMode is TransferMode.HardLink or TransferMode.SymbolicLink)
         {
@@ -50,6 +51,18 @@ public static class Fat32Limit
                 continue;
             }
 
+            var preservesArchive = preserveArchives ?? item.PreservesArchive;
+            if (item.PreservesSourceArchive(preservesArchive, transferMode))
+            {
+                var archSize = item.ArchiveFileSize > 0 ? item.ArchiveFileSize : item.FileSize;
+                if (archSize > MaxFileSize)
+                {
+                    oversized.Add(new OversizedOutputFile(GetWrittenName(item), archSize, IsUpperBound: false));
+                }
+
+                continue;
+            }
+
             foreach (var file in item.RelatedItems.Prepend(item))
             {
                 if (file.FileSize > MaxFileSize)
@@ -64,6 +77,14 @@ public static class Fat32Limit
             .ThenBy(f => f.Name, StringComparer.Ordinal)
             .ToList();
     }
+
+    /// <summary>
+    /// Files the sort writes to the destination that are too large for FAT32 (<see cref="FindOversizedOutputFiles(IEnumerable{ProcessItem}, TransferMode, bool)"/>).
+    /// </summary>
+    public static IReadOnlyList<OversizedOutputFile> FindOversizedOutputFiles(
+        IEnumerable<ProcessItem> items,
+        SortConfig config) =>
+        FindOversizedOutputFiles(items, config.TransferMode, config.PreserveArchives);
 
     /// <summary>Number of file names given as examples in the log line (<see cref="CreateLogMessage"/>).</summary>
     public const int LogExampleCount = 3;

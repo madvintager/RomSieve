@@ -2744,7 +2744,7 @@
               <Border x:Name="CardWriting" Grid.Column="0" Classes="settings-card">
                 <StackPanel Spacing="8">
                   <TextBlock Classes="card-title" Text="{Binding I18n[tab1.card_writing]}" />
-                  <Grid ColumnDefinitions="Auto,12,*" RowDefinitions="Auto,6,Auto,6,Auto,4,Auto">
+                  <Grid ColumnDefinitions="Auto,12,*" RowDefinitions="Auto,6,Auto,6,Auto,4,Auto,4,Auto">
                     <!-- Each label is as tall as the first line of its controls, so that it faces it even when they wrap -->
                     <Panel Grid.Row="0"
                            VerticalAlignment="Top"
@@ -2813,8 +2813,17 @@
                               IsChecked="{Binding Directories.VerifyCopies, Mode=TwoWay}">
                       <TextBlock TextWrapping="Wrap" Text="{Binding I18n[tab1.chk_verify_copies]}" />
                     </CheckBox>
-                    <CheckBox x:Name="ChkIsolateUnmatched"
+                    <CheckBox x:Name="ChkPreserveArchives"
                               Grid.Row="6"
+                              Grid.Column="2"
+                              FontSize="11"
+                              IsEnabled="{Binding Directories.CanPreserveArchives}"
+                              ToolTip.Tip="{Binding I18n[tab1.tooltip_preserve_archives]}"
+                              IsChecked="{Binding Directories.PreserveArchives, Mode=TwoWay}">
+                      <TextBlock TextWrapping="Wrap" Text="{Binding I18n[tab1.chk_preserve_archives]}" />
+                    </CheckBox>
+                    <CheckBox x:Name="ChkIsolateUnmatched"
+                              Grid.Row="8"
                               Grid.Column="2"
                               FontSize="11"
                               ToolTip.Tip="{Binding I18n[tab1.tooltip_isolate_unmatched]}"

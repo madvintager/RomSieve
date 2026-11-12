@@ -70,6 +70,13 @@ public sealed class SortConfig
     public bool VerifyCopies { get; set; } = false;
 
     /// <summary>
+    /// When an archive (ZIP, 7z, RAR) contains a single game (or a descriptor and its companion tracks) and all its
+    /// files are kept, copies or moves the source archive as a whole instead of extracting its content.
+    /// Ignored in ZIP mode (TorrentZip).
+    /// </summary>
+    public bool PreserveArchives { get; set; } = false;
+
+    /// <summary>
     /// Writes the non-conforming files in <c>_unmatched</c> of the destination (the default). Off, the sort leaves them
     /// in the source: they keep their status in the results (<see cref="ProcessItem.IsNotIsolated"/>), but are neither
     /// written nor counted in the volume written.

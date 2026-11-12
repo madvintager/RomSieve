@@ -56,6 +56,7 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
     private readonly HashSet<string> _activeFilters = new(StringComparer.OrdinalIgnoreCase);
     private ProcessStats _lastStats = new();
     private TransferMode _lastTransferMode = TransferMode.Copy;
+    private bool _preserveArchives;
     private IReadOnlyList<OversizedOutputFile> _oversizedFiles = [];
 
     /// <summary>
@@ -282,10 +283,12 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
     public void UpdateStats(
         ProcessStats stats,
         TransferMode transferMode = TransferMode.Copy,
-        IReadOnlyList<OversizedOutputFile>? oversizedFiles = null)
+        IReadOnlyList<OversizedOutputFile>? oversizedFiles = null,
+        bool preserveArchives = false)
     {
         _lastStats = stats ?? new ProcessStats();
         _lastTransferMode = transferMode;
+        _preserveArchives = preserveArchives;
         _oversizedFiles = oversizedFiles ?? [];
         RefreshLabelsFromLastStats();
     }
@@ -313,6 +316,7 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
     {
         _lastStats = new ProcessStats();
         _lastTransferMode = TransferMode.Copy;
+        _preserveArchives = false;
         _oversizedFiles = [];
         _selectionItems = null;
         _activeFilters.Clear();
@@ -394,7 +398,7 @@ public sealed partial class StatsBannerViewModel : ViewModelBase
     {
         var oversizedFiles = _selectionItems is null
             ? _oversizedFiles
-            : Fat32Limit.FindOversizedOutputFiles(_selectionItems, _lastTransferMode);
+            : Fat32Limit.FindOversizedOutputFiles(_selectionItems, _lastTransferMode, _preserveArchives);
         var count = oversizedFiles.Count;
         IsFat32WarningVisible = count > 0;
         if (count == 0)
