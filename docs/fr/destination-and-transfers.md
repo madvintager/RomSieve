@@ -2,8 +2,9 @@
 
 Tout ce qui est décrit sur cette page se règle dans l'étape **Sortie**, en quatre cadres : **Destination** (le dossier,
 et que faire s'il n'est pas vide), **Écriture des fichiers** (mode, conflits, vérification, archives d'un seul jeu),
-**Jeux multi-disques** (sous-dossier, playlist) et **Arborescence** (modèle, dossier des versions patchées, articles,
-dossiers des DAT d'un lot, aperçu). La croix au bout du champ de la destination le vide.
+**Jeux multi-disques** (sous-dossier, playlist) et **Arborescence** (organisation et [frontend](#pour-un-frontend),
+modèle, dossier des versions patchées, articles, dossiers des DAT d'un lot, aperçu). La croix au bout du champ de la
+destination le vide.
 
 ![L'étape Sortie](../images/fr/output_settings.png)
 
@@ -51,6 +52,7 @@ convention, le DAT, la destination, le mode ou les options ci-dessous.
   garde le nom de la source.
 * Avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), les exemples vont dans le dossier du premier DAT
   coché de leur convention, comme ses fichiers.
+* Avec un [frontend](#pour-un-frontend) et un DAT, les exemples vont dans le dossier de la plateforme de ce DAT.
 * Avec un [dossier des patchs](patches.md), une ligne montre, à la place du troisième exemple, où irait une version
   patchée du premier (*Version patchée : …*), d'après le champ **Versions patchées**.
 
@@ -83,7 +85,7 @@ utilisé et n'est pas refusé.
 | `{category}` | Genre et sous-genre de la machine (MAME) | `Shooter - Flying Vertical` |
 | `{dat}` | Nom d'en-tête du DAT du fichier : le DAT choisi, ou le DAT du lot avec lequel il est rangé | `Nintendo - Game Boy` |
 | `{origin_folder}` | Versions patchées seulement : le dossier entier de la ROM d'origine (dossier de son DAT dans un lot, puis dossiers du modèle) | `Nintendo - Game Boy/Tetris` |
-| `{dat_folder}` | Versions patchées seulement : le dossier du DAT de la ROM d'origine dans un lot, aucun pour un DAT seul | `Nintendo - Game Boy` |
+| `{dat_folder}` | Versions patchées seulement : le dossier du DAT de la ROM d'origine dans un lot, aucun pour un DAT seul ; avec un [frontend](#pour-un-frontend), le dossier de sa plateforme | `Nintendo - Game Boy`, `gb` |
 
 Une valeur inconnue donne `Unknown` (vide pour `{version}`). Les noms sont débarrassés des caractères interdits par
 Windows ou Linux, et les chemins très longs sont pris en charge sous Windows. Le premier dossier sous la destination
@@ -118,7 +120,8 @@ initiaux** placent les fichiers de chaque DAT à part :
   avec un dossier par DAT, et pour les DAT rangés dans des sous-dossiers (`--dir-dat-mirror` en ligne de commande).
 
 Les deux cases sont grisées avec un fichier DAT ou une archive d'un seul DAT : un DAT seul n'a jamais de dossier à lui,
-et sa sortie ne change pas.
+et sa sortie ne change pas. Elles le sont aussi avec un [frontend](#pour-un-frontend), qui met chaque DAT dans le dossier
+de sa plateforme.
 Le dossier `_unmatched` des fichiers non conformes reste à la racine de la destination.
 
 ### Options associées
@@ -135,7 +138,96 @@ Le cadre **Jeux multi-disques**, à côté de *Écriture des fichiers* :
   * *Dossier parent (recommandé)* : la playlist est à côté du dossier du jeu (recommandé pour les frontends) ;
   * *Dossier parent avec sous-dossier masqué (.\*)* : le dossier du jeu commence par un point, pour que les frontends
     n'affichent que la playlist ;
-  * *Dans le sous-dossier du jeu* : la playlist est avec les disques.
+  * *Dans le sous-dossier du jeu* : la playlist est avec les disques ;
+  * *Dans un dossier à son nom (ES-DE)* : le sous-dossier du jeu porte le nom de sa playlist (`Jeu (USA).m3u/`), qui y
+    va avec les disques : ES-DE lit ce dossier comme un seul jeu.
+* **Un dossier par jeu sur disque** : chaque jeu sur image de disque (`.cue` et ses pistes, `.gdi`, `.ccd`, `.chd`,
+  `.iso`...) va dans un dossier à son titre, même s'il n'a qu'un disque, comme le demandent les cores CD de MiSTer. Les
+  cartouches, les disquettes et les sets MAME ne changent pas.
+
+## Pour un frontend
+
+La liste **Frontend**, au bout de la ligne **Organisation**, range la destination pour qu'un frontend la lise telle
+quelle : chaque DAT dans le dossier que ce frontend donne à sa plateforme, au nom qu'il attend, au-dessus de
+l'organisation choisie. La destination est alors le dossier `roms/` du frontend (`games/` pour MiSTer). Un lot de DAT
+No-Intro et Redump trié en un passage donne ainsi directement ce dossier.
+
+| Frontend | Game Boy | Mega Drive | Mega-CD | PlayStation | Amiga (OCS / AGA) |
+|---|---|---|---|---|---|
+| **Batocera** | `gb` | `megadrive` | `megacd` | `psx` | `amiga500` / `amiga1200` |
+| **RetroPie** | `gb` | `megadrive` | `segacd` | `psx` | `amiga` |
+| **ES-DE** | `gb` | `megadrive` | `segacd` | `psx` | `amiga` / `amiga1200` |
+| **Recalbox** | `gb` | `megadrive` | `segacd` | `psx` | `amiga600` / `amiga1200` |
+| **MiSTer** | `GAMEBOY` | `MegaDrive` | `MegaCD` | `PSX` | `Amiga500` |
+
+* RomSieve connaît une soixantaine de plateformes, relevées dans les fichiers de chaque frontend (et, pour MiSTer, dans
+  les dossiers que créent ses scripts de mise à jour). Il reconnaît un DAT No-Intro ou Redump par son nom d'en-tête,
+  variantes comprises (`Nintendo - Game Boy (Private)`, `(Headered)`, `(Parent-Clone)`...), et un DAT TOSEC par son
+  système (`Commodore Amiga - Games - [ADF]` est un DAT Amiga).
+* Une version Amiga qui demande un Amiga AGA (`(AGA)`, `(A1200)`) va dans le dossier des Amiga AGA du frontend, les
+  autres dans celui des Amiga OCS / ECS.
+* Un DAT de machines MAME va dans `mame` (`arcade` pour RetroPie), un DAT d'arcade FinalBurn Neo dans `fbneo` (`fba`
+  pour RetroPie).
+* Un dossier qui existe déjà à la racine de la destination et ne diffère que par les majuscules (`GameBoy` pour
+  `GAMEBOY`) est repris tel quel.
+* L'aperçu en direct montre le dossier de la plateforme de ses exemples, comme le tri.
+
+### Repli sur le nom du DAT
+
+Un DAT que RomSieve ne connaît pas, ou dont la plateforme n'a pas de dossier chez ce frontend (la Nintendo DS sous
+MiSTer), garde son nom comme dossier, comme avec **Un dossier par DAT** ; le journal le dit, une fois par DAT. Sans DAT,
+aucune plateforme n'est connue : les fichiers vont où l'organisation les met, et le journal le dit. Le dossier
+`_unmatched` reste à la racine de la destination, et un logiciel d'une liste MAME reste dans le dossier de sa liste.
+
+### Réglages recommandés
+
+Choisir un frontend propose les réglages de sortie qu'il lit le mieux, dans une question qui n'énumère que ce qui
+changerait :
+
+| Frontend | Organisation | Un sous-dossier par jeu | Une playlist .m3u par jeu | Emplacement | Un dossier par jeu sur disque |
+|---|---|---|---|---|---|
+| **Batocera**, **Recalbox** | Tout à la racine | non | oui | | non |
+| **RetroPie** | Tout à la racine | oui | oui | Dossier parent avec sous-dossier masqué (.\*) | non |
+| **ES-DE** | Tout à la racine | oui | oui | Dans un dossier à son nom (ES-DE) | non |
+| **MiSTer** | inchangée | oui | non | | oui |
+
+* Batocera et Recalbox cachent les disques qu'une playlist désigne quand ils sont dans son dossier : les disques
+  restent à côté de leur playlist, et le jeu n'apparaît qu'une fois.
+* L'EmulationStation de RetroPie ignore les dossiers dont le nom commence par un point : les disques vont dans
+  `.Jeu/`, la playlist à côté.
+* ES-DE lit un dossier nommé comme une playlist (`Jeu (USA).m3u/`) comme un seul jeu : les disques et la playlist y
+  vont.
+* MiSTer ne lit pas de playlist : il change de disque parmi les fichiers d'un dossier, nomme la carte mémoire d'un jeu
+  PlayStation d'après son dossier, et ses cores CD veulent chaque jeu sur disque dans un dossier à lui. Sous le dossier
+  du système, l'organisation reste la vôtre.
+
+Refuser garde le frontend choisi et vos réglages. Le modèle, les filtres, les langues, le 1G1R et le mode de transfert
+ne sont jamais touchés. Rien n'est demandé au chargement des réglages ou d'un profil.
+
+### Frontend et lot de DAT
+
+Avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), chaque DAT va dans le dossier de sa plateforme, à la
+place de son propre dossier : **Un dossier par DAT** et **Reproduire l'arborescence des DAT** sont grisés. Plusieurs DAT
+d'une même plateforme (`Nintendo - Game Boy` et `Nintendo - Game Boy (Private)`, ou un DAT No-Intro et un DAT TOSEC d'un
+même système) partagent son dossier : deux fichiers qui visent la même cible suivent la règle des
+[conflits](#conflits). Le 1G1R reste calculé DAT par DAT : un jeu présent dans deux de ces DAT peut être écrit deux fois.
+Le journal nomme, une fois par dossier, les DAT qu'il réunit. Dans la fenêtre **DAT du lot**, chaque ligne montre à
+droite le dossier de son DAT (`→ gb`) ; un DAT qui garde son nom est en couleur d'avertissement, et son infobulle dit
+pourquoi.
+
+### Frontend et archives
+
+Un frontend ne lit pas des archives partout : Batocera et RetroPie ne lisent pas de `.zip` pour la PlayStation, MiSTer
+ne lit jamais une image de CD dans une archive, ni aucun `.7z`. En mode **ZIP**, ou avec **Conserver les archives
+contenant un seul jeu**, la simulation prévient une fois par DAT quand le frontend ne lit pas les archives écrites dans
+le dossier de sa plateforme. Rien n'est refusé : votre émulateur est peut-être réglé autrement.
+
+### Ce que le frontend ne fait pas
+
+* Il ne choisit pas la version des sets MAME, que chaque frontend attend précise, et ne range pas les BIOS.
+* Il n'écrit ni métadonnées (`gamelist.xml`), ni playlists RetroArch (`.lpl`).
+* L'arcade de MiSTer (fichiers `.mra`, dossier `games/mame`) suit sa propre organisation, installée par ses scripts : un
+  tri MAME n'y a pas de dossier, et garde le nom de son DAT.
 
 ## Modes de transfert
 
@@ -221,7 +313,9 @@ Un descripteur et ses pistes sont toujours traités ensemble : ils reçoivent to
 réécrit pour désigner les pistes renommées.
 
 Une playlist `.m3u` suit la même règle : une playlist déjà présente est conservée (**Ignorer**), complétée d'une
-nouvelle `nom_01.m3u` (**Renommer**) ou remplacée (**Écraser**).
+nouvelle `nom_01.m3u` (**Renommer**) ou remplacée (**Écraser**). Une playlist dans un dossier à son nom (ES-DE) n'est
+jamais renommée, son dossier ne pouvant pas suivre : avec **Renommer automatiquement**, celle qui y est déjà est
+conservée.
 
 Un set MAME et ses CHD ne sont jamais renommés, pas plus qu'un logiciel d'une liste MAME, car MAME ne les trouve que
 par leur nom : avec **Renommer automatiquement**, ils sont ignorés comme des doublons.

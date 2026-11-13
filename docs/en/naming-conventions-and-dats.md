@@ -302,6 +302,9 @@ again with **Choose DATs…**, it keeps your boxes.
 
 * The window gives the name and the convention of each DAT, with a box to check, and its subfolder (`TOSEC/`) when it
   is not at the root of the folder chosen; the tooltip of a line names its file.
+* With a [frontend](destination-and-transfers.md#for-a-frontend), each line shows on the right the folder the files of
+  its DAT will go into (`→ gb`); a DAT the frontend does not know, which will keep its name as folder, is in a warning
+  colour, and its tooltip says why.
 * **Search a DAT** filters the list by name, path (file included) or convention, word by word like the
   [search of the table](simulation-table.md#searching): `C64 Games D64` shows the DATs that hold the three words,
   `-Demos` leaves out those that hold *Demos*; the cross at the end of the field clears the search.

@@ -94,7 +94,8 @@ réglages ne gardent aucun jeu, aucun fichier n'est écrit et le code de sortie 
 ## Options de `patches`
 
 `patches` prend les options de `run` qui choisissent ce qui est simulé (`--profile`, `--source`, `--destination`,
-`--dat`, `--dat-recursive`, `--dat-only`, `--dir-dat-mirror`, `--chd`, `--patches`, `--categories`, `--ratings`), sans
+`--dat`, `--dat-recursive`, `--dat-only`, `--dir-dat-mirror`, `--chd`, `--patches`, `--categories`, `--ratings`,
+`--frontend`), sans
 rien écrire dans la destination. Il exige un dossier des patchs et un DAT (code 3 sinon), et refuse un tri MAME.
 Il applique les patchs même quand **Appliquer les patchs** est décoché dans les réglages.
 
@@ -127,7 +128,7 @@ refusé (nom déjà pris, par exemple), donne le code 4.
 | `--dat <fichier>` | Fichier DAT, ou dossier ou archive (ZIP, 7z, RAR) de DAT : un lot No-Intro, Redump ou TOSEC, ou des listes de logiciels MAME ; une archive d'un seul DAT est ce DAT ([DAT dans une archive](naming-conventions-and-dats.md#dat-dans-une-archive)). Une seule fois. |
 | `--dat-recursive` | Lit aussi les DAT des sous-dossiers du dossier de DAT (un lot) ; une archive de DAT est toujours lue entière |
 | `--dat-only <nom>` | Ne trie qu'avec ce DAT du lot, désigné par le nom de son en-tête, sans tenir compte des majuscules. Répétable ; remplace les DAT décochés des réglages. Un nom absent du lot est refusé (code 2), avec les noms du lot |
-| `--dir-dat-mirror` | Place le dossier de chaque DAT du lot sous les dossiers de son chemin dans le dossier ou l'archive de DAT. Refusé (code 2) quand **Un dossier par DAT** est décoché dans les réglages |
+| `--dir-dat-mirror` | Place le dossier de chaque DAT du lot sous les dossiers de son chemin dans le dossier ou l'archive de DAT. Refusé (code 2) quand **Un dossier par DAT** est décoché dans les réglages, ou avec un frontend (`--frontend`, ou celui des réglages) |
 | `--chd <dossier>` | Dossier des CHD d'une collection MAME, s'ils ne sont pas dans la source |
 | `--patches <dossier>` | Dossier des [patchs](patches.md) (IPS, UPS, BPS) à appliquer aux ROMs identifiées, même quand **Appliquer les patchs** est décoché dans les réglages |
 | `--patch-only` | N'écrit que les versions patchées des jeux qui en ont : ni leur ROM d'origine, ni (avec le 1G1R) la ROM retenue pour leur jeu |
@@ -136,6 +137,7 @@ refusé (nom déjà pris, par exemple), donne le code 4.
 | `--ratings <fichier>` | Fichier de notes des machines MAME (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` ou `zip` |
 | `--preserve-archives` | Conserve les archives source contenant un seul jeu sans les extraire (modes copy, move, hardlink, symlink) |
+| `--frontend <frontend>` | Range chaque DAT dans le dossier que ce frontend donne à sa plateforme ([Pour un frontend](destination-and-transfers.md#pour-un-frontend)) : `none`, `batocera`, `retropie`, `es-de`, `recalbox` ou `mister`. Remplace le frontend des réglages le temps de l'exécution ; une autre valeur est refusée (code 2), avec la liste |
 | `--append` | Complète une destination non vide |
 | `--purge` | Purge d'abord une destination non vide (exige `--execute` et `--yes`) |
 | `-y`, `--yes` | Confirme une purge ou une annulation (et, avec `patches`, un renommage) |
@@ -163,6 +165,10 @@ DAT ; avec `--miss-list` ou `--fixdat`, une ligne compte les DAT complets et ceu
 Quand les patchs sont appliqués, une ligne du bilan compte les versions patchées et les patchs non appliqués (*Patchs :
 2 versions patchées, 1 patch non appliqué.*) ; chaque patch non appliqué a sa ligne dans le journal.
 
+Avec un [frontend](destination-and-transfers.md#pour-un-frontend), le bilan se termine par *Frontend : MiSTer*, suivi
+des remarques de l'exécution, même avec `--quiet` : les DAT qui gardent leur nom faute de plateforme, les archives que le
+frontend ne lit pas, et les dossiers qui réunissent plusieurs DAT.
+
 ## Garde-fous
 
 * Sans `--execute`, rien n'est écrit.
@@ -189,7 +195,7 @@ Quand les patchs sont appliqués, une ligne du bilan compte les versions patché
 |---|---|
 | 0 | Succès |
 | 1 | Erreur inattendue (un rapport d'erreur est enregistré dans `crashes/` à côté des réglages, et son chemin affiché) |
-| 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT, format d'export non pris en charge, `dat --output` sur le DAT lu, `patches --link` sans `--rom`, d'un UPS ou d'un BPS, ou d'une ROM inconnue, ambiguë ou à deux formes, `patches` d'un patch inconnu ou ambigu, `--auto` sans choix enregistré, `--name-from-notes` avec un choix, `--no-patches` avec `--patches`) |
+| 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT ou avec un frontend, `--frontend` d'une valeur inconnue, format d'export non pris en charge, `dat --output` sur le DAT lu, `patches --link` sans `--rom`, d'un UPS ou d'un BPS, ou d'une ROM inconnue, ambiguë ou à deux formes, `patches` d'un patch inconnu ou ambigu, `--auto` sans choix enregistré, `--name-from-notes` avec un choix, `--no-patches` avec `--patches`) |
 | 3 | Configuration invalide (fichier de réglages ou profil absent ou illisible, source, DAT ou destination introuvable, dossier ou archive de DAT refusé, dossiers qui se chevauchent, modèle qui commence par `_purged` ou `.romsieve`, dossier des versions patchées qui sortirait de la destination) |
 | 4 | Terminé, mais des fichiers sont en erreur (dont un tri arrêté par une destination pleine ou un journal impossible à écrire), un export a échoué (ou `dat` n'a gardé aucun jeu), des opérations n'ont pas pu être annulées ou des éléments de la quarantaine n'ont pas pu être supprimés |
 | 5 | Interrompu (Ctrl+C) |

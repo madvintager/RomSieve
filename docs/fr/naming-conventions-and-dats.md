@@ -316,6 +316,9 @@ n'est coché : cochez ceux avec lesquels trier. Rouverte par **Choisir les DAT�
 
 * La fenêtre donne le nom et la convention de chaque DAT, avec une case à cocher, et son sous-dossier (`TOSEC/`) quand
   il n'est pas à la racine du dossier choisi ; l'infobulle d'une ligne nomme son fichier.
+* Avec un [frontend](destination-and-transfers.md#pour-un-frontend), chaque ligne montre à droite le dossier où iront les
+  fichiers de son DAT (`→ gb`) ; un DAT que le frontend ne connaît pas, et qui gardera son nom comme dossier, est en
+  couleur d'avertissement, et son infobulle dit pourquoi.
 * **Rechercher un DAT** filtre la liste par nom, chemin (fichier compris) ou convention, mot par mot comme la
   [recherche de la table](simulation-table.md#recherche) : `C64 Games D64` montre les DAT qui contiennent les trois
   mots, `-Demos` écarte ceux qui contiennent *Demos* ; la croix au bout du champ efface la recherche.

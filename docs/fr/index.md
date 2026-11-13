@@ -26,7 +26,7 @@ La colonne de gauche suit les étapes d'un tri :
 1. **Collection** : la convention de nommage, le fichier DAT, la source et, au besoin, le dossier des patchs.
 2. **Sélection** : ce qu'il faut garder, en deux pages, **Filtres** puis **Langues et 1G1R**. Un clic sur *Sélection*
    ouvre toujours **Filtres**.
-3. **Sortie** : la destination, le mode de transfert, les conflits, l'arborescence et les playlists.
+3. **Sortie** : la destination, le mode de transfert, les conflits, l'arborescence, le frontend et les playlists.
 4. **Résultats** : le bandeau des statistiques, le tableau de la simulation et le journal, sur toute la hauteur de la
    fenêtre.
 
@@ -47,7 +47,7 @@ dernière étape de réglage, et les résultats restent consultables par l'étap
 1. [Installation](installation.md) : téléchargement, premier lancement, fichiers de RomSieve.
 2. [Démarrage rapide](quick-start.md) : votre première simulation et votre premier tri, pas à pas.
 3. [Conventions de nommage et fichiers DAT](naming-conventions-and-dats.md) : comment les fichiers sont identifiés.
-4. [Destination et transferts](destination-and-transfers.md) : arborescence, modes de transfert, conflits, playlists.
+4. [Destination et transferts](destination-and-transfers.md) : arborescence, frontends, modes de transfert, conflits, playlists.
 5. [Filtres](filters.md) : dumps, modifications, démos, rééditions (réglages TOSEC, No-Intro et Redump).
 6. [Langues, régions et 1G1R](languages-regions-1g1r.md) : une seule version par jeu, dans vos langues.
 7. [Le tableau de simulation](simulation-table.md) : statuts, recherche, choix 1G1R manuels, simulations successives.

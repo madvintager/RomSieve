@@ -94,7 +94,8 @@ the settings keep no game, no file is written and the exit code is 4.
 ## Options of `patches`
 
 `patches` takes the options of `run` that choose what is simulated (`--profile`, `--source`, `--destination`, `--dat`,
-`--dat-recursive`, `--dat-only`, `--dir-dat-mirror`, `--chd`, `--patches`, `--categories`, `--ratings`), without writing
+`--dat-recursive`, `--dat-only`, `--dir-dat-mirror`, `--chd`, `--patches`, `--categories`, `--ratings`, `--frontend`),
+without writing
 anything into the destination. It requires a folder of the patches and a DAT (code 3 otherwise), and refuses a MAME
 sort. It applies the patches even when **Apply the patches** is unchecked in the settings.
 
@@ -126,7 +127,7 @@ changed. A choice that cannot be saved, or a renaming refused (a name already ta
 | `--dat <file>` | DAT file, or folder or archive (ZIP, 7z, RAR) of DATs: a lot of No-Intro, Redump or TOSEC DATs, or MAME software lists; an archive of a single DAT is that DAT ([DATs in an archive](naming-conventions-and-dats.md#dats-in-an-archive)). Once only. |
 | `--dat-recursive` | Also reads the DATs of the subfolders of the folder of DATs (a lot); an archive of DATs is always read whole |
 | `--dat-only <name>` | Only sorts with this DAT of the lot, named by the name of its header, case ignored. Repeatable; replaces the DATs unchecked in the settings. A name the lot does not have is refused (code 2), with the names of the lot |
-| `--dir-dat-mirror` | Places the folder of each DAT of the lot under the folders of its path in the folder or the archive of DATs. Refused (code 2) when **A folder per DAT** is unchecked in the settings |
+| `--dir-dat-mirror` | Places the folder of each DAT of the lot under the folders of its path in the folder or the archive of DATs. Refused (code 2) when **A folder per DAT** is unchecked in the settings, or with a frontend (`--frontend`, or that of the settings) |
 | `--chd <folder>` | Folder of the CHDs of a MAME collection, when they are not in the source |
 | `--patches <folder>` | Folder of the [patches](patches.md) (IPS, UPS, BPS) to apply to the identified ROMs, even when **Apply the patches** is unchecked in the settings |
 | `--patch-only` | Only writes the patched versions of the games that have one: neither their original ROM, nor (with 1G1R) the ROM kept for their game |
@@ -135,6 +136,7 @@ changed. A choice that cannot be saved, or a renaming refused (a name already ta
 | `--ratings <file>` | Rating file of the MAME machines (`bestgames.ini`) |
 | `--mode <mode>` | `copy`, `move`, `hardlink`, `symlink` or `zip` |
 | `--preserve-archives` | Preserves single-game source archives without extracting them (copy, move, hardlink, symlink modes) |
+| `--frontend <frontend>` | Puts each DAT into the folder this frontend gives its platform ([For a frontend](destination-and-transfers.md#for-a-frontend)): `none`, `batocera`, `retropie`, `es-de`, `recalbox` or `mister`. Replaces the frontend of the settings for the run; another value is refused (code 2), with the list |
 | `--append` | Completes a non-empty destination |
 | `--purge` | Purges a non-empty destination first (requires `--execute` and `--yes`) |
 | `-y`, `--yes` | Confirms a purge or an undo (and, with `patches`, a renaming) |
@@ -162,6 +164,10 @@ export.
 When the patches are applied, a line of the summary counts the patched versions and the patches not applied (*Patches:
 2 patched versions, 1 patch not applied.*); each patch not applied has its line in the log.
 
+With a [frontend](destination-and-transfers.md#for-a-frontend), the summary ends with *Frontend: MiSTer*, followed by
+the notes of the run, even with `--quiet`: the DATs that keep their name for want of a platform, the archives the
+frontend does not read, and the folders that gather several DATs.
+
 ## Safeguards
 
 * Without `--execute`, nothing is written.
@@ -188,7 +194,7 @@ When the patches are applied, a line of the summary counts the patched versions 
 |---|---|
 | 0 | Success |
 | 1 | Unexpected error (a crash report is saved in `crashes/` next to the settings, and its path printed) |
-| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT, unsupported export format, `dat --output` over the DAT read, `patches --link` without `--rom`, of a UPS or a BPS, or of an unknown, ambiguous or two-form ROM, `patches` of an unknown or ambiguous patch, `--auto` without a saved choice, `--name-from-notes` with a choice, `--no-patches` with `--patches`) |
+| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT or with a frontend, `--frontend` of an unknown value, unsupported export format, `dat --output` over the DAT read, `patches --link` without `--rom`, of a UPS or a BPS, or of an unknown, ambiguous or two-form ROM, `patches` of an unknown or ambiguous patch, `--auto` without a saved choice, `--name-from-notes` with a choice, `--no-patches` with `--patches`) |
 | 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder or archive of DATs refused, overlapping folders, pattern that starts with `_purged` or `.romsieve`, folder of the patched versions that would leave the destination) |
 | 4 | Finished, but some files are in error (including a sort stopped by a full destination or a journal that cannot be written), an export failed (or `dat` kept no game), some operations could not be undone or some items of the quarantine could not be deleted |
 | 5 | Cancelled (Ctrl+C) |

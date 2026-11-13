@@ -51,6 +51,11 @@ list or a fixdat. A whole No-Intro, Redump or TOSEC pack can be used at once: ch
 or RAR archive it was downloaded as, and each file is sorted with the DAT that knows it, each DAT with its own
 convention, filters, 1G1R and folder in the destination. Only the DATs the source needs are read in full.
 
+**Ready for your frontend.** Choose Batocera, RetroPie, ES-DE, Recalbox or MiSTer, and the destination becomes the ROM
+folder it reads as it is: each DAT goes into the folder the frontend gives its platform (`snes`, `psx`, `GAMEBOY`...),
+multi-disk games get the playlists and folders it expects, and RomSieve warns about the archives it would not read.
+A whole pack of DATs sorted in one pass gives the `roms/` folder directly.
+
 **Patches.** Give RomSieve a folder of IPS, UPS or BPS patches (translations, fixes, hacks): each patch whose original
 ROM is identified in your collection gives a patched version, written next to the original, or in a folder of its
 own, while the original is never modified.

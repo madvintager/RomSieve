@@ -26,7 +26,7 @@ The column on the left follows the steps of a sort:
 1. **Collection**: the naming convention, the DAT file, the source and, if need be, the folder of the patches.
 2. **Selection**: what to keep, on two pages, **Filters** then **Languages and 1G1R**. A click on *Selection* always opens
    **Filters**.
-3. **Output**: the destination, the transfer mode, conflicts, the directory tree and the playlists.
+3. **Output**: the destination, the transfer mode, conflicts, the directory tree, the frontend and the playlists.
 4. **Results**: the statistics banner, the simulation table and the log, over the whole height of the window.
 
 Under a step, a short line tells what is missing or what changed: *No source chosen*, *Source not found*,
@@ -45,7 +45,7 @@ the results stay available from the **Results** step.
 1. [Installation](installation.md): download, first launch, where RomSieve stores its files.
 2. [Quick start](quick-start.md): your first simulation and your first sort, step by step.
 3. [Naming conventions and DAT files](naming-conventions-and-dats.md): how files are identified.
-4. [Destination and transfers](destination-and-transfers.md): folder patterns, transfer modes, conflicts, playlists.
+4. [Destination and transfers](destination-and-transfers.md): folder patterns, frontends, transfer modes, conflicts, playlists.
 5. [Filters](filters.md): dumps, modifications, demos, re-releases (TOSEC, No-Intro and Redump settings).
 6. [Languages, regions and 1G1R](languages-regions-1g1r.md): keep one release per game, in your languages.
 7. [The simulation table](simulation-table.md): statuses, search, manual 1G1R choices, successive simulations.
