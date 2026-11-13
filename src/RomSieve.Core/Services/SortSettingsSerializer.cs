@@ -74,6 +74,8 @@ public static class SortSettingsSerializer
         data["subfolder_multidisk"] = s.SubfolderMultidisk;
         data["generate_m3u"] = s.GenerateM3u;
         data["m3u_placement"] = s.M3uPlacement.ToConfigString();
+        data["folder_per_disc_game"] = s.FolderPerDiscGame;
+        data["frontend"] = s.Frontend.ToConfigString();
 
         // Filters of every convention
         data[ConfigSchema.FilterNotInDatKey] = s.FilterNotInDat;
@@ -173,6 +175,8 @@ public static class SortSettingsSerializer
             SubfolderMultidisk = s.SubfolderMultidisk,
             GenerateM3u = s.GenerateM3u,
             M3uPlacement = s.M3uPlacement,
+            FolderPerDiscGame = s.FolderPerDiscGame,
+            Frontend = s.Frontend,
             AppendToDestination = s.AppendToDestination,
             DatFile = string.IsNullOrWhiteSpace(s.DatFile) ? null : s.DatFile.Trim(),
             DatRecursive = s.DatRecursive,
@@ -309,6 +313,8 @@ public static class SortSettingsSerializer
         if (TryGetBool(data, "subfolder_multidisk", out var subfolder)) s.SubfolderMultidisk = subfolder;
         if (TryGetBool(data, "generate_m3u", out var m3u)) s.GenerateM3u = m3u;
         if (TryGetString(data, "m3u_placement", out var placement)) s.M3uPlacement = EnumExtensions.ParseM3uPlacementMode(placement);
+        if (TryGetBool(data, "folder_per_disc_game", out var folderPerDiscGame)) s.FolderPerDiscGame = folderPerDiscGame;
+        if (TryGetString(data, "frontend", out var frontend)) s.Frontend = EnumExtensions.ParseFrontendTarget(frontend);
     }
 
     private static void ReadTosecFilters(IReadOnlyDictionary<string, object?> data, SortSettings s)

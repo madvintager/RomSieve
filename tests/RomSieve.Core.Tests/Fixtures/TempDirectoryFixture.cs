@@ -207,6 +207,11 @@ public sealed class CoreTestServices
     /// </summary>
     public PatchLinkService PatchLinks { get; }
 
+    /// <summary>The frontend table, read once from the embedded resource for every test.</summary>
+    public FrontendPlatformService Frontends { get; } = SharedFrontends;
+
+    private static readonly FrontendPlatformService SharedFrontends = new();
+
     public SortProcessorService Processor { get; }
 
     public CoreTestServices(string locale = "fr")
@@ -238,6 +243,6 @@ public sealed class CoreTestServices
             MameParser,
             Patches,
             CrcCache,
-            PatchLinks);
+            PatchLinks, Frontends);
     }
 }

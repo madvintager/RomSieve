@@ -161,8 +161,15 @@ public sealed partial class FileTransferExecutor
     public DatCatalog? DatCatalog { get; init; }
 
     /// <summary>
+    /// Folders of the platforms of a run with a frontend (<see cref="SortConfig.Frontend"/>); <c>null</c> without a
+    /// frontend, the targets being those of before.
+    /// </summary>
+    internal FrontendFolders? FrontendFolders { get; init; }
+
+    /// <summary>
     /// The DAT <paramref name="item"/> is sorted with: its DAT of the lot (<see cref="ProcessItem.DatName"/>), with its
     /// path; the DAT itself for a run with a single DAT; <c>null</c> without a DAT, or for a file no DAT of the lot knows.
+    /// With a frontend, the folder of the platform of the DAT (<see cref="DatPlacement.PlatformFolder"/>).
     /// </summary>
     internal DatPlacement? PlacementOf(ProcessItem item)
     {
@@ -171,14 +178,21 @@ public sealed partial class FileTransferExecutor
             return null;
         }
 
+        DatPlacement? placement;
         if (DatCatalog.Dats is null)
         {
-            return DatCatalog.SingleDatName(_config.DatFile) is { } name ? new DatPlacement(name) : null;
+            placement = DatCatalog.SingleDatName(_config.DatFile) is { } name ? new DatPlacement(name) : null;
+        }
+        else
+        {
+            placement = DatCatalog.DatMemberFor(item.DatName) is { } member
+                ? new DatPlacement(member.Name, member.RelativeFolder, IsLotMember: true)
+                : null;
         }
 
-        return DatCatalog.DatMemberFor(item.DatName) is { } member
-            ? new DatPlacement(member.Name, member.RelativeFolder, IsLotMember: true)
-            : null;
+        return placement is not null && FrontendFolders is { } frontends
+            ? placement with { PlatformFolder = frontends.FolderOf(placement, item.Parsed) }
+            : placement;
     }
 
     /// <summary>Test hook replacing the volume roots of the machine, to force a move across volumes.</summary>
@@ -614,6 +628,10 @@ public sealed partial class FileTransferExecutor
 
         item.TargetPath = candidateTarget;
         item.FinalTargetPath = set.PrimaryTarget;
+        if (FrontendFolders is { } frontends && PlacementOf(item) is { } dat)
+        {
+            frontends.CheckArchive(dat, item.Parsed, candidateTarget);
+        }
 
         if (set.Skipped)
         {
@@ -1684,22 +1702,6 @@ public sealed partial class FileTransferExecutor
     }
 
     /// <summary>
-    /// The file name of the first disc of a playlist without the label of that disc (<see cref="ParsedRomName.DiscLabel"/>):
-    /// <c>Command &amp; Conquer (USA) (Disc 1) (GDI Disc).cue</c> names the playlist of the whole set
-    /// <c>Command &amp; Conquer (USA).m3u</c>.
-    /// </summary>
-    private static string WithoutDiscLabel(string fileName, ParsedRomName parsed)
-    {
-        if (parsed.DiscLabel is not { } label)
-        {
-            return fileName;
-        }
-
-        var index = fileName.IndexOf(label, StringComparison.OrdinalIgnoreCase);
-        return index < 0 ? fileName : fileName.Remove(index, label.Length);
-    }
-
-    /// <summary>
     /// Writes one <c>.m3u</c> playlist per release grouped by <see cref="MultiDiskEvaluator.GroupPlaylistReleases"/>. An
     /// existing playlist, or a path that a file of the sort took (<paramref name="claimedPaths"/>), follows the collision
     /// mode. A cancellation removes the playlist being written and is thrown again.
@@ -1746,9 +1748,19 @@ public sealed partial class FileTransferExecutor
 
             var firstPath = uniqueDiscs[0].FinalTargetPath!;
             var discParent = Path.GetDirectoryName(firstPath) ?? _config.DestinationDir;
-            var m3uFilename = _organizer.GenerateM3uFilename(WithoutDiscLabel(Path.GetFileName(firstPath), uniqueDiscs[0].Parsed));
+            var m3uFilename = _organizer.GenerateM3uFilename(PathOrganizerService.WithoutDiscLabel(Path.GetFileName(firstPath), uniqueDiscs[0].Parsed));
             var destDir = _config.DestinationDir;
             var placement = _config.M3uPlacement;
+
+            // A playlist read as a game takes the name of its folder, which BuildTargetPath named after it: ES-DE only
+            // reads the folder as one game when both names are the same
+            var asGame = _config.SubfolderMultidisk
+                         && placement == M3uPlacementMode.GameFolder
+                         && Path.GetFileName(discParent).EndsWith(".m3u", StringComparison.OrdinalIgnoreCase);
+            if (asGame)
+            {
+                m3uFilename = Path.GetFileName(discParent);
+            }
 
             string m3uDir;
             string m3uPath;
@@ -1779,8 +1791,10 @@ public sealed partial class FileTransferExecutor
                 continue;
             }
 
-            // A playlist follows the collision mode as any other target: an existing one is skipped, renamed or replaced
-            var (resolvedPath, isSkipped) = _organizer.ResolveCollision(m3uPath, _config.CollisionMode, claimedPaths);
+            // A playlist follows the collision mode as any other target: an existing one is skipped, renamed or replaced.
+            // A playlist read as a game is never renamed, its folder could not follow: an existing one is kept instead
+            var collisionMode = asGame && _config.CollisionMode == CollisionMode.Rename ? CollisionMode.Skip : _config.CollisionMode;
+            var (resolvedPath, isSkipped) = _organizer.ResolveCollision(m3uPath, collisionMode, claimedPaths);
             if (isSkipped)
             {
                 _log(LogLevel.Skip, LocalizedMessage.Create("log.m3u_skipped_existing", ("path", Path.GetRelativePath(destDir, m3uPath))));

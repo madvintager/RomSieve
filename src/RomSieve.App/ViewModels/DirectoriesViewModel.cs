@@ -556,6 +556,14 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     [ObservableProperty]
     private M3uPlacementMode _selectedM3uPlacement = M3uPlacementMode.Parent;
 
+    /// <summary>Every game on a disc image in a folder of its own (<see cref="SortConfig.FolderPerDiscGame"/>).</summary>
+    [ObservableProperty]
+    private bool _folderPerDiscGame;
+
+    /// <summary>Frontend the destination is organized for (<see cref="SortConfig.Frontend"/>).</summary>
+    [ObservableProperty]
+    private FrontendTarget _frontend;
+
     public bool IsPatternEditingEnabled => !IsRunning && !FlatDestination;
     public bool IsM3uPlacementEnabled => !IsRunning && GenerateM3u && SubfolderMultidisk;
 
@@ -1402,6 +1410,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         settings.SubfolderMultidisk = SubfolderMultidisk;
         settings.GenerateM3u = GenerateM3u;
         settings.M3uPlacement = SelectedM3uPlacement;
+        settings.FolderPerDiscGame = FolderPerDiscGame;
+        settings.Frontend = Frontend;
     }
 
     public override void ReadFrom(SortSettings settings)
@@ -1453,6 +1463,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         SubfolderMultidisk = settings.SubfolderMultidisk;
         GenerateM3u = settings.GenerateM3u;
         SelectedM3uPlacement = settings.M3uPlacement;
+        FolderPerDiscGame = settings.FolderPerDiscGame;
+        Frontend = settings.Frontend;
     }
 
     public override void RefreshTranslations()

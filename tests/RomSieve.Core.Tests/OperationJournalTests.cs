@@ -36,7 +36,7 @@ public sealed class OperationJournalTests : IDisposable
             _services.I18n,
             _services.OpticalCompanionService,
             _services.MameParser, _services.Patches,
-            _crcCache, _services.PatchLinks,
+            _crcCache, _services.PatchLinks, _services.Frontends,
             _journal);
         _src = _temp.CreateSubdirectory("src");
         _dst = _temp.CreateSubdirectory("dst");

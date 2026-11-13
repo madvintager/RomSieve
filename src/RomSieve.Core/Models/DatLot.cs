@@ -210,9 +210,10 @@ public sealed class DatLotMember
 /// its name, the value of <c>{dat}</c>, and, for a DAT of a lot (<see cref="IsLotMember"/>), its folder relative to the
 /// folder of DATs read. Only a DAT of a lot gets a folder of its own in the destination (<see cref="SortConfig.FolderPerDat"/>),
 /// under the folders of its path when they are mirrored (<see cref="SortConfig.DatFolderMirror"/>): a single DAT
-/// changes nothing to the targets.
+/// changes nothing to the targets. With a frontend (<see cref="SortConfig.Frontend"/>), <see cref="PlatformFolder"/> is the
+/// folder of the platform of the DAT, which takes the place of those folders, for a single DAT as for a DAT of a lot.
 /// </summary>
-public sealed record DatPlacement(string Name, string? RelativeFolder = null, bool IsLotMember = false);
+public sealed record DatPlacement(string Name, string? RelativeFolder = null, bool IsLotMember = false, string? PlatformFolder = null);
 
 /// <summary>
 /// What a sort found of one DAT of a lot (<see cref="ProcessStats.PerDat"/>): its ROMs, those present (a file of the

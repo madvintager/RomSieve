@@ -64,7 +64,7 @@ public sealed class SortStopTests : IDisposable
             _services.I18n,
             _services.OpticalCompanionService,
             _services.MameParser, _services.Patches,
-            _crcCache, _services.PatchLinks,
+            _crcCache, _services.PatchLinks, _services.Frontends,
             _journal)
         {
             ConfigureTransferExecutor = executor =>
@@ -190,7 +190,7 @@ public sealed class SortStopTests : IDisposable
             _services.I18n,
             _services.OpticalCompanionService,
             _services.MameParser, _services.Patches,
-            _crcCache, _services.PatchLinks,
+            _crcCache, _services.PatchLinks, _services.Frontends,
             _journal);
 
         var result = await processor.ExecuteAsync(new SortConfig { SourceDir = _src, DestinationDir = _dst }, isDryRun: true);

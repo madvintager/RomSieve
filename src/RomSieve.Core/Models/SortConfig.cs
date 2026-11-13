@@ -15,6 +15,21 @@ public sealed class SortConfig
     public bool SubfolderMultidisk { get; set; } = true;
     public bool GenerateM3u { get; set; } = false;
     public M3uPlacementMode M3uPlacement { get; set; } = M3uPlacementMode.Parent;
+
+    /// <summary>
+    /// Whether every game on a disc image (a descriptor <c>.cue</c>, <c>.gdi</c>, <c>.ccd</c>, or a <c>.chd</c>,
+    /// <c>.iso</c>…) goes in a folder named after the game, as a multi-disc game does with <see cref="SubfolderMultidisk"/>:
+    /// some cores need it (MiSTer). Off by default.
+    /// </summary>
+    public bool FolderPerDiscGame { get; set; }
+
+    /// <summary>
+    /// Frontend the destination is organized for: each file goes under the folder the frontend gives the platform of its
+    /// DAT (<see cref="Abstractions.IFrontendPlatformService"/>), in place of the folder of the DAT of a lot; a DAT the
+    /// table does not know keeps its name as folder. <see cref="FrontendTarget.None"/> by default: the targets of before.
+    /// </summary>
+    public FrontendTarget Frontend { get; set; }
+
     public FilterConfig Filters { get; set; } = new();
     public bool PurgeDestination { get; set; } = false;
     public bool AppendToDestination { get; set; } = false;

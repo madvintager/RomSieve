@@ -34,7 +34,7 @@ public sealed class PatchHeaderTests : IDisposable
         _processor = new SortProcessorService(
             _services.ChecksumService, _services.DatService, _services.NoIntroParser, _services.FilterService,
             _services.Organizer, _services.I18n, _services.OpticalCompanionService, _services.MameParser, _services.Patches,
-            _crcCache, _services.PatchLinks, _journal);
+            _crcCache, _services.PatchLinks, _services.Frontends, _journal);
         _src = _temp.CreateSubdirectory("src");
         _dst = _temp.CreateSubdirectory("dst");
         _patches = _temp.CreateSubdirectory("patches");

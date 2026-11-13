@@ -81,6 +81,12 @@ public sealed class SortSettings
     public bool GenerateM3u { get; set; }
     public M3uPlacementMode M3uPlacement { get; set; } = M3uPlacementMode.Parent;
 
+    /// <summary>Puts every game on a disc image in a folder of its own (<c>folder_per_disc_game</c>, <see cref="SortConfig.FolderPerDiscGame"/>).</summary>
+    public bool FolderPerDiscGame { get; set; }
+
+    /// <summary>Frontend the destination is organized for (<c>frontend</c>, <see cref="SortConfig.Frontend"/>).</summary>
+    public FrontendTarget Frontend { get; set; }
+
     // Filters of every convention
 
     /// <summary>

@@ -237,26 +237,36 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
         bool patched = false)
     {
         ArgumentNullException.ThrowIfNull(config);
-        var hiddenSubfolder = config.GenerateM3u &&
-                              config.SubfolderMultidisk &&
-                              config.M3uPlacement == M3uPlacementMode.ParentHidden;
 
+        // The folders of the pattern, then the folder of the game (multi-disc set, disc image) unless the pattern ends
+        // with it already
         var relTargetDir = BuildTargetRelativePath(
             parsed,
             config.Pattern,
             restoreArticles: config.RestoreArticles,
-            subfolderMultidisk: config.SubfolderMultidisk,
-            hiddenSubfolder: hiddenSubfolder,
-            isMultiMediaOverride: isMultiMediaOverride,
+            subfolderMultidisk: false,
             datName: dat?.Name);
+        var unmatched = relTargetDir == UnmatchedFolderName;
+        List<string> patternFolders = relTargetDir == "." ? [] : [.. relTargetDir.Split(Path.DirectorySeparatorChar)];
+        if (!unmatched
+            && GameFolder(parsed, fileName, config, isMultiMediaOverride ?? parsed.IsMultiMedia) is { } gameFolder
+            && (patternFolders.Count == 0 || !string.Equals(patternFolders[^1], gameFolder, StringComparison.OrdinalIgnoreCase)))
+        {
+            patternFolders.Add(gameFolder);
+        }
 
-        // The folder of the DAT of a lot goes above the folders of the pattern; _unmatched stays at the root
-        var datFolders = relTargetDir == UnmatchedFolderName ? [] : DatFolderSegments(dat, config);
-        IReadOnlyList<string> folders = [.. datFolders, .. relTargetDir == "." ? Array.Empty<string>() : relTargetDir.Split(Path.DirectorySeparatorChar)];
+        // The folder of the platform for a frontend, or else of the DAT of a lot, goes above the folders of the pattern;
+        // _unmatched stays at the root
+        IReadOnlyList<string> datFolders = unmatched
+            ? []
+            : dat?.PlatformFolder is { } platform
+                ? [SanitizePathSegment(platform)]
+                : DatFolderSegments(dat, config);
+        IReadOnlyList<string> folders = [.. datFolders, .. patternFolders];
 
         // A patched version goes where the pattern of the patched versions says, from the root of the destination; empty,
         // into the folder of its original ROM
-        if (patched && relTargetDir != UnmatchedFolderName && !string.IsNullOrWhiteSpace(config.PatchedPattern))
+        if (patched && !unmatched && !string.IsNullOrWhiteSpace(config.PatchedPattern))
         {
             folders = PatchedFolders(parsed, config, datFolders, folders, dat?.Name);
         }
@@ -273,6 +283,68 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
         return config.TransferMode == TransferMode.Zip && !parsed.Convention.IsMameSets()
             ? Path.ChangeExtension(target, ".zip")
             : target;
+    }
+
+    /// <summary>
+    /// Extensions of a disc image as a game is sorted (<see cref="SortConfig.FolderPerDiscGame"/>): a descriptor with its
+    /// tracks, or an image in one file. <c>.bin</c> and <c>.img</c> are left out: they are also cartridge and floppy dumps.
+    /// </summary>
+    private static readonly HashSet<string> DiscImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".cue", ".gdi", ".ccd", ".toc", ".mds", ".cdi", ".chd", ".iso"
+    };
+
+    /// <summary>
+    /// Folder of its game a file goes into under the folders of the pattern, or <c>null</c>:
+    /// <list type="bullet">
+    /// <item>a disc of a multi-disc set with <see cref="SortConfig.SubfolderMultidisk"/>: the title, hidden
+    /// (<c>.Title</c>) when the playlists go to the parent folder with the subfolders hidden; with playlists read as a game
+    /// (<see cref="M3uPlacementMode.GameFolder"/>), the name of the playlist (<c>Game (USA).m3u</c>), which
+    /// <see cref="FileTransferExecutor.GenerateM3uPlaylistsAsync"/> takes from this folder;</item>
+    /// <item>any other disc image with <see cref="SortConfig.FolderPerDiscGame"/>: the title, never hidden.</item>
+    /// </list>
+    /// A MAME set and its disks keep the folders of their set.
+    /// </summary>
+    private string? GameFolder(ParsedRomName parsed, string fileName, SortConfig config, bool isMultiMedia)
+    {
+        if (parsed.Convention.IsMameSets())
+        {
+            return null;
+        }
+
+        var name = Path.GetFileName(fileName);
+        string TitleFolder()
+        {
+            var title = FolderTitle(parsed, config.RestoreArticles);
+            return SanitizePathSegment(string.IsNullOrEmpty(title) ? "Unknown" : title);
+        }
+
+        if (config.SubfolderMultidisk && isMultiMedia)
+        {
+            return (config.GenerateM3u, config.M3uPlacement) switch
+            {
+                (true, M3uPlacementMode.GameFolder) => SanitizePathSegment(GenerateM3uFilename(WithoutDiscLabel(name, parsed))),
+                (true, M3uPlacementMode.ParentHidden) => $".{TitleFolder()}",
+                _ => TitleFolder()
+            };
+        }
+
+        return config.FolderPerDiscGame && DiscImageExtensions.Contains(Path.GetExtension(name)) ? TitleFolder() : null;
+    }
+
+    /// <summary>
+    /// A disc name without the label of its disc (<see cref="ParsedRomName.DiscLabel"/>, <c>(GDI Disc)</c>), so that the
+    /// discs of a set give one playlist name.
+    /// </summary>
+    internal static string WithoutDiscLabel(string fileName, ParsedRomName parsed)
+    {
+        if (parsed.DiscLabel is not { } label)
+        {
+            return fileName;
+        }
+
+        var index = fileName.IndexOf(label, StringComparison.OrdinalIgnoreCase);
+        return index < 0 ? fileName : fileName.Remove(index, label.Length);
     }
 
     /// <summary>

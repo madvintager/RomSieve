@@ -70,6 +70,34 @@ public sealed class SortSettingsSerializerTests
         config.DatFolderMirror.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData("""{}""", FrontendTarget.None, false)]
+    [InlineData("""{ "frontend": "mister", "folder_per_disc_game": true }""", FrontendTarget.MiSTer, true)]
+    [InlineData("""{ "frontend": " Batocera " }""", FrontendTarget.Batocera, false)]
+    [InlineData("""{ "frontend": "launchbox", "folder_per_disc_game": "no" }""", FrontendTarget.None, false)]
+    [InlineData("""{ "frontend": 3 }""", FrontendTarget.None, false)]
+    public void FrontendOptions_ShouldBeOffByDefault_AndReadWhatTheyKnow(string json, FrontendTarget frontend, bool folderPerDiscGame)
+    {
+        var settings = SortSettingsSerializer.Read(Parse(json));
+        settings.Frontend.Should().Be(frontend);
+        settings.FolderPerDiscGame.Should().Be(folderPerDiscGame);
+
+        var config = SortSettingsSerializer.ToSortConfig(settings);
+        config.Frontend.Should().Be(frontend);
+        config.FolderPerDiscGame.Should().Be(folderPerDiscGame);
+    }
+
+    [Fact]
+    public void GameFolderPlacement_ShouldBeWrittenAndReadBack()
+    {
+        var data = new Dictionary<string, object?>(StringComparer.Ordinal);
+        SortSettingsSerializer.Write(new SortSettings { M3uPlacement = M3uPlacementMode.GameFolder }, data);
+
+        data["m3u_placement"].Should().Be("game_folder");
+        SortSettingsSerializer.Read(Parse(JsonSerializer.Serialize(data))).M3uPlacement.Should().Be(M3uPlacementMode.GameFolder);
+        EnumExtensions.ParseM3uPlacementMode("GAME_FOLDER").Should().Be(M3uPlacementMode.GameFolder);
+    }
+
     [Fact]
     public void ExcludedDats_ShouldBeReadWithoutEmptyNamesNorDuplicates()
     {
@@ -107,7 +135,9 @@ public sealed class SortSettingsSerializerTests
             HashingParallelism = SortConfig.AutoHashingParallelism,
             VerifySha1 = true,
             FlatDestination = true,
-            M3uPlacement = M3uPlacementMode.Subfolder,
+            M3uPlacement = M3uPlacementMode.GameFolder,
+            FolderPerDiscGame = true,
+            Frontend = FrontendTarget.EsDe,
             ExcludeModifications = false,
             PreferredMediaType = MediaPreference.Tape,
             NoIntroExcludeHack = false,
@@ -131,6 +161,9 @@ public sealed class SortSettingsSerializerTests
 
         SortSettingsSerializer.Read(Parse(json)).Should().BeEquivalentTo(settings, o => o.WithStrictOrdering());
         data["transfer_mode"].Should().Be("zip");
+        data["m3u_placement"].Should().Be("game_folder");
+        data["frontend"].Should().Be("es-de");
+        data["folder_per_disc_game"].Should().Be(true);
         data["region_priority_mode"].Should().Be("country_first");
         data.Should().NotContainKeys("language_priority", "tiebreak_order", "mame_minimum_driver_status");
     }

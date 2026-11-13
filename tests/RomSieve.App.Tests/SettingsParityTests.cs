@@ -35,7 +35,9 @@ public sealed class SettingsParityTests
         """{ "patch_dir": "C:/patches", "patched_pattern": " Patchs/{dat}/{title} " }""",
         """{ "flat_destination": true, "patched_pattern": "{origin_folder}/Patchs" }""",
         """{ "patched_pattern": "", "pattern": "{title}" }""",
-        """{ "patched_pattern": 3 }"""
+        """{ "patched_pattern": 3 }""",
+        """{ "frontend": "mister", "folder_per_disc_game": true, "m3u_placement": "game_folder" }""",
+        """{ "frontend": "launchbox", "folder_per_disc_game": "yes" }"""
     ];
 
     [Theory]

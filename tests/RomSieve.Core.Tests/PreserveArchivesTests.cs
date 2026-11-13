@@ -411,7 +411,7 @@ public sealed class PreserveArchivesTests : IDisposable
         var journal = new OperationJournalService(_temp.GetFilePath("journals"), _services.ChecksumService, crcCache);
         var processor = new SortProcessorService(
             _services.ChecksumService, _services.DatService, _services.NoIntroParser, _services.FilterService,
-            _services.Organizer, _services.I18n, _services.OpticalCompanionService, _services.MameParser, _services.Patches, crcCache, _services.PatchLinks, journal);
+            _services.Organizer, _services.I18n, _services.OpticalCompanionService, _services.MameParser, _services.Patches, crcCache, _services.PatchLinks, _services.Frontends, journal);
 
         var zipPath = CreateZip(Path.Combine("src", ArchiveName), (RomName, RomData));
         var config = CreateConfig(transferMode: TransferMode.Move);

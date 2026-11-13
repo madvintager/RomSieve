@@ -24,6 +24,7 @@ public sealed class SortProcessorService : ISortProcessorService
     private readonly IMameDescriptionParser _mameParser;
     private readonly IPatchService _patchService;
     private readonly IPatchLinkService _patchLinks;
+    private readonly IFrontendPlatformService _frontends;
     private readonly ILocalizationService _i18n;
     private readonly IOperationJournalService? _journalService;
 
@@ -41,6 +42,26 @@ public sealed class SortProcessorService : ISortProcessorService
 
     public ICrcCacheService CrcCache => _crcCache;
 
+    /// <summary>
+    /// Folders of the platforms of a run with a frontend; <c>null</c> without a frontend. A run without a DAT has no
+    /// platform: its targets do not change, which the log says once.
+    /// </summary>
+    private FrontendFolders? FrontendFoldersOf(SortConfig config, DatCatalog? catalog, Action<LogLevel, LocalizedMessage> log)
+    {
+        if (config.Frontend == FrontendTarget.None)
+        {
+            return null;
+        }
+
+        if (catalog is null)
+        {
+            log(LogLevel.Warn, LocalizedMessage.Create("log.frontend_no_dat", ("frontend", config.Frontend.DisplayName())));
+            return null;
+        }
+
+        return new FrontendFolders(_frontends, _organizer, config.Frontend, config.DestinationDir, log);
+    }
+
     public SortProcessorService(
         IChecksumService checksumService,
         IDatService datService,
@@ -53,8 +74,10 @@ public sealed class SortProcessorService : ISortProcessorService
         IPatchService patchService,
         ICrcCacheService crcCache,
         IPatchLinkService patchLinks,
+        IFrontendPlatformService frontends,
         IOperationJournalService? journalService = null)
     {
+        _frontends = frontends;
         _patchService = patchService;
         _patchLinks = patchLinks;
         // A null journal service disables the operation journal (and therefore the undo of sorts)
@@ -288,7 +311,8 @@ public sealed class SortProcessorService : ISortProcessorService
                 _crcCache)
             {
                 IsMameRun = isMameRun,
-                DatCatalog = datCatalog
+                DatCatalog = datCatalog,
+                FrontendFolders = FrontendFoldersOf(config, datCatalog, Log)
             };
             ConfigureTransferExecutor?.Invoke(transferExecutor);
             if (!isDryRun)

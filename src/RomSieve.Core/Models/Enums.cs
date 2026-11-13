@@ -237,7 +237,13 @@ public enum M3uPlacementMode
     /// <summary>At the parent level, with hidden subfolder .Subfolder/File.</summary>
     ParentHidden,
     /// <summary>Inside the game subfolder, pointing directly to File.</summary>
-    Subfolder
+    Subfolder,
+
+    /// <summary>
+    /// Inside the game subfolder, which takes the name of the playlist (<c>Game.m3u/Game.m3u</c>, pointing directly to
+    /// File): ES-DE reads a folder named after a file it knows as that file, one game in its list.
+    /// </summary>
+    GameFolder
 }
 
 /// <summary>
@@ -887,6 +893,7 @@ public static class EnumExtensions
         {
             "parent_hidden" => M3uPlacementMode.ParentHidden,
             "subfolder" => M3uPlacementMode.Subfolder,
+            "game_folder" => M3uPlacementMode.GameFolder,
             _ => M3uPlacementMode.Parent
         };
 
@@ -895,7 +902,20 @@ public static class EnumExtensions
         {
             M3uPlacementMode.ParentHidden => "parent_hidden",
             M3uPlacementMode.Subfolder => "subfolder",
+            M3uPlacementMode.GameFolder => "game_folder",
             _ => "parent"
+        };
+
+    /// <summary>Name of the frontend in a message: a product name, never translated.</summary>
+    public static string DisplayName(this FrontendTarget frontend) =>
+        frontend switch
+        {
+            FrontendTarget.Batocera => "Batocera",
+            FrontendTarget.RetroPie => "RetroPie",
+            FrontendTarget.EsDe => "ES-DE",
+            FrontendTarget.Recalbox => "Recalbox",
+            FrontendTarget.MiSTer => "MiSTer",
+            _ => string.Empty
         };
 
     /// <summary>Frontend of a <c>config.json</c> value (also the keys of the frontend table); <see cref="FrontendTarget.None"/> for an unknown one.</summary>
