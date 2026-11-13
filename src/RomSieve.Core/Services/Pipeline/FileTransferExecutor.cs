@@ -630,7 +630,7 @@ public sealed partial class FileTransferExecutor
         item.FinalTargetPath = set.PrimaryTarget;
         if (FrontendFolders is { } frontends && PlacementOf(item) is { } dat)
         {
-            frontends.CheckArchive(dat, item.Parsed, candidateTarget);
+            frontends.NoteWritten(dat, item.Parsed, candidateTarget);
         }
 
         if (set.Skipped)

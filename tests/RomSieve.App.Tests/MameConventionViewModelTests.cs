@@ -19,7 +19,7 @@ public sealed class MameConventionViewModelTests : IDisposable
     public void Dispose() => _tmp.Dispose();
 
     private DirectoriesViewModel CreateDirectories() =>
-        new(_services.I18n, new HeadlessDialogService(), _services.DatService, _services.NoIntroParser, _services.Organizer, _services.MameParser, TimeSpan.Zero);
+        new(_services.I18n, new HeadlessDialogService(), _services.DatService, _services.NoIntroParser, _services.Organizer, _services.MameParser, _services.Frontends, TimeSpan.Zero);
 
     [Fact]
     public void MameDat_ShouldBeDetectedAndShownByItsBadge()
@@ -209,7 +209,7 @@ public sealed class MameConventionViewModelTests : IDisposable
         var dat = WriteMameDat();
         var datService = new GatedDatService(_services.DatService);
         var gate = datService.Gate(dat);
-        var directories = new DirectoriesViewModel(_services.I18n, new HeadlessDialogService(), datService, _services.NoIntroParser, _services.Organizer, _services.MameParser, TimeSpan.Zero);
+        var directories = new DirectoriesViewModel(_services.I18n, new HeadlessDialogService(), datService, _services.NoIntroParser, _services.Organizer, _services.MameParser, _services.Frontends, TimeSpan.Zero);
 
         directories.DatFilePath = dat;
 
@@ -245,7 +245,7 @@ public sealed class MameConventionViewModelTests : IDisposable
             """);
         var datService = new GatedDatService(_services.DatService);
         var gate = datService.Gate(mame);
-        var directories = new DirectoriesViewModel(_services.I18n, new HeadlessDialogService(), datService, _services.NoIntroParser, _services.Organizer, _services.MameParser, TimeSpan.Zero);
+        var directories = new DirectoriesViewModel(_services.I18n, new HeadlessDialogService(), datService, _services.NoIntroParser, _services.Organizer, _services.MameParser, _services.Frontends, TimeSpan.Zero);
 
         directories.DatFilePath = mame;
         var mameRead = directories.DatLoadTask;
@@ -264,7 +264,7 @@ public sealed class MameConventionViewModelTests : IDisposable
         var dat = WriteMameDat();
         var datService = new GatedDatService(_services.DatService);
         var services = new CoreTestServices("fr");
-        var directories = new DirectoriesViewModel(services.I18n, new HeadlessDialogService(), datService, services.NoIntroParser, services.Organizer, services.MameParser, TimeSpan.Zero);
+        var directories = new DirectoriesViewModel(services.I18n, new HeadlessDialogService(), datService, services.NoIntroParser, services.Organizer, services.MameParser, services.Frontends, TimeSpan.Zero);
         directories.DatFilePath = dat;
         await directories.DatLoadTask;
         directories.DatInfoText.Should().Contain("ROMs cataloguées");

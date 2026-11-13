@@ -124,6 +124,29 @@ public sealed class CliDatLotTests : IDisposable
     }
 
     [Fact]
+    public async Task Mirror_WithAFrontend_ShouldBeRefused()
+    {
+        WriteConfig(s => s.Frontend = FrontendTarget.Batocera);
+
+        var result = await RunAsync("run", "--dat", _dats, "--dat-recursive", "--dir-dat-mirror");
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidArguments);
+        result.Error.Should().Contain("--dir-dat-mirror").And.Contain("batocera");
+    }
+
+    [Fact]
+    public async Task FrontendOfTheConfiguration_ShouldPutEachDatUnderTheFolderOfItsPlatform()
+    {
+        WriteConfig(s => s.Frontend = FrontendTarget.Batocera);
+
+        var result = await RunAsync("run", "--dat", _dats, "--dat-recursive", "--execute");
+
+        result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
+        DestinationFiles().Should().Contain("gb/Tetris/Tetris (World).gb")
+            .And.Contain("amiga500/Lemmings/Lemmings (1991)(Psygnosis).adf");
+    }
+
+    [Fact]
     public async Task DatOnly_ShouldSortWithTheDatsItNamesAlone()
     {
         WriteConfig(s => s.ExcludedDats = [GameBoy]);

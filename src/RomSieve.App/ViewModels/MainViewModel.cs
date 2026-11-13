@@ -63,6 +63,7 @@ public sealed partial class MainViewModel : ViewModelBase
         IDialogService dialogService,
         IPatchNamingService patchNaming,
         IPatchLinkService patchLinks,
+        IFrontendPlatformService frontends,
         string? configFilePath = null)
     {
         _processorService = processorService ?? throw new ArgumentNullException(nameof(processorService));
@@ -89,7 +90,8 @@ public sealed partial class MainViewModel : ViewModelBase
             _datService,
             _noIntroParser,
             pathOrganizer ?? throw new ArgumentNullException(nameof(pathOrganizer)),
-            mameParser ?? throw new ArgumentNullException(nameof(mameParser)));
+            mameParser ?? throw new ArgumentNullException(nameof(mameParser)),
+            frontends ?? throw new ArgumentNullException(nameof(frontends)));
         Directories.EffectiveConventionChanged += OnEffectiveConventionChanged;
         Quarantine = new QuarantineViewModel(_localization, _dialogService, Log);
 

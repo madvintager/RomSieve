@@ -72,6 +72,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         INoIntroRedumpParser noIntroParser,
         IPathOrganizerService pathOrganizer,
         IMameDescriptionParser mameParser,
+        IFrontendPlatformService frontends,
         TimeSpan? previewDebounce = null)
     {
         _localization = localization;
@@ -79,7 +80,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         _datService = datService;
         _noIntroParser = noIntroParser;
         _datInfoText = string.Empty;
-        DatLot = new DatLotViewModel(localization);
+        DatLot = new DatLotViewModel(localization, frontends, pathOrganizer);
         DatLot.ExcludedChanged += (_, _) =>
         {
             _syncingLot = true;
@@ -201,6 +202,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDatFolderMirrorEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsFolderPerDatEnabled))]
     private bool _holdsSeveralDats;
 
     /// <summary>Raised when the user changes the source directory (not while a configuration is being loaded).</summary>
@@ -600,8 +602,36 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         UpdatePatternVariables();
     }
 
-    /// <summary>Whether the folders of the DATs may be mirrored: a folder or an archive of DATs, each with a folder of its own.</summary>
-    public bool IsDatFolderMirrorEnabled => HoldsSeveralDats && FolderPerDat;
+    /// <summary>
+    /// Whether the folders of the DATs may be mirrored: a folder or an archive of DATs, each with a folder of its own,
+    /// without a frontend, whose folder of the platform takes the place of these folders.
+    /// </summary>
+    public bool IsDatFolderMirrorEnabled => HoldsSeveralDats && FolderPerDat && Frontend == FrontendTarget.None;
+
+    /// <summary>Whether each DAT of a lot may have a folder of its own: a lot, without a frontend.</summary>
+    public bool IsFolderPerDatEnabled => HoldsSeveralDats && Frontend == FrontendTarget.None;
+
+    /// <summary>Tooltip of « A folder per DAT », which says why it has no effect with a frontend.</summary>
+    public string FolderPerDatTooltip => _localization.Tr(Frontend == FrontendTarget.None
+        ? "tab1.tooltip_folder_per_dat"
+        : "tab1.tooltip_folder_per_dat_frontend");
+
+    /// <summary>Tooltip of « Mirror the folders of the DATs », which says why it has no effect with a frontend.</summary>
+    public string DatFolderMirrorTooltip => _localization.Tr(Frontend == FrontendTarget.None
+        ? "tab1.tooltip_dat_folder_mirror"
+        : "tab1.tooltip_folder_per_dat_frontend");
+
+    // A frontend puts each DAT under the folder of its platform: the folders of the DATs no longer apply, {dat_folder}
+    // gives that folder, and the window of the lot shows it
+    partial void OnFrontendChanged(FrontendTarget value)
+    {
+        OnPropertyChanged(nameof(IsFolderPerDatEnabled));
+        OnPropertyChanged(nameof(IsDatFolderMirrorEnabled));
+        OnPropertyChanged(nameof(FolderPerDatTooltip));
+        OnPropertyChanged(nameof(DatFolderMirrorTooltip));
+        UpdatePatternVariables();
+        DatLot.ShowFrontend(value);
+    }
 
     // The subfolders change the DATs of the lot
     partial void OnDatRecursiveChanged(bool value)
@@ -1359,7 +1389,9 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
                 PatternVariableScope.Tosec => (AreTosecVariablesApplicable, "var.hint_tosec_only"),
                 PatternVariableScope.Mame => (AreMameVariablesApplicable, "var.hint_mame_only"),
                 PatternVariableScope.Dat => (!string.IsNullOrWhiteSpace(DatFilePath), "var.hint_dat_only"),
-                PatternVariableScope.DatFolder => (HoldsSeveralDats && FolderPerDat, "var.hint_dat_folder_only"),
+                PatternVariableScope.DatFolder => (
+                    Frontend == FrontendTarget.None ? HoldsSeveralDats && FolderPerDat : !string.IsNullOrWhiteSpace(DatFilePath),
+                    "var.hint_dat_folder_only"),
                 _ => (true, null)
             };
             variable.IsApplicable = isApplicable;
@@ -1469,6 +1501,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
     public override void RefreshTranslations()
     {
+        OnPropertyChanged(nameof(FolderPerDatTooltip));
+        OnPropertyChanged(nameof(DatFolderMirrorTooltip));
         NamingConventionOptions.RefreshTranslations();
         CollisionModeOptions.RefreshTranslations();
         M3uPlacementOptions.RefreshTranslations();

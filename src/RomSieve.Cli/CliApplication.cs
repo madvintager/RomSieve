@@ -387,9 +387,15 @@ public sealed class CliApplication
             settings.ApplyPatches = false;
         }
 
-        // The folders of the DATs are mirrored under the folder of each DAT: without it, there is nothing to mirror
+        // The folders of the DATs are mirrored under the folder of each DAT: without it, there is nothing to mirror, and a
+        // frontend puts each DAT under the folder of its platform instead
         if (parseResult.GetValue(_datMirrorOption))
         {
+            if (settings.Frontend != FrontendTarget.None)
+            {
+                return (null, Fail(ExitCodes.InvalidArguments, Tr("cli.mirror_with_frontend", ("frontend", settings.Frontend.ToConfigString()))));
+            }
+
             if (!settings.FolderPerDat)
             {
                 return (null, Fail(ExitCodes.InvalidArguments, Tr("cli.mirror_requires_folder_per_dat")));

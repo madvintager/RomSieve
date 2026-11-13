@@ -41,7 +41,7 @@ public sealed class DatFolderReadingTests : IDisposable
         File.WriteAllBytes(Path.Combine(_source, "Tetris (World).gb"), Tetris);
 
         _directories = new DirectoriesViewModel(
-            _services.I18n, new HeadlessDialogService(), _datService, _services.NoIntroParser, _services.Organizer, _services.MameParser, TimeSpan.Zero);
+            _services.I18n, new HeadlessDialogService(), _datService, _services.NoIntroParser, _services.Organizer, _services.MameParser, _services.Frontends, TimeSpan.Zero);
         _directories.SourceDir = _source;
         _directories.DestinationDir = _tmp.GetFilePath("sorted");
 

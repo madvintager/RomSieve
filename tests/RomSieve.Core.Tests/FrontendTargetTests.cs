@@ -267,6 +267,64 @@ public sealed class FrontendTargetTests : IDisposable
     }
 
     // =========================================================================
+    // Lot: DATs gathered under a platform
+    // =========================================================================
+
+    [Fact]
+    public async Task DatsOfOnePlatform_ShouldShareItsFolder_TheirCollisionsResolved_AndBeReportedOnce()
+    {
+        WriteGameBoy();
+        WriteDat("gb-private.dat", "Nintendo - Game Boy (Private)",
+            ("Tetris (World)", Rom("Tetris (World).gb", TetrisColor)),
+            ("Alleyway (World)", Rom("Alleyway (World).gb", Lemmings)));
+        WriteSource("tetris.gb", Tetris);
+        WriteSource("tetris-private.gb", TetrisColor);
+        WriteSource("alleyway.gb", Lemmings);
+
+        var (result, logs) = await RunAsync(Config(_dats, FrontendTarget.MiSTer, c => c.CollisionMode = CollisionMode.Rename));
+
+        var tetris = new[] { TargetOf(result, "tetris.gb"), TargetOf(result, "tetris-private.gb") };
+        tetris.Should().BeEquivalentTo("GAMEBOY/Tetris/Tetris (World).gb", "GAMEBOY/Tetris/Tetris (World)_01.gb");
+        TargetOf(result, "alleyway.gb").Should().Be("GAMEBOY/Alleyway/Alleyway (World).gb");
+
+        var shared = logs.Where(l => l.Message.Key == "log.frontend_platform_shared").ToList();
+        shared.Should().ContainSingle();
+        shared[0].Level.Should().Be(LogLevel.Info);
+        var arguments = shared[0].Message.Args;
+        arguments["folder"].Should().Be("GAMEBOY");
+        arguments["count"].Should().Be(2);
+        arguments["dats"].Should().Be("Nintendo - Game Boy, Nintendo - Game Boy (Private)");
+    }
+
+    [Fact]
+    public async Task DatsOfTwoPlatforms_ShouldNotBeReportedAsShared()
+    {
+        WriteGameBoy();
+        WriteGameBoyColor();
+        WriteSource("tetris.gb", Tetris);
+        WriteSource("tetris.gbc", TetrisColor);
+
+        var (_, logs) = await RunAsync(Config(_dats, FrontendTarget.Batocera));
+
+        Count(logs, "log.frontend_platform_shared").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task UnknownDatOfALot_ShouldKeepItsName_BesideTheKnownOnes()
+    {
+        WriteGameBoy();
+        WriteDat("homebrew.dat", "Homebrew - Things", ("Alpha (World)", Rom("Alpha (World).gb", TetrisColor)));
+        WriteSource("tetris.gb", Tetris);
+        WriteSource("alpha.gb", TetrisColor);
+
+        var (result, logs) = await RunAsync(Config(_dats, FrontendTarget.EsDe));
+
+        TargetOf(result, "tetris.gb").Should().Be("gb/Tetris/Tetris (World).gb");
+        TargetOf(result, "alpha.gb").Should().Be("Homebrew - Things/Alpha/Alpha (World).gb");
+        Count(logs, "log.frontend_platform_unknown").Should().Be(1);
+    }
+
+    // =========================================================================
     // Archives
     // =========================================================================
 

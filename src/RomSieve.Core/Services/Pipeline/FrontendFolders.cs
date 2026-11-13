@@ -13,7 +13,10 @@ namespace RomSieve.Core.Services;
 /// <item>A folder of the destination root whose name only differs by case is taken as it is (<c>GAMEBOY</c> for
 /// <c>Gameboy</c>): the root is listed once per run, at the first file.</item>
 /// <item>An archive the frontend does not read in the folder of its platform gets a warning once per DAT and extension
-/// (<see cref="CheckArchive"/>); nothing is refused, the emulator may be set up otherwise.</item>
+/// (<see cref="NoteWritten"/>); nothing is refused, the emulator may be set up otherwise.</item>
+/// <item>A folder that receives the files of several DATs (<c>Nintendo - Game Boy</c> and its <c>(Private)</c> DAT, a
+/// No-Intro and a TOSEC DAT of a system) is reported once at the end (<see cref="ReportSharedFolders"/>): the 1G1R being
+/// computed DAT by DAT, a game of two of them may be written twice there.</item>
 /// </list>
 /// </summary>
 internal sealed class FrontendFolders
@@ -28,6 +31,9 @@ internal sealed class FrontendFolders
     private readonly Action<LogLevel, LocalizedMessage> _log;
     private readonly Lock _lock = new();
     private readonly HashSet<string> _reported = new(StringComparer.OrdinalIgnoreCase);
+
+    // DATs whose files each folder of a platform receives
+    private readonly Dictionary<string, List<string>> _datsByFolder = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, string>? _folders;
 
     public FrontendFolders(
@@ -82,12 +88,29 @@ internal sealed class FrontendFolders
     }
 
     /// <summary>
-    /// Warns, once per DAT and extension, when <paramref name="target"/> is an archive (<c>.zip</c>, <c>.7z</c>,
-    /// <c>.rar</c>) the frontend does not read in the folder of the platform of its DAT. An archive the table does not
-    /// know about, or a DAT without a known platform, gives no warning.
+    /// Notes a kept file of <paramref name="dat"/> written to <paramref name="target"/> (or that would be, in a
+    /// simulation): its DAT for the folder of its platform (<see cref="ReportSharedFolders"/>), and a warning, once per
+    /// DAT and extension, when the target is an archive (<c>.zip</c>, <c>.7z</c>, <c>.rar</c>) the frontend does not
+    /// read in that folder. An archive the table does not know about, or a DAT without a known platform, gives no warning.
     /// </summary>
-    public void CheckArchive(DatPlacement dat, ParsedRomName parsed, string target)
+    public void NoteWritten(DatPlacement dat, ParsedRomName parsed, string target)
     {
+        if (dat.PlatformFolder is { } folder)
+        {
+            lock (_lock)
+            {
+                if (!_datsByFolder.TryGetValue(folder, out var dats))
+                {
+                    _datsByFolder[folder] = dats = [];
+                }
+
+                if (!dats.Contains(dat.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    dats.Add(dat.Name);
+                }
+            }
+        }
+
         var extension = Path.GetExtension(target);
         if (!ArchiveExtensions.Contains(extension)
             || _platforms.FindFolder(dat.Name, parsed.Convention, _frontend, parsed) is not { } known
@@ -102,6 +125,33 @@ internal sealed class FrontendFolders
             ("extension", extension.ToLowerInvariant()),
             ("folder", known.Name),
             ("dat", dat.Name)));
+    }
+
+    /// <summary>
+    /// Says, once per folder, which folders of platforms received the files of several DATs: each DAT keeps its own 1G1R,
+    /// so that a game two of them know may be written twice, its names told apart by the collision mode.
+    /// </summary>
+    public void ReportSharedFolders()
+    {
+        List<(string Folder, List<string> Dats)> shared;
+        lock (_lock)
+        {
+            // In the order of the names, whatever the order the files were sorted in
+            shared = [.. _datsByFolder
+                .Where(pair => pair.Value.Count > 1)
+                .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(pair => (pair.Key, pair.Value.Order(StringComparer.OrdinalIgnoreCase).ToList()))];
+        }
+
+        foreach (var (folder, dats) in shared)
+        {
+            ReportOnce($"shared|{folder}", () => LocalizedMessage.Create(
+                "log.frontend_platform_shared",
+                ("frontend", _frontend.DisplayName()),
+                ("folder", folder),
+                ("count", dats.Count),
+                ("dats", string.Join(", ", dats))), LogLevel.Info);
+        }
     }
 
     /// <summary>
@@ -147,7 +197,7 @@ internal sealed class FrontendFolders
         return folders;
     }
 
-    private void ReportOnce(string key, Func<LocalizedMessage> message)
+    private void ReportOnce(string key, Func<LocalizedMessage> message, LogLevel level = LogLevel.Warn)
     {
         bool first;
         lock (_lock)
@@ -157,7 +207,7 @@ internal sealed class FrontendFolders
 
         if (first)
         {
-            _log(LogLevel.Warn, message());
+            _log(level, message());
         }
     }
 }

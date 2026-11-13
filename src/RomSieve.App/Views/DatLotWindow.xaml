@@ -68,6 +68,13 @@
       <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
     </Style>
     <!-- Compact rows: a pack holds thousands of DATs -->
+    <!-- Folder of the DAT with a frontend; a DAT that keeps its name as folder stands out, to be seen before the sort -->
+    <Style Selector="TextBlock.destination">
+      <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
+    </Style>
+    <Style Selector="TextBlock.destination.fallback">
+      <Setter Property="Foreground" Value="{DynamicResource PatternWarningForegroundBrush}" />
+    </Style>
     <Style Selector="ListBox#ListDatLot ListBoxItem">
       <Setter Property="Padding" Value="4,0" />
       <Setter Property="MinHeight" Value="0" />
@@ -160,7 +167,7 @@
                       MinHeight="24"
                       IsChecked="{Binding IsIncluded, Mode=TwoWay}"
                       ToolTip.Tip="{Binding RelativePath}">
-              <Grid ColumnDefinitions="Auto,8,Auto,8,*">
+              <Grid ColumnDefinitions="Auto,8,Auto,8,*,8,Auto">
                 <TextBlock TextWrapping="NoWrap" Text="{Binding Name}" />
                 <TextBlock Grid.Column="2" TextWrapping="NoWrap" FontWeight="Bold" Text="{Binding ConventionLabel}">
                   <TextBlock.Foreground>
@@ -176,6 +183,14 @@
                            TextTrimming="CharacterEllipsis"
                            Text="{Binding FolderLabel}"
                            IsVisible="{Binding FolderLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <!-- Folder of the destination with the frontend chosen, nothing without one -->
+                <TextBlock Grid.Column="6"
+                           Classes="destination"
+                           Classes.fallback="{Binding IsDestinationFallback}"
+                           TextWrapping="NoWrap"
+                           Text="{Binding DestinationText}"
+                           ToolTip.Tip="{Binding DestinationTooltip}"
+                           IsVisible="{Binding DestinationText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               </Grid>
             </CheckBox>
           </DataTemplate>

@@ -3180,14 +3180,14 @@
                               Margin="0,0,20,0"
                               FontSize="11"
                               Content="{Binding I18n[tab1.chk_folder_per_dat]}"
-                              ToolTip.Tip="{Binding I18n[tab1.tooltip_folder_per_dat]}"
+                              ToolTip.Tip="{Binding Directories.FolderPerDatTooltip}"
                               ToolTip.ShowOnDisabled="True"
-                              IsEnabled="{Binding Directories.HoldsSeveralDats}"
+                              IsEnabled="{Binding Directories.IsFolderPerDatEnabled}"
                               IsChecked="{Binding Directories.FolderPerDat, Mode=TwoWay}" />
                     <CheckBox x:Name="ChkDatFolderMirror"
                               FontSize="11"
                               Content="{Binding I18n[tab1.chk_dat_folder_mirror]}"
-                              ToolTip.Tip="{Binding I18n[tab1.tooltip_dat_folder_mirror]}"
+                              ToolTip.Tip="{Binding Directories.DatFolderMirrorTooltip}"
                               ToolTip.ShowOnDisabled="True"
                               IsEnabled="{Binding Directories.IsDatFolderMirrorEnabled}"
                               IsChecked="{Binding Directories.DatFolderMirror, Mode=TwoWay}" />

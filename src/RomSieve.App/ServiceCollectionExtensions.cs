@@ -80,6 +80,7 @@ public static class AppServiceCollectionExtensions
             provider.GetRequiredService<IDialogService>(),
             provider.GetRequiredService<IPatchNamingService>(),
             provider.GetRequiredService<IPatchLinkService>(),
+            provider.GetRequiredService<IFrontendPlatformService>(),
             configFilePath);
     }
 }

@@ -31,7 +31,7 @@ public sealed class PatchedPatternViewModelTests : IDisposable
 
     private DirectoriesViewModel CreateDirectories() =>
         new(_services.I18n, new HeadlessDialogService(), _services.DatService, _services.NoIntroParser, _services.Organizer,
-            _services.MameParser, TimeSpan.Zero);
+            _services.MameParser, _services.Frontends, TimeSpan.Zero);
 
     /// <summary>A Japanese and an American release of a game, a DAT of both, and a translation of the Japanese one.</summary>
     private (string Source, string Dat, string Patches) WriteCollection()
@@ -89,7 +89,7 @@ public sealed class PatchedPatternViewModelTests : IDisposable
         directories.PatchedPattern.Should().BeEmpty();
 
         var english = new DirectoriesViewModel(new LocalizationService("en"), new HeadlessDialogService(), _services.DatService,
-            _services.NoIntroParser, _services.Organizer, _services.MameParser, TimeSpan.Zero);
+            _services.NoIntroParser, _services.Organizer, _services.MameParser, _services.Frontends, TimeSpan.Zero);
         english.PresetPatchedSubfolderCommand.Execute(null);
         english.PatchedPattern.Should().Be("{origin_folder}/Patches");
 
@@ -233,7 +233,7 @@ public sealed class PatchedPatternViewModelTests : IDisposable
     public async Task ThePatchedPattern_ShouldRefreshThePreviewAfterThePauseInTyping()
     {
         var directories = new DirectoriesViewModel(_services.I18n, new HeadlessDialogService(), _services.DatService,
-            _services.NoIntroParser, _services.Organizer, _services.MameParser, TimeSpan.FromMilliseconds(100));
+            _services.NoIntroParser, _services.Organizer, _services.MameParser, _services.Frontends, TimeSpan.FromMilliseconds(100));
         directories.SelectedNamingConvention = NamingConvention.NoIntro;
         directories.PatchDir = _temp.CreateSubdirectory("patches");
         var before = directories.Preview.PatchedExampleText;

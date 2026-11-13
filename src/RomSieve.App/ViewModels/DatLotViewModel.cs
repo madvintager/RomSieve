@@ -59,6 +59,24 @@ public sealed partial class DatLotEntryViewModel : ObservableObject
     [ObservableProperty]
     private string _conventionLabel;
 
+    /// <summary>
+    /// Folder of the destination the files of the DAT go into with the frontend chosen (<c>→ gb</c>); empty without a
+    /// frontend, the folder of the DAT being then its name.
+    /// </summary>
+    [ObservableProperty]
+    private string _destinationText = string.Empty;
+
+    /// <summary>Why the DAT goes into <see cref="DestinationText"/>: the platform, or the table that does not know it.</summary>
+    [ObservableProperty]
+    private string _destinationTooltip = string.Empty;
+
+    /// <summary>
+    /// Whether the DAT keeps its name as folder with the frontend chosen: the table does not know it, or the frontend has
+    /// no folder for its platform. Shown apart, to be seen before the sort.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isDestinationFallback;
+
     /// <summary>Whether the sort uses the DAT (unchecked: in <c>excluded_dats</c>).</summary>
     [ObservableProperty]
     private bool _isIncluded;
@@ -82,13 +100,21 @@ public enum DatLotShown
 /// </summary>
 public sealed partial class DatLotViewModel : ViewModelBase
 {
+    // A release that only runs on an AGA Amiga, to find the folder of the AGA machines of a frontend
+    private static readonly ParsedRomName AgaRelease = new() { RawFilename = string.Empty, System = "AGA" };
+
     private readonly ILocalizationService _localization;
+    private readonly IFrontendPlatformService _frontends;
+    private readonly IPathOrganizerService _organizer;
     private List<DatLotEntryViewModel> _entries = [];
     private bool _applying;
+    private FrontendTarget _frontend;
 
-    public DatLotViewModel(ILocalizationService localization)
+    public DatLotViewModel(ILocalizationService localization, IFrontendPlatformService frontends, IPathOrganizerService organizer)
     {
         _localization = localization;
+        _frontends = frontends;
+        _organizer = organizer;
         I18n = new UiStringsIndexer(localization);
         ShownOptions = new LocalizedOptionList<DatLotShown>(
             localization,
@@ -170,8 +196,56 @@ public sealed partial class DatLotViewModel : ViewModelBase
             .Select(entry => new DatLotEntryViewModel(entry, ConventionLabel(entry.Convention), !left.Contains(entry.Name), OnEntryChanged))
             .ToList();
         IsLot = true;
+        UpdateDestinations();
         Refilter();
         UpdateCount();
+    }
+
+    /// <summary>Shows the folder each DAT goes into with <paramref name="frontend"/>; none without a frontend.</summary>
+    public void ShowFrontend(FrontendTarget frontend)
+    {
+        _frontend = frontend;
+        UpdateDestinations();
+    }
+
+    /// <summary>
+    /// Folder of each DAT with the frontend chosen, as the sort computes it (<see cref="IFrontendPlatformService.FindFolder"/>):
+    /// the folder of its platform, both folders of an Amiga DAT whose AGA releases go elsewhere, or its name, sanitized,
+    /// when the table does not know it or the frontend has no folder for its platform.
+    /// </summary>
+    private void UpdateDestinations()
+    {
+        foreach (var entry in _entries)
+        {
+            if (_frontend == FrontendTarget.None)
+            {
+                entry.DestinationText = string.Empty;
+                entry.DestinationTooltip = string.Empty;
+                entry.IsDestinationFallback = false;
+                continue;
+            }
+
+            var frontend = _frontend.DisplayName();
+            if (_frontends.FindFolder(entry.Name, entry.Convention, _frontend) is { } folder)
+            {
+                var aga = _frontends.FindFolder(entry.Name, entry.Convention, _frontend, AgaRelease)?.Name;
+                entry.DestinationText = aga is null || aga == folder.Name
+                    ? _localization.Tr("tab1.dat_lot_destination", ("folder", folder.Name))
+                    : _localization.Tr("tab1.dat_lot_destination_aga", ("folder", folder.Name), ("aga", aga));
+                entry.DestinationTooltip = _localization.Tr("tab1.tooltip_dat_lot_destination", ("frontend", frontend));
+                entry.IsDestinationFallback = false;
+            }
+            else
+            {
+                entry.DestinationText = _localization.Tr("tab1.dat_lot_destination", ("folder", _organizer.SanitizePathSegment(entry.Name.Trim())));
+                entry.DestinationTooltip = _localization.Tr(
+                    _frontends.FindPlatform(entry.Name, entry.Convention) is null
+                        ? "tab1.tooltip_dat_lot_destination_unknown"
+                        : "tab1.tooltip_dat_lot_destination_missing",
+                    ("frontend", frontend));
+                entry.IsDestinationFallback = true;
+            }
+        }
     }
 
     /// <summary>No lot: the DAT is a file, a folder of software lists, or none.</summary>
@@ -297,6 +371,7 @@ public sealed partial class DatLotViewModel : ViewModelBase
             entry.ConventionLabel = ConventionLabel(entry.Convention);
         }
 
+        UpdateDestinations();
         UpdateCount();
         ShownOptions.RefreshTranslations();
         I18n.NotifyUpdated();

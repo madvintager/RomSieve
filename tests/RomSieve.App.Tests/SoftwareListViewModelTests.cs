@@ -20,7 +20,7 @@ public sealed class SoftwareListViewModelTests : IDisposable
     public void Dispose() => _tmp.Dispose();
 
     private DirectoriesViewModel CreateDirectories() =>
-        new(_services.I18n, new HeadlessDialogService(), _services.DatService, _services.NoIntroParser, _services.Organizer, _services.MameParser, TimeSpan.Zero);
+        new(_services.I18n, new HeadlessDialogService(), _services.DatService, _services.NoIntroParser, _services.Organizer, _services.MameParser, _services.Frontends, TimeSpan.Zero);
 
     private string WriteSabreToolsDat() => _tmp.WriteText("megadriv.xml", """
         <?xml version="1.0" encoding="utf-8"?>

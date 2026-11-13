@@ -433,6 +433,9 @@ public sealed class SortProcessorService : ISortProcessorService
                 }
             }
 
+            // The platforms whose folder gathers several DATs, each sorted with its own 1G1R
+            transferExecutor.FrontendFolders?.ReportSharedFolders();
+
             if (config.GenerateM3u && stopReason is null)
             {
                 ReportStep(progress, LocalizedMessage.Create("progress.writing_playlists"));

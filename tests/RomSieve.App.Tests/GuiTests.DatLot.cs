@@ -1,7 +1,9 @@
 using Avalonia.Headless;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using RomSieve.App.ViewModels;
 using RomSieve.App.Views;
+using RomSieve.Core.Models;
 
 namespace RomSieve.App.Tests;
 
@@ -204,6 +206,59 @@ public sealed partial class GuiTests
                 Settle(window);
                 recursive.IsEnabled.Should().BeFalse();
                 choose.IsEnabled.Should().BeFalse("a DAT file has no DATs to choose");
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
+    public async Task DatLot_WithAFrontend_ShouldShowTheFolderOfEachDat_AndGreyOutTheFolderOptions()
+    {
+        await RunOnUiThreadAsync(async () =>
+        {
+            var vm = CreateViewModel();
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                vm.Directories.DatFilePath = WriteGuiLot();
+                await vm.Directories.DatLoadTask;
+                vm.Directories.Frontend = FrontendTarget.MiSTer;
+                Settle(window);
+
+                var lotWindow = new DatLotWindow { DataContext = vm.Directories.DatLot };
+                lotWindow.Show(window);
+                try
+                {
+                    Settle(lotWindow);
+                    var folders = lotWindow.GetVisualDescendants().OfType<TextBlock>()
+                        .Where(t => t.Classes.Contains("destination"))
+                        .ToList();
+                    folders.Select(t => (t.Text, t.IsVisible)).Should().Equal(("→ GAMEBOY", true), ("→ GBC", true));
+                    ToolTip.GetTip(folders[0]).Should().Be("Dossier de la plateforme de ce DAT pour MiSTer.");
+
+                    vm.Directories.Frontend = FrontendTarget.None;
+                    Settle(lotWindow);
+                    folders.Should().OnlyContain(t => !t.IsVisible, "without a frontend, the folder of a DAT is its name");
+                }
+                finally
+                {
+                    lotWindow.Close();
+                }
+
+                vm.Directories.Frontend = FrontendTarget.Batocera;
+                vm.Navigation.CurrentStep = WorkflowStep.Output;
+                Settle(window);
+                var folderPerDat = window.FindControl<CheckBox>("ChkFolderPerDat")!;
+                var mirror = window.FindControl<CheckBox>("ChkDatFolderMirror")!;
+                folderPerDat.IsVisible.Should().BeTrue("nothing is hidden");
+                folderPerDat.IsEnabled.Should().BeFalse();
+                mirror.IsEnabled.Should().BeFalse();
+                ToolTip.GetTip(folderPerDat).Should().Be(vm.Directories.FolderPerDatTooltip);
+                ToolTip.GetTip(mirror).Should().Be(vm.Directories.FolderPerDatTooltip);
             }
             finally
             {

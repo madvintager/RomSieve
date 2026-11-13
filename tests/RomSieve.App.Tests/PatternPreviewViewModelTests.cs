@@ -22,7 +22,7 @@ public sealed class PatternPreviewViewModelTests : IDisposable
 
     private DirectoriesViewModel CreateDirectories(TimeSpan? debounce = null) =>
         new(_services.I18n, new HeadlessDialogService(), _services.DatService, _services.NoIntroParser, _services.Organizer,
-            _services.MameParser, debounce ?? TimeSpan.Zero);
+            _services.MameParser, _services.Frontends, debounce ?? TimeSpan.Zero);
 
     private string CreateSource(string name, params string[] files)
     {

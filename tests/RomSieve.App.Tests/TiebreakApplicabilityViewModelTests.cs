@@ -160,7 +160,7 @@ public sealed class TiebreakApplicabilityViewModelTests : IDisposable
     public void ParentClone_ShouldOnlyBeGreyedOutOnceTheWholeDatSaysItHasNoClones()
     {
         var services = new CoreTestServices();
-        var directories = new DirectoriesViewModel(services.I18n, new HeadlessDialogService(), services.DatService, services.NoIntroParser, services.Organizer, services.MameParser, TimeSpan.Zero);
+        var directories = new DirectoriesViewModel(services.I18n, new HeadlessDialogService(), services.DatService, services.NoIntroParser, services.Organizer, services.MameParser, services.Frontends, TimeSpan.Zero);
         directories.DatCloneRelations.Should().Be(DatCloneRelations.NoDat);
 
         directories.DatFilePath = _tmp.GetFilePath("missing.dat");
@@ -177,7 +177,7 @@ public sealed class TiebreakApplicabilityViewModelTests : IDisposable
     public async Task ParentClone_ShouldBeKnownFromTheWholeDat()
     {
         var services = new CoreTestServices();
-        var directories = new DirectoriesViewModel(services.I18n, new HeadlessDialogService(), services.DatService, services.NoIntroParser, services.Organizer, services.MameParser, TimeSpan.Zero);
+        var directories = new DirectoriesViewModel(services.I18n, new HeadlessDialogService(), services.DatService, services.NoIntroParser, services.Organizer, services.MameParser, services.Frontends, TimeSpan.Zero);
 
         directories.DatFilePath = WriteTosecDat();
         await directories.DatLoadTask;

@@ -445,6 +445,69 @@ public sealed class DatLotViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task FolderOptions_ShouldBeGreyedOutWithAFrontend_TheirTooltipSayingWhy()
+    {
+        var vm = await CreateWithLotAsync();
+        var directories = vm.Directories;
+        var datFolder = directories.PatchedPatternVariables.Single(v => v.Tag == "{dat_folder}");
+
+        directories.Frontend = FrontendTarget.Batocera;
+
+        directories.IsFolderPerDatEnabled.Should().BeFalse();
+        directories.IsDatFolderMirrorEnabled.Should().BeFalse();
+        directories.FolderPerDatTooltip.Should().StartWith("Sans effet avec un frontend");
+        directories.DatFolderMirrorTooltip.Should().Be(directories.FolderPerDatTooltip);
+        datFolder.IsApplicable.Should().BeTrue();
+
+        directories.FolderPerDat = false;
+        datFolder.IsApplicable.Should().BeTrue("with a frontend, {dat_folder} is the folder of the platform");
+
+        directories.Frontend = FrontendTarget.None;
+        directories.IsFolderPerDatEnabled.Should().BeTrue();
+        directories.FolderPerDatTooltip.Should().StartWith("Avec un dossier ou une archive de DAT");
+        datFolder.IsApplicable.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task LotWindow_ShouldShowTheFolderOfEachDat_WithAFrontend()
+    {
+        WriteDat("Homebrew - Things.dat", "Homebrew - Things", "Homebrew", ("Alpha (World)", "Alpha (World).gb", Lemmings));
+        WriteDat("Nintendo - Nintendo DS (20230101).dat", "Nintendo - Nintendo DS", "No-Intro", ("Tetris DS (USA)", "Tetris DS (USA).nds", TetrisGbc));
+        var vm = await CreateWithLotAsync(recursive: true);
+        var lot = vm.Directories.DatLot;
+        DatLotEntryViewModel Entry(string name) => lot.Entries.Single(e => e.Name == name);
+
+        lot.Entries.Should().OnlyContain(e => e.DestinationText.Length == 0, "without a frontend, the folder of a DAT is its name");
+
+        vm.Directories.Frontend = FrontendTarget.Batocera;
+        Entry(GameBoy).DestinationText.Should().Be("→ gb");
+        Entry(GameBoy).IsDestinationFallback.Should().BeFalse();
+        Entry(GameBoy).DestinationTooltip.Should().Be("Dossier de la plateforme de ce DAT pour Batocera.");
+        Entry(Amiga).DestinationText.Should().Be("→ amiga500, amiga1200 (AGA)");
+        Entry("Homebrew - Things").DestinationText.Should().Be("→ Homebrew - Things");
+        Entry("Homebrew - Things").IsDestinationFallback.Should().BeTrue();
+        Entry("Homebrew - Things").DestinationTooltip.Should().StartWith("La table des frontends ne connaît pas ce DAT");
+
+        vm.Directories.Frontend = FrontendTarget.MiSTer;
+        Entry(GameBoy).DestinationText.Should().Be("→ GAMEBOY");
+        Entry(Amiga).DestinationText.Should().Be("→ Amiga500");
+        Entry("Nintendo - Nintendo DS").IsDestinationFallback.Should().BeTrue();
+        Entry("Nintendo - Nintendo DS").DestinationTooltip.Should().StartWith("MiSTer n'a pas de dossier pour la plateforme de ce DAT");
+
+        vm.Directories.Frontend = FrontendTarget.None;
+        lot.Entries.Should().OnlyContain(e => e.DestinationText.Length == 0 && !e.IsDestinationFallback);
+    }
+
+    [Fact]
+    public async Task FrontendOfTheConfiguration_ShouldBeShownInTheLotWindow()
+    {
+        var vm = await CreateWithLotAsync(config: """{ "frontend": "mister" }""");
+
+        vm.Directories.Frontend.Should().Be(FrontendTarget.MiSTer);
+        vm.Directories.DatLot.Entries.Single(e => e.Name == GameBoyColor).DestinationText.Should().Be("→ GBC");
+    }
+
+    [Fact]
     public async Task PatternPreview_ShouldPutTheExamplesInTheFolderOfADatOfTheLot()
     {
         var vm = await CreateWithLotAsync(recursive: true);
