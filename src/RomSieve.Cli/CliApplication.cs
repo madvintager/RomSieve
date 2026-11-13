@@ -23,6 +23,10 @@ public sealed class CliApplication
 {
     private static readonly string[] TransferModeNames = ["copy", "move", "hardlink", "symlink", "zip"];
 
+    // The values of the key frontend of config.json (EnumExtensions.ToConfigString)
+    private static readonly string[] FrontendNames =
+        [.. Enum.GetValues<FrontendTarget>().Select(frontend => frontend.ToConfigString())];
+
     private readonly TextWriter _output;
     private readonly TextWriter _error;
     private readonly string _defaultConfigPath;
@@ -54,6 +58,7 @@ public sealed class CliApplication
     private readonly Option<string?> _ratingsOption = new("--ratings");
     private readonly Option<string?> _modeOption = new("--mode");
     private readonly Option<bool> _preserveArchivesOption = new("--preserve-archives");
+    private readonly Option<string?> _frontendOption = new("--frontend");
     private readonly Option<bool> _executeOption = new("--execute");
     private readonly Option<bool> _appendOption = new("--append");
     private readonly Option<bool> _purgeOption = new("--purge");
@@ -183,6 +188,8 @@ public sealed class CliApplication
         _modeOption.Description = Tr("cli.option_mode");
         _modeOption.AcceptOnlyFromAmong(TransferModeNames);
         _preserveArchivesOption.Description = Tr("cli.option_preserve_archives");
+        _frontendOption.Description = Tr("cli.option_frontend");
+        _frontendOption.AcceptOnlyFromAmong(FrontendNames);
         _executeOption.Description = Tr("cli.option_execute");
         _appendOption.Description = Tr("cli.option_append");
         _purgeOption.Description = Tr("cli.option_purge");
@@ -202,8 +209,8 @@ public sealed class CliApplication
         {
             _profileOption, _sourceOption, _destinationOption, _datOption, _datRecursiveOption, _datOnlyOption, _datMirrorOption,
             _chdOption, _patchesOption, _patchOnlyOption, _noPatchesOption, _categoriesOption, _ratingsOption, _modeOption,
-            _preserveArchivesOption, _executeOption, _appendOption, _purgeOption, _yesOption, _forceForeignPurgeOption, _reportOption,
-            _missListOption, _fixDatOption
+            _preserveArchivesOption, _frontendOption, _executeOption, _appendOption, _purgeOption, _yesOption, _forceForeignPurgeOption,
+            _reportOption, _missListOption, _fixDatOption
         };
         run.SetAction((parseResult, cancellationToken) => RunSortAsync(parseResult, cancellationToken));
 
@@ -228,8 +235,8 @@ public sealed class CliApplication
         var patches = new Command("patches", Tr("cli.command_patches"))
         {
             _profileOption, _sourceOption, _destinationOption, _datOption, _datRecursiveOption, _datOnlyOption, _datMirrorOption,
-            _chdOption, _patchesOption, _categoriesOption, _ratingsOption, _nameFromNotesOption, _linkOption, _romOption, _ignoreOption,
-            _autoOption, _yesOption
+            _chdOption, _patchesOption, _categoriesOption, _ratingsOption, _frontendOption, _nameFromNotesOption, _linkOption, _romOption,
+            _ignoreOption, _autoOption, _yesOption
         };
         patches.SetAction((parseResult, cancellationToken) => PatchesAsync(parseResult, cancellationToken));
 
@@ -321,8 +328,16 @@ public sealed class CliApplication
             config.PurgeDestination = true;
         }
 
+        // The notes about the frontend (DATs without a platform, archives it does not read, platforms that gather several
+        // DATs) are said again in the summary, where they are not lost among the files
+        var frontendNotes = new List<LogMessage>();
         var log = new SynchronousProgress<LogMessage>(message =>
         {
+            if (message.Message.Key.StartsWith("log.frontend_", StringComparison.Ordinal))
+            {
+                frontendNotes.Add(message);
+            }
+
             if (!quiet || message.Level is LogLevel.Warn or LogLevel.Error)
             {
                 WriteLine($"[{message.Level.ToTag()}] {_localization.Format(message.Message)}");
@@ -331,6 +346,7 @@ public sealed class CliApplication
 
         var result = await processor.ExecuteAsync(config, isDryRun: !execute, logProgress: log, cancellationToken: cancellationToken);
         WriteSummary(result.Stats, result.DatCatalog is not null);
+        WriteFrontendSummary(config.Frontend, frontendNotes);
         if ((missListPath is not null || fixDatPath is not null) && result.Stats.DescribeLotExportScope() is { } scope)
         {
             WriteLine($"[{LogLevel.Info.ToTag()}] {_localization.Format(scope)}");
@@ -1141,6 +1157,7 @@ public sealed class CliApplication
         if (parseResult.GetValue(_ratingsOption) is { } ratings) settings.MameRatingFile = ratings;
         if (parseResult.GetValue(_modeOption) is { } mode) settings.TransferMode = EnumExtensions.ParseTransferMode(mode);
         if (parseResult.GetResult(_preserveArchivesOption) is not null) settings.PreserveArchives = parseResult.GetValue(_preserveArchivesOption);
+        if (parseResult.GetValue(_frontendOption) is { } frontend) settings.Frontend = EnumExtensions.ParseFrontendTarget(frontend);
         if (parseResult.GetValue(_appendOption)) settings.AppendToDestination = true;
     }
 
@@ -1347,6 +1364,24 @@ public sealed class CliApplication
         {
             WriteError(Tr("cli.export_failed", ("path", path), ("error", ex.Message)));
             return false;
+        }
+    }
+
+    /// <summary>
+    /// The frontend of a run and its notes, after the summary: the DATs without a folder of their platform, the archives
+    /// the frontend does not read, the folders that gather several DATs. Nothing without a frontend.
+    /// </summary>
+    private void WriteFrontendSummary(FrontendTarget frontend, IReadOnlyList<LogMessage> notes)
+    {
+        if (frontend == FrontendTarget.None)
+        {
+            return;
+        }
+
+        WriteLine(Tr("cli.summary_frontend", ("frontend", frontend.DisplayName())));
+        foreach (var note in notes)
+        {
+            WriteLine($"  [{note.Level.ToTag()}] {_localization.Format(note.Message)}");
         }
     }
 
