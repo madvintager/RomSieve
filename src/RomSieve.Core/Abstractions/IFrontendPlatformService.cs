@@ -24,4 +24,12 @@ public interface IFrontendPlatformService
     /// platform the frontend has no folder for.
     /// </summary>
     FrontendFolder? FindFolder(string? datName, NamingConvention convention, FrontendTarget frontend, ParsedRomName? item = null);
+
+    /// <summary>
+    /// Folder of the destination the files of <paramref name="datName"/> go into for <paramref name="frontend"/>: the
+    /// folder of its platform (<see cref="FindFolder"/>), or else its name, or none for a MAME software list
+    /// (<paramref name="convention"/>), whose software stays in the folder of its list. Shared by the sort, the preview of
+    /// the pattern and the window of a lot, so that they give the same folder.
+    /// </summary>
+    FrontendDestination Destination(string datName, NamingConvention convention, FrontendTarget frontend, ParsedRomName? item = null);
 }

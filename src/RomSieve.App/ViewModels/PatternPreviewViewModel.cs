@@ -78,6 +78,8 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
         nameof(DirectoriesViewModel.SubfolderMultidisk),
         nameof(DirectoriesViewModel.GenerateM3u),
         nameof(DirectoriesViewModel.SelectedM3uPlacement),
+        nameof(DirectoriesViewModel.FolderPerDiscGame),
+        nameof(DirectoriesViewModel.Frontend),
         nameof(DirectoriesViewModel.SelectedTransferMode),
         nameof(DirectoriesViewModel.DatHeaderName),
         nameof(DirectoriesViewModel.DatLot),
@@ -91,6 +93,7 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
     private readonly INoIntroRedumpParser _parser;
     private readonly IPathOrganizerService _organizer;
     private readonly IMameDescriptionParser _mameParser;
+    private readonly IFrontendPlatformService _frontends;
     private readonly DirectoriesViewModel _directories;
     private readonly TimeSpan _debounce;
 
@@ -105,6 +108,7 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
         INoIntroRedumpParser parser,
         IPathOrganizerService organizer,
         IMameDescriptionParser mameParser,
+        IFrontendPlatformService frontends,
         DirectoriesViewModel directories,
         TimeSpan? debounce = null)
     {
@@ -112,6 +116,7 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
         _parser = parser ?? throw new ArgumentNullException(nameof(parser));
         _organizer = organizer ?? throw new ArgumentNullException(nameof(organizer));
         _mameParser = mameParser ?? throw new ArgumentNullException(nameof(mameParser));
+        _frontends = frontends ?? throw new ArgumentNullException(nameof(frontends));
         _directories = directories ?? throw new ArgumentNullException(nameof(directories));
         _debounce = debounce ?? DefaultDebounce;
 
@@ -237,7 +242,7 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
 
         Examples.ReplaceAll(examples.Select(example =>
         {
-            var target = _organizer.BuildTargetPath(example.Parsed, example.Name, config, dat: dat);
+            var target = _organizer.BuildTargetPath(example.Parsed, example.Name, config, dat: ExampleDat(dat, example.Parsed));
             var relativeParts = Path.GetRelativePath(config.DestinationDir, target)
                 .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             writesInUnmatched |= string.Equals(relativeParts[0], PathOrganizerService.UnmatchedFolderName, StringComparison.OrdinalIgnoreCase);
@@ -305,6 +310,15 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// The DAT of an example with the folder of its platform for the frontend chosen, as the sort gives it
+    /// (<see cref="IFrontendPlatformService.Destination"/>); as it is without a frontend or without a DAT.
+    /// </summary>
+    private DatPlacement? ExampleDat(DatPlacement? dat, ParsedRomName parsed) =>
+        dat is null || _directories.Frontend == FrontendTarget.None
+            ? dat
+            : dat with { PlatformFolder = _frontends.Destination(dat.Name, parsed.Convention, _directories.Frontend, parsed).Folder };
+
+    /// <summary>
     /// The line of the patched version of the first example, built by the code of the sort (the name of
     /// <see cref="PatchMatcher.ExamplePatchedName"/>, then <see cref="IPathOrganizerService.BuildTargetPath"/> as for a
     /// patched version: never a multi-disk subfolder), and the problems of the pattern of the patched versions. Only
@@ -347,7 +361,7 @@ public sealed partial class PatternPreviewViewModel : ViewModelBase
                     var (name, parsed) = examples[0];
                     // The convention of the name, as the sort reads it: Auto is resolved by the parser
                     var patchedName = PatchMatcher.ExamplePatchedName(name, parsed.Convention);
-                    var target = _organizer.BuildTargetPath(parsed, patchedName, config, isMultiMediaOverride: false, dat: dat, patched: true);
+                    var target = _organizer.BuildTargetPath(parsed, patchedName, config, isMultiMediaOverride: false, dat: ExampleDat(dat, parsed), patched: true);
                     var first = Path.GetRelativePath(config.DestinationDir, target).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
                     if (!string.IsNullOrWhiteSpace(pattern) &&
                         string.Equals(first, PathOrganizerService.UnmatchedFolderName, StringComparison.OrdinalIgnoreCase))

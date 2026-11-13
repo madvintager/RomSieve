@@ -61,30 +61,23 @@ internal sealed class FrontendFolders
     /// </summary>
     public string? FolderOf(DatPlacement dat, ParsedRomName parsed)
     {
-        string folder;
-        if (_platforms.FindFolder(dat.Name, parsed.Convention, _frontend, parsed) is { } known)
+        var destination = _platforms.Destination(dat.Name, parsed.Convention, _frontend, parsed);
+        if (destination.Folder is not { } name)
         {
-            folder = known.Name;
-        }
-        else
-        {
-            var platform = _platforms.FindPlatform(dat.Name, parsed.Convention);
-            if (parsed.Convention == NamingConvention.MameSoftwareList)
-            {
-                ReportOnce($"unknown|{dat.Name}", () => LocalizedMessage.Create(
-                    "log.frontend_software_list", ("dat", dat.Name), ("frontend", _frontend.DisplayName())));
-                return null;
-            }
-
-            folder = _organizer.SanitizePathSegment(dat.Name.Trim());
-            ReportOnce($"unknown|{dat.Name}", () => platform is null
-                ? LocalizedMessage.Create("log.frontend_platform_unknown",
-                    ("dat", dat.Name), ("frontend", _frontend.DisplayName()), ("folder", folder))
-                : LocalizedMessage.Create("log.frontend_platform_missing",
-                    ("dat", dat.Name), ("frontend", _frontend.DisplayName()), ("folder", folder)));
+            ReportOnce($"unknown|{dat.Name}", () => LocalizedMessage.Create(
+                "log.frontend_software_list", ("dat", dat.Name), ("frontend", _frontend.DisplayName())));
+            return null;
         }
 
-        return InDestinationCase(_organizer.SanitizePathSegment(folder));
+        var folder = _organizer.SanitizePathSegment(name);
+        if (destination.Fallback != FrontendFallback.None)
+        {
+            ReportOnce($"unknown|{dat.Name}", () => LocalizedMessage.Create(
+                destination.Fallback == FrontendFallback.UnknownDat ? "log.frontend_platform_unknown" : "log.frontend_platform_missing",
+                ("dat", dat.Name), ("frontend", _frontend.DisplayName()), ("folder", folder)));
+        }
+
+        return InDestinationCase(folder);
     }
 
     /// <summary>

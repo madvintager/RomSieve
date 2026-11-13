@@ -113,7 +113,16 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             localization,
             (M3uPlacementMode.Parent, "tab1.m3u_placement_parent"),
             (M3uPlacementMode.ParentHidden, "tab1.m3u_placement_parent_hidden"),
-            (M3uPlacementMode.Subfolder, "tab1.m3u_placement_subfolder"));
+            (M3uPlacementMode.Subfolder, "tab1.m3u_placement_subfolder"),
+            (M3uPlacementMode.GameFolder, "tab1.m3u_placement_game_folder"));
+        FrontendOptions = new LocalizedOptionList<FrontendTarget>(
+            localization,
+            (FrontendTarget.None, "tab1.frontend_none"),
+            (FrontendTarget.Batocera, "tab1.frontend_batocera"),
+            (FrontendTarget.RetroPie, "tab1.frontend_retropie"),
+            (FrontendTarget.EsDe, "tab1.frontend_es_de"),
+            (FrontendTarget.Recalbox, "tab1.frontend_recalbox"),
+            (FrontendTarget.MiSTer, "tab1.frontend_mister"));
         HashingParallelismOptions = new LocalizedOptionList<int>(
             localization,
             (1, "tab1.hashing_parallelism_1"),
@@ -149,7 +158,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             new AdvancedOption(nameof(MatchChdByName), "tab1.chk_match_chd_by_name", () => MatchChdByName != defaults.MatchChdByName));
 
         // Last: the preview reads the options above
-        Preview = new PatternPreviewViewModel(localization, noIntroParser, pathOrganizer, mameParser, this, previewDebounce);
+        Preview = new PatternPreviewViewModel(localization, noIntroParser, pathOrganizer, mameParser, frontends, this, previewDebounce);
     }
 
     /// <summary>Live preview of the paths produced by the pattern.</summary>
@@ -220,6 +229,9 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
     public LocalizedOptionList<CollisionMode> CollisionModeOptions { get; }
     public LocalizedOptionList<M3uPlacementMode> M3uPlacementOptions { get; }
+
+    /// <summary>Frontends the destination may be organized for, none first.</summary>
+    public LocalizedOptionList<FrontendTarget> FrontendOptions { get; }
     public LocalizedOptionList<int> HashingParallelismOptions { get; }
 
     /// <summary>
@@ -622,7 +634,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         : "tab1.tooltip_folder_per_dat_frontend");
 
     // A frontend puts each DAT under the folder of its platform: the folders of the DATs no longer apply, {dat_folder}
-    // gives that folder, and the window of the lot shows it
+    // gives that folder, and the window of the lot shows it. Chosen by the user, it offers its recommended settings
     partial void OnFrontendChanged(FrontendTarget value)
     {
         OnPropertyChanged(nameof(IsFolderPerDatEnabled));
@@ -631,6 +643,91 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         OnPropertyChanged(nameof(DatFolderMirrorTooltip));
         UpdatePatternVariables();
         DatLot.ShowFrontend(value);
+        if (!_readingSettings)
+        {
+            RecommendationTask = OfferRecommendedSettingsAsync(value);
+        }
+    }
+
+    // A configuration or a profile being read: its frontend comes with its own settings, which are not questioned
+    private bool _readingSettings;
+
+    /// <summary>The offer of the recommended settings of the last frontend chosen by the user (for the tests).</summary>
+    internal Task RecommendationTask { get; private set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// Offers the output settings <paramref name="frontend"/> reads best (<see cref="FrontendRecommendation.For"/>),
+    /// listing those that would change; nothing when none would. Accepted, they are applied; refused, the frontend stays
+    /// chosen with the settings as they are. The pattern, the filters and the transfer mode are never touched.
+    /// </summary>
+    private async Task OfferRecommendedSettingsAsync(FrontendTarget frontend)
+    {
+        if (FrontendRecommendation.For(frontend) is not { } recommended)
+        {
+            return;
+        }
+
+        var on = _localization.Tr("dialog.frontend_settings_on");
+        var off = _localization.Tr("dialog.frontend_settings_off");
+        var changes = new List<string>();
+        void Change(string settingKey, string value) =>
+            changes.Add(_localization.Tr("dialog.frontend_settings_change", ("setting", _localization.Tr(settingKey)), ("value", value)));
+
+        if (recommended.FlatDestination is { } flat && flat != FlatDestination)
+        {
+            Change("tab1.lbl_layout", _localization.Tr(flat ? "tab1.chk_flat_destination" : "tab1.layout_pattern"));
+        }
+
+        if (recommended.SubfolderMultidisk != SubfolderMultidisk)
+        {
+            Change("tab1.chk_subfolder_multidisk", recommended.SubfolderMultidisk ? on : off);
+        }
+
+        if (recommended.GenerateM3u != GenerateM3u)
+        {
+            Change("tab1.chk_generate_m3u", recommended.GenerateM3u ? on : off);
+        }
+
+        // The placement only acts on playlists of games in a subfolder
+        var placementApplies = recommended.GenerateM3u && recommended.SubfolderMultidisk;
+        if (placementApplies && recommended.M3uPlacement is { } placement && placement != SelectedM3uPlacement)
+        {
+            Change("tab1.lbl_m3u_placement", M3uPlacementOptions.First(o => o.Value == placement).Label);
+        }
+
+        if (recommended.FolderPerDiscGame != FolderPerDiscGame)
+        {
+            Change("tab1.chk_folder_per_disc_game", recommended.FolderPerDiscGame ? on : off);
+        }
+
+        if (changes.Count == 0)
+        {
+            return;
+        }
+
+        var accepted = await _dialogService.ShowConfirmationAsync(
+            _localization.Tr("dialog.frontend_settings_title", ("frontend", frontend.DisplayName())),
+            _localization.Tr("dialog.frontend_settings_message", ("frontend", frontend.DisplayName()), ("changes", string.Join(Environment.NewLine, changes))));
+
+        // The user may have chosen another frontend while the question was shown
+        if (!accepted || Frontend != frontend)
+        {
+            return;
+        }
+
+        if (recommended.FlatDestination is { } flatDestination)
+        {
+            FlatDestination = flatDestination;
+        }
+
+        SubfolderMultidisk = recommended.SubfolderMultidisk;
+        GenerateM3u = recommended.GenerateM3u;
+        if (placementApplies && recommended.M3uPlacement is { } m3uPlacement)
+        {
+            SelectedM3uPlacement = m3uPlacement;
+        }
+
+        FolderPerDiscGame = recommended.FolderPerDiscGame;
     }
 
     // The subfolders change the DATs of the lot
@@ -1448,6 +1545,19 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
 
     public override void ReadFrom(SortSettings settings)
     {
+        _readingSettings = true;
+        try
+        {
+            ReadSettings(settings);
+        }
+        finally
+        {
+            _readingSettings = false;
+        }
+    }
+
+    private void ReadSettings(SortSettings settings)
+    {
         // How a folder of DATs is read, before the DAT whose summary depends on it
         DatRecursive = settings.DatRecursive;
 
@@ -1506,6 +1616,7 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         NamingConventionOptions.RefreshTranslations();
         CollisionModeOptions.RefreshTranslations();
         M3uPlacementOptions.RefreshTranslations();
+        FrontendOptions.RefreshTranslations();
         HashingParallelismOptions.RefreshTranslations();
         Advanced.RefreshTranslations();
 

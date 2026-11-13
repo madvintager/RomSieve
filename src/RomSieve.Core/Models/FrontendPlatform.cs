@@ -32,6 +32,32 @@ public sealed class FrontendPlatform
         new Dictionary<FrontendTarget, IReadOnlyList<string>>();
 }
 
+/// <summary>Why the files of a DAT do not go into the folder of a platform of the table (<see cref="FrontendDestination"/>).</summary>
+public enum FrontendFallback
+{
+    /// <summary>The DAT goes into the folder of its platform.</summary>
+    None,
+
+    /// <summary>The table does not know the DAT: it keeps its name as folder.</summary>
+    UnknownDat,
+
+    /// <summary>The frontend has no folder for the platform of the DAT (the Nintendo DS under MiSTer): it keeps its name.</summary>
+    NoFolderForPlatform,
+
+    /// <summary>A MAME software list: no folder of a platform, its software staying in the folder of its list.</summary>
+    SoftwareList
+}
+
+/// <summary>
+/// Folder of the destination the files of a DAT go into for a frontend
+/// (<see cref="Abstractions.IFrontendPlatformService.Destination"/>): the folder of its platform, or its name, or none.
+/// The same for the sort, the preview of the pattern and the window of a lot.
+/// </summary>
+/// <param name="Folder">Folder under the destination, not sanitized yet for a DAT name; <c>null</c> for none.</param>
+/// <param name="Known">The folder of the table, when the DAT has one.</param>
+/// <param name="Fallback">Why the DAT has no folder of the table.</param>
+public sealed record FrontendDestination(string? Folder, FrontendFolder? Known, FrontendFallback Fallback);
+
 /// <summary>Folder a frontend gives the files of a platform (<see cref="Abstractions.IFrontendPlatformService.FindFolder"/>).</summary>
 /// <param name="Platform">The platform of the files: the AGA one for an Amiga release that needs an AGA machine.</param>
 /// <param name="Name">Folder under the destination, a single safe segment.</param>

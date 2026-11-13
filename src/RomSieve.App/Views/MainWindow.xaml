@@ -2957,6 +2957,13 @@
                                 DisplayMemberBinding="{Binding Label}"
                                 SelectedValue="{Binding Directories.SelectedM3uPlacement, Mode=TwoWay}" />
                     </Grid>
+                    <!-- Every game on a disc image in a folder of its own, multi-disc or not (MiSTer) -->
+                    <CheckBox x:Name="ChkFolderPerDiscGame"
+                              FontSize="11"
+                              ToolTip.Tip="{Binding I18n[tab1.tooltip_folder_per_disc_game]}"
+                              IsChecked="{Binding Directories.FolderPerDiscGame, Mode=TwoWay}">
+                      <TextBlock TextWrapping="Wrap" Text="{Binding I18n[tab1.chk_folder_per_disc_game]}" />
+                    </CheckBox>
                   </StackPanel>
                 </StackPanel>
               </Border>
@@ -2997,6 +3004,24 @@
                                  ToolTip.Tip="{Binding I18n[tab1.tooltip_flat_destination]}"
                                  Content="{Binding I18n[tab1.chk_flat_destination]}"
                                  IsChecked="{Binding Directories.IsRootLayout, Mode=TwoWay}" />
+                    <!-- The frontend puts the folder of the platform of each DAT above this organization: on its line, so
+                         that the Output step needs no scrolling at the default size. Shown whatever the convention -->
+                    <StackPanel x:Name="PanelFrontend"
+                                Orientation="Horizontal"
+                                Spacing="8"
+                                Margin="28,0,0,0"
+                                VerticalAlignment="Center">
+                      <TextBlock x:Name="LblFrontend" Classes="form-label" Text="{Binding I18n[tab1.lbl_frontend]}" />
+                      <ComboBox x:Name="ComboFrontend"
+                                MinWidth="120"
+                                FontSize="11"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="{Binding I18n[tab1.tooltip_frontend]}"
+                                ItemsSource="{Binding Directories.FrontendOptions}"
+                                SelectedValueBinding="{Binding Value}"
+                                DisplayMemberBinding="{Binding Label}"
+                                SelectedValue="{Binding Directories.Frontend, Mode=TwoWay}" />
+                    </StackPanel>
                   </WrapPanel>
                   <TextBlock x:Name="LblFlatDestinationNote"
                              Grid.Row="2"

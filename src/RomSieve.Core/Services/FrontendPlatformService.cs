@@ -113,6 +113,25 @@ public sealed partial class FrontendPlatformService : IFrontendPlatformService
             : null;
     }
 
+    public FrontendDestination Destination(string datName, NamingConvention convention, FrontendTarget frontend, ParsedRomName? item = null)
+    {
+        ArgumentNullException.ThrowIfNull(datName);
+        if (FindFolder(datName, convention, frontend, item) is { } known)
+        {
+            return new FrontendDestination(known.Name, known, FrontendFallback.None);
+        }
+
+        if (convention == NamingConvention.MameSoftwareList)
+        {
+            return new FrontendDestination(null, null, FrontendFallback.SoftwareList);
+        }
+
+        return new FrontendDestination(
+            datName.Trim(),
+            null,
+            FindPlatform(datName, convention) is null ? FrontendFallback.UnknownDat : FrontendFallback.NoFolderForPlatform);
+    }
+
     /// <summary>
     /// Name of a DAT as the table is searched: spaces collapsed, without the end Redump gives its file names
     /// (<c> - Datfile (10914) (2026-06-15 11-55-46)</c>, <c> - Discs (207) (…)</c>), nor the parentheses that end a name

@@ -269,6 +269,38 @@ public sealed class FrontendPlatformServiceTests
         Service.FindFolder("Commodore - Amiga CD32", NamingConvention.Redump, FrontendTarget.Batocera, item)!.Name.Should().Be("amigacd32");
     }
 
+    [Fact]
+    public void Destination_ShouldBeTheFolderOfThePlatform_OrTheNameOfTheDat_OrNoneForASoftwareList()
+    {
+        var known = Service.Destination("Nintendo - Game Boy (Private)", NamingConvention.NoIntro, FrontendTarget.MiSTer);
+        (known.Folder, known.Fallback).Should().Be(("GAMEBOY", FrontendFallback.None));
+        known.Known!.Platform.Id.Should().Be("gb");
+
+        var unknown = Service.Destination(" Homebrew - Things ", NamingConvention.NoIntro, FrontendTarget.Batocera);
+        (unknown.Folder, unknown.Known, unknown.Fallback).Should().Be(("Homebrew - Things", (FrontendFolder?)null, FrontendFallback.UnknownDat));
+
+        var missing = Service.Destination("Nintendo - Nintendo DS", NamingConvention.NoIntro, FrontendTarget.MiSTer);
+        (missing.Folder, missing.Fallback).Should().Be(("Nintendo - Nintendo DS", FrontendFallback.NoFolderForPlatform));
+
+        var list = Service.Destination("megadriv", NamingConvention.MameSoftwareList, FrontendTarget.Batocera);
+        (list.Folder, list.Fallback).Should().Be(((string?)null, FrontendFallback.SoftwareList));
+
+        var aga = new ParsedRomName { RawFilename = "Game (1994)(Publisher)(AGA).adf", System = "AGA" };
+        Service.Destination("Commodore Amiga - Games - [ADF]", NamingConvention.Tosec, FrontendTarget.Batocera, aga).Folder.Should().Be("amiga1200");
+    }
+
+    [Fact]
+    public void Recommendations_ShouldFollowWhatEachFrontendReads()
+    {
+        FrontendRecommendation.For(FrontendTarget.None).Should().BeNull();
+        FrontendRecommendation.For(FrontendTarget.Batocera).Should().Be(new FrontendRecommendation(true, false, true, null, false));
+        FrontendRecommendation.For(FrontendTarget.Recalbox).Should().Be(FrontendRecommendation.For(FrontendTarget.Batocera));
+        FrontendRecommendation.For(FrontendTarget.RetroPie).Should().Be(new FrontendRecommendation(true, true, true, M3uPlacementMode.ParentHidden, false));
+        FrontendRecommendation.For(FrontendTarget.EsDe).Should().Be(new FrontendRecommendation(true, true, true, M3uPlacementMode.GameFolder, false));
+        FrontendRecommendation.For(FrontendTarget.MiSTer).Should().Be(new FrontendRecommendation(null, true, false, null, true),
+            "MiSTer reads no playlist and keeps the layout of the user under the folder of the system");
+    }
+
     [Theory]
     [InlineData("Sony - PlayStation - Datfile (10914) (2026-06-15 11-55-46)", "Sony - PlayStation")]
     [InlineData("Nintendo - Game Boy (Private) (20260101-000000)", "Nintendo - Game Boy")]

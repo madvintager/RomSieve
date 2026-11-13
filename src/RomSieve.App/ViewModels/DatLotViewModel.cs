@@ -209,7 +209,7 @@ public sealed partial class DatLotViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Folder of each DAT with the frontend chosen, as the sort computes it (<see cref="IFrontendPlatformService.FindFolder"/>):
+    /// Folder of each DAT with the frontend chosen, as the sort computes it (<see cref="IFrontendPlatformService.Destination"/>):
     /// the folder of its platform, both folders of an Amiga DAT whose AGA releases go elsewhere, or its name, sanitized,
     /// when the table does not know it or the frontend has no folder for its platform.
     /// </summary>
@@ -225,21 +225,24 @@ public sealed partial class DatLotViewModel : ViewModelBase
                 continue;
             }
 
+            // A lot holds No-Intro, Redump and TOSEC DATs, never software lists: a DAT always has a folder
             var frontend = _frontend.DisplayName();
-            if (_frontends.FindFolder(entry.Name, entry.Convention, _frontend) is { } folder)
+            var destination = _frontends.Destination(entry.Name, entry.Convention, _frontend);
+            var folder = _organizer.SanitizePathSegment(destination.Folder);
+            if (destination.Known is not null)
             {
                 var aga = _frontends.FindFolder(entry.Name, entry.Convention, _frontend, AgaRelease)?.Name;
-                entry.DestinationText = aga is null || aga == folder.Name
-                    ? _localization.Tr("tab1.dat_lot_destination", ("folder", folder.Name))
-                    : _localization.Tr("tab1.dat_lot_destination_aga", ("folder", folder.Name), ("aga", aga));
+                entry.DestinationText = aga is null || aga == folder
+                    ? _localization.Tr("tab1.dat_lot_destination", ("folder", folder))
+                    : _localization.Tr("tab1.dat_lot_destination_aga", ("folder", folder), ("aga", aga));
                 entry.DestinationTooltip = _localization.Tr("tab1.tooltip_dat_lot_destination", ("frontend", frontend));
                 entry.IsDestinationFallback = false;
             }
             else
             {
-                entry.DestinationText = _localization.Tr("tab1.dat_lot_destination", ("folder", _organizer.SanitizePathSegment(entry.Name.Trim())));
+                entry.DestinationText = _localization.Tr("tab1.dat_lot_destination", ("folder", folder));
                 entry.DestinationTooltip = _localization.Tr(
-                    _frontends.FindPlatform(entry.Name, entry.Convention) is null
+                    destination.Fallback == FrontendFallback.UnknownDat
                         ? "tab1.tooltip_dat_lot_destination_unknown"
                         : "tab1.tooltip_dat_lot_destination_missing",
                     ("frontend", frontend));
