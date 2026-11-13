@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFilterEvaluator, FilterEvaluator>();
         services.AddSingleton<IRomFilterService, RomFilterService>();
         services.AddSingleton<IPathOrganizerService, PathOrganizerService>();
+        services.AddSingleton<IFrontendPlatformService, FrontendPlatformService>();
         services.AddSingleton<IOpticalCompanionService, OpticalCompanionService>();
         services.AddSingleton<IPatchService, PatchService>();
         services.AddSingleton<IPatchNamingService, PatchNamingService>();

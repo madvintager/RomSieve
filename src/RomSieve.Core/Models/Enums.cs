@@ -241,6 +241,25 @@ public enum M3uPlacementMode
 }
 
 /// <summary>
+/// Frontend the destination is organized for (<c>config.json</c> key <c>frontend</c>): each file goes under the folder
+/// the frontend gives the platform of its DAT (<see cref="Abstractions.IFrontendPlatformService"/>).
+/// </summary>
+public enum FrontendTarget
+{
+    /// <summary>No frontend: the destination follows the pattern alone.</summary>
+    None,
+    Batocera,
+    RetroPie,
+
+    /// <summary>ES-DE (EmulationStation Desktop Edition).</summary>
+    EsDe,
+    Recalbox,
+
+    /// <summary>MiSTer FPGA: the folders under <c>games/</c>.</summary>
+    MiSTer
+}
+
+/// <summary>
 /// Relationship between the source and destination directories of a sort.
 /// </summary>
 public enum PathOverlap
@@ -877,6 +896,29 @@ public static class EnumExtensions
             M3uPlacementMode.ParentHidden => "parent_hidden",
             M3uPlacementMode.Subfolder => "subfolder",
             _ => "parent"
+        };
+
+    /// <summary>Frontend of a <c>config.json</c> value (also the keys of the frontend table); <see cref="FrontendTarget.None"/> for an unknown one.</summary>
+    public static FrontendTarget ParseFrontendTarget(string? value) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            "batocera" => FrontendTarget.Batocera,
+            "retropie" => FrontendTarget.RetroPie,
+            "es-de" => FrontendTarget.EsDe,
+            "recalbox" => FrontendTarget.Recalbox,
+            "mister" => FrontendTarget.MiSTer,
+            _ => FrontendTarget.None
+        };
+
+    public static string ToConfigString(this FrontendTarget frontend) =>
+        frontend switch
+        {
+            FrontendTarget.Batocera => "batocera",
+            FrontendTarget.RetroPie => "retropie",
+            FrontendTarget.EsDe => "es-de",
+            FrontendTarget.Recalbox => "recalbox",
+            FrontendTarget.MiSTer => "mister",
+            _ => "none"
         };
 
     public static string ToValueString(this FileStatus status) =>

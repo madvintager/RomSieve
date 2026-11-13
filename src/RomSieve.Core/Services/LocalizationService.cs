@@ -270,6 +270,9 @@ public sealed class LocalizationService : ILocalizationService
             ]
         };
 
+    /// <summary>Resource names of the catalogs: <c>RomSieve.Core.Resources.i18n.&lt;locale&gt;.json</c>.</summary>
+    internal const string I18nResourcePrefix = "RomSieve.Core.Resources.i18n.";
+
     public static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Translations = LoadTranslations();
 
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> LoadTranslations()
@@ -279,7 +282,9 @@ public sealed class LocalizationService : ILocalizationService
 
         foreach (var resourceName in assembly.GetManifestResourceNames())
         {
-            if (!resourceName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            // Only the catalogs of Resources/i18n: the assembly embeds other JSON files (the frontend table)
+            if (!resourceName.StartsWith(I18nResourcePrefix, StringComparison.Ordinal)
+                || !resourceName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

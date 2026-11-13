@@ -1,0 +1,1018 @@
+{
+  "comment": ["Folder of each platform for each frontend, and the archives it accepts there (absent: unknown).", "Read by FrontendPlatformService; the tests check that every folder is a safe single segment.", "dats: header names of the No-Intro and Redump DATs, and TOSEC systems (text before the first ' - ').", "Sources (2026-11-13): Batocera es_systems.yml and its *.emulator.yml / *.core.yml; RetroPie-Setup platforms.cfg", "and helpers.sh; ES-DE resources/systems/linux/es_systems.xml; Recalbox package/recalbox-romfs2/systems/*/system.ini;", "MiSTer: the root folders of games/ on a card set up by its update scripts, and its documentation."],
+  "frontends": ["batocera", "retropie", "es-de", "recalbox", "mister"],
+  "platforms": [
+    {
+      "id": "nes",
+      "dats": ["Nintendo - Nintendo Entertainment System", "Nintendo Famicom & Entertainment System"],
+      "folders": {
+        "batocera": "nes",
+        "retropie": "nes",
+        "es-de": "nes",
+        "recalbox": "nes",
+        "mister": "NES"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "fds",
+      "dats": ["Nintendo - Family Computer Disk System", "Nintendo Famicom Disk System"],
+      "folders": {
+        "batocera": "fds",
+        "retropie": "fds",
+        "es-de": "fds",
+        "recalbox": "fds"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"]
+      }
+    },
+    {
+      "id": "snes",
+      "dats": ["Nintendo - Super Nintendo Entertainment System", "Nintendo Super Famicom & Super Entertainment System"],
+      "folders": {
+        "batocera": "snes",
+        "retropie": "snes",
+        "es-de": "snes",
+        "recalbox": "snes",
+        "mister": "SNES"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "n64",
+      "dats": ["Nintendo - Nintendo 64", "Nintendo 64"],
+      "folders": {
+        "batocera": "n64",
+        "retropie": "n64",
+        "es-de": "n64",
+        "recalbox": "n64",
+        "mister": "N64"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "gb",
+      "dats": ["Nintendo - Game Boy", "Nintendo Game Boy"],
+      "folders": {
+        "batocera": "gb",
+        "retropie": "gb",
+        "es-de": "gb",
+        "recalbox": "gb",
+        "mister": "GAMEBOY"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "gbc",
+      "dats": ["Nintendo - Game Boy Color", "Nintendo Game Boy Color"],
+      "folders": {
+        "batocera": "gbc",
+        "retropie": "gbc",
+        "es-de": "gbc",
+        "recalbox": "gbc",
+        "mister": "GBC"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "gba",
+      "dats": ["Nintendo - Game Boy Advance", "Nintendo Game Boy Advance"],
+      "folders": {
+        "batocera": "gba",
+        "retropie": "gba",
+        "es-de": "gba",
+        "recalbox": "gba",
+        "mister": "GBA"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "nds",
+      "dats": ["Nintendo - Nintendo DS", "Nintendo DS"],
+      "folders": {
+        "batocera": "nds",
+        "retropie": "nds",
+        "es-de": "nds",
+        "recalbox": "nds"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"]
+      }
+    },
+    {
+      "id": "virtualboy",
+      "dats": ["Nintendo - Virtual Boy", "Nintendo Virtual Boy"],
+      "folders": {
+        "batocera": "virtualboy",
+        "retropie": "virtualboy",
+        "es-de": "virtualboy",
+        "recalbox": "virtualboy",
+        "mister": "VirtualBoy"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "pokemini",
+      "dats": ["Nintendo - Pokemon Mini", "Nintendo Pokemon Mini"],
+      "folders": {
+        "batocera": "pokemini",
+        "retropie": "pokemini",
+        "es-de": "pokemini",
+        "recalbox": "pokemini",
+        "mister": "PokemonMini"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "gamecube",
+      "dats": ["Nintendo - GameCube", "Nintendo GameCube"],
+      "folders": {
+        "batocera": "gamecube",
+        "retropie": "gc",
+        "es-de": "gc",
+        "recalbox": "gamecube"
+      },
+      "archives": {
+        "batocera": [],
+        "retropie": [],
+        "es-de": ["zip", "7z"],
+        "recalbox": []
+      }
+    },
+    {
+      "id": "wii",
+      "dats": ["Nintendo - Wii", "Nintendo Wii"],
+      "folders": {
+        "batocera": "wii",
+        "retropie": "wii",
+        "es-de": "wii",
+        "recalbox": "wii"
+      },
+      "archives": {
+        "batocera": [],
+        "retropie": [],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"]
+      }
+    },
+    {
+      "id": "megadrive",
+      "dats": ["Sega - Mega Drive - Genesis", "Sega Mega Drive & Genesis"],
+      "folders": {
+        "batocera": "megadrive",
+        "retropie": "megadrive",
+        "es-de": "megadrive",
+        "recalbox": "megadrive",
+        "mister": "MegaDrive"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "mastersystem",
+      "dats": ["Sega - Master System - Mark III", "Sega Mark III & Master System"],
+      "folders": {
+        "batocera": "mastersystem",
+        "retropie": "mastersystem",
+        "es-de": "mastersystem",
+        "recalbox": "mastersystem",
+        "mister": "SMS"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "gamegear",
+      "dats": ["Sega - Game Gear", "Sega Game Gear"],
+      "folders": {
+        "batocera": "gamegear",
+        "retropie": "gamegear",
+        "es-de": "gamegear",
+        "recalbox": "gamegear",
+        "mister": "GameGear"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "sg1000",
+      "dats": ["Sega - SG-1000", "Sega Game 1000"],
+      "folders": {
+        "batocera": "sg1000",
+        "retropie": "sg-1000",
+        "es-de": "sg-1000",
+        "recalbox": "sg1000",
+        "mister": "SG1000"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "megacd",
+      "dats": ["Sega - Mega CD & Sega CD", "Sega Mega-CD & Sega CD"],
+      "folders": {
+        "batocera": "megacd",
+        "retropie": "segacd",
+        "es-de": "segacd",
+        "recalbox": "segacd",
+        "mister": "MegaCD"
+      },
+      "archives": {
+        "batocera": [],
+        "retropie": [],
+        "es-de": ["zip", "7z"],
+        "recalbox": [],
+        "mister": []
+      }
+    },
+    {
+      "id": "sega32x",
+      "dats": ["Sega - 32X", "Sega 32X"],
+      "folders": {
+        "batocera": "sega32x",
+        "retropie": "sega32x",
+        "es-de": "sega32x",
+        "recalbox": "sega32x",
+        "mister": "S32X"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "saturn",
+      "dats": ["Sega - Saturn", "Sega Saturn"],
+      "folders": {
+        "batocera": "saturn",
+        "retropie": "saturn",
+        "es-de": "saturn",
+        "recalbox": "saturn",
+        "mister": "Saturn"
+      },
+      "archives": {
+        "batocera": ["zip"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip"],
+        "mister": []
+      }
+    },
+    {
+      "id": "dreamcast",
+      "dats": ["Sega - Dreamcast", "Sega Dreamcast"],
+      "folders": {
+        "batocera": "dreamcast",
+        "retropie": "dreamcast",
+        "es-de": "dreamcast",
+        "recalbox": "dreamcast"
+      },
+      "archives": {
+        "batocera": [],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": []
+      }
+    },
+    {
+      "id": "pcengine",
+      "dats": ["NEC - PC Engine - TurboGrafx-16", "NEC PC-Engine & TurboGrafx-16"],
+      "folders": {
+        "batocera": "pcengine",
+        "retropie": "pcengine",
+        "es-de": "pcengine",
+        "recalbox": "pcengine",
+        "mister": "TGFX16"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "pcenginecd",
+      "dats": ["NEC - PC Engine CD & TurboGrafx CD", "NEC PC-Engine CD & TurboGrafx-16 CD"],
+      "folders": {
+        "batocera": "pcenginecd",
+        "retropie": "pcengine",
+        "es-de": "pcenginecd",
+        "recalbox": "pcenginecd",
+        "mister": "TGFX16-CD"
+      },
+      "archives": {
+        "batocera": [],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": [],
+        "mister": []
+      }
+    },
+    {
+      "id": "ngp",
+      "dats": ["SNK - NeoGeo Pocket", "SNK Neo-Geo Pocket"],
+      "folders": {
+        "batocera": "ngp",
+        "retropie": "ngp",
+        "es-de": "ngp",
+        "recalbox": "ngp"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"]
+      }
+    },
+    {
+      "id": "ngpc",
+      "dats": ["SNK - NeoGeo Pocket Color", "SNK Neo-Geo Pocket Color"],
+      "folders": {
+        "batocera": "ngpc",
+        "retropie": "ngpc",
+        "es-de": "ngpc",
+        "recalbox": "ngpc",
+        "mister": "NGPC"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "neogeocd",
+      "dats": ["SNK - Neo Geo CD", "SNK Neo-Geo CD"],
+      "folders": {
+        "batocera": "neogeocd",
+        "es-de": "neogeocd",
+        "recalbox": "neogeocd",
+        "mister": "NeoGeo-CD"
+      },
+      "archives": {
+        "batocera": [],
+        "es-de": [],
+        "recalbox": [],
+        "mister": []
+      }
+    },
+    {
+      "id": "wonderswan",
+      "dats": ["Bandai - WonderSwan", "Bandai WonderSwan"],
+      "folders": {
+        "batocera": "wswan",
+        "retropie": "wonderswan",
+        "es-de": "wonderswan",
+        "recalbox": "wswan",
+        "mister": "WonderSwan"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "wonderswancolor",
+      "dats": ["Bandai - WonderSwan Color", "Bandai WonderSwan Color"],
+      "folders": {
+        "batocera": "wswanc",
+        "retropie": "wonderswancolor",
+        "es-de": "wonderswancolor",
+        "recalbox": "wswanc",
+        "mister": "WonderSwanColor"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "atari2600",
+      "dats": ["Atari - Atari 2600", "Atari 2600 & VCS"],
+      "folders": {
+        "batocera": "atari2600",
+        "retropie": "atari2600",
+        "es-de": "atari2600",
+        "recalbox": "atari2600",
+        "mister": "Atari2600"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "atari5200",
+      "dats": ["Atari - Atari 5200", "Atari 5200"],
+      "folders": {
+        "batocera": "atari5200",
+        "retropie": "atari5200",
+        "es-de": "atari5200",
+        "recalbox": "atari5200",
+        "mister": "ATARI5200"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "atari7800",
+      "dats": ["Atari - Atari 7800", "Atari 7800"],
+      "folders": {
+        "batocera": "atari7800",
+        "retropie": "atari7800",
+        "es-de": "atari7800",
+        "recalbox": "atari7800",
+        "mister": "ATARI7800"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "atari800",
+      "dats": ["Atari - 8-bit Family", "Atari 8bit"],
+      "folders": {
+        "batocera": "atari800",
+        "retropie": "atari800",
+        "es-de": "atari800",
+        "recalbox": "atari800",
+        "mister": "ATARI800"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "lynx",
+      "dats": ["Atari - Atari Lynx", "Atari Lynx"],
+      "folders": {
+        "batocera": "lynx",
+        "retropie": "atarilynx",
+        "es-de": "atarilynx",
+        "recalbox": "lynx",
+        "mister": "AtariLynx"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "jaguar",
+      "dats": ["Atari - Atari Jaguar", "Atari Jaguar"],
+      "folders": {
+        "batocera": "jaguar",
+        "retropie": "atarijaguar",
+        "es-de": "atarijaguar",
+        "recalbox": "jaguar",
+        "mister": "Jaguar"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "atarist",
+      "dats": ["Atari - Atari ST", "Atari ST"],
+      "folders": {
+        "batocera": "atarist",
+        "retropie": "atarist",
+        "es-de": "atarist",
+        "recalbox": "atarist",
+        "mister": "AtariST"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "colecovision",
+      "dats": ["Coleco - ColecoVision", "Coleco ColecoVision"],
+      "folders": {
+        "batocera": "colecovision",
+        "retropie": "coleco",
+        "es-de": "colecovision",
+        "recalbox": "colecovision",
+        "mister": "Coleco"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "intellivision",
+      "dats": ["Mattel - Intellivision", "Mattel Intellivision"],
+      "folders": {
+        "batocera": "intellivision",
+        "retropie": "intellivision",
+        "es-de": "intellivision",
+        "recalbox": "intellivision",
+        "mister": "Intellivision"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "vectrex",
+      "dats": ["GCE - Vectrex", "GCE Vectrex"],
+      "folders": {
+        "batocera": "vectrex",
+        "retropie": "vectrex",
+        "es-de": "vectrex",
+        "recalbox": "vectrex",
+        "mister": "VECTREX"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "odyssey2",
+      "dats": ["Magnavox - Odyssey 2", "Magnavox Odyssey2"],
+      "folders": {
+        "batocera": "odyssey2",
+        "retropie": "videopac",
+        "es-de": "odyssey2",
+        "recalbox": "o2em",
+        "mister": "ODYSSEY2"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "megaduck",
+      "dats": ["Welback - Mega Duck"],
+      "folders": {
+        "batocera": "megaduck",
+        "es-de": "megaduck",
+        "recalbox": "megaduck",
+        "mister": "MegaDuck"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "psx",
+      "dats": ["Sony - PlayStation", "Sony PlayStation"],
+      "folders": {
+        "batocera": "psx",
+        "retropie": "psx",
+        "es-de": "psx",
+        "recalbox": "psx",
+        "mister": "PSX"
+      },
+      "archives": {
+        "batocera": [],
+        "retropie": [],
+        "es-de": ["zip", "7z"],
+        "recalbox": [],
+        "mister": []
+      }
+    },
+    {
+      "id": "ps2",
+      "dats": ["Sony - PlayStation 2", "Sony PlayStation 2"],
+      "folders": {
+        "batocera": "ps2",
+        "retropie": "ps2",
+        "es-de": "ps2",
+        "recalbox": "ps2"
+      },
+      "archives": {
+        "batocera": [],
+        "retropie": [],
+        "es-de": [],
+        "recalbox": []
+      }
+    },
+    {
+      "id": "psp",
+      "dats": ["Sony - PlayStation Portable", "Sony PlayStation Portable"],
+      "folders": {
+        "batocera": "psp",
+        "retropie": "psp",
+        "es-de": "psp",
+        "recalbox": "psp"
+      },
+      "archives": {
+        "batocera": ["zip"],
+        "retropie": [],
+        "es-de": ["zip", "7z"],
+        "recalbox": []
+      }
+    },
+    {
+      "id": "3do",
+      "dats": ["Panasonic - 3DO Interactive Multiplayer", "3DO 3DO Interactive Multiplayer"],
+      "folders": {
+        "batocera": "3do",
+        "retropie": "3do",
+        "es-de": "3do",
+        "recalbox": "3do",
+        "mister": "3DO"
+      },
+      "archives": {
+        "batocera": [],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": [],
+        "mister": []
+      }
+    },
+    {
+      "id": "cdi",
+      "dats": ["Philips - CD-i", "Philips CD-i"],
+      "folders": {
+        "batocera": "cdi",
+        "es-de": "cdimono1",
+        "recalbox": "cdi",
+        "mister": "CD-i"
+      },
+      "archives": {
+        "batocera": [],
+        "es-de": [],
+        "recalbox": ["zip"],
+        "mister": []
+      }
+    },
+    {
+      "id": "amiga",
+      "dats": ["Commodore - Amiga", "Commodore Amiga"],
+      "aga": "amiga-aga",
+      "folders": {
+        "batocera": "amiga500",
+        "retropie": "amiga",
+        "es-de": "amiga",
+        "recalbox": "amiga600",
+        "mister": "Amiga500"
+      },
+      "archives": {
+        "batocera": ["zip"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "amiga-aga",
+      "folders": {
+        "batocera": "amiga1200",
+        "retropie": "amiga",
+        "es-de": "amiga1200",
+        "recalbox": "amiga1200",
+        "mister": "Amiga500"
+      },
+      "archives": {
+        "batocera": ["zip"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "amigacd32",
+      "dats": ["Commodore - Amiga CD32", "Commodore Amiga CD32"],
+      "folders": {
+        "batocera": "amigacd32",
+        "retropie": "amiga",
+        "es-de": "amigacd32",
+        "recalbox": "amigacd32",
+        "mister": "Amiga500"
+      },
+      "archives": {
+        "batocera": [],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": [],
+        "mister": []
+      }
+    },
+    {
+      "id": "amstradcpc",
+      "dats": ["Amstrad - CPC", "Amstrad CPC"],
+      "folders": {
+        "batocera": "amstradcpc",
+        "retropie": "amstradcpc",
+        "es-de": "amstradcpc",
+        "recalbox": "amstradcpc",
+        "mister": "Amstrad"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "c64",
+      "dats": ["Commodore - Commodore 64", "Commodore C64"],
+      "folders": {
+        "batocera": "c64",
+        "retropie": "c64",
+        "es-de": "c64",
+        "recalbox": "c64",
+        "mister": "C64"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "vic20",
+      "dats": ["Commodore - VIC-20", "Commodore VIC20"],
+      "folders": {
+        "batocera": "c20",
+        "es-de": "vic20",
+        "recalbox": "vic20",
+        "mister": "VIC20"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "zxspectrum",
+      "dats": ["Sinclair - ZX Spectrum +3", "Sinclair ZX Spectrum"],
+      "folders": {
+        "batocera": "zxspectrum",
+        "retropie": "zxspectrum",
+        "es-de": "zxspectrum",
+        "recalbox": "zxspectrum",
+        "mister": "Spectrum"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "zx81",
+      "dats": ["Sinclair ZX81"],
+      "folders": {
+        "batocera": "zx81",
+        "retropie": "zx81",
+        "es-de": "zx81",
+        "recalbox": "zx81",
+        "mister": "ZX81"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "msx",
+      "dats": ["Microsoft - MSX", "MSX MSX"],
+      "folders": {
+        "batocera": "msx1",
+        "retropie": "msx",
+        "es-de": "msx",
+        "recalbox": "msx1",
+        "mister": "MSX1"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "msx2",
+      "dats": ["Microsoft - MSX2", "MSX MSX2"],
+      "folders": {
+        "batocera": "msx2",
+        "retropie": "msx",
+        "es-de": "msx2",
+        "recalbox": "msx2"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"]
+      }
+    },
+    {
+      "id": "x68000",
+      "dats": ["Sharp - X68000", "Sharp X68000"],
+      "folders": {
+        "batocera": "x68000",
+        "retropie": "x68000",
+        "es-de": "x68000",
+        "recalbox": "x68000",
+        "mister": "X68000"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": [],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"],
+        "mister": ["zip"]
+      }
+    },
+    {
+      "id": "mame",
+      "conventions": ["mame"],
+      "folders": {
+        "batocera": "mame",
+        "retropie": "arcade",
+        "es-de": "mame",
+        "recalbox": "mame"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"]
+      }
+    },
+    {
+      "id": "fbneo",
+      "dats": ["FinalBurn Neo - Arcade Games"],
+      "folders": {
+        "batocera": "fbneo",
+        "retropie": "fba",
+        "es-de": "fbneo",
+        "recalbox": "fbneo"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"]
+      }
+    },
+    {
+      "id": "neogeo",
+      "dats": ["FinalBurn Neo - Neo Geo Games"],
+      "folders": {
+        "batocera": "neogeo",
+        "retropie": "neogeo",
+        "es-de": "neogeo",
+        "recalbox": "neogeo"
+      },
+      "archives": {
+        "batocera": ["zip", "7z"],
+        "retropie": ["zip", "7z"],
+        "es-de": ["zip", "7z"],
+        "recalbox": ["zip", "7z"]
+      }
+    }
+  ]
+}

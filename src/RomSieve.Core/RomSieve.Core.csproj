@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\i18n\*.json" />
+    <!-- Folders of the platforms in each frontend (FrontendPlatformService) -->
+    <EmbeddedResource Include="Resources\frontends\platforms.json" />
   </ItemGroup>
 
   <ItemGroup>
