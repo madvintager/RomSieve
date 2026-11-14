@@ -105,7 +105,7 @@ public sealed partial class GuiTests
                     TotalScanned = 2,
                     ValidCount = 2,
                     PatchedCount = 1,
-                    UnappliedPatches = [new UnappliedPatch(new PatchFile("orphan.bps"), LocalizedMessage.Create("reason.patch_orphan", ("crc", "12345678")))]
+                    UnappliedPatches = [new UnappliedPatch(new PatchFile("orphan.bps"), LocalizedMessage.Create("reason.patch_not_in_dat", ("crc", "12345678"), ("why", LocalizedMessage.Create("patches.not_in_dat_why"))))]
                 });
                 Settle(window);
                 window.FindControl<ToggleButton>("ChipPatched")!.IsEffectivelyVisible.Should().BeTrue();

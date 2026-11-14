@@ -198,7 +198,7 @@ public sealed class PatchMatchingTests : IDisposable
         var (result, _) = await SimulateAsync(Config(dat));
 
         var unapplied = result.UnappliedPatches.Should().ContainSingle().Which;
-        unapplied.Reason.Key.Should().Be("reason.patch_orphan");
+        unapplied.Reason.Key.Should().Be("reason.patch_not_in_dat");
         unapplied.File.DisplayName.Should().Be("Other Game (T-En).bps");
         unapplied.Suggestions.Should().BeEmpty("a patch that records its origin is never matched by its name");
     }
@@ -949,7 +949,7 @@ public sealed class PatchMatchingTests : IDisposable
         var (result, _) = await SimulateAsync(Config(dat));
 
         var reason = result.UnappliedPatches.Should().ContainSingle().Which.Reason;
-        reason.Key.Should().Be("reason.patch_orphan_note");
+        reason.Key.Should().Be("reason.patch_not_in_dat_note");
         reason.Args["note"].Should().Be("Game (T-En).txt");
         reason.Args["crc"].Should().Be("12345678");
     }

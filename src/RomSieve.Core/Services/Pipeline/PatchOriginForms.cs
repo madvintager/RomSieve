@@ -18,6 +18,16 @@ internal static class PatchOriginForms
     private static readonly int[] CopierHeaderSizes = [16, 64, 512];
 
     /// <summary>
+    /// Extensions of the ROMs of the systems with a copier header (NES with or without its iNES header, Lynx, Super
+    /// Nintendo): a DAT with one of them may describe its ROMs in another form than the one a patch was made for.
+    /// </summary>
+    private static readonly string[] CopierHeaderPlatformExtensions = [".nes", ".unh", ".lnx", ".lyx", ".sfc", ".smc", ".fig", ".swc"];
+
+    /// <summary>Whether a ROM of a DAT, by the extension of its name, is one of a system with a copier header.</summary>
+    public static bool IsCopierHeaderPlatformRom(string romName) =>
+        CopierHeaderPlatformExtensions.Any(extension => romName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// The copier header a patched version gets back in front of its result, when its patch skips
     /// <paramref name="sourceOffset"/> bytes of its origin: the iNES (16 bytes) and Lynx (64 bytes) headers, which most
     /// emulators of these systems need; never the 512 bytes of a SNES copier header, whose data alone are the usual form.

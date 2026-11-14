@@ -207,7 +207,7 @@ public sealed class PatchesViewModelTests : IDisposable
         unfixable.StateMark.Should().Be("✗");
         unfixable.CanChoose.Should().BeFalse();
         unfixable.ApplyTooltip.Should().StartWith("Un UPS ou un BPS désigne lui-même sa ROM");
-        unfixable.StatusText.Should().StartWith("Aucune ROM identifiée");
+        unfixable.StatusText.Should().StartWith("Aucune ROM du DAT n'a le CRC32");
         unfixable.CanIgnore.Should().BeTrue("setting it aside silences it");
 
         window.SelectedListItem = window.ListItems[2];

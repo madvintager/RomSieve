@@ -253,9 +253,10 @@ Un patch qui ne donne aucune version patchée a sa ligne dans le journal, avec s
 
 | Raison | Ce qu'il faut faire |
 |---|---|
-| Aucune ROM identifiée de ce CRC32 dans la source | La ROM d'origine manque, ou elle n'est pas identifiée par le DAT ; pour un IPS, choisissez-lui une autre ROM dans la fenêtre **Patchs** |
+| La ROM d'origine, *nom*, manque dans la source (ou : un readme désigne la ROM d'origine, *nom*, …) | Le DAT connaît cette ROM, mais la source ne l'a pas : ajoutez-la à la source. Dans un lot, le DAT de la ROM suit son nom |
+| Aucune ROM du DAT n'a ce CRC32 : le patch a été fait pour un autre dump ou pour un hack | Cherchez la ROM que demande le readme du patch ; pour un IPS, choisissez-lui une ROM dans la fenêtre **Patchs** |
+| Aucune ROM du DAT n'a ce CRC32 : … ou pour une autre forme de la ROM que celle que décrit le DAT (avec un autre en-tête copieur, ou sans) | Pour la NES, la Lynx ou la Super Nintendo, le patch a pu être fait pour la ROM avec un en-tête (ou un autre en-tête) quand le DAT la décrit sans, ou l'inverse : un DAT de l'autre forme la nommera. Pour un IPS, choisissez sa ROM et sa **Forme** dans la fenêtre **Patchs** |
 | Ni le nom du patch IPS ni un texte qui l'accompagne ne donnent le CRC32 de la ROM d'origine | Choisissez sa ROM dans la fenêtre **Patchs** (voir [Choisir la ROM du patch](#choisir-la-rom-du-patch)) |
-| Aucune ROM identifiée dans la source pour les CRC32 que donne un readme | La ROM d'origine manque, ou elle n'est pas identifiée par le DAT |
 | Patch illisible | Le fichier est tronqué, abîmé, ou d'un autre format |
 | Le nom du patch donne les CRC32 de plusieurs ROMs de la source | Choisissez la bonne ROM dans la fenêtre **Patchs** |
 | Un readme donne les CRC32 de plusieurs ROMs de la source | Choisissez la bonne ROM dans la fenêtre **Patchs** |

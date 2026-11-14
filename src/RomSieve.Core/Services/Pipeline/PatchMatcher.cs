@@ -41,6 +41,7 @@ public sealed partial class PatchMatcher
     private readonly ICrcCacheService _crcCache;
     private readonly IReadOnlyDictionary<PatchKey, PatchLink> _links;
     private readonly IReleaseScoringService _scoring;
+    private readonly DatCatalog? _catalog;
     private readonly Action<LogLevel, LocalizedMessage> _log;
     private readonly List<UnappliedPatch> _unapplied = [];
     private readonly List<IgnoredPatch> _ignored = [];
@@ -53,6 +54,10 @@ public sealed partial class PatchMatcher
     /// The choices of the user (<see cref="IPatchLinkService"/>), read once for the run: a patch set aside gives no
     /// patched version, and the ROM chosen for an IPS comes before its name and its readme.
     /// </param>
+    /// <param name="catalog">
+    /// The DAT of the run (a lot, with its DATs), only to name the ROM a patch left without origin was made for, when the
+    /// DAT knows its CRC32 (<see cref="MissingOriginReason"/>); <see langword="null"/> names none.
+    /// </param>
     public PatchMatcher(
         SortConfig config,
         IPatchService patchService,
@@ -60,6 +65,7 @@ public sealed partial class PatchMatcher
         ICrcCacheService crcCache,
         IReadOnlyDictionary<PatchKey, PatchLink> links,
         IReleaseScoringService scoring,
+        DatCatalog? catalog,
         Action<LogLevel, LocalizedMessage> log)
     {
         _config = config;
@@ -68,6 +74,7 @@ public sealed partial class PatchMatcher
         _crcCache = crcCache;
         _links = links;
         _scoring = scoring;
+        _catalog = catalog;
         _log = log;
     }
 
@@ -668,14 +675,11 @@ public sealed partial class PatchMatcher
                 var crcs = string.Join(", ", patch.SourceCrcs.Select(FormatCrc));
                 Refuse(patch.File, sizeMismatch && patch.Header.SourceSize is { } expected
                     ? LocalizedMessage.Create("reason.patch_source_size_mismatch", ("crc", crcs), ("size", expected))
-                    : patch.CrcSource switch
-                    {
-                        PatchCrcSource.Notes => LocalizedMessage.Create("reason.patch_orphan_note", ("note", patch.NoteNames), ("crc", crcs)),
-                        PatchCrcSource.Link => LocalizedMessage.Create(
+                    : patch.CrcSource == PatchCrcSource.Link
+                        ? LocalizedMessage.Create(
                             "reason.patch_link_origin_missing",
-                            ("origin", string.IsNullOrEmpty(patch.LinkedOriginName) ? crcs : patch.LinkedOriginName)),
-                        _ => LocalizedMessage.Create("reason.patch_orphan", ("crc", crcs))
-                    });
+                            ("origin", string.IsNullOrEmpty(patch.LinkedOriginName) ? crcs : patch.LinkedOriginName))
+                        : MissingOriginReason(patch, crcs));
             }
 
             return (null, true);
@@ -721,6 +725,80 @@ public sealed partial class PatchMatcher
 
         return (origin, false);
     }
+
+    /// <summary>
+    /// Why a patch has no origin in the source, after the DAT: the ROM of the DAT it was made for is missing from the
+    /// source (named, with its DAT in a lot), or no ROM of the DAT has its CRC32. The DAT may describe its ROMs in another
+    /// form than the one the patch was made for (with or without a copier header, or another one): for a DAT of a system
+    /// with a copier header, the reason says so rather than that the patch is for another dump.
+    /// </summary>
+    private LocalizedMessage MissingOriginReason(ReadPatch patch, string crcs)
+    {
+        var origins = DatOrigins(patch);
+        var fromNotes = patch.CrcSource == PatchCrcSource.Notes;
+        if (origins.Count > 0)
+        {
+            var origin = string.Join(", ", origins);
+            return fromNotes
+                ? LocalizedMessage.Create("reason.patch_origin_missing_note", ("note", patch.NoteNames), ("origin", origin))
+                : LocalizedMessage.Create("reason.patch_origin_missing", ("origin", origin));
+        }
+
+        var why = LocalizedMessage.Create(DatHasCopierHeaderPlatform() ? "patches.not_in_dat_why_header" : "patches.not_in_dat_why");
+        return fromNotes
+            ? LocalizedMessage.Create("reason.patch_not_in_dat_note", ("note", patch.NoteNames), ("crc", crcs), ("why", why))
+            : LocalizedMessage.Create("reason.patch_not_in_dat", ("crc", crcs), ("why", why));
+    }
+
+    /// <summary>
+    /// The ROMs of the DAT a patch may have been made for: those of one of its CRC32, and of the size it records (UPS,
+    /// BPS). In a lot, the DATs that know the CRC32 are found by the index of the lot, read only then, and each ROM is
+    /// followed by the name of its DAT.
+    /// </summary>
+    private List<string> DatOrigins(ReadPatch patch)
+    {
+        var origins = new List<string>();
+        if (_catalog is null)
+        {
+            return origins;
+        }
+
+        foreach (var crc in patch.SourceCrcs)
+        {
+            var hex = FormatCrc(crc);
+            if (_catalog.Dats is { } dats)
+            {
+                foreach (var index in _catalog.DatsWithCrc(hex))
+                {
+                    var dat = dats[index];
+                    origins.AddRange(RomsOf(dat.Catalog, hex, patch.Header.SourceSize).Select(rom => $"{rom} ({dat.Name})"));
+                }
+            }
+            else
+            {
+                origins.AddRange(RomsOf(_catalog, hex, patch.Header.SourceSize));
+            }
+        }
+
+        return [.. origins.Distinct(StringComparer.Ordinal)];
+    }
+
+    private static IEnumerable<string> RomsOf(DatCatalog catalog, string crc, long? size) =>
+        catalog.ByCrc.TryGetValue(crc, out var entries)
+            ? entries.Where(e => size is not { } expected || e.Size == expected).Select(e => e.Name)
+            : [];
+
+    private bool? _datHasCopierHeaderPlatform;
+
+    /// <summary>
+    /// Whether the DAT is one of a system with a copier header (<see cref="PatchOriginForms.IsCopierHeaderPlatformRom"/>).
+    /// In a lot, only the DATs already read count: those that recognised a file of the source. A DAT read on demand is
+    /// not read for this alone.
+    /// </summary>
+    private bool DatHasCopierHeaderPlatform() =>
+        _datHasCopierHeaderPlatform ??= _catalog is not null
+            && (_catalog.Dats is { } dats ? dats.Where(d => d.IsLoaded).Select(d => d.Catalog) : [_catalog])
+                .Any(catalog => catalog.Entries.Any(e => PatchOriginForms.IsCopierHeaderPlatformRom(e.Name)));
 
     /// <summary>Among the files of the same CRC32: a file of a single file, the one the sort writes, then the first by path.</summary>
     private static Candidate ChooseOrigin(List<Candidate> candidates) =>

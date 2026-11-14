@@ -537,7 +537,7 @@ public sealed class SortProcessorService : ISortProcessorService
             log(LogLevel.Warn, warning);
         }
 
-        var matcher = new PatchMatcher(config, _patchService, _checksumService, _crcCache, links.Links, _filterService, log);
+        var matcher = new PatchMatcher(config, _patchService, _checksumService, _crcCache, links.Links, _filterService, datCatalog, log);
         await matcher.MatchAsync(items, patchFolder, cancellationToken, progress).ConfigureAwait(false);
         PatchMatcher.ApplyPatchOnly(items, config.PatchOnly, config.Filters.OneGameOneRom, _filterService);
         return (matcher.Unapplied, matcher.Ignored);
