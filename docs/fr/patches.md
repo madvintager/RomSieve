@@ -140,6 +140,14 @@ entier, qui peut mettre l'en-tête à jour lui-même, n'a pas ce défaut.
 L'en-tête doit encore être celui de la ROM d'origine quand le patch est appliqué : un en-tête modifié depuis la
 simulation passe la version patchée en **Erreur**, sans rien écrire.
 
+**Ancien en-tête iNES 1.0.** Les ROMs NES actuelles ont un en-tête NES 2.0, qui donne des précisions dans ses derniers
+octets. Les patchs plus anciens, et les CRC32 que donnent leurs readme et la page romhacking.net de chaque patch, ont été
+faits avec l'en-tête iNES 1.0 d'alors, où ces octets étaient à zéro : leur CRC32 n'est celui d'aucun fichier actuel, ni
+d'aucune ROM du DAT. RomSieve cherche donc aussi chaque ROM NES sous cet ancien en-tête, recalculé d'après le sien (les
+données restent les mêmes). Un patch fait pour lui s'applique alors à la ROM ainsi lue, et le résultat est écrit tel que
+le patch le produit, avec l'en-tête qu'il porte. Le panneau de détail le dit (« sous un ancien en-tête iNES 1.0 »). Une
+ROM qui a déjà un en-tête iNES 1.0 n'a pas besoin de cette forme, et une ROM sans en-tête ne peut pas la recevoir.
+
 ### Choix du nom
 
 Le nom part toujours de celui de la ROM d'origine, tel que le DAT le donne : la région et la révision viennent du DAT,
@@ -334,11 +342,13 @@ demande **Pour quelle ROM est ce patch ?** :
   ordre. Chaque résultat (**Autres ROMs**) donne à droite son CRC32 et son statut, avec son chemin complet en infobulle.
   Une ROM trouvée (clic, ou Entrée pour la première) rejoint les ROMs proposées et devient le choix. Ctrl+F mène à la
   recherche.
-* **Forme** n'apparaît que pour une ROM à en-tête copieur (NES, Super Nintendo, Lynx) : le CRC32 avec ou sans l'en-tête.
-  Un IPS ne dit pas pour laquelle il a été fait : son readme le dit en général. Les patchs NES sont presque toujours
-  faits pour le fichier entier, en-tête compris. Une ROM d'un set sans en-tête n'a qu'une forme : un IPS fait pour le
-  fichier entier s'y appliquerait décalé de 16 octets, sans que rien ne le signale. Gardez pour ces patchs une ROM avec
-  son en-tête.
+* **Forme** n'apparaît que pour une ROM à en-tête copieur (NES, Super Nintendo, Lynx) : le CRC32 avec ou sans l'en-tête,
+  et pour une ROM NES à en-tête NES 2.0, le CRC32 sous un ancien en-tête iNES 1.0
+  (voir [NES, Lynx et Super Nintendo](#nes-lynx-et-super-nintendo)). Le fichier entier vient en premier. Un IPS ne dit
+  pas pour laquelle il a été fait : son readme le dit en général. Les patchs NES sont presque toujours faits pour le
+  fichier entier, en-tête compris : une ROM NES identifiée sans son en-tête est proposée sous sa forme entière. Une ROM
+  d'un set sans en-tête n'a qu'une forme : un IPS fait pour le fichier entier s'y appliquerait décalé de 16 octets, sans
+  que rien ne le signale. Gardez pour ces patchs une ROM avec son en-tête.
 
 **Appliquer à cette ROM** enregistre votre choix : la prochaine simulation applique le patch à cette ROM, quoi que
 disent son nom et son readme. Le fichier du patch n'est pas modifié, et un patch rangé dans une archive se choisit

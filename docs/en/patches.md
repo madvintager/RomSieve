@@ -137,6 +137,14 @@ file, which can update the header itself, does not have this problem.
 The header must still be the one of the original ROM when the patch is applied: a header changed since the simulation
 puts the patched version in **Error**, without writing anything.
 
+**Old iNES 1.0 header.** Current NES ROMs have a NES 2.0 header, which gives details in its last bytes. Older patches,
+and the CRC32 their readmes and the romhacking.net page of each patch give, were made with the iNES 1.0 header of the
+time, where these bytes were zero: their CRC32 is that of no current file, nor of any ROM of the DAT. RomSieve thus
+also looks for each NES ROM under this old header, computed from its own (the data stay the same). A patch made for it
+then applies to the ROM read this way, and the result is written as the patch produces it, with the header it holds.
+The detail panel says so ("under an old iNES 1.0 header"). A ROM that already has an iNES 1.0 header does not need
+this form, and a ROM without a header cannot get it.
+
 ### Name of the patched version
 
 The name always starts from that of the original ROM, as the DAT gives it: the region and the revision come from the
@@ -324,10 +332,13 @@ A UPS or a BPS designates its own ROM and checks it: no other one is chosen for 
   `Super Mario Bros.`) or shortened title proposes none. All the words, in any order. Each result (**Other ROMs**) shows
   its CRC32 and status on the right, with its full path in a tooltip. A ROM found (a click, or Enter for the first one)
   joins the ROMs proposed and becomes the choice. Ctrl+F goes to the search.
-* **Form** only shows for a ROM with a copier header (NES, Super Nintendo, Lynx): the CRC32 with or without the header.
-  An IPS does not tell which one it was made for: its readme usually does. NES patches are almost always made for the
-  whole file, header included. A ROM of a set without headers has only one form: an IPS made for the whole file would
-  apply to it 16 bytes off, with nothing to tell. Keep a ROM with its header for these patches.
+* **Form** only shows for a ROM with a copier header (NES, Super Nintendo, Lynx): the CRC32 with or without the header,
+  and for a NES ROM with a NES 2.0 header, the CRC32 under an old iNES 1.0 header
+  (see [NES, Lynx and Super Nintendo](#nes-lynx-and-super-nintendo)). The whole file comes first. An IPS does not tell
+  which one it was made for: its readme usually does. NES patches are almost always made for the whole file, header
+  included: a NES ROM identified without its header is proposed in its whole form. A ROM of a set without headers has
+  only one form: an IPS made for the whole file would apply to it 16 bytes off, with nothing to tell. Keep a ROM with
+  its header for these patches.
 
 **Apply to this ROM** saves your choice: the next simulation applies the patch to that ROM, whatever its name and its
 readme say. The file of the patch is not changed, and a patch stored in an archive is chosen like any other. While the

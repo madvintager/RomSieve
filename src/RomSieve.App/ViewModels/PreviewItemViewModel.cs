@@ -648,6 +648,12 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
         if (item.Patch is { } patch)
         {
             var crc = patch.SourceCrc32.ToString("X8", CultureInfo.InvariantCulture);
+            if (patch.UsesOldInesHeader)
+            {
+                // The patch read its NES origin under an old iNES 1.0 header: the CRC32 is that of this form
+                crc = localization.Tr("panel4.detail_crc_old_ines", ("crc", crc));
+            }
+
             var patchPath = FormatPath(patch.File.SourcePath, patch.File.ArchiveMember);
             return (
                 localization.Tr("panel4.detail_patch"),

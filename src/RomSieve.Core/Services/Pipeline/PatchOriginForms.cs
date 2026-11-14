@@ -48,7 +48,65 @@ internal static class PatchOriginForms
     /// The first <paramref name="size"/> bytes of an identified file (on the disk or in its archive), and their CRC32;
     /// <see langword="null"/> when they cannot be read or are not a header <see cref="IsRestoredHeader"/> accepts.
     /// </summary>
-    public static async Task<uint?> ReadRestoredHeaderCrcAsync(ProcessItem item, int size, IChecksumService checksumService, CancellationToken cancellationToken)
+    public static async Task<uint?> ReadRestoredHeaderCrcAsync(ProcessItem item, int size, IChecksumService checksumService, CancellationToken cancellationToken) =>
+        await ReadHeaderAsync(item, size, checksumService, cancellationToken).ConfigureAwait(false) is { } header && IsRestoredHeader(header)
+            ? System.IO.Hashing.Crc32.HashToUInt32(header)
+            : null;
+
+    /// <summary>
+    /// An iNES header as a patch of an older dump expects it: its NES 2.0 fields dropped, as the iNES 1.0 headers of the
+    /// former DATs, and of the checksums the patches and their readmes give, wrote it. The bits 2 and 3 of byte 7 (the
+    /// mark of NES 2.0) cleared, bytes 8 to 15 set to zero; bytes 0 to 6 kept.
+    /// </summary>
+    public static byte[] OldInesHeader(ReadOnlySpan<byte> header)
+    {
+        var old = header[..16].ToArray();
+        old[7] &= 0xF3;
+        old.AsSpan(8).Clear();
+        return old;
+    }
+
+    /// <summary>
+    /// The form "under an old iNES 1.0 header" of an identified NES file (<see cref="OldInesHeader"/> in front of its
+    /// data): its size and CRC32, computed without reading the data again (the CRC32 of the data combined with that of
+    /// the header). The CRC32 of the data is the one it was identified by without its header, or that of
+    /// <paramref name="otherForm"/>, its data read again, for a file identified whole. <see langword="null"/> for a file
+    /// without iNES header, one whose header already is an iNES 1.0 one (the form would be the whole file), or one that
+    /// cannot be read.
+    /// </summary>
+    public static async Task<(long Size, uint Crc32)?> OldInesFormAsync(
+        ProcessItem item,
+        (long Offset, long Size, uint Crc32)? otherForm,
+        IChecksumService checksumService,
+        CancellationToken cancellationToken)
+    {
+        (long Size, uint Crc32) data;
+        if (item.CopierHeaderSize == 16 && IdentifiedForm(item) is { } identified)
+        {
+            data = (identified.Size, identified.Crc32);
+        }
+        else if (item.CopierHeaderSize == 0 && otherForm is { Offset: 16 } withoutHeader)
+        {
+            data = (withoutHeader.Size, withoutHeader.Crc32);
+        }
+        else
+        {
+            return null;
+        }
+
+        if (await ReadHeaderAsync(item, 16, checksumService, cancellationToken).ConfigureAwait(false) is not { } header || !IsRestoredHeader(header))
+        {
+            return null;
+        }
+
+        var old = OldInesHeader(header);
+        return old.AsSpan().SequenceEqual(header)
+            ? null
+            : (16 + data.Size, Crc32Math.Combine(System.IO.Hashing.Crc32.HashToUInt32(old), data.Crc32, data.Size));
+    }
+
+    /// <summary>The first <paramref name="size"/> bytes of an identified file, on the disk or in its archive; <see langword="null"/> when they cannot be read.</summary>
+    private static async Task<byte[]?> ReadHeaderAsync(ProcessItem item, int size, IChecksumService checksumService, CancellationToken cancellationToken)
     {
         try
         {
@@ -57,7 +115,7 @@ internal static class PatchOriginForms
                 : new FileStream(item.SourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
             var header = new byte[size];
             var read = await stream.ReadAtLeastAsync(header, size, throwOnEndOfStream: false, cancellationToken).ConfigureAwait(false);
-            return read == size && IsRestoredHeader(header) ? System.IO.Hashing.Crc32.HashToUInt32(header) : null;
+            return read == size ? header : null;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {

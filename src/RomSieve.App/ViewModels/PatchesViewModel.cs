@@ -929,6 +929,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
     internal string FormLabel(PatchOriginSuggestion form) => form.WithCopierHeader switch
     {
+        _ when form.IsOldInesHeader => Tr("patches.form_old_ines_header", ("crc", FormatCrc(form.Crc32))),
         true => Tr("patches.form_with_header", ("crc", FormatCrc(form.Crc32))),
         false => Tr("patches.form_without_header", ("crc", FormatCrc(form.Crc32))),
         null => Tr("patches.form_single", ("crc", FormatCrc(form.Crc32)))

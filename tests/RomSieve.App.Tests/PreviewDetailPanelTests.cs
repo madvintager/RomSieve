@@ -30,6 +30,22 @@ public sealed class PreviewDetailPanelTests : IDisposable
     private PreviewItemViewModel CreateRow(ProcessItem item) => new(item, _services.I18n, _services.FilterService, _temp.Path);
 
     [Fact]
+    public void APatchedVersionOfAnOriginUnderAnOldInesHeader_ShouldSayIt()
+    {
+        var origin = CreateItem("Game (USA).nes", "1a2b3c4d");
+        var patch = Path.Combine(_temp.Path, "hack.bps");
+        var patched = CreateItem("Game (USA) [hack].nes");
+        patched.Patch = new PatchedVersion(new PatchFile(patch), new PatchHeader(PatchFormat.Bps), origin, 0, origin.FileSize, 0x1a2b3c4d)
+        {
+            UsesOldInesHeader = true
+        };
+
+        var row = CreateRow(patched);
+
+        row.DetailPatchText.Should().Be($"{patch} (BPS), appliqué à Game (USA).nes (CRC32 1A2B3C4D, sous un ancien en-tête iNES 1.0)");
+    }
+
+    [Fact]
     public void FileWithACrc_ShouldShowItsCrc32()
     {
         var row = CreateRow(CreateItem("Game (Europe).sfc", "1a2b3c4d"));

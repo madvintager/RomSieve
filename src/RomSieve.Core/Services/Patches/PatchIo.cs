@@ -337,3 +337,80 @@ internal sealed class PatchOutput
         _count = 0;
     }
 }
+
+/// <summary>
+/// A source read with other first bytes than those of its file: an origin under the old iNES 1.0 header a patch was made
+/// for (<see cref="Models.PatchedVersion.UsesOldInesHeader"/>). Read only; the rest of the file is read as it is.
+/// </summary>
+internal sealed class HeaderOverlayStream(Stream inner, byte[] header) : Stream
+{
+    public override bool CanRead => true;
+    public override bool CanSeek => true;
+    public override bool CanWrite => false;
+    public override long Length => inner.Length;
+
+    public override long Position
+    {
+        get => inner.Position;
+        set => inner.Position = value;
+    }
+
+    public override void Flush()
+    {
+    }
+
+    public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+
+    public override void SetLength(long value) => throw new NotSupportedException();
+
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+    public override int Read(Span<byte> buffer)
+    {
+        var start = inner.Position;
+        var read = inner.Read(buffer);
+        Overlay(buffer[..read], start);
+        return read;
+    }
+
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        var start = inner.Position;
+        var read = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+        Overlay(buffer.Span[..read], start);
+        return read;
+    }
+
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+        ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+    /// <summary>Puts the bytes of the header over those read from <paramref name="start"/> that it covers.</summary>
+    private void Overlay(Span<byte> read, long start)
+    {
+        if (start >= header.Length || read.IsEmpty)
+        {
+            return;
+        }
+
+        var count = (int)Math.Min(read.Length, header.Length - start);
+        header.AsSpan((int)start, count).CopyTo(read);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            inner.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await inner.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+}

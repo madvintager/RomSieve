@@ -158,6 +158,12 @@ public sealed record UnappliedPatch(PatchFile File, LocalizedMessage Reason)
 public sealed record PatchOriginSuggestion(ProcessItem Origin, uint Crc32, long Offset, bool? WithCopierHeader = null)
 {
     /// <summary>
+    /// Whether the form is the whole NES file under an old iNES 1.0 header rather than its own
+    /// (<see cref="PatchedVersion.UsesOldInesHeader"/>): the form the checksums of older patches and readmes give.
+    /// </summary>
+    public bool IsOldInesHeader { get; init; }
+
+    /// <summary>
     /// Why the ROM is proposed (<c>patches.why_*</c>): a name of the patch starts with its name or its title, the name or a
     /// readme of the patch designates it, a readme gives its two forms; and when it comes after the others, because it
     /// is already in the language of a translation. <see langword="null"/> for a form read for the choice of the user.
@@ -208,6 +214,13 @@ public sealed record PatchedVersion(
     /// <see langword="null"/> without header, or when it could not be read.
     /// </summary>
     public uint? RestoredHeaderCrc32 { get; init; }
+
+    /// <summary>
+    /// Whether the patch reads its NES origin whole under an old iNES 1.0 header rather than its own
+    /// (<see cref="Services.PatchOriginForms.OldInesHeader"/>): the file it was made for had that header, the dump of
+    /// the data being the same. <see cref="SourceCrc32"/> is then the CRC32 of that form.
+    /// </summary>
+    public bool UsesOldInesHeader { get; init; }
 
     /// <summary>Size of the data the patch produces, the header written back apart.</summary>
     public long PatchedDataSize => Header.TargetSizeFor(SourceLength);

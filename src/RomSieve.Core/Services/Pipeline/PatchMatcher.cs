@@ -84,8 +84,11 @@ public sealed partial class PatchMatcher
     /// <summary>The patches the user set aside, in the order of their paths.</summary>
     public IReadOnlyList<IgnoredPatch> Ignored => _ignored;
 
-    /// <summary>A form of the data of a file the patch may expect: the bytes from an offset, their size and CRC32.</summary>
-    private sealed record Candidate(ProcessItem Item, long Offset, long Size, uint Crc32, bool IsMultiFile);
+    /// <summary>
+    /// A form of the data of a file the patch may expect: the bytes from an offset, their size and CRC32; or, for a NES
+    /// file, the whole file under an old iNES 1.0 header (<see cref="OldInesHeader"/>).
+    /// </summary>
+    private sealed record Candidate(ProcessItem Item, long Offset, long Size, uint Crc32, bool IsMultiFile, bool OldInesHeader = false);
 
     /// <summary>
     /// A patch read, with the CRC32 its origin must have: one for a UPS or a BPS, those of its name or of its texts for an
@@ -210,6 +213,10 @@ public sealed partial class PatchMatcher
         }
 
         SuggestOriginsByName(candidates);
+        if (_config.Filters.DetectCopierHeaders)
+        {
+            await ProposeWholeNesFilesAsync(cancellationToken).ConfigureAwait(false);
+        }
         _unapplied.Sort((a, b) =>
         {
             var byPath = string.CompareOrdinal(a.File.SourcePath, b.File.SourcePath);
@@ -899,7 +906,7 @@ public sealed partial class PatchMatcher
     /// </summary>
     private void RefuseBothForms(ReadPatch patch, IEnumerable<Candidate> forms)
     {
-        var distinct = forms.DistinctBy(f => f.Offset).OrderBy(f => f.Offset).ToList();
+        var distinct = forms.DistinctBy(f => (f.Offset, f.OldInesHeader)).OrderBy(f => f.Offset).ThenBy(f => f.OldInesHeader).ToList();
         var largest = distinct.Max(f => f.Size);
         Refuse(
             patch.File,
@@ -909,6 +916,7 @@ public sealed partial class PatchMatcher
                 ("origin", distinct[0].Item.DisplayName)),
             [.. distinct.Select(f => new PatchOriginSuggestion(f.Item, f.Crc32, f.Offset, WithCopierHeader: f.Size == largest)
             {
+                IsOldInesHeader = f.OldInesHeader,
                 Reason = LocalizedMessage.Create("patches.why_both_forms", ("note", patch.NoteNames))
             })]);
     }
@@ -929,10 +937,13 @@ public sealed partial class PatchMatcher
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (await OtherFormAsync(origin, _ => true, cancellationToken).ConfigureAwait(false) is { } other
-                && patch.SourceCrcs.Contains(other.Crc32))
+            var other = await OtherFormAsync(origin, _ => true, cancellationToken).ConfigureAwait(false);
+
+            // The whole NES file of a former readme often has an old iNES 1.0 header: that form counts as the other one
+            var forms = new List<Candidate?> { other, await OldInesFormAsync(origin, other, cancellationToken).ConfigureAwait(false) };
+            if (forms.OfType<Candidate>().FirstOrDefault(f => patch.SourceCrcs.Contains(f.Crc32)) is { } given)
             {
-                RefuseBothForms(patch, [origin, other]);
+                RefuseBothForms(patch, [origin, given]);
                 matched.RemoveAt(i);
             }
         }
@@ -953,14 +964,37 @@ public sealed partial class PatchMatcher
         foreach (var candidate in candidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (await OtherFormAsync(candidate, MayFit, cancellationToken).ConfigureAwait(false) is { } other)
+
+            // The whole NES file under an old iNES 1.0 header (that of the checksums of older patches and readmes) has
+            // the size of the file: the data of a file identified whole are then read for their CRC32 whatever their size
+            var oldMayFit = MayFit(candidate.Item.FileSize);
+            var other = await OtherFormAsync(candidate, size => MayFit(size) || oldMayFit, cancellationToken).ConfigureAwait(false);
+            if (other is not null && MayFit(other.Size))
             {
                 others.Add(other);
+            }
+
+            if (oldMayFit && await OldInesFormAsync(candidate, other, cancellationToken).ConfigureAwait(false) is { } old)
+            {
+                others.Add(old);
             }
         }
 
         return others;
     }
+
+    /// <summary>
+    /// The form under an old iNES 1.0 header of the file of an identified form (<see cref="PatchOriginForms.OldInesFormAsync"/>),
+    /// its data read again (<paramref name="other"/>) for a file identified whole; <see langword="null"/> without one.
+    /// </summary>
+    private async Task<Candidate?> OldInesFormAsync(Candidate candidate, Candidate? other, CancellationToken cancellationToken) =>
+        await PatchOriginForms.OldInesFormAsync(
+            candidate.Item,
+            other is null ? null : (other.Offset, other.Size, other.Crc32),
+            _checksumService,
+            cancellationToken).ConfigureAwait(false) is { } old
+            ? candidate with { Offset = 0, Size = old.Size, Crc32 = old.Crc32, OldInesHeader = true }
+            : null;
 
     /// <summary>
     /// The other form of the data of a file (<see cref="ReadOtherFormsAsync"/>), when <paramref name="mayFit"/> accepts its
@@ -990,7 +1024,8 @@ public sealed partial class PatchMatcher
             Note = patch.NoteOf?.GetValueOrDefault(origin.Crc32),
             Key = patch.Key,
             RestoredHeaderSize = restoredSize,
-            RestoredHeaderCrc32 = headerCrc
+            RestoredHeaderCrc32 = headerCrc,
+            UsesOldInesHeader = origin.OldInesHeader
         };
         var originName = OriginName(item);
         var patchedName = PatchedName(patch.File, originName, origin.Crc32, FolderLabel(patch.File), item.Parsed.Convention);
@@ -1291,6 +1326,48 @@ public sealed partial class PatchMatcher
 
             _unapplied[i] = unapplied with { Reason = reason, Suggestions = [.. suggestions.Take(MaxSuggestions)] };
         }
+    }
+
+    /// <summary>
+    /// A NES ROM identified without its iNES header is proposed in its whole form, header included: the patches of the NES
+    /// are made for the whole file almost always (all the real ones examined), and its CRC32 is the one to choose with
+    /// <c>--rom</c>. The window lists both forms, the whole one first. Only a single form proposed: the two forms a readme
+    /// gives keep theirs.
+    /// </summary>
+    private async Task ProposeWholeNesFilesAsync(CancellationToken cancellationToken)
+    {
+        var whole = new Dictionary<ProcessItem, (long Offset, long Size, uint Crc32)?>(ReferenceEqualityComparer.Instance);
+        for (var i = 0; i < _unapplied.Count; i++)
+        {
+            var unapplied = _unapplied[i];
+            if (!unapplied.Suggestions.Any(IsHeaderlessNes))
+            {
+                continue;
+            }
+
+            var suggestions = new List<PatchOriginSuggestion>(unapplied.Suggestions.Count);
+            foreach (var suggestion in unapplied.Suggestions)
+            {
+                if (!IsHeaderlessNes(suggestion))
+                {
+                    suggestions.Add(suggestion);
+                    continue;
+                }
+
+                if (!whole.TryGetValue(suggestion.Origin, out var form))
+                {
+                    form = await PatchOriginForms.OtherFormAsync(suggestion.Origin, _ => true, _checksumService, _crcCache, cancellationToken).ConfigureAwait(false);
+                    whole[suggestion.Origin] = form;
+                }
+
+                suggestions.Add(form is { } file ? suggestion with { Crc32 = file.Crc32, Offset = file.Offset } : suggestion);
+            }
+
+            _unapplied[i] = unapplied with { Suggestions = suggestions };
+        }
+
+        static bool IsHeaderlessNes(PatchOriginSuggestion suggestion) =>
+            suggestion.WithCopierHeader is null && suggestion.Offset == 16 && suggestion.Origin.CopierHeaderSize == 16;
     }
 
     /// <summary>

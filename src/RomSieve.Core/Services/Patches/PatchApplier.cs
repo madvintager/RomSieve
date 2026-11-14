@@ -58,7 +58,8 @@ internal static class PatchApplier
                 sourcePath = extractionPath;
             }
 
-            await using var source = wrapSource(new FileStream(formatPath(sourcePath), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous));
+            await using var file = wrapSource(new FileStream(formatPath(sourcePath), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous));
+            await using var source = version.UsesOldInesHeader ? await UnderOldInesHeaderAsync(file, cancellationToken).ConfigureAwait(false) : file;
             await using var target = wrapTarget(new FileStream(formatPath(writePath), FileMode.Create, FileAccess.ReadWrite, FileShare.None, BufferSize, useAsync: true));
 
             // The iNES or Lynx header the patch skips goes first: the decoders write from where the target stands
@@ -116,6 +117,24 @@ internal static class PatchApplier
 
         await target.WriteAsync(header, cancellationToken).ConfigureAwait(false);
         return crc;
+    }
+
+    /// <summary>
+    /// The origin read under the old iNES 1.0 header of its own (<see cref="PatchOriginForms.OldInesHeader"/>), as the
+    /// patch expects it; the CRC32 of the source the patch checks is that of this form. A file whose header is no longer
+    /// an iNES one is refused.
+    /// </summary>
+    private static async Task<Stream> UnderOldInesHeaderAsync(Stream file, CancellationToken cancellationToken)
+    {
+        var header = new byte[16];
+        file.Seek(0, SeekOrigin.Begin);
+        if (await file.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, cancellationToken).ConfigureAwait(false) < header.Length
+            || !PatchOriginForms.IsRestoredHeader(header))
+        {
+            throw PatchErrors.HeaderChanged();
+        }
+
+        return new HeaderOverlayStream(file, PatchOriginForms.OldInesHeader(header));
     }
 
     /// <summary>Deletes a temporary file, best effort: one left behind is removed by a later sort.</summary>

@@ -1023,6 +1023,7 @@ public sealed class CliApplication
         var crc = suggestion.Crc32.ToString("X8", CultureInfo.InvariantCulture);
         return suggestion.WithCopierHeader switch
         {
+            _ when suggestion.IsOldInesHeader => Tr("patches.form_old_ines_header", ("crc", crc)),
             true => Tr("patches.form_with_header", ("crc", crc)),
             false => Tr("patches.form_without_header", ("crc", crc)),
             null => Tr("patches.form_single", ("crc", crc))

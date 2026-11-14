@@ -96,17 +96,28 @@ public sealed class PatchLinkService : IPatchLinkService
             return [];
         }
 
-        var forms = new List<(long Offset, long Size, uint Crc32)> { identified };
-        if (detectCopierHeaders
-            && await PatchOriginForms.OtherFormAsync(origin, _ => true, _checksumService, _crcCache, cancellationToken).ConfigureAwait(false) is { } other)
+        var forms = new List<(long Offset, long Size, uint Crc32, bool OldInesHeader)> { (identified.Offset, identified.Size, identified.Crc32, false) };
+        if (detectCopierHeaders)
         {
-            forms.Add(other);
+            var other = await PatchOriginForms.OtherFormAsync(origin, _ => true, _checksumService, _crcCache, cancellationToken).ConfigureAwait(false);
+            if (other is { } otherForm)
+            {
+                forms.Add((otherForm.Offset, otherForm.Size, otherForm.Crc32, false));
+            }
+
+            // A NES file under an old iNES 1.0 header: the form the checksums of older patches and readmes give
+            if (await PatchOriginForms.OldInesFormAsync(origin, other, _checksumService, cancellationToken).ConfigureAwait(false) is { } old)
+            {
+                forms.Add((0, old.Size, old.Crc32, true));
+            }
         }
 
+        // The whole file first (its own header, then the old one), the data without header last
         var largest = forms.Max(f => f.Size);
         return [.. forms
             .OrderBy(f => f.Offset)
-            .Select(f => new PatchOriginSuggestion(origin, f.Crc32, f.Offset, forms.Count > 1 ? f.Size == largest : null))];
+            .ThenBy(f => f.OldInesHeader)
+            .Select(f => new PatchOriginSuggestion(origin, f.Crc32, f.Offset, forms.Count > 1 ? f.Size == largest : null) { IsOldInesHeader = f.OldInesHeader })];
     }
 
     // =========================================================================
