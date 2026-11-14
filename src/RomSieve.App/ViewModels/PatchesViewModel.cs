@@ -44,27 +44,33 @@ public sealed class PatchGroupViewModel(PatchesViewModel owner, PatchGroupKind k
 /// A patch in the summary of « See the suggestions »: the ROM it would apply to, where the patch lies and why the ROM is
 /// proposed, to judge it before checking its box.
 /// </summary>
-public sealed partial class PatchBatchEntryViewModel(PatchesViewModel owner, PatchRowViewModel row, ProcessItem origin, uint crc32, string why)
+public sealed partial class PatchBatchEntryViewModel(PatchesViewModel owner, PatchRowViewModel row, ProcessItem? origin, uint crc32, string why, bool isChecked = false)
     : ObservableObject
 {
     public PatchRowViewModel Row { get; } = row;
 
-    public ProcessItem Origin { get; } = origin;
+    /// <summary>The ROM the patch would apply to; <see langword="null"/> in the summary of the patches to set aside.</summary>
+    public ProcessItem? Origin { get; } = origin;
 
     public uint Crc32 { get; } = crc32;
 
     public string Name => Row.Name;
 
-    public string OriginLabel { get; } = origin.DisplayName;
+    public string OriginLabel { get; } = origin?.DisplayName ?? string.Empty;
+
+    public bool HasOrigin => Origin is not null;
 
     /// <summary>The folder of the patch in the patch folder (or its archive), then why the ROM is proposed, as far as known.</summary>
     public string Details { get; } = string.Join(" · ", new[] { row.Location, why }.Where(s => s.Length > 0));
 
     public bool HasDetails => Details.Length > 0;
 
-    /// <summary>Whether the patch is to be applied to its ROM: never checked beforehand.</summary>
+    /// <summary>
+    /// Whether the patch is to be applied to its ROM, never checked beforehand; or, in the summary of the patches shown to
+    /// set aside, to be set aside, checked beforehand (the user asked for it, and may uncheck those to keep).
+    /// </summary>
     [ObservableProperty]
-    private bool _isChecked;
+    private bool _isChecked = isChecked;
 
     partial void OnIsCheckedChanged(bool value) => owner.OnBatchCheckedChanged();
 }
@@ -408,6 +414,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         OriginSearchText = string.Empty;
         Regroup();
         SelectedRow = ListItems.OfType<PatchRowViewModel>().FirstOrDefault();
+        NotifyIgnoreShown();
         NotifyFooter();
     }
 
@@ -447,7 +454,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         foreach (var kind in Enum.GetValues<PatchGroupKind>())
         {
             var group = _groups[kind];
-            var rows = Rows.Where(r => r.Group == kind).ToList();
+            var rows = ShownRows.Where(r => r.Group == kind).ToList();
             if (rows.Count > 0)
             {
                 items.Add(group);
@@ -467,7 +474,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
     internal string GroupTitle(PatchGroupKind kind)
     {
-        var count = Rows.Count(r => r.Group == kind);
+        var count = ShownRows.Count(r => r.Group == kind);
         return kind switch
         {
             PatchGroupKind.Proposed => Tr("patches.group_proposed", ("count", count)),
@@ -584,7 +591,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(
         nameof(ApplyCommand), nameof(IgnoreCommand), nameof(RestoreAutomaticCommand), nameof(WriteNameCommand), nameof(ClearNameCommand),
         nameof(UndoCommand),
-        nameof(ApplyBatchCommand), nameof(OpenBatchCommand), nameof(SimulateAgainCommand))]
+        nameof(ApplyBatchCommand), nameof(OpenBatchCommand), nameof(OpenIgnoreShownCommand), nameof(SimulateAgainCommand))]
     private bool _isBusy;
 
     private bool CanApply() => !IsBusy && SelectedRow is { CanApply: true };
@@ -809,6 +816,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         Regroup();
         NotifyFooter();
         NotifyActions();
+        NotifyIgnoreShown();
     }
 
     private void NotifyActions()
@@ -826,24 +834,31 @@ public sealed partial class PatchesViewModel : ViewModelBase
     // « See the suggestions »
     // -------------------------------------------------------------------------
 
-    /// <summary>The summary of « See the suggestions » replaces the detail of the patch selected.</summary>
+    /// <summary>The summary of « See the suggestions », or of the patches shown to set aside, replaces the detail.</summary>
     [ObservableProperty]
     private bool _isBatchMode;
+
+    /// <summary>Whether the summary is that of the patches shown to set aside, rather than of the suggestions.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BatchTitle), nameof(ApplyBatchLabel))]
+    private bool _isIgnoreBatch;
 
     public BulkObservableCollection<PatchBatchEntryViewModel> BatchEntries { get; } = [];
 
     public int BatchCheckedCount => BatchEntries.Count(e => e.IsChecked);
 
-    public string ApplyBatchLabel => Tr("patches.btn_batch_apply", ("count", BatchCheckedCount));
+    public string BatchTitle => Tr(IsIgnoreBatch ? "patches.batch_title_ignore" : "patches.batch_title_accept");
+
+    public string ApplyBatchLabel => Tr(IsIgnoreBatch ? "patches.btn_batch_ignore" : "patches.btn_batch_apply", ("count", BatchCheckedCount));
 
     /// <summary>
-    /// The patches « See the suggestions » shows: those a ROM is proposed for, with the ROM and form chosen for each (the
-    /// first proposed, unless the user chose another one) and why it is proposed.
+    /// The patches « See the suggestions » shows: those a ROM is proposed for, among those the search shows, with the ROM
+    /// and form chosen for each (the first proposed, unless the user chose another one) and why it is proposed.
     /// </summary>
     internal IEnumerable<(PatchRowViewModel Row, ProcessItem Origin, uint Crc32, string Why)> BatchEntriesOf(PatchGroupKind kind) =>
         kind != PatchGroupKind.Proposed
             ? []
-            : Rows
+            : ShownRows
                 .Where(r => r.Group == PatchGroupKind.Proposed && r.CanChoose && r.SelectedOrigin is not null && r.SelectedForm is not null)
                 .Select(r => (r, r.SelectedOrigin!.Origin, r.SelectedForm!.Form.Crc32, r.SelectedOrigin.Reason));
 
@@ -853,8 +868,11 @@ public sealed partial class PatchesViewModel : ViewModelBase
     {
         // The forms of the ROMs proposed are read when the window opens
         await Task.WhenAll(Rows.Select(r => r.FormsLoading));
-        BatchEntries.ReplaceAll(BatchEntriesOf(kind).Select(e => new PatchBatchEntryViewModel(this, e.Row, e.Origin, e.Crc32, e.Why)));
+
+        // Shown first, then filled: a label changed while the summary is hidden would keep the width of the former one
         IsBatchMode = true;
+        IsIgnoreBatch = false;
+        BatchEntries.ReplaceAll(BatchEntriesOf(kind).Select(e => new PatchBatchEntryViewModel(this, e.Row, e.Origin, e.Crc32, e.Why)));
         OnBatchCheckedChanged();
     }
 
@@ -872,13 +890,91 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
     private bool CanApplyBatch() => !IsBusy && BatchCheckedCount > 0;
 
-    /// <summary>Records the ROM of each patch checked in the summary, in one step, then goes back to the detail.</summary>
+    /// <summary>
+    /// Records the choice of each patch checked in the summary, in one step: its ROM, or set aside for the summary of the
+    /// patches shown; then goes back to the detail.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(CanApplyBatch))]
     private async Task ApplyBatchAsync()
     {
         var entries = BatchEntries.Where(e => e.IsChecked).ToList();
-        await ChooseAsync([.. entries.Select(e => (e.Row, (PatchLink?)LinkTo(e.Row, e.Origin, e.Crc32), (ProcessItem?)e.Origin))]);
+        await ChooseAsync([.. entries.Select(e => e.Origin is { } origin
+            ? (e.Row, (PatchLink?)LinkTo(e.Row, origin, e.Crc32), (ProcessItem?)origin)
+            : (e.Row, PatchLink.Ignore(e.Row.Name), null))]);
         CloseBatch();
+    }
+
+    // -------------------------------------------------------------------------
+    // The search of the patches, and setting aside those it shows
+    // -------------------------------------------------------------------------
+
+    private SearchQuery _patchQuery = SearchQuery.Parse(null);
+
+    /// <summary>
+    /// The search above the list of the patches, by name or folder (<see cref="SearchQuery"/>: every word, in any order,
+    /// <c>-word</c> leaves out): the list, the counts of its groups and « See the suggestions » keep the patches it shows.
+    /// </summary>
+    [ObservableProperty]
+    private string _patchSearchText = string.Empty;
+
+    partial void OnPatchSearchTextChanged(string value)
+    {
+        _patchQuery = SearchQuery.Parse(value);
+        Regroup();
+
+        // A patch hidden by the search is no longer the one shown in the detail
+        if (SelectedRow is { } selected && !IsShown(selected))
+        {
+            SelectedRow = ListItems.OfType<PatchRowViewModel>().FirstOrDefault() ?? selected;
+        }
+
+        NotifyIgnoreShown();
+    }
+
+    /// <summary>Whether the search shows a patch: its name or its folder holds every word.</summary>
+    internal bool IsShown(PatchRowViewModel row) =>
+        _patchQuery.IsEmpty || _patchQuery.Matches(SearchQuery.Normalize(row.Name), SearchQuery.Normalize(row.Location));
+
+    /// <summary>The patches the search shows, in the order of the rows.</summary>
+    internal IEnumerable<PatchRowViewModel> ShownRows => Rows.Where(IsShown);
+
+    public bool IsPatchSearchActive => !_patchQuery.IsEmpty;
+
+    /// <summary>Patches the search shows that can be set aside; none without a search, which would show them all.</summary>
+    public int IgnorableShownCount => IsPatchSearchActive ? ShownRows.Count(r => r.CanIgnore) : 0;
+
+    public string IgnoreShownLabel => Tr("patches.btn_ignore_shown", ("count", IgnorableShownCount));
+
+    public string IgnoreShownTooltip => Tr(IsPatchSearchActive ? "patches.tooltip_ignore_shown" : "patches.tooltip_ignore_shown_no_search");
+
+    private bool CanOpenIgnoreShown() => !IsBusy && IgnorableShownCount > 0;
+
+    /// <summary>
+    /// Shows the summary of the patches the search shows, to set aside: each checked, as the user asked for them, with
+    /// its folder; nothing is recorded before « Do not apply (n) ».
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanOpenIgnoreShown))]
+    private void OpenIgnoreShown()
+    {
+        // Shown first, then filled: a label changed while the summary is hidden would keep the width of the former one
+        IsBatchMode = true;
+        IsIgnoreBatch = true;
+        BatchEntries.ReplaceAll(ShownRows.Where(r => r.CanIgnore)
+            .Select(r => new PatchBatchEntryViewModel(this, r, null, 0, string.Empty, isChecked: true)));
+        OnBatchCheckedChanged();
+    }
+
+    /// <summary>Empties the search of the patches.</summary>
+    [RelayCommand]
+    private void ClearPatchSearch() => PatchSearchText = string.Empty;
+
+    private void NotifyIgnoreShown()
+    {
+        OnPropertyChanged(nameof(IsPatchSearchActive));
+        OnPropertyChanged(nameof(IgnorableShownCount));
+        OnPropertyChanged(nameof(IgnoreShownLabel));
+        OnPropertyChanged(nameof(IgnoreShownTooltip));
+        OpenIgnoreShownCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>Back to the detail of the patch selected, nothing recorded.</summary>
@@ -959,6 +1055,8 @@ public sealed partial class PatchesViewModel : ViewModelBase
     {
         I18n.NotifyUpdated();
         OnPropertyChanged(nameof(ApplyBatchLabel));
+        OnPropertyChanged(nameof(BatchTitle));
+        NotifyIgnoreShown();
         NotifyFooter();
         foreach (var group in _groups.Values)
         {

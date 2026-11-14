@@ -23,6 +23,33 @@ public partial class PatchesWindow : Window
         Resources[OriginCrcWidthKey] = double.NaN;
         Resources[OriginStatusWidthKey] = double.NaN;
         AvaloniaXamlLoader.Load(this);
+        RemeasureOnContentChange("BtnPatchBatchApply", "BtnIgnoreShownPatches");
+    }
+
+    /// <summary>
+    /// Buttons whose label changes with a count, or while their panel is hidden (the apply button of the summary, from
+    /// « Apply » to « Do not apply »): Avalonia ignores the new size of a child measured again during the measure of an
+    /// ancestor, and the button kept the width of its former label, cut. The button and its panel are measured again at
+    /// each change of its content.
+    /// </summary>
+    private void RemeasureOnContentChange(params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (this.FindControl<Button>(name) is not { } button)
+            {
+                continue;
+            }
+
+            button.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == ContentControl.ContentProperty)
+                {
+                    button.InvalidateMeasure();
+                    (button.Parent as Control)?.InvalidateMeasure();
+                }
+            };
+        }
     }
 
     protected override void OnDataContextChanged(EventArgs e)

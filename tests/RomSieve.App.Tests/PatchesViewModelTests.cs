@@ -713,6 +713,99 @@ public sealed class PatchesViewModelTests : IDisposable
         Row(window, "Game (USA) (Hack).ips").CanUndo.Should().BeTrue();
     }
 
+    // =========================================================================
+    // The search of the patches, and setting aside those it shows
+    // =========================================================================
+
+    /// <summary>A patch proposed a ROM at the root, and two of a folder that no ROM is proposed for.</summary>
+    private (byte[] Blue, byte[] Red) WritePatchesOfAFolder()
+    {
+        WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
+        var blue = IpsDiff(Japan, [.. Japan, .. Ascii("Blue")]);
+        var red = IpsDiff(Japan, [.. Japan, .. Ascii("Red")]);
+        _temp.WriteBytes("patches/extras/Menu Blue.ips", blue);
+        _temp.WriteBytes("patches/extras/Menu Red.ips", red);
+        return (blue, red);
+    }
+
+    [Fact]
+    public async Task TheSearch_ShouldKeepThePatchesWhoseNameOrFolderItFinds()
+    {
+        WritePatchesOfAFolder();
+        var window = await LoadAsync();
+        window.IgnorableShownCount.Should().Be(0, "without a search, every patch would be concerned");
+        window.OpenIgnoreShownCommand.CanExecute(null).Should().BeFalse();
+        window.IgnoreShownTooltip.Should().StartWith("Cherchez d'abord les patchs à écarter");
+
+        window.PatchSearchText = "extras";
+
+        ListOf(window).Should().Equal("Sans ROM proposée (2)", "Menu Blue.ips", "Menu Red.ips");
+        window.SelectedRow!.Name.Should().Be("Menu Blue.ips", "the patch selected, hidden by the search, gives way to the first one shown");
+        window.IgnorableShownCount.Should().Be(2);
+        window.IgnoreShownLabel.Should().Be("Ne pas appliquer les patchs affichés (2)…");
+        window.OpenIgnoreShownCommand.CanExecute(null).Should().BeTrue();
+
+        window.PatchSearchText = "red menu";
+        ListOf(window).Should().Equal("Sans ROM proposée (1)", "Menu Red.ips");
+
+        window.PatchSearchText = "extras -red";
+        ListOf(window).Should().Equal("Sans ROM proposée (1)", "Menu Blue.ips");
+
+        window.ClearPatchSearchCommand.Execute(null);
+        ListOf(window).Should().Equal(
+            "ROM proposée (1)", "Game (Japan) (T-Fr).ips",
+            "Sans ROM proposée (2)", "Menu Blue.ips", "Menu Red.ips");
+        window.IgnorableShownCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task TheSuggestions_ShouldOnlyBeThoseOfThePatchesShown()
+    {
+        WriteJapanAndUsa();
+        _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", IpsDiff(Japan, Translate(Japan)));
+        _temp.WriteBytes("patches/Game (USA) (Hack).ips", IpsDiff(Usa, [.. Usa, .. Ascii("Hack")]));
+        var window = await LoadAsync();
+
+        window.PatchSearchText = "hack";
+
+        var group = window.ListItems.OfType<PatchGroupViewModel>().Single();
+        group.BatchLabel.Should().Be("Voir les suggestions (1)…");
+        await group.BatchCommand.ExecuteAsync(PatchGroupKind.Proposed);
+        window.BatchEntries.Select(e => e.Name).Should().Equal("Game (USA) (Hack).ips");
+    }
+
+    [Fact]
+    public async Task SettingAsideThePatchesShown_ShouldShowThemChecked_ThenSetAsideOnlyThoseLeftChecked()
+    {
+        var (blue, red) = WritePatchesOfAFolder();
+        var window = await LoadAsync();
+        window.PatchSearchText = "extras";
+
+        window.OpenIgnoreShownCommand.Execute(null);
+
+        window.IsBatchMode.Should().BeTrue();
+        window.IsIgnoreBatch.Should().BeTrue();
+        window.BatchTitle.Should().Be("Patchs affichés : décochez ceux à garder, les autres ne seront pas appliqués");
+        window.BatchEntries.Select(e => (e.Name, e.HasOrigin, e.Details)).Should().Equal(
+            ("Menu Blue.ips", false, "extras"),
+            ("Menu Red.ips", false, "extras"));
+        window.BatchEntries.Should().OnlyContain(e => e.IsChecked, "the user asked for the patches shown");
+        window.ApplyBatchLabel.Should().Be("Ne pas appliquer (2)");
+
+        window.BatchEntries.Single(e => e.Name == "Menu Red.ips").IsChecked = false;
+        window.ApplyBatchLabel.Should().Be("Ne pas appliquer (1)");
+        await window.ApplyBatchCommand.ExecuteAsync(null);
+
+        window.IsBatchMode.Should().BeFalse();
+        LinkOf(blue)!.Kind.Should().Be(PatchLinkKind.Ignored);
+        LinkOf(red).Should().BeNull("a patch unchecked is kept");
+        ListOf(window).Should().Equal("Sans ROM proposée (1)", "Menu Red.ips", "Écartés (1)", "Menu Blue.ips");
+        window.IgnorableShownCount.Should().Be(1, "a patch set aside is no longer counted");
+        Row(window, "Menu Blue.ips").CanUndo.Should().BeTrue("each choice can be undone");
+        Directory.GetFiles(_patches, "*", SearchOption.AllDirectories).Should().HaveCount(3, "nothing is renamed");
+    }
+
     [Fact]
     public async Task Back_ShouldLeaveTheSummaryWithoutRecordingAnything()
     {

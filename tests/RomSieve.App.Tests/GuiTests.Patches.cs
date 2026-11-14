@@ -438,6 +438,17 @@ public sealed partial class GuiTests
                         }
 
                         shown.CloseBatchCommand.Execute(null);
+
+                        // The search of the patches, and the summary of the patches it shows to set aside
+                        shown.PatchSearchText = "ips";
+                        Settle(patchesWindow);
+                        shown.IgnorableShownCount.Should().BePositive();
+                        AssertNotTrimmed(patchesWindow.FindControl<Control>("BtnIgnoreShownPatches")!, $"BtnIgnoreShownPatches ({locale})");
+                        shown.OpenIgnoreShownCommand.Execute(null);
+                        Settle(patchesWindow);
+                        AssertNotTrimmed(patchesWindow.FindControl<Control>("BtnPatchBatchApply")!, $"BtnPatchBatchApply, to set aside ({locale})");
+                        shown.CloseBatchCommand.Execute(null);
+                        shown.PatchSearchText = string.Empty;
                     }
 
                     vm.UiLocale = "fr";

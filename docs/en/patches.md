@@ -303,6 +303,10 @@ On the left, the patches are grouped by state:
 * **Cannot be fixed** (✗): a UPS or a BPS whose ROM is missing, a patch that cannot be read… The detail gives the
   reason.
 
+The **search** above the list keeps the patches whose name or folder holds every word, in any order (`-word` leaves
+out): `FF3 extra` only shows the patches of the `Extra & Visual Patches` folder of FF3. The groups, their counts and
+**See the suggestions** keep only the patches found. The cross clears the search.
+
 On the right, the detail of the patch selected says in plain words where it stands (for a patch applied: what
 designates its ROM, and the name of its patched version), then gives its actions.
 
@@ -360,6 +364,12 @@ then **Apply (*n*)**; **Back** returns to the detail without saving anything.
 nor counts it among the patches not applied. It is also the way to silence a patch that applies to nothing and that
 you want to keep in the folder. The context menu of a patched version of the table offers the same action, which runs
 the simulation again at once.
+
+To set aside at once the patches that will never apply (those that apply to a ROM already patched, for example),
+search for them, then click **Do not apply the patches shown (*n*)…**, under the search. The button is greyed out
+without a search, which would show every patch. It shows the list of the patches found, all checked, with their
+folder: uncheck those to keep, then **Do not apply (*n*)**; **Back** saves nothing. Each patch set aside can then go
+back to the automatic choice.
 
 **Back to the automatic choice** forgets your choice for a patch (a ROM chosen, or a patch set aside): the next
 simulation applies it again from what it records, its name or its readme.

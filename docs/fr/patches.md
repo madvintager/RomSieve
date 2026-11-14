@@ -312,6 +312,10 @@ doit en faire. Elle s'ouvre après une simulation :
 * **Écartés** (–) : les patchs que vous avez écartés ;
 * **Non réparables** (✗) : un UPS ou un BPS dont la ROM manque, un patch illisible… Le détail en donne la raison.
 
+La **recherche** au-dessus de la liste garde les patchs dont le nom ou le dossier contient tous les mots, dans n'importe
+quel ordre (`-mot` écarte) : `FF3 extra` ne montre que les patchs du dossier `Extra & Visual Patches` de FF3. Les
+groupes, leurs comptes et **Voir les suggestions** ne gardent que les patchs trouvés. La croix efface la recherche.
+
 À droite, le détail du patch sélectionné dit en clair où il en est (pour un patch appliqué : ce qui désigne sa ROM, et
 le nom de sa version patchée), puis donne ses actions.
 
@@ -371,6 +375,12 @@ puis **Appliquer (*n*)** ; **Retour** revient au détail sans rien enregistrer.
 l'applique pas, et ne le compte plus parmi les patchs non appliqués. C'est aussi la façon de faire taire un patch qui
 ne s'applique à rien et que vous voulez garder dans le dossier. Le menu contextuel d'une version patchée du tableau
 propose la même action, qui relance aussitôt la simulation.
+
+Pour écarter d'un coup les patchs qui ne s'appliqueront jamais (ceux qui s'appliquent à une ROM déjà patchée, par
+exemple), cherchez-les, puis cliquez sur **Ne pas appliquer les patchs affichés (*n*)…**, sous la recherche. Le bouton
+est grisé sans recherche, qui montrerait tous les patchs. Il montre la liste des patchs trouvés, tous cochés, avec leur
+dossier : décochez ceux à garder, puis **Ne pas appliquer (*n*)** ; **Retour** n'enregistre rien. Chaque patch écarté
+peut ensuite revenir au choix automatique.
 
 **Revenir au choix automatique** oublie votre choix pour un patch (une ROM choisie, ou un patch écarté) : la prochaine
 simulation l'applique de nouveau d'après ce qu'il enregistre, son nom ou son readme.

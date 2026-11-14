@@ -98,6 +98,24 @@
     <Style Selector="TextBlock.mark.neutral">
       <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
     </Style>
+    <!-- Cross at the end of the search of the patches, as in the fields of the main window -->
+    <Style Selector="Button.field-clear">
+      <Setter Property="Width" Value="20" />
+      <Setter Property="Height" Value="20" />
+      <Setter Property="MinHeight" Value="20" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,0,4,0" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="Content" Value="✕" />
+      <Setter Property="IsTabStop" Value="False" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
+    </Style>
   </Window.Styles>
 
   <DockPanel Margin="16,14">
@@ -137,57 +155,82 @@
     </DockPanel>
 
     <Grid ColumnDefinitions="2*,8,3*">
-      <!-- The patches, grouped by state: the title of each group, then its patches -->
-      <Border Classes="panel" Padding="2">
-        <ListBox x:Name="ListPatches"
-                 Background="Transparent"
-                 AutomationProperties.Name="{Binding I18n[patches.window_title]}"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 ItemsSource="{Binding ListItems}"
-                 SelectedItem="{Binding SelectedListItem, Mode=TwoWay}">
-          <ListBox.DataTemplates>
-            <DataTemplate DataType="vm:PatchGroupViewModel">
-              <DockPanel Margin="0,6,0,2">
-                <Button DockPanel.Dock="Right"
-                        Padding="6,0"
-                        MinHeight="20"
-                        Content="{Binding BatchLabel}"
-                        ToolTip.Tip="{Binding BatchTooltip}"
-                        IsVisible="{Binding HasBatch}"
-                        Command="{Binding BatchCommand}"
-                        CommandParameter="{Binding Kind}" />
-                <TextBlock VerticalAlignment="Center"
-                           FontWeight="Bold"
-                           Foreground="{DynamicResource HintForegroundBrush}"
-                           Text="{Binding Title}" />
-              </DockPanel>
-            </DataTemplate>
-            <DataTemplate DataType="vm:PatchRowViewModel">
-              <DockPanel Margin="8,0,0,0"
-                         ToolTip.Tip="{Binding Location}"
-                         AutomationProperties.Name="{Binding AccessibleName}">
-                <TextBlock DockPanel.Dock="Left"
-                           Width="16"
-                           VerticalAlignment="Top"
-                           Classes="mark"
-                           Classes.toMatch="{Binding IsToMatch}"
-                           Classes.applied="{Binding IsApplied}"
-                           Classes.unfixable="{Binding IsUnfixable}"
-                           Classes.neutral="{Binding IsNeutral}"
-                           Text="{Binding StateMark}" />
-                <StackPanel Spacing="1">
-                  <TextBlock FontWeight="Bold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Text="{Binding Name}" />
-                  <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
-                             TextWrapping="NoWrap"
-                             TextTrimming="CharacterEllipsis"
-                             Text="{Binding ListSummary}"
-                             IsVisible="{Binding ListSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                </StackPanel>
-              </DockPanel>
-            </DataTemplate>
-          </ListBox.DataTemplates>
-        </ListBox>
-      </Border>
+      <!-- The search of the patches, the patches it shows set aside in one go, then the patches, grouped by state: the
+           title of each group, then its patches -->
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,8">
+          <TextBox x:Name="EditPatchSearch"
+                   Watermark="{Binding I18n[patches.patch_search_watermark]}"
+                   ToolTip.Tip="{Binding I18n[patches.tooltip_patch_search]}"
+                   AutomationProperties.Name="{Binding I18n[patches.patch_search_watermark]}"
+                   Text="{Binding PatchSearchText, Mode=TwoWay}">
+            <TextBox.InnerRightContent>
+              <Button x:Name="BtnClearPatchSearch"
+                      Classes="field-clear"
+                      ToolTip.Tip="{Binding I18n[patches.tooltip_clear_patch_search]}"
+                      AutomationProperties.Name="{Binding I18n[patches.tooltip_clear_patch_search]}"
+                      IsVisible="{Binding PatchSearchText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                      Command="{Binding ClearPatchSearchCommand}" />
+            </TextBox.InnerRightContent>
+          </TextBox>
+          <Button x:Name="BtnIgnoreShownPatches"
+                  HorizontalAlignment="Right"
+                  ToolTip.ShowOnDisabled="True"
+                  Content="{Binding IgnoreShownLabel}"
+                  ToolTip.Tip="{Binding IgnoreShownTooltip}"
+                  Command="{Binding OpenIgnoreShownCommand}" />
+        </StackPanel>
+        <Border Classes="panel" Padding="2">
+          <ListBox x:Name="ListPatches"
+                   Background="Transparent"
+                   AutomationProperties.Name="{Binding I18n[patches.window_title]}"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   ItemsSource="{Binding ListItems}"
+                   SelectedItem="{Binding SelectedListItem, Mode=TwoWay}">
+            <ListBox.DataTemplates>
+              <DataTemplate DataType="vm:PatchGroupViewModel">
+                <DockPanel Margin="0,6,0,2">
+                  <Button DockPanel.Dock="Right"
+                          Padding="6,0"
+                          MinHeight="20"
+                          Content="{Binding BatchLabel}"
+                          ToolTip.Tip="{Binding BatchTooltip}"
+                          IsVisible="{Binding HasBatch}"
+                          Command="{Binding BatchCommand}"
+                          CommandParameter="{Binding Kind}" />
+                  <TextBlock VerticalAlignment="Center"
+                             FontWeight="Bold"
+                             Foreground="{DynamicResource HintForegroundBrush}"
+                             Text="{Binding Title}" />
+                </DockPanel>
+              </DataTemplate>
+              <DataTemplate DataType="vm:PatchRowViewModel">
+                <DockPanel Margin="8,0,0,0"
+                           ToolTip.Tip="{Binding Location}"
+                           AutomationProperties.Name="{Binding AccessibleName}">
+                  <TextBlock DockPanel.Dock="Left"
+                             Width="16"
+                             VerticalAlignment="Top"
+                             Classes="mark"
+                             Classes.toMatch="{Binding IsToMatch}"
+                             Classes.applied="{Binding IsApplied}"
+                             Classes.unfixable="{Binding IsUnfixable}"
+                             Classes.neutral="{Binding IsNeutral}"
+                             Text="{Binding StateMark}" />
+                  <StackPanel Spacing="1">
+                    <TextBlock FontWeight="Bold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Text="{Binding Name}" />
+                    <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
+                               TextWrapping="NoWrap"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{Binding ListSummary}"
+                               IsVisible="{Binding ListSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                  </StackPanel>
+                </DockPanel>
+              </DataTemplate>
+            </ListBox.DataTemplates>
+          </ListBox>
+        </Border>
+      </DockPanel>
 
       <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
 
@@ -406,7 +449,7 @@
 
           <!-- The summary of « See the suggestions »: each patch with its ROM, nothing checked -->
           <DockPanel x:Name="PanelPatchBatch" IsVisible="{Binding IsBatchMode}">
-            <TextBlock DockPanel.Dock="Top" FontWeight="Bold" TextWrapping="Wrap" Text="{Binding I18n[patches.batch_title_accept]}" />
+            <TextBlock DockPanel.Dock="Top" FontWeight="Bold" TextWrapping="Wrap" Text="{Binding BatchTitle}" />
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
               <Button x:Name="BtnPatchBatchCheckAll" Content="{Binding I18n[patches.btn_batch_check_all]}" Command="{Binding CheckAllBatchCommand}" />
               <Button x:Name="BtnPatchBatchApply" Classes="accent" Content="{Binding ApplyBatchLabel}" Command="{Binding ApplyBatchCommand}" />
@@ -430,7 +473,8 @@
                       <TextBlock FontWeight="Bold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Text="{Binding Name}" />
                       <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
                                  TextWrapping="NoWrap"
-                                 TextTrimming="CharacterEllipsis">
+                                 TextTrimming="CharacterEllipsis"
+                                 IsVisible="{Binding HasOrigin}">
                         <Run Text="→ " />
                         <Run Text="{Binding OriginLabel}" />
                       </TextBlock>
