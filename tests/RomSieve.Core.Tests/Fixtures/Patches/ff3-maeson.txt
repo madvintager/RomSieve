@@ -1,0 +1,7 @@
+The "good" ROM dump you need to use is this one:
+
+Final Fantasy III (Japan).nes
+	CRC32: 170163F1
+
+But if you happen to have a ROM with a CRC32 of 92189BAE
+let me tell you that it will ALSO work!

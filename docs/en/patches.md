@@ -86,10 +86,10 @@ archive, nor the reverse.
 * In a folder of several patches, a readme with the name of none comes with none: it does not tell which patch it is
   about.
 
-RomSieve only reads the lines where the word **CRC** appears, and on them the CRC32 that follow it. A readme often also
-gives the CRC32 of the patched result: it designates no ROM of the source, and it is ignored. Your choice, then the name
-of the patch, always prevail over its readme, and a UPS or a BPS, which records its original ROM itself, never reads
-its own.
+For the CRC32, RomSieve only reads the lines where the word **CRC** appears, and on them the CRC32 that follow it. A
+readme often also gives the CRC32 of the patched result: it designates no ROM of the source, and it is ignored. Your
+choice, then the name of the patch, always prevail over its readme, and a UPS or a BPS, which records its original ROM
+itself, never reads its own.
 
 A readme sometimes gives the CRC32 of a ROM **with and without its copier header**, on two lines (for example
 `File CRC32` and `ROM CRC32`). An IPS does not tell which of the two forms it expects: RomSieve does not apply it. The
@@ -97,6 +97,15 @@ readme usually tells which form the patch was made for: then choose that form in
 [Choosing the ROM of a patch](#choosing-the-rom-of-a-patch)).
 
 The detail panel of a patched version names the readme that gave the CRC32.
+
+A readme often also names the ROM the patch was made for, by its No-Intro name followed by its extension
+(`Make sure to use the "Super Mario Bros. 2 (USA).nes" ROM`, `Mega Man 2 (USA).nes - NOINTRO`, or after
+`Database match:`). When no CRC32 designates a ROM of the source, RomSieve **proposes** the ROM so named in the
+**Patches** window ("readme.txt gives the name of this ROM"), never applying it on its own: a readme may name another
+revision, or a ROM that must be translated first. The name is compared with those of the DAT, case ignored, as a file
+name and as the name of the game (a readme writes `.nes` where a DAT without header writes `.unh`). A GoodTools name
+(`(U) [!]`) or an approximate one designates no ROM. When the ROM named is in the DAT but not in the source, the reason
+of the patch names it.
 
 ## The patched version
 
@@ -246,6 +255,7 @@ A patch that gives no patched version has its line in the log, with its reason:
 | Reason | What to do |
 |---|---|
 | The original ROM, *name*, is missing from the source (or: a readme designates the original ROM, *name*, …) | The DAT knows this ROM, but the source does not have it: add it to the source. In a lot, the DAT of the ROM follows its name |
+| A readme names the original ROM, *name*, which is missing from the source | The readme gives no known CRC32, but names a ROM of the DAT: add it to the source, or check the revision the readme expects |
 | No ROM of the DAT has this CRC32: the patch was made for another dump or for a hack | Look for the ROM the readme of the patch asks for; for an IPS, choose a ROM for it in the **Patches** window |
 | No ROM of the DAT has this CRC32: … or for another form of the ROM than the one the DAT describes (with another copier header, or without) | For the NES, the Lynx or the Super Nintendo, the patch may have been made for the ROM with a header (or another header) when the DAT describes it without, or the reverse: a DAT of the other form will name it. For an IPS, choose its ROM and its **Form** in the **Patches** window |
 | Neither the name of the IPS patch nor a text that comes with it gives the CRC32 of the original ROM | Choose its ROM in the **Patches** window (see [Choosing the ROM of a patch](#choosing-the-rom-of-a-patch)) |
@@ -300,7 +310,8 @@ A UPS or a BPS designates its own ROM and checks it: no other one is chosen for 
   do not count. The whole name comes before the title alone, then the ROM the sort writes. For a patch whose name or
   readme designates several ROMs, those ROMs; for a patch applied, the ROM it is applied to. Under each ROM, its folder
   in the source tells two files of the same name apart, and a line says why it is proposed ("The name of its archive
-  starts with the title of this ROM", "readme.txt designates this ROM"…). On the right, its CRC32 (in the DAT) and its
+  starts with the title of this ROM", "readme.txt designates this ROM", "readme.txt gives the name of this ROM"…). The
+  ROMs the readme names come before those of the name of the patch. On the right, its CRC32 (in the DAT) and its
   status in the simulation (**Valid**, **Excluded**, **Duplicate**, as in the table), with its reason in a tooltip: a
   ROM 1G1R or a filter leaves out is proposed too, since a translation is often made for it. The first one is chosen,
   but never applied without your click.
@@ -314,7 +325,9 @@ A UPS or a BPS designates its own ROM and checks it: no other one is chosen for 
   its CRC32 and status on the right, with its full path in a tooltip. A ROM found (a click, or Enter for the first one)
   joins the ROMs proposed and becomes the choice. Ctrl+F goes to the search.
 * **Form** only shows for a ROM with a copier header (NES, Super Nintendo, Lynx): the CRC32 with or without the header.
-  An IPS does not tell which one it was made for: its readme usually does.
+  An IPS does not tell which one it was made for: its readme usually does. NES patches are almost always made for the
+  whole file, header included. A ROM of a set without headers has only one form: an IPS made for the whole file would
+  apply to it 16 bytes off, with nothing to tell. Keep a ROM with its header for these patches.
 
 **Apply to this ROM** saves your choice: the next simulation applies the patch to that ROM, whatever its name and its
 readme say. The file of the patch is not changed, and a patch stored in an archive is chosen like any other. While the

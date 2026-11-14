@@ -89,10 +89,10 @@ une archive, ni l'inverse.
 * Dans un dossier de plusieurs patchs, un readme qui ne porte le nom d'aucun n'en accompagne aucun : il ne dit pas de
   quel patch il parle.
 
-RomSieve ne lit que les lignes où figure le mot **CRC**, et sur elles les CRC32 qui le suivent. Un readme donne souvent
-aussi le CRC32 du résultat patché : il ne désigne aucune ROM de la source, et il est ignoré. Votre choix, puis le nom du
-patch, l'emportent toujours sur son readme, et un UPS ou un BPS, qui enregistre lui-même sa ROM d'origine, ne lit
-jamais le sien.
+Pour le CRC32, RomSieve ne lit que les lignes où figure le mot **CRC**, et sur elles les CRC32 qui le suivent. Un readme
+donne souvent aussi le CRC32 du résultat patché : il ne désigne aucune ROM de la source, et il est ignoré. Votre choix,
+puis le nom du patch, l'emportent toujours sur son readme, et un UPS ou un BPS, qui enregistre lui-même sa ROM
+d'origine, ne lit jamais le sien.
 
 Un readme donne parfois le CRC32 d'une ROM **avec et sans son en-tête copieur**, sur deux lignes (par exemple
 `File CRC32` et `ROM CRC32`). Un IPS ne dit pas laquelle des deux formes il attend : RomSieve ne l'applique pas. Le
@@ -100,6 +100,15 @@ readme dit en général pour quelle forme le patch a été fait : choisissez alo
 (voir [Choisir la ROM du patch](#choisir-la-rom-du-patch)).
 
 Le panneau de détail d'une version patchée nomme le readme qui a donné le CRC32.
+
+Un readme nomme souvent aussi la ROM pour laquelle le patch a été fait, sous son nom No-Intro suivi de son extension
+(`Make sure to use the "Super Mario Bros. 2 (USA).nes" ROM`, `Mega Man 2 (USA).nes - NOINTRO`, ou après
+`Database match:`). Quand aucun CRC32 ne désigne une ROM de la source, RomSieve **propose** la ROM ainsi nommée dans
+la fenêtre **Patchs** (« readme.txt cite le nom de cette ROM »), sans jamais l'appliquer seule : un readme peut nommer
+une autre révision, ou une ROM qu'il faut d'abord traduire. Le nom est comparé à ceux du DAT sans tenir compte des
+majuscules, au nom de fichier comme au nom du jeu (un readme écrit `.nes` là où un DAT sans en-tête écrit `.unh`). Un
+nom GoodTools (`(U) [!]`) ou approché ne désigne aucune ROM. Si la ROM nommée est dans le DAT mais pas dans la source,
+la raison du patch la nomme.
 
 ## La version patchée
 
@@ -254,6 +263,7 @@ Un patch qui ne donne aucune version patchée a sa ligne dans le journal, avec s
 | Raison | Ce qu'il faut faire |
 |---|---|
 | La ROM d'origine, *nom*, manque dans la source (ou : un readme désigne la ROM d'origine, *nom*, …) | Le DAT connaît cette ROM, mais la source ne l'a pas : ajoutez-la à la source. Dans un lot, le DAT de la ROM suit son nom |
+| Un readme cite la ROM d'origine, *nom*, qui manque dans la source | Le readme ne donne aucun CRC32 connu, mais nomme une ROM du DAT : ajoutez-la à la source, ou vérifiez dans le readme la révision attendue |
 | Aucune ROM du DAT n'a ce CRC32 : le patch a été fait pour un autre dump ou pour un hack | Cherchez la ROM que demande le readme du patch ; pour un IPS, choisissez-lui une ROM dans la fenêtre **Patchs** |
 | Aucune ROM du DAT n'a ce CRC32 : … ou pour une autre forme de la ROM que celle que décrit le DAT (avec un autre en-tête copieur, ou sans) | Pour la NES, la Lynx ou la Super Nintendo, le patch a pu être fait pour la ROM avec un en-tête (ou un autre en-tête) quand le DAT la décrit sans, ou l'inverse : un DAT de l'autre forme la nommera. Pour un IPS, choisissez sa ROM et sa **Forme** dans la fenêtre **Patchs** |
 | Ni le nom du patch IPS ni un texte qui l'accompagne ne donnent le CRC32 de la ROM d'origine | Choisissez sa ROM dans la fenêtre **Patchs** (voir [Choisir la ROM du patch](#choisir-la-rom-du-patch)) |
@@ -304,15 +314,16 @@ pas encore vus, elle est relancée : le tableau montre toujours ce que donnent v
 Un UPS ou un BPS désigne lui-même sa ROM et la vérifie : on ne lui en choisit pas d'autre. Pour un IPS, le détail
 demande **Pour quelle ROM est ce patch ?** :
 
-* **ROMs proposées** : les ROMs identifiées dont le nom ou le titre commence le nom du patch, ou celui de son archive, ou
-  celui de son dossier quand ce dossier ne contient que lui (`Traduction CT/patch.ips`). Les noms génériques (`patch`,
-  `fix`, `v1.1`…) ne comptent pas. La ROM entière passe avant le titre seul, puis la ROM que le tri écrit. Pour un patch
-  dont le nom ou le readme désigne plusieurs ROMs, ce sont ces ROMs ; pour un patch appliqué, la ROM à laquelle il l'est.
-  Sous chaque ROM, son dossier dans la source distingue deux fichiers du même nom, et une ligne dit pourquoi elle est
-  proposée (« Le nom de son archive commence par le titre de cette ROM », « readme.txt désigne cette ROM »…). À droite,
-  son CRC32 (dans le DAT) et son statut dans la simulation (**Retenu**, **Exclu**, **Doublon**, comme dans le tableau),
-  avec sa raison en infobulle : une ROM que le 1G1R ou un filtre écarte est proposée elle aussi, puisqu'une traduction
-  est souvent faite pour elle. La première est choisie, mais jamais appliquée sans votre clic.
+* **ROMs proposées** : les ROMs identifiées dont le nom ou le titre commence le nom du patch, ou celui de son archive,
+  ou celui de son dossier quand ce dossier ne contient que lui (`Traduction CT/patch.ips`). Les noms génériques
+  (`patch`, `fix`, `v1.1`…) ne comptent pas. La ROM entière passe avant le titre seul, puis la ROM que le tri écrit.
+  Pour un patch dont le nom ou le readme désigne plusieurs ROMs, ce sont ces ROMs ; pour un patch appliqué, la ROM à
+  laquelle il l'est. Sous chaque ROM, son dossier dans la source distingue deux fichiers du même nom, et une ligne dit
+  pourquoi elle est proposée (« Le nom de son archive commence par le titre de cette ROM », « readme.txt désigne cette
+  ROM », « readme.txt cite le nom de cette ROM »…). Les ROMs que nomme le readme passent avant celles du nom du patch. À
+  droite, son CRC32 (dans le DAT) et son statut dans la simulation (**Retenu**, **Exclu**, **Doublon**, comme dans le
+  tableau), avec sa raison en infobulle : une ROM que le 1G1R ou un filtre écarte est proposée elle aussi, puisqu'une
+  traduction est souvent faite pour elle. La première est choisie, mais jamais appliquée sans votre clic.
 * Une **traduction** n'est pas faite pour une ROM déjà dans sa langue : quand le nom du patch porte une étiquette de
   traduction (`[tr fr]` chez TOSEC, `(T-En)`, `[T+Eng]`), les ROMs déjà dans cette langue (d'après leurs langues, sinon
   leur pays) passent après les autres, et le disent. Un patch `Jeu (T-En).ips` propose ainsi `Jeu (Japan)` avant
@@ -324,7 +335,10 @@ demande **Pour quelle ROM est ce patch ?** :
   Une ROM trouvée (clic, ou Entrée pour la première) rejoint les ROMs proposées et devient le choix. Ctrl+F mène à la
   recherche.
 * **Forme** n'apparaît que pour une ROM à en-tête copieur (NES, Super Nintendo, Lynx) : le CRC32 avec ou sans l'en-tête.
-  Un IPS ne dit pas pour laquelle il a été fait : son readme le dit en général.
+  Un IPS ne dit pas pour laquelle il a été fait : son readme le dit en général. Les patchs NES sont presque toujours
+  faits pour le fichier entier, en-tête compris. Une ROM d'un set sans en-tête n'a qu'une forme : un IPS fait pour le
+  fichier entier s'y appliquerait décalé de 16 octets, sans que rien ne le signale. Gardez pour ces patchs une ROM avec
+  son en-tête.
 
 **Appliquer à cette ROM** enregistre votre choix : la prochaine simulation applique le patch à cette ROM, quoi que
 disent son nom et son readme. Le fichier du patch n'est pas modifié, et un patch rangé dans une archive se choisit

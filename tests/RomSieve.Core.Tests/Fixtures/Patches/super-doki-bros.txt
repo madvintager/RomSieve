@@ -1,0 +1,2 @@
+Instructions:
+Apply the patch using an IPS patcher. Make sure to use the "Super Mario Bros. 2 (USA).nes" ROM.

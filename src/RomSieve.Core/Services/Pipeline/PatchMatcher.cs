@@ -520,6 +520,9 @@ public sealed partial class PatchMatcher
         return _patchesByPlace.GetValueOrDefault(place) == 1 ? notes : [];
     }
 
+    /// <summary>The texts read for each IPS whose name gives no CRC32 (<see cref="ReadNoteCrcsAsync"/>), in their order.</summary>
+    private readonly Dictionary<PatchFile, List<(PatchFile Note, string Text)>> _noteTexts = [];
+
     /// <summary>The CRC32 the texts of a patch give, each with the first text that gives it, in the order of the texts.</summary>
     private async Task<List<(uint Crc, PatchFile Note)>> ReadNoteCrcsAsync(PatchFile patch, CancellationToken cancellationToken)
     {
@@ -535,6 +538,18 @@ public sealed partial class PatchMatcher
             {
                 // A text that cannot be read gives nothing: the patch is not refused for it
                 continue;
+            }
+
+            // Kept for the ROMs it names, should no CRC32 designate one (SuggestFromNotes)
+            if (text is not null)
+            {
+                if (!_noteTexts.TryGetValue(patch, out var texts))
+                {
+                    texts = [];
+                    _noteTexts[patch] = texts;
+                }
+
+                texts.Add((note, text));
             }
 
             foreach (var crc in NoteCrcs(text ?? string.Empty))
@@ -591,6 +606,74 @@ public sealed partial class PatchMatcher
             }
         }
     }
+
+    /// <summary>A file extension at the end of a word: a dot, then 2 to 4 letters or digits.</summary>
+    [GeneratedRegex(@"\.[a-z0-9]{2,4}(?![a-z0-9])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ExtensionRegex();
+
+    /// <summary>The line of the former block of romhacking.net that names the entry of the DAT: <c>Database match: Game (Japan)</c>.</summary>
+    [GeneratedRegex(@"database\s+match\s*:\s*(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex DatabaseMatchRegex();
+
+    /// <summary>
+    /// The names of ROMs (or games) a text cites, that <paramref name="isKnown"/> accepts, in the order of the text and
+    /// once each: a name followed by its extension, wherever it is (<c>use the "Super Mario Bros. 2 (USA).nes" ROM</c>,
+    /// <c>Mega Man 2 (USA).nes - NOINTRO</c>), the longest first, as a file name or, without its extension, as the name of
+    /// a game (a readme cites <c>.nes</c> where a DAT of the data without header has <c>.unh</c>); and the name after
+    /// <c>Database match:</c>. A name starts at the start of a line or after a space, a quote, a colon or an opening
+    /// bracket.
+    /// </summary>
+    internal static List<string> CitedNames(string text, Func<string, bool> isKnown)
+    {
+        var found = new List<string>();
+        void Add(string name)
+        {
+            if (!found.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                found.Add(name);
+            }
+        }
+
+        foreach (var raw in text.Split('\n'))
+        {
+            var line = raw.TrimEnd('\r');
+            if (DatabaseMatchRegex().Match(line) is { Success: true } database && database.Groups[1].Value.Trim() is { Length: > 0 } matched && isKnown(matched))
+            {
+                Add(matched);
+            }
+
+            // A file name, or the name of its game when the DAT gives another extension (.nes cited, .unh in the DAT)
+            foreach (Match extension in ExtensionRegex().Matches(line))
+            {
+                var end = extension.Index + extension.Length;
+                for (var start = 0; start < extension.Index; start++)
+                {
+                    if (!StartsAName(line, start))
+                    {
+                        continue;
+                    }
+
+                    if (isKnown(line[start..end]))
+                    {
+                        Add(line[start..end]);
+                        break;
+                    }
+
+                    if (isKnown(line[start..extension.Index]))
+                    {
+                        Add(line[start..extension.Index]);
+                        break;
+                    }
+                }
+            }
+        }
+
+        return found;
+    }
+
+    private static bool StartsAName(string line, int at) =>
+        !char.IsWhiteSpace(line[at])
+        && (at == 0 || char.IsWhiteSpace(line[at - 1]) || line[at - 1] is '"' or '\'' or '`' or ':' or '(' or '[' or '«' or '“');
 
     // =========================================================================
     // Matching
@@ -1167,8 +1250,15 @@ public sealed partial class PatchMatcher
         for (var i = 0; i < _unapplied.Count; i++)
         {
             var unapplied = _unapplied[i];
+            var key = unapplied.Reason.Key;
+
             // A patch without CRC32, or whose ROM chosen by the user is missing: its names may propose another one
-            if (unapplied.Reason.Key is not ("reason.patch_no_crc" or "reason.patch_link_origin_missing"))
+            var byName = key is "reason.patch_no_crc" or "reason.patch_link_origin_missing";
+
+            // An IPS whose readme gives no CRC32 of the source: the ROMs it names may be proposed
+            var byNotes = _noteTexts.ContainsKey(unapplied.File)
+                && key is "reason.patch_no_crc" or "reason.patch_not_in_dat_note" or "reason.patch_origin_missing_note";
+            if (!byName && !byNotes)
             {
                 continue;
             }
@@ -1178,8 +1268,115 @@ public sealed partial class PatchMatcher
                 var name = Path.GetFileNameWithoutExtension(Path.GetFileName(OriginName(c.Item)));
                 return (c, name, TitleOf(name));
             })];
-            _unapplied[i] = unapplied with { Suggestions = SuggestOrigins(unapplied.File, origins) };
+
+            var suggestions = new List<PatchOriginSuggestion>();
+            var reason = unapplied.Reason;
+            if (byNotes)
+            {
+                var (named, missing) = SuggestFromNotes(unapplied.File, origins);
+                suggestions.AddRange(named);
+
+                // Without CRC32 of the DAT, the ROM the readme names is the best clue left
+                if (named.Count == 0 && missing is not null && key is "reason.patch_no_crc" or "reason.patch_not_in_dat_note")
+                {
+                    reason = missing;
+                }
+            }
+
+            if (byName)
+            {
+                suggestions.AddRange(SuggestOrigins(unapplied.File, origins)
+                    .Where(s => !suggestions.Exists(n => ReferenceEquals(n.Origin, s.Origin))));
+            }
+
+            _unapplied[i] = unapplied with { Reason = reason, Suggestions = [.. suggestions.Take(MaxSuggestions)] };
         }
+    }
+
+    /// <summary>
+    /// The ROMs the readme of an IPS names (<see cref="CitedNames"/>, its file name in the DAT or its game): those of the
+    /// source, proposed in the order of the text with <c>patches.why_readme_names</c>; and when none is in the source, the
+    /// reason that names the first one of the DAT missing from it (<c>reason.patch_named_origin_missing</c>, with its DAT
+    /// in a lot). Names only: a readme can name another revision, or a ROM a translation must be applied to first.
+    /// </summary>
+    private (List<PatchOriginSuggestion> Named, LocalizedMessage? Missing) SuggestFromNotes(
+        PatchFile patch,
+        List<(Candidate Form, string Name, string Title)> origins)
+    {
+        var names = CitableNames(origins);
+        var named = new List<PatchOriginSuggestion>();
+        LocalizedMessage? missing = null;
+        foreach (var (note, text) in _noteTexts[patch])
+        {
+            foreach (var cited in CitedNames(text, names.Known.Contains))
+            {
+                var fitting = origins
+                    .Where(o => string.Equals(Path.GetFileName(OriginName(o.Form.Item)), cited, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(o.Form.Item.DatGameName, cited, StringComparison.OrdinalIgnoreCase))
+                    .Where(o => !named.Exists(n => ReferenceEquals(n.Origin, o.Form.Item)))
+                    .OrderByDescending(o => SelectionFilter.IsReleaseWritten(o.Form.Item))
+                    .ThenBy(o => o.Form.Item.SourcePath, StringComparer.Ordinal)
+                    .ThenBy(o => o.Form.Item.ArchiveMember, StringComparer.Ordinal)
+                    .ToList();
+                named.AddRange(fitting.Select(o => new PatchOriginSuggestion(o.Form.Item, o.Form.Crc32, o.Form.Offset)
+                {
+                    Reason = LocalizedMessage.Create("patches.why_readme_names", ("note", note.DisplayName))
+                }));
+                if (fitting.Count == 0 && missing is null && names.InDat.TryGetValue(cited, out var display))
+                {
+                    missing = LocalizedMessage.Create("reason.patch_named_origin_missing", ("note", note.DisplayName), ("origin", display));
+                }
+            }
+        }
+
+        return (named, missing);
+    }
+
+    private (HashSet<string> Known, Dictionary<string, string> InDat)? _citableNames;
+
+    /// <summary>
+    /// The names a readme may cite: the file names and games of the source, and those of the DAT (only the DATs of a lot
+    /// already read, as <see cref="DatHasCopierHeaderPlatform"/>), each of the DAT with what names it in a reason (its
+    /// DAT after it in a lot).
+    /// </summary>
+    private (HashSet<string> Known, Dictionary<string, string> InDat) CitableNames(List<(Candidate Form, string Name, string Title)> origins)
+    {
+        if (_citableNames is { } built)
+        {
+            return built;
+        }
+
+        var inDat = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var catalogs = _catalog is null ? []
+            : _catalog.Dats is { } dats ? dats.Where(d => d.IsLoaded).Select(d => (d.Catalog, (string?)d.Name)).ToList()
+            : [(_catalog, (string?)null)];
+        foreach (var (catalog, dat) in catalogs)
+        {
+            string Display(string name) => dat is null ? name : $"{name} ({dat})";
+            foreach (var name in catalog.ByName.Keys)
+            {
+                inDat.TryAdd(name, Display(name));
+            }
+
+            // A game is named by its file, as the ROMs a CRC32 designates, when it has only one
+            foreach (var (name, game) in catalog.GameByName)
+            {
+                inDat.TryAdd(name, Display(game.Roms is [var single] ? single.Name : name));
+            }
+        }
+
+        var known = new HashSet<string>(inDat.Keys, StringComparer.OrdinalIgnoreCase);
+        foreach (var (form, _, _) in origins)
+        {
+            known.Add(Path.GetFileName(OriginName(form.Item)));
+            if (!string.IsNullOrEmpty(form.Item.DatGameName))
+            {
+                known.Add(form.Item.DatGameName);
+            }
+        }
+
+        _citableNames = (known, inDat);
+        return (known, inDat);
     }
 
     private List<PatchOriginSuggestion> SuggestOrigins(PatchFile patch, List<(Candidate Form, string Name, string Title)> origins)
