@@ -1,9 +1,9 @@
 # Destination and transfers
 
 Everything on this page is set in the **Output** step, in four frames: **Destination** (the folder, and what to do
-when it is not empty), **Writing the files** (mode, conflicts, verification), **Multi-disk games** (subfolder, playlist)
-and **Directory tree** (pattern, articles, folders of the DATs of a lot, preview). The cross at the end of the
-destination field empties it.
+when it is not empty), **Writing the files** (mode, conflicts, verification, single-game archives), **Multi-disk
+games** (subfolder, playlist) and **Directory tree** (pattern, articles, folders of the DATs of a lot, preview). The
+cross at the end of the destination field empties it.
 
 ![The Output step](../images/output_settings.png)
 
@@ -145,11 +145,11 @@ Files **Excluded** by a filter and **Duplicates** are never written: they stay i
 
 ### Isolate non-conforming files in _unmatched
 
-**Isolate non-conforming files in _unmatched**, below *Verify copied files*, is checked by default. Uncheck it to leave
-the non-conforming files in the source: the results still show them as **Non-conforming**, with *left in the source*
-in their reason and no target, but the sort does not write them, even in Move mode. They do not count in the volume
-written nor in the FAT32 warning, their box in the results cannot be checked, and the log counts them in one line.
-The option is saved in the configuration and in the profiles, so the command line follows it too.
+**Isolate non-conforming files in _unmatched**, below *Preserve single-game archives*, is checked by default. Uncheck
+it to leave the non-conforming files in the source: the results still show them as **Non-conforming**, with *left in
+the source* in their reason and no target, but the sort does not write them, even in Move mode. They do not count in
+the volume written nor in the FAT32 warning, their box in the results cannot be checked, and the log counts them in one
+line. The option is saved in the configuration and in the profiles, so the command line follows it too.
 
 ### Verify copied files
 
@@ -161,20 +161,23 @@ every file is read twice.
 
 ### Preserve single-game archives
 
-Below **Verify copied files**, the option **Preserve single-game archives** (disabled by default) allows source archives
-(ZIP, 7z, RAR) to be transferred intact when they contain exactly one game (or an optical descriptor and its companion tracks)
-and all their members are kept by the sort. An archive holding an extra file (such as a readme or a `.nfo` file) is not preserved
-as an archive and has its members extracted, since it must contain exactly one game and all its files.
+**Preserve single-game archives**, below *Verify copied files*, is unchecked by default. Checked, a source archive (ZIP,
+7z, RAR) is written as it is, instead of having its content extracted, when it holds a single game (one file, or a
+descriptor and its tracks) and the sort keeps every file it holds. An archive that holds one more file, such as a readme
+or a `.nfo`, has its content extracted, as without the option.
 
-Instead of extracting large files (such as multi-gigabyte ISO disc images) to copy or recompress them, RomSieve directly
-transfers the original container (copy, immediate move on the same disk or after copy to another disk, hard link, or symlink). The archive's extension
-(`.7z`, `.zip`, `.rar`) is preserved on the target file, and the files inside retain their original names inside the archive,
-even when the DAT gives them a different name.
-When this option is checked, destination space and FAT32 limits are calculated using the archive's size rather than the uncompressed content size.
-This option is disabled in ZIP mode (since TorrentZip requires standardized recompression).
+The archive is copied, moved (instantly on the same disk; across disks, copied, then deleted) or linked, according to
+the mode: a disc image of several gigabytes is neither decompressed nor compressed again. The option is greyed out in
+ZIP mode, which always writes a new TorrentZip archive.
 
-> With this option enabled, `.m3u` playlists generated for multi-disc games will directly reference the archive containers (`.zip`, `.7z`, `.rar`).
-> Depending on the emulator, opening a `.cue` descriptor located inside a `.zip` may be supported, but most emulators cannot open a `.cue` inside a `.7z` or `.rar` archive.
+* The archive takes the name of its game, as the DAT names its file (without a DAT, as the archive names it), with its
+  own extension: `tetris.7z`, which holds `tetris.gb` identified as `Tetris (World).gb`, becomes `Tetris (World).7z`.
+  The files it holds keep their names, even when the DAT gives them others: the archive still holds `tetris.gb`.
+* With **Verify copied files**, an archive copied, or moved to another disk, is read again, and its CRC32 is compared
+  with that of the source archive.
+* The space needed on the destination and the FAT32 warning count the size of the archive, not that of its content.
+* The `.m3u` playlist of a multi-disk game lists the archives of its disks. Some emulators open a `.cue` inside a
+  `.zip`, but most open none inside a `.7z` or a `.rar`.
 
 ## Conflicts
 

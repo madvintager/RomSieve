@@ -53,7 +53,8 @@ convention, filters, 1G1R and folder in the destination. Only the DATs the sourc
 
 **Safe file operations.** RomSieve can copy, move, create hard links or symbolic links, or write one TorrentZip archive per game,
 into folder patterns such as `{publisher}/{title}/` or `{country}/{title}/`. Files that do not match go to
-`_unmatched/`, and a cancelled transfer leaves no partial file behind. Purging a destination deletes nothing: its
+`_unmatched/`, and a cancelled transfer leaves no partial file behind. An archive that holds a single game can be
+written as it is, without being extracted. Purging a destination deletes nothing: its
 content is set aside in `_purged/`. Every real sort is logged, so the last one can be undone.
 
 **Also included:** ZIP, 7z and RAR archives read without extraction, CHD headers, `.cue`/`.gdi`/`.ccd` sets kept with

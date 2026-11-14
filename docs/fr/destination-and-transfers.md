@@ -1,9 +1,9 @@
 # Destination et transferts
 
 Tout ce qui est décrit sur cette page se règle dans l'étape **Sortie**, en quatre cadres : **Destination** (le dossier,
-et que faire s'il n'est pas vide), **Écriture des fichiers** (mode, conflits, vérification), **Jeux multi-disques**
-(sous-dossier, playlist) et **Arborescence** (modèle, articles, dossiers des DAT d'un lot, aperçu). La croix au bout
-du champ de la destination le vide.
+et que faire s'il n'est pas vide), **Écriture des fichiers** (mode, conflits, vérification, archives d'un seul jeu),
+**Jeux multi-disques** (sous-dossier, playlist) et **Arborescence** (modèle, articles, dossiers des DAT d'un lot,
+aperçu). La croix au bout du champ de la destination le vide.
 
 ![L'étape Sortie](../images/fr/output_settings.png)
 
@@ -145,7 +145,8 @@ mode Déplacer. Les fichiers **Non conformes** sont transférés dans `_unmatche
 
 ### Isoler les fichiers non conformes dans _unmatched
 
-**Isoler les fichiers non conformes dans _unmatched**, sous *Vérifier les fichiers copiés*, est cochée par défaut.
+**Isoler les fichiers non conformes dans _unmatched**, sous *Conserver les archives contenant un seul jeu*, est cochée
+par défaut.
 Décochez-la pour laisser les fichiers non conformes dans la source : les résultats les montrent toujours **Non
 conformes**, avec *laissé dans la source* dans leur raison et sans cible, mais le tri ne les écrit pas, même en mode
 Déplacer. Ils ne comptent ni dans le volume écrit ni dans l'alerte FAT32, leur case dans les résultats ne peut pas être
@@ -162,20 +163,24 @@ vérifiés. Le tri est plus lent, puisque chaque fichier est lu deux fois.
 
 ### Conserver les archives contenant un seul jeu
 
-Sous **Vérifier les fichiers copiés**, l'option **Conserver les archives contenant un seul jeu** (désactivée par défaut)
-permet de transférer intactes les archives source (ZIP, 7z, RAR) lorsqu'elles contiennent exactement un jeu (ou un descripteur optique
-et ses pistes associées) et que tous leurs membres sont retenus par le tri. Une archive contenant un fichier annexe (comme un lisez-moi ou un fichier `.nfo`)
-n'est pas conservée sous forme d'archive et voit ses membres extraits, car il faut exactement un jeu et tous ses fichiers.
+**Conserver les archives contenant un seul jeu**, sous *Vérifier les fichiers copiés*, est décochée par défaut. Cochée,
+une archive de la source (ZIP, 7z, RAR) est écrite telle quelle, au lieu que son contenu soit extrait, quand elle
+contient un seul jeu (un fichier, ou un descripteur et ses pistes) et que le tri retient tous ses fichiers. Une archive
+qui contient un fichier de plus, comme un lisez-moi ou un `.nfo`, voit son contenu extrait, comme sans l'option.
 
-Au lieu d'extraire de volumineux fichiers (par exemple des images disques ISO de plusieurs gigaoctets) pour les copier ou les
-recompresser, RomSieve transfère directement le conteneur d'origine (copie, déplacement direct sur un même disque ou après copie vers un autre disque, lien
-physique ou symbolique). L'extension de l'archive (`.7z`, `.zip`, `.rar`) est conservée sur le fichier cible, et les fichiers qu'elle contient
-gardent leur nom d'origine à l'intérieur de l'archive, même quand le DAT leur donne un nom différent.
-Quand cette option est cochée, l'espace requis et les limites FAT32 sont calculés d'après la taille de l'archive plutôt que celle de son contenu décompressé.
-Cette option est grisée en mode ZIP (TorrentZip exigeant une recompression normalisée).
+L'archive est copiée, déplacée (instantanément sur un même disque ; d'un disque à l'autre, copiée, puis supprimée) ou
+liée, selon le mode : une image de disque de plusieurs gigaoctets n'est ni décompressée ni recompressée. L'option est
+grisée en mode ZIP, qui écrit toujours une nouvelle archive TorrentZip.
 
-> Avec cette option, les playlists `.m3u` créées pour les jeux multi-disques pointeront directement vers les conteneurs d'archives (`.zip`, `.7z`, `.rar`).
-> Selon l'émulateur, l'ouverture d'un descripteur `.cue` situé dans un `.zip` peut être prise en charge, mais la plupart des émulateurs ne savent pas ouvrir un `.cue` à l'intérieur d'un `.7z` ou d'un `.rar`.
+* L'archive prend le nom de son jeu, tel que le DAT nomme son fichier (sans DAT, tel que l'archive le nomme), avec sa
+  propre extension : `tetris.7z`, qui contient `tetris.gb` identifié comme `Tetris (World).gb`, devient
+  `Tetris (World).7z`. Les fichiers qu'elle contient gardent leur nom, même quand le DAT leur en donne un autre :
+  l'archive contient toujours `tetris.gb`.
+* Avec **Vérifier les fichiers copiés**, une archive copiée, ou déplacée vers un autre disque, est relue, et son CRC32
+  est comparé à celui de l'archive de la source.
+* L'espace requis sur la destination et l'alerte FAT32 comptent la taille de l'archive, pas celle de son contenu.
+* La playlist `.m3u` d'un jeu multi-disques liste les archives de ses disques. Certains émulateurs ouvrent un `.cue`
+  dans un `.zip`, mais la plupart n'en ouvrent aucun dans un `.7z` ou un `.rar`.
 
 ## Conflits
 
