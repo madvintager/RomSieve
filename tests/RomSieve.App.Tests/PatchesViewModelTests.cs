@@ -137,7 +137,7 @@ public sealed class PatchesViewModelTests : IDisposable
         var window = await LoadAsync();
 
         ListOf(window).Should().Equal(
-            "À associer (1)", "Game (Japan) (T-Fr).ips",
+            "ROM proposée (1)", "Game (Japan) (T-Fr).ips",
             "Appliqués (3)", "Game (Japan) (T-En).bps", named, "Hack.ips",
             "Écartés (1)", "Aside.bps",
             "Non réparables (1)", "Other.bps");
@@ -148,7 +148,7 @@ public sealed class PatchesViewModelTests : IDisposable
         ips.State.Should().Be(PatchRowState.ToMatch);
         ips.StateMark.Should().Be("●");
         ips.StatusText.Should().Be("Ce patch ne s'applique à aucune ROM : ni son nom ni son readme ne disent pour quelle ROM il a été fait.");
-        ips.ListSummary.Should().BeEmpty();
+        ips.ListSummary.Should().Be("→ Game (Japan).sfc (proposée)", "the list names the ROM proposed");
         ips.Origins.Select(o => o.Label).Should().Equal("Game (Japan).sfc", "Game (USA).sfc");
         ips.Origins.Select(o => o.Reason).Should().Equal(
             ["Le nom du patch commence par le nom de cette ROM", "Le nom du patch commence par le titre de cette ROM"],
@@ -275,7 +275,7 @@ public sealed class PatchesViewModelTests : IDisposable
         row.State.Should().Be(PatchRowState.ToMatch);
         row.StatusText.Should().StartWith("Ce patch ne s'applique à aucune ROM : ni son nom");
         row.CanUndo.Should().BeFalse();
-        ListOf(window).Should().Equal("À associer (1)", row.Name);
+        ListOf(window).Should().Equal("ROM proposée (1)", row.Name);
         window.HasModified.Should().BeFalse();
     }
 
@@ -661,11 +661,11 @@ public sealed class PatchesViewModelTests : IDisposable
     }
 
     // =========================================================================
-    // « Accept all the suggestions »
+    // « See the suggestions »
     // =========================================================================
 
     [Fact]
-    public async Task AcceptingTheSuggestions_ShouldShowASummaryCheckedByNothing_AndRecordOnlyThePatchesChecked()
+    public async Task SeeingTheSuggestions_ShouldShowASummaryCheckedByNothing_AndRecordOnlyThePatchesChecked()
     {
         WriteJapanAndUsa();
         var french = IpsDiff(Japan, Translate(Japan));
@@ -674,11 +674,20 @@ public sealed class PatchesViewModelTests : IDisposable
         _temp.WriteBytes("patches/Game (USA) (Hack).ips", hack);
         _temp.WriteBytes("patches/Super Mario Frères.ips", IpsDiff(Japan, [.. Japan, .. Ascii("Mario")]));
         var window = await LoadAsync();
-        var group = window.ListItems.OfType<PatchGroupViewModel>().Single();
-        group.HasBatch.Should().BeTrue();
-        group.BatchLabel.Should().Be("Accepter toutes les suggestions (2)", "a patch without a ROM chosen is left out");
 
-        await group.BatchCommand.ExecuteAsync(PatchGroupKind.ToMatch);
+        // The patches a ROM is proposed for stand apart, each naming its ROM; the one without is in the next group
+        ListOf(window).Should().Equal(
+            "ROM proposée (2)", "Game (Japan) (T-Fr).ips", "Game (USA) (Hack).ips",
+            "Sans ROM proposée (1)", "Super Mario Frères.ips");
+        Row(window, "Game (Japan) (T-Fr).ips").ListSummary.Should().Be("→ Game (Japan).sfc (proposée)");
+        Row(window, "Super Mario Frères.ips").ListSummary.Should().BeEmpty();
+        var groups = window.ListItems.OfType<PatchGroupViewModel>().ToList();
+        groups.Single(g => g.Kind == PatchGroupKind.ToMatch).HasBatch.Should().BeFalse("no ROM is proposed for its patches");
+        var group = groups.Single(g => g.Kind == PatchGroupKind.Proposed);
+        group.HasBatch.Should().BeTrue();
+        group.BatchLabel.Should().Be("Voir les suggestions (2)…", "the button shows them, it applies nothing");
+
+        await group.BatchCommand.ExecuteAsync(PatchGroupKind.Proposed);
 
         window.IsBatchMode.Should().BeTrue();
         window.BatchEntries.Select(e => (e.Name, e.OriginLabel)).Should().BeEquivalentTo(new[]
@@ -686,6 +695,9 @@ public sealed class PatchesViewModelTests : IDisposable
             ("Game (Japan) (T-Fr).ips", "Game (Japan).sfc"),
             ("Game (USA) (Hack).ips", "Game (USA).sfc")
         });
+        window.BatchEntries.Single(e => e.Name == "Game (Japan) (T-Fr).ips").Details
+            .Should().Be(Row(window, "Game (Japan) (T-Fr).ips").SelectedOrigin!.Reason, "why the ROM is proposed, the patch being at the root")
+            .And.NotBeEmpty();
         window.BatchEntries.Should().OnlyContain(e => !e.IsChecked, "a suggestion is never taken alone");
         window.ApplyBatchCommand.CanExecute(null).Should().BeFalse();
 
@@ -708,7 +720,7 @@ public sealed class PatchesViewModelTests : IDisposable
         var patch = IpsDiff(Japan, Translate(Japan));
         _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", patch);
         var window = await LoadAsync();
-        await window.OpenBatchCommand.ExecuteAsync(PatchGroupKind.ToMatch);
+        await window.OpenBatchCommand.ExecuteAsync(PatchGroupKind.Proposed);
         window.CheckAllBatchCommand.Execute(null);
 
         window.CloseBatchCommand.Execute(null);

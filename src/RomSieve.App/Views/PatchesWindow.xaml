@@ -404,7 +404,7 @@
             </StackPanel>
           </ScrollViewer>
 
-          <!-- The summary of « Accept all the suggestions »: each patch with its ROM, nothing checked -->
+          <!-- The summary of « See the suggestions »: each patch with its ROM, nothing checked -->
           <DockPanel x:Name="PanelPatchBatch" IsVisible="{Binding IsBatchMode}">
             <TextBlock DockPanel.Dock="Top" FontWeight="Bold" TextWrapping="Wrap" Text="{Binding I18n[patches.batch_title_accept]}" />
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
@@ -434,6 +434,13 @@
                         <Run Text="→ " />
                         <Run Text="{Binding OriginLabel}" />
                       </TextBlock>
+                      <TextBlock Foreground="{DynamicResource HintForegroundBrush}"
+                                 FontStyle="Italic"
+                                 TextWrapping="NoWrap"
+                                 TextTrimming="CharacterEllipsis"
+                                 Text="{Binding Details}"
+                                 ToolTip.Tip="{Binding Details}"
+                                 IsVisible="{Binding HasDetails}" />
                     </StackPanel>
                   </DockPanel>
                 </DataTemplate>

@@ -293,7 +293,9 @@ them. It opens after a simulation:
 
 On the left, the patches are grouped by state:
 
-* **To match** (●): the IPS that apply to no ROM, and that you can choose one for;
+* **ROM proposed** (●): the IPS that apply to no ROM, but for which the simulation proposes a ROM; each names it under
+  its name ("→ *ROM* (proposed)");
+* **No ROM proposed** (●): the other IPS that apply to no ROM, and that you can choose one for;
 * **Applied** (✓): each followed by its ROM ("→ *ROM*"), with "(readme)" or "(your choice)" when its readme or you
   designate it;
 * **Automatic choice** (↺): the patches whose choice you just forgot; the next simulation will tell what they do;
@@ -347,9 +349,10 @@ current ROM of a patch applied is chosen, the button is greyed out. The Enter ke
 If a patched version does not work, because the patch was made for another ROM, choose the right one for it the same
 way: your choice wins over the CRC32 of its name and over its readme.
 
-**Accept all the suggestions (*n*)**, on the title of the **To match** group, shows the ROM chosen for each patch:
-nothing is checked beforehand. Check those to apply (or **Check all**), then **Apply (*n*)**; **Back** returns to the
-detail without saving anything.
+**See the suggestions (*n*)…**, on the title of the **ROM proposed** group, applies nothing: it shows for each patch the
+ROM chosen, then the folder of the patch and why the ROM is proposed ("The name of the patch starts with the title of
+this ROM"…), enough to judge each suggestion. Nothing is checked beforehand. Check those to apply (or **Check all**),
+then **Apply (*n*)**; **Back** returns to the detail without saving anything.
 
 ## Not applying a patch
 

@@ -430,7 +430,7 @@ public sealed partial class GuiTests
                             AssertNotTrimmed(control, $"a title of group or its button ({locale})");
                         }
 
-                        await shown.OpenBatchCommand.ExecuteAsync(PatchGroupKind.ToMatch);
+                        await shown.OpenBatchCommand.ExecuteAsync(PatchGroupKind.Proposed);
                         Settle(patchesWindow);
                         foreach (var name in new[] { "BtnPatchBatchCheckAll", "BtnPatchBatchApply", "BtnPatchBatchBack" })
                         {

@@ -135,6 +135,10 @@ public enum PatchRowState
 /// <summary>The groups of the list of the patches, in their order.</summary>
 public enum PatchGroupKind
 {
+    /// <summary>To match, and the simulation proposed a ROM: its suggestions may be reviewed together.</summary>
+    Proposed,
+
+    /// <summary>To match, without a ROM proposed.</summary>
     ToMatch,
     Applied,
     Automatic,
@@ -229,7 +233,7 @@ public sealed partial class PatchRowViewModel : ObservableObject
 
     public PatchGroupKind Group => State switch
     {
-        PatchRowState.ToMatch => PatchGroupKind.ToMatch,
+        PatchRowState.ToMatch => SuggestedOrigin is null ? PatchGroupKind.ToMatch : PatchGroupKind.Proposed,
         PatchRowState.Applied => PatchGroupKind.Applied,
         PatchRowState.Ignored => PatchGroupKind.Ignored,
         PatchRowState.Automatic => PatchGroupKind.Automatic,
@@ -250,6 +254,20 @@ public sealed partial class PatchRowViewModel : ObservableObject
 
     /// <summary>The CRC32 of the form of <see cref="CurrentOrigin"/> it is applied to.</summary>
     public uint? CurrentCrc32 { get; private set; }
+
+    /// <summary>
+    /// The first ROM the last simulation proposed for it, when it left it to match (<see cref="UnappliedPatch.Suggestions"/>):
+    /// the list names it, and the patch stands in the group of the ROMs proposed. <see langword="null"/> otherwise.
+    /// </summary>
+    public string? SuggestedOrigin { get; private set; }
+
+    /// <summary>Gives the patch the ROM the simulation proposed first for it.</summary>
+    internal void Suggest(string origin)
+    {
+        SuggestedOrigin = origin;
+        OnPropertyChanged(nameof(Group));
+        NotifyState();
+    }
 
     /// <summary>The name of its patched version in the last run, as long as nothing changed it.</summary>
     public string? PatchedName { get; private set; }
@@ -397,7 +415,14 @@ public sealed partial class PatchRowViewModel : ObservableObject
     private string OriginName => CurrentOrigin?.DisplayName ?? string.Empty;
 
     /// <summary>The short line of the list under its name: the ROM it is applied to, and what chose it.</summary>
-    public string ListSummary => State != PatchRowState.Applied ? string.Empty : Source switch
+    public string ListSummary => State switch
+    {
+        PatchRowState.ToMatch when SuggestedOrigin is not null => _owner.Tr("patches.row_proposed", ("origin", SuggestedOrigin)),
+        PatchRowState.Applied => AppliedSummary,
+        _ => string.Empty
+    };
+
+    private string AppliedSummary => Source switch
     {
         PatchCrcSource.Notes => _owner.Tr("patches.row_applied_note", ("origin", OriginName)),
         PatchCrcSource.Link => _owner.Tr("patches.row_applied_link", ("origin", OriginName)),
@@ -449,7 +474,9 @@ public sealed partial class PatchRowViewModel : ObservableObject
     public bool HasLocation => Location.Length > 0;
 
     /// <summary>What a screen reader says of its line in the list: its name, and where it stands.</summary>
-    public string AccessibleName => ListSummary.Length > 0 ? $"{Name} {ListSummary}" : $"{Name}, {StatusText}";
+    public string AccessibleName => State == PatchRowState.Applied && ListSummary.Length > 0 ? $"{Name} {ListSummary}"
+        : ListSummary.Length > 0 ? $"{Name}, {StatusText} {ListSummary}"
+        : $"{Name}, {StatusText}";
 
     /// <summary>Why the last action was refused; empty after a success.</summary>
     [ObservableProperty]

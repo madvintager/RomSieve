@@ -302,7 +302,9 @@ doit en faire. Elle s'ouvre après une simulation :
 
 À gauche, les patchs sont groupés par état :
 
-* **À associer** (●) : les IPS qui ne s'appliquent à aucune ROM, et auxquels vous pouvez en choisir une ;
+* **ROM proposée** (●) : les IPS qui ne s'appliquent à aucune ROM, mais pour lesquels la simulation propose une ROM ;
+  chacun la nomme sous son nom (« → *ROM* (proposée) ») ;
+* **Sans ROM proposée** (●) : les autres IPS qui ne s'appliquent à aucune ROM, et auxquels vous pouvez en choisir une ;
 * **Appliqués** (✓) : chacun suivi de sa ROM (« → *ROM* »), avec « (readme) » ou « (votre choix) » quand c'est son
   readme ou vous qui la désignez ;
 * **Choix automatique** (↺) : les patchs dont vous venez d'oublier le choix ; la prochaine simulation dira ce qu'ils
@@ -358,9 +360,10 @@ n'enregistre jamais rien.
 Si une version patchée ne fonctionne pas, parce que le patch a été fait pour une autre ROM, choisissez-lui la bonne de
 la même façon : votre choix l'emporte sur le CRC32 de son nom et sur son readme.
 
-**Accepter toutes les suggestions (*n*)**, sur le titre du groupe **À associer**, montre la ROM choisie pour chaque
-patch : rien n'y est coché d'avance. Cochez ceux à appliquer (ou **Tout cocher**), puis **Appliquer (*n*)** ; **Retour**
-revient au détail sans rien enregistrer.
+**Voir les suggestions (*n*)…**, sur le titre du groupe **ROM proposée**, n'applique rien : il montre pour chaque patch
+la ROM choisie, puis le dossier du patch et la raison de la proposition (« Le nom du patch commence par le titre de cette
+ROM »…), de quoi juger chaque suggestion. Rien n'y est coché d'avance. Cochez ceux à appliquer (ou **Tout cocher**),
+puis **Appliquer (*n*)** ; **Retour** revient au détail sans rien enregistrer.
 
 ## Ne pas appliquer un patch
 

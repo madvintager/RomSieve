@@ -10,8 +10,8 @@ using RomSieve.Core.Services;
 namespace RomSieve.App.ViewModels;
 
 /// <summary>
-/// The title of a group in the list of the patches, with its count and, for the patches to match, « Accept all the
-/// suggestions ».
+/// The title of a group in the list of the patches, with its count and, for the patches a ROM is proposed for, « See the
+/// suggestions », which shows them in a summary where nothing is checked.
 /// </summary>
 public sealed class PatchGroupViewModel(PatchesViewModel owner, PatchGroupKind kind) : ObservableObject
 {
@@ -40,8 +40,11 @@ public sealed class PatchGroupViewModel(PatchesViewModel owner, PatchGroupKind k
     }
 }
 
-/// <summary>A patch in the summary of « Accept all the suggestions »: the ROM it would apply to, and its box.</summary>
-public sealed partial class PatchBatchEntryViewModel(PatchesViewModel owner, PatchRowViewModel row, ProcessItem origin, uint crc32)
+/// <summary>
+/// A patch in the summary of « See the suggestions »: the ROM it would apply to, where the patch lies and why the ROM is
+/// proposed, to judge it before checking its box.
+/// </summary>
+public sealed partial class PatchBatchEntryViewModel(PatchesViewModel owner, PatchRowViewModel row, ProcessItem origin, uint crc32, string why)
     : ObservableObject
 {
     public PatchRowViewModel Row { get; } = row;
@@ -53,6 +56,11 @@ public sealed partial class PatchBatchEntryViewModel(PatchesViewModel owner, Pat
     public string Name => Row.Name;
 
     public string OriginLabel { get; } = origin.DisplayName;
+
+    /// <summary>The folder of the patch in the patch folder (or its archive), then why the ROM is proposed, as far as known.</summary>
+    public string Details { get; } = string.Join(" · ", new[] { row.Location, why }.Where(s => s.Length > 0));
+
+    public bool HasDetails => Details.Length > 0;
 
     /// <summary>Whether the patch is to be applied to its ROM: never checked beforehand.</summary>
     [ObservableProperty]
@@ -69,7 +77,7 @@ public sealed partial class PatchBatchEntryViewModel(PatchesViewModel owner, Pat
 /// (<see cref="IPatchLinkService"/>), « Back to the automatic choice » forgets it: none changes a file. « Write the ROM in
 /// the file name » renames an IPS of the disk for other tools (<see cref="IPatchNamingService"/>). « Undo » takes back
 /// the last change of the patch selected. A suggestion is never taken alone: nothing is recorded without a click, and the
-/// summary of « Accept all the suggestions » checks nothing beforehand. « Simulate again » runs a new simulation, which
+/// summary of « See the suggestions » checks nothing beforehand. « Simulate again » runs a new simulation, which
 /// follows the choices, and shows its results in the window, which stays open; closing the window with choices not
 /// simulated yet simulates again too, so that the table always shows what the choices give.
 /// </summary>
@@ -332,6 +340,12 @@ public sealed partial class PatchesViewModel : ViewModelBase
                     row.AddOrigin(origin, forms.Select(f => f.Reason).OfType<LocalizedMessage>().FirstOrDefault() is { } why ? Format(why) : null);
                 }
 
+                // A patch the simulation proposed a ROM for stands in its own group, its ROM named in the list
+                if (unapplied.Suggestions.Count > 0)
+                {
+                    row.Suggest(unapplied.Suggestions[0].Origin.DisplayName);
+                }
+
                 row.SelectedOrigin = row.Origins.FirstOrDefault();
             }
 
@@ -422,7 +436,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
     {
         if (e.PropertyName == nameof(PatchRowViewModel.SelectedForm))
         {
-            _groups[PatchGroupKind.ToMatch].Refresh();
+            _groups[PatchGroupKind.Proposed].Refresh();
         }
     }
 
@@ -456,6 +470,7 @@ public sealed partial class PatchesViewModel : ViewModelBase
         var count = Rows.Count(r => r.Group == kind);
         return kind switch
         {
+            PatchGroupKind.Proposed => Tr("patches.group_proposed", ("count", count)),
             PatchGroupKind.ToMatch => Tr("patches.group_to_match", ("count", count)),
             PatchGroupKind.Applied => Tr("patches.group_applied", ("count", count)),
             PatchGroupKind.Automatic => Tr("patches.group_automatic", ("count", count)),
@@ -808,10 +823,10 @@ public sealed partial class PatchesViewModel : ViewModelBase
     }
 
     // -------------------------------------------------------------------------
-    // « Accept all the suggestions »
+    // « See the suggestions »
     // -------------------------------------------------------------------------
 
-    /// <summary>The summary of « Accept all the suggestions » replaces the detail of the patch selected.</summary>
+    /// <summary>The summary of « See the suggestions » replaces the detail of the patch selected.</summary>
     [ObservableProperty]
     private bool _isBatchMode;
 
@@ -821,21 +836,24 @@ public sealed partial class PatchesViewModel : ViewModelBase
 
     public string ApplyBatchLabel => Tr("patches.btn_batch_apply", ("count", BatchCheckedCount));
 
-    /// <summary>The patches « Accept all the suggestions » would apply: those to match, with the ROM chosen for each.</summary>
-    internal IEnumerable<(PatchRowViewModel Row, ProcessItem Origin, uint Crc32)> BatchEntriesOf(PatchGroupKind kind) =>
-        kind != PatchGroupKind.ToMatch
+    /// <summary>
+    /// The patches « See the suggestions » shows: those a ROM is proposed for, with the ROM and form chosen for each (the
+    /// first proposed, unless the user chose another one) and why it is proposed.
+    /// </summary>
+    internal IEnumerable<(PatchRowViewModel Row, ProcessItem Origin, uint Crc32, string Why)> BatchEntriesOf(PatchGroupKind kind) =>
+        kind != PatchGroupKind.Proposed
             ? []
             : Rows
-                .Where(r => r.State == PatchRowState.ToMatch && r.CanChoose && r.SelectedOrigin is not null && r.SelectedForm is not null)
-                .Select(r => (r, r.SelectedOrigin!.Origin, r.SelectedForm!.Form.Crc32));
+                .Where(r => r.Group == PatchGroupKind.Proposed && r.CanChoose && r.SelectedOrigin is not null && r.SelectedForm is not null)
+                .Select(r => (r, r.SelectedOrigin!.Origin, r.SelectedForm!.Form.Crc32, r.SelectedOrigin.Reason));
 
-    /// <summary>Shows the summary of « Accept all the suggestions », nothing checked.</summary>
+    /// <summary>Shows the summary of « See the suggestions », nothing checked.</summary>
     [RelayCommand(CanExecute = nameof(CanOpenBatch))]
     private async Task OpenBatchAsync(PatchGroupKind kind)
     {
         // The forms of the ROMs proposed are read when the window opens
         await Task.WhenAll(Rows.Select(r => r.FormsLoading));
-        BatchEntries.ReplaceAll(BatchEntriesOf(kind).Select(e => new PatchBatchEntryViewModel(this, e.Row, e.Origin, e.Crc32)));
+        BatchEntries.ReplaceAll(BatchEntriesOf(kind).Select(e => new PatchBatchEntryViewModel(this, e.Row, e.Origin, e.Crc32, e.Why)));
         IsBatchMode = true;
         OnBatchCheckedChanged();
     }
