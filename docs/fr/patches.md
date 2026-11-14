@@ -71,7 +71,8 @@ que le 1G1R écarte au profit de la version américaine.
   **Patchs** (voir [Choisir la ROM du patch](#choisir-la-rom-du-patch)).
 * Une ROM avec un **en-tête copieur** (iNES pour la NES, en-tête de 512 octets pour la Super Nintendo, en-tête Lynx)
   est cherchée sous ses deux formes, avec et sans en-tête : un patch fait pour l'une ou pour l'autre trouve sa ROM. Le
-  patch s'applique à la forme qu'il attend, et le résultat est écrit tel que le patch le produit.
+  patch s'applique à la forme qu'il attend ; l'en-tête du résultat est décrit dans
+  [NES, Lynx et Super Nintendo](#nes-lynx-et-super-nintendo).
 * Si plusieurs fichiers de la source ont le même CRC32, le patch s'applique à celui que le tri écrit, sinon au premier
   dans l'ordre des chemins.
 * Plusieurs patchs pour une même ROM donnent chacun leur version patchée.
@@ -111,6 +112,24 @@ Le panneau de détail d'une version patchée nomme le readme qui a donné le CRC
 * **Conflits** : une collision avec un fichier déjà présent dans la destination suit le mode de conflit choisi (voir
   [Conflits](destination-and-transfers.md#conflits)). Si deux patchs donnent le même nom (le même patch en IPS et en
   BPS, par exemple), la seconde version patchée prend le suffixe `_01` quel que soit le mode : les deux sont écrites.
+
+### NES, Lynx et Super Nintendo
+
+Un patch fait pour le fichier entier d'une ROM à en-tête copieur donne un résultat qui en a un : il est écrit tel que le
+patch le produit. Un patch fait pour les données sans l'en-tête donne des données seules :
+
+* pour la **NES** (en-tête iNES, 16 octets) et la **Lynx** (en-tête Lynx, 64 octets), RomSieve écrit devant elles
+  l'en-tête de la ROM d'origine, que la plupart des émulateurs de ces systèmes exigent : la version patchée commence
+  comme sa ROM d'origine ;
+* pour la **Super Nintendo**, la version patchée reste sans son en-tête copieur de 512 octets, dont les émulateurs se
+  passent.
+
+Quand un tel patch change la taille des données (un patch qui agrandit la ROM), l'en-tête est écrit tel quel, et peut ne
+plus en donner la bonne taille : le journal le dit pour chaque version patchée concernée. Un patch fait pour le fichier
+entier, qui peut mettre l'en-tête à jour lui-même, n'a pas ce défaut.
+
+L'en-tête doit encore être celui de la ROM d'origine quand le patch est appliqué : un en-tête modifié depuis la
+simulation passe la version patchée en **Erreur**, sans rien écrire.
 
 ### Choix du nom
 

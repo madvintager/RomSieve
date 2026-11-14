@@ -35,6 +35,9 @@ internal static class PatchErrors
     public static PatchException SourceCrc(uint expected, uint actual) =>
         new(LocalizedMessage.Create("patch.error_source_crc", ("expected", FormatCrc(expected)), ("actual", FormatCrc(actual))));
 
+    /// <summary>The copier header of the origin, written back in front of the result, is not the one it had when matched.</summary>
+    public static PatchException HeaderChanged() => new(LocalizedMessage.Create("patch.error_header_changed"));
+
     public static PatchException TargetCrc(uint expected, uint actual) =>
         new(LocalizedMessage.Create("patch.error_target_crc", ("expected", FormatCrc(expected)), ("actual", FormatCrc(actual))));
 

@@ -467,10 +467,12 @@ public sealed class PatchTransferTests : IDisposable
     }
 
     [Fact]
-    public async Task AnOriginWithACopierHeader_ShouldGiveTheResultOfThePatchWithoutTheHeader()
+    public async Task AnOriginWithACopierHeader_ShouldGiveTheResultOfThePatchBehindTheHeaderOfItsOrigin()
     {
+        // The other cases (Lynx, SNES, a patch of the whole file, ZIP mode) are in PatchHeaderTests
         var data = Data(3, 8192);
-        _temp.WriteBytes("src/Game (USA).nes", [.. Ascii("NES\u001a"), .. new byte[12], .. data]);
+        byte[] header = [.. Ascii("NES\u001a"), .. new byte[12]];
+        _temp.WriteBytes("src/Game (USA).nes", [.. header, .. data]);
         var dat = WriteDat(("Game (USA)", "Game (USA).nes", data));
         var hacked = Translate(data);
         _temp.WriteBytes("patches/Game (USA) (Hack).bps", BpsLinear(data, hacked));
@@ -478,7 +480,7 @@ public sealed class PatchTransferTests : IDisposable
         var result = await SortAsync(Config(dat));
 
         PatchedVersion(result).Status.Should().Be(FileStatus.Valid);
-        File.ReadAllBytes(Destination("Game (USA) [Hack].nes")).Should().Equal(hacked, "the result is written as the patch produces it");
+        File.ReadAllBytes(Destination("Game (USA) [Hack].nes")).Should().Equal([.. header, .. hacked], "the iNES header the patch skips comes back");
     }
 
     [Fact]

@@ -70,7 +70,7 @@ out in favour of the American release.
   window (see [Choosing the ROM of a patch](#choosing-the-rom-of-a-patch)).
 * A ROM with a **copier header** (iNES for the NES, 512-byte header for the Super Nintendo, Lynx header) is looked for
   in both forms, with and without its header: a patch made for either finds its ROM. The patch applies to the form it
-  expects, and the result is written as the patch produces it.
+  expects (see [NES, Lynx and Super Nintendo](#nes-lynx-and-super-nintendo) for the header of the result).
 * When several files of the source have the same CRC32, the patch applies to the one the sort writes, otherwise to the
   first in the order of the paths.
 * Several patches for the same ROM each give their own patched version.
@@ -110,6 +110,23 @@ The detail panel of a patched version names the readme that gave the CRC32.
 * **Conflicts**: a collision with a file already in the destination follows the chosen conflict mode (see
   [Conflicts](destination-and-transfers.md#conflicts)). If two patches give the same name (the same patch as an IPS and
   as a BPS, for example), the second patched version takes the suffix `_01` whatever the mode: both are written.
+
+### NES, Lynx and Super Nintendo
+
+A patch made for the whole file of a ROM with a copier header gives a result that has one: it is written as the patch
+produces it. A patch made for the data without the header gives data alone:
+
+* for the **NES** (iNES header, 16 bytes) and the **Lynx** (Lynx header, 64 bytes), RomSieve writes the header of the
+  original ROM in front of them, since most emulators of these systems need it: the patched version starts like its
+  original ROM;
+* for the **Super Nintendo**, the patched version stays without its 512-byte copier header, which emulators do without.
+
+When such a patch changes the size of the data (a patch that enlarges the ROM), the header is written as it is, and
+may no longer give their right size: the log says so for each patched version concerned. A patch made for the whole
+file, which can update the header itself, does not have this problem.
+
+The header must still be the one of the original ROM when the patch is applied: a header changed since the simulation
+puts the patched version in **Error**, without writing anything.
 
 ### Name of the patched version
 

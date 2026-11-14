@@ -60,6 +60,9 @@ internal static class PatchApplier
 
             await using var source = wrapSource(new FileStream(formatPath(sourcePath), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous));
             await using var target = wrapTarget(new FileStream(formatPath(writePath), FileMode.Create, FileAccess.ReadWrite, FileShare.None, BufferSize, useAsync: true));
+
+            // The iNES or Lynx header the patch skips goes first: the decoders write from where the target stands
+            var headerCrc = await WriteRestoredHeaderAsync(version, source, target, cancellationToken).ConfigureAwait(false);
             var result = await patchService.ApplyAsync(patch, source, version.SourceOffset, version.SourceLength, target, cancellationToken).ConfigureAwait(false);
             await target.FlushAsync(cancellationToken).ConfigureAwait(false);
             if (result.SourceCrc32 != version.SourceCrc32)
@@ -67,7 +70,14 @@ internal static class PatchApplier
                 throw PatchErrors.SourceCrc(version.SourceCrc32, result.SourceCrc32);
             }
 
-            return result;
+            // The size and CRC32 of the file written; a UPS or a BPS checked its own result, the data without the header
+            return version.RestoredHeaderSize == 0
+                ? result
+                : result with
+                {
+                    Size = version.RestoredHeaderSize + result.Size,
+                    Crc32 = Crc32Math.Combine(headerCrc, result.Crc32, result.Size)
+                };
         }
         finally
         {
@@ -76,6 +86,36 @@ internal static class PatchApplier
                 TryDelete(formatPath(extractionPath));
             }
         }
+    }
+
+    /// <summary>
+    /// Writes the copier header of the origin (<see cref="PatchedVersion.RestoredHeaderSize"/>) at the start of the
+    /// target, and gives its CRC32; nothing for a version without one. A header that is no longer an iNES or Lynx header,
+    /// or no longer the one matched, is refused: the origin changed since.
+    /// </summary>
+    private static async Task<uint> WriteRestoredHeaderAsync(PatchedVersion version, Stream source, Stream target, CancellationToken cancellationToken)
+    {
+        if (version.RestoredHeaderSize == 0)
+        {
+            return 0;
+        }
+
+        var header = new byte[version.RestoredHeaderSize];
+        source.Seek(0, SeekOrigin.Begin);
+        if (await source.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, cancellationToken).ConfigureAwait(false) < header.Length
+            || !PatchOriginForms.IsRestoredHeader(header))
+        {
+            throw PatchErrors.HeaderChanged();
+        }
+
+        var crc = System.IO.Hashing.Crc32.HashToUInt32(header);
+        if (version.RestoredHeaderCrc32 is { } expected && expected != crc)
+        {
+            throw PatchErrors.HeaderChanged();
+        }
+
+        await target.WriteAsync(header, cancellationToken).ConfigureAwait(false);
+        return crc;
     }
 
     /// <summary>Deletes a temporary file, best effort: one left behind is removed by a later sort.</summary>

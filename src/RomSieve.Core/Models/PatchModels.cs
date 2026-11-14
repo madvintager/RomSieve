@@ -195,8 +195,25 @@ public sealed record PatchedVersion(
     /// <summary>The key of the patch, to record a choice for it without reading it again.</summary>
     public PatchKey Key { get; init; }
 
-    /// <summary>Size of the result.</summary>
-    public long TargetSize => Header.TargetSizeFor(SourceLength);
+    /// <summary>
+    /// Bytes of the copier header of the origin written back in front of the result of the patch: the iNES (16 bytes) or
+    /// Lynx (64 bytes) header the patch skipped (<see cref="SourceOffset"/>), since most emulators of these systems need
+    /// it; 0 otherwise (no header skipped, or the 512 bytes of a SNES copier header, which nothing needs).
+    /// </summary>
+    public int RestoredHeaderSize { get; init; }
+
+    /// <summary>
+    /// CRC32 of the header written back (<see cref="RestoredHeaderSize"/>), read when the patch was matched: the writing
+    /// refuses a header changed since, and the CRC32 of the result written is known before it is.
+    /// <see langword="null"/> without header, or when it could not be read.
+    /// </summary>
+    public uint? RestoredHeaderCrc32 { get; init; }
+
+    /// <summary>Size of the data the patch produces, the header written back apart.</summary>
+    public long PatchedDataSize => Header.TargetSizeFor(SourceLength);
+
+    /// <summary>Size of the file written: the header written back, then the data the patch produces.</summary>
+    public long TargetSize => RestoredHeaderSize + PatchedDataSize;
 }
 
 /// <summary>
@@ -291,7 +308,10 @@ public sealed record PatchLinkSnapshot(IReadOnlyDictionary<PatchKey, PatchLink> 
     public static PatchLinkSnapshot Empty { get; } = new(new Dictionary<PatchKey, PatchLink>(), null);
 }
 
-/// <summary>What applying a patch wrote: the size and CRC32 of the result, and the CRC32 of the source it read.</summary>
+/// <summary>
+/// What applying a patch wrote: the size and CRC32 of the result (of the whole file written, with a header written back,
+/// <see cref="PatchedVersion.RestoredHeaderSize"/>), and the CRC32 of the source it read.
+/// </summary>
 public sealed record PatchResult(long Size, uint Crc32, uint SourceCrc32);
 
 /// <summary>

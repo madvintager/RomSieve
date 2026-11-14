@@ -174,7 +174,7 @@ public sealed partial class PatchMatcher
         foreach (var (patch, origin) in matched.OrderBy(m => m.Patch.File.SourcePath, StringComparer.Ordinal)
                      .ThenBy(m => m.Patch.File.ArchiveMember, StringComparer.Ordinal))
         {
-            var patched = CreatePatchedVersion(patch, origin);
+            var patched = await CreatePatchedVersionAsync(patch, origin, cancellationToken).ConfigureAwait(false);
             origin.Item.PatchedVersions.Add(patched);
             if (!byOrigin.TryGetValue(origin.Item, out var list))
             {
@@ -814,16 +814,36 @@ public sealed partial class PatchMatcher
     // The patched version
     // =========================================================================
 
-    private ProcessItem CreatePatchedVersion(ReadPatch patch, Candidate origin)
+    private async Task<ProcessItem> CreatePatchedVersionAsync(ReadPatch patch, Candidate origin, CancellationToken cancellationToken)
     {
         var item = origin.Item;
+
+        // The iNES or Lynx header the patch skips is written back in front of its result
+        var restoredSize = PatchOriginForms.RestoredHeaderSize(origin.Offset);
+        var headerCrc = restoredSize > 0
+            ? await PatchOriginForms.ReadRestoredHeaderCrcAsync(item, restoredSize, _checksumService, cancellationToken).ConfigureAwait(false)
+            : null;
         var version = new PatchedVersion(patch.File, patch.Header, item, origin.Offset, origin.Size, origin.Crc32)
         {
             CrcSource = patch.CrcSource,
             Note = patch.NoteOf?.GetValueOrDefault(origin.Crc32),
-            Key = patch.Key
+            Key = patch.Key,
+            RestoredHeaderSize = restoredSize,
+            RestoredHeaderCrc32 = headerCrc
         };
         var originName = OriginName(item);
+        var patchedName = PatchedName(patch.File, originName, origin.Crc32, FolderLabel(patch.File), item.Parsed.Convention);
+
+        // A header kept in front of data of another size may no longer describe them (the PRG and CHR sizes of iNES)
+        if (restoredSize > 0 && version.PatchedDataSize != origin.Size)
+        {
+            _log(LogLevel.Warn, LocalizedMessage.Create(
+                "log.patched_header_size_changed",
+                ("name", patchedName),
+                ("before", origin.Size),
+                ("after", version.PatchedDataSize)));
+        }
+
         return new ProcessItem
         {
             SourcePath = patch.File.SourcePath,
@@ -838,13 +858,24 @@ public sealed partial class PatchMatcher
                 ("origin", originName),
                 ("patch", patch.File.DisplayName),
                 ("format", patch.Header.Format.ToDisplayName())),
-            TargetFilename = PatchedName(patch.File, originName, origin.Crc32, FolderLabel(patch.File), item.Parsed.Convention),
+            TargetFilename = patchedName,
             DatName = item.DatName,
             IsMultidisk = false,
-            Crc32 = patch.Header.TargetCrc32 is { } targetCrc ? FormatCrc(targetCrc) : string.Empty,
+            Crc32 = WrittenCrc(version) is { } writtenCrc ? FormatCrc(writtenCrc) : string.Empty,
             Patch = version
         };
     }
+
+    /// <summary>
+    /// The CRC32 of the file a patched version is written to, known before it is for a UPS or a BPS (the CRC32 of its
+    /// result, combined with that of the header written back in front of it); <see langword="null"/> for an IPS, or a
+    /// header that could not be read.
+    /// </summary>
+    private static uint? WrittenCrc(PatchedVersion version) =>
+        version.Header.TargetCrc32 is not { } dataCrc ? null
+        : version.RestoredHeaderSize == 0 ? dataCrc
+        : version.RestoredHeaderCrc32 is { } headerCrc ? Crc32Math.Combine(headerCrc, dataCrc, version.PatchedDataSize)
+        : null;
 
     /// <summary>The name a file is written under (its name in the DAT), with the folders it may hold.</summary>
     private static string OriginName(ProcessItem item) =>

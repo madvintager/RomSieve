@@ -17,6 +17,44 @@ internal static class PatchOriginForms
     /// <summary>Sizes of the copier headers <see cref="IChecksumService.DetectCopierHeader"/> finds: iNES, Lynx, SNES.</summary>
     private static readonly int[] CopierHeaderSizes = [16, 64, 512];
 
+    /// <summary>
+    /// The copier header a patched version gets back in front of its result, when its patch skips
+    /// <paramref name="sourceOffset"/> bytes of its origin: the iNES (16 bytes) and Lynx (64 bytes) headers, which most
+    /// emulators of these systems need; never the 512 bytes of a SNES copier header, whose data alone are the usual form.
+    /// <see cref="IChecksumService.DetectCopierHeader"/> gives 16 only for iNES and 64 only for Lynx. 0 otherwise.
+    /// </summary>
+    public static int RestoredHeaderSize(long sourceOffset) => sourceOffset is 16 or 64 ? (int)sourceOffset : 0;
+
+    /// <summary>Whether <paramref name="header"/> is an iNES header of 16 bytes or a Lynx header of 64 bytes, by its signature.</summary>
+    public static bool IsRestoredHeader(ReadOnlySpan<byte> header) =>
+        header.Length switch
+        {
+            16 => header.StartsWith("NES\u001a"u8),
+            64 => header.StartsWith("LYNX"u8),
+            _ => false
+        };
+
+    /// <summary>
+    /// The first <paramref name="size"/> bytes of an identified file (on the disk or in its archive), and their CRC32;
+    /// <see langword="null"/> when they cannot be read or are not a header <see cref="IsRestoredHeader"/> accepts.
+    /// </summary>
+    public static async Task<uint?> ReadRestoredHeaderCrcAsync(ProcessItem item, int size, IChecksumService checksumService, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using Stream stream = !string.IsNullOrEmpty(item.ArchivePath) && !string.IsNullOrEmpty(item.ArchiveMember)
+                ? checksumService.OpenArchiveMember(item.ArchivePath, item.ArchiveMember)
+                : new FileStream(item.SourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+            var header = new byte[size];
+            var read = await stream.ReadAtLeastAsync(header, size, throwOnEndOfStream: false, cancellationToken).ConfigureAwait(false);
+            return read == size && IsRestoredHeader(header) ? System.IO.Hashing.Crc32.HashToUInt32(header) : null;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>The form a file was identified in: its data after the copier header the classification removed.</summary>
     public static (long Offset, long Size, uint Crc32)? IdentifiedForm(ProcessItem item) =>
         uint.TryParse(item.Crc32, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var crc)
