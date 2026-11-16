@@ -158,8 +158,9 @@ public sealed partial class PatchRowViewModel : ObservableObject
     // Forms already known for an origin: the one a readme gave, or those read once
     private readonly Dictionary<ProcessItem, IReadOnlyList<PatchOriginSuggestion>> _knownForms = new(ReferenceEqualityComparer.Instance);
 
-    // The changes made in the window, the last on top: a choice (no renaming), or a renaming, with where the patch stood before
-    private readonly Stack<(PatchRenameResult? Renaming, Snapshot Before)> _history = new();
+    // The changes made in the window, the last on top: a choice (no renaming), or a renaming, with where the patch stood
+    // before and what the change did, which the detail says next to « Undo »
+    private readonly Stack<(PatchRenameResult? Renaming, Snapshot Before, LocalizedMessage Change)> _history = new();
 
     /// <summary>Where the patch stands: what a change replaces, and what undoing it gives back.</summary>
     private sealed record Snapshot(
@@ -503,14 +504,27 @@ public sealed partial class PatchRowViewModel : ObservableObject
     /// <summary>Whether it can be set aside: any patch that could be read, not set aside yet.</summary>
     public bool CanIgnore => Key is not null && State != PatchRowState.Ignored;
 
+    /// <summary>
+    /// Whether « Do not apply this patch » is shown: not for a patch set aside, whose state line says so and offers to take
+    /// it back. A patch that could not be read shows it greyed out, with its reason.
+    /// </summary>
+    public bool IsIgnoreVisible => State != PatchRowState.Ignored;
+
     /// <summary>What « Do not apply this patch » does, or why it is greyed out.</summary>
-    public string IgnoreTooltip =>
-        Key is null ? _owner.Tr("patches.tooltip_no_key")
-        : State == PatchRowState.Ignored ? _owner.Tr("patches.tooltip_ignore_done")
-        : _owner.Tr("patches.tooltip_ignore");
+    public string IgnoreTooltip => Key is null ? _owner.Tr("patches.tooltip_no_key") : _owner.Tr("patches.tooltip_ignore");
 
     /// <summary>Whether a choice of the user is recorded for it, which « Back to the automatic choice » forgets.</summary>
     public bool CanRestoreAutomatic => Key is not null && Link is not null;
+
+    /// <summary>
+    /// The link of the state line that forgets the choice: « Take this patch back » for a patch set aside, « Back to the
+    /// automatic choice » otherwise. Both run the same command.
+    /// </summary>
+    public string RestoreAutomaticLabel =>
+        State == PatchRowState.Ignored ? _owner.Tr("patches.btn_take_back") : _owner.Tr("patches.btn_automatic");
+
+    public string RestoreAutomaticTooltip =>
+        State == PatchRowState.Ignored ? _owner.Tr("patches.tooltip_take_back") : _owner.Tr("patches.tooltip_automatic");
 
     /// <summary>
     /// The name its ROM would give it (the CRC32 of the form before its extension), for other tools: an IPS on the disk
@@ -542,8 +556,17 @@ public sealed partial class PatchRowViewModel : ObservableObject
 
     public string ClearNameTooltip => NameWithoutRom is { } newName ? _owner.Tr("patches.tooltip_clear_rom_from_name", ("name", newName)) : string.Empty;
 
+    /// <summary>Whether its file can be renamed for other tools: the block « Patch file » is shown only then.</summary>
+    public bool HasFileActions => CanWriteName || CanClearName;
+
     /// <summary>Whether a change made in the window can be undone.</summary>
     public bool CanUndo => _history.Count > 0;
+
+    /// <summary>
+    /// What the last change made in the window did (« ROM chosen: … », « File renamed to … »), next to « Undo »; once it is
+    /// undone, the change before it, if any. Empty without a change.
+    /// </summary>
+    public string LastChangeText => _history.Count > 0 ? _owner.Format(_history.Peek().Change) : string.Empty;
 
     /// <summary>The last change made in the window: a renaming, or <see langword="null"/> for a choice.</summary>
     internal PatchRenameResult? LastRenaming => _history.Count > 0 ? _history.Peek().Renaming : null;
@@ -568,7 +591,12 @@ public sealed partial class PatchRowViewModel : ObservableObject
     /// <summary>A choice recorded: the patch now stands as the choice says.</summary>
     internal void Chosen(PatchLink? link, ProcessItem? origin)
     {
-        _history.Push((null, Take()));
+        _history.Push((null, Take(), link?.Kind switch
+        {
+            PatchLinkKind.Origin => LocalizedMessage.Create("patches.change_origin", ("origin", origin?.DisplayName ?? link.OriginName ?? string.Empty)),
+            PatchLinkKind.Ignored => LocalizedMessage.Create("patches.change_ignored"),
+            _ => LocalizedMessage.Create("patches.change_automatic")
+        }));
         Link = link;
         PatchedName = null;
         Reason = null;
@@ -610,8 +638,9 @@ public sealed partial class PatchRowViewModel : ObservableObject
     /// <summary>Its ROM written in its name: its new name, nothing else changes.</summary>
     internal void Renamed(PatchRenameResult renaming)
     {
-        _history.Push((renaming, Take()));
-        File = new PatchFile(renaming.NewPath!);
+        var renamed = new PatchFile(renaming.NewPath!);
+        _history.Push((renaming, Take(), LocalizedMessage.Create("patches.change_renamed", ("name", renamed.DisplayName))));
+        File = renamed;
         ResultText = string.Empty;
         NotifyState();
     }
@@ -619,7 +648,7 @@ public sealed partial class PatchRowViewModel : ObservableObject
     /// <summary>The last change undone: the patch stands where it stood before.</summary>
     internal void Undone()
     {
-        var (_, before) = _history.Pop();
+        var (_, before, _) = _history.Pop();
         Restore(before);
         ResultText = string.Empty;
         NotifyState();
@@ -632,8 +661,9 @@ public sealed partial class PatchRowViewModel : ObservableObject
         {
             nameof(CanChoose), nameof(ListSummary), nameof(StatusText), nameof(StateMark), nameof(IsToMatch), nameof(IsApplied),
             nameof(IsUnfixable), nameof(IsNeutral), nameof(AccessibleName), nameof(CanApply), nameof(ApplyTooltip),
-            nameof(CanIgnore), nameof(IgnoreTooltip), nameof(CanRestoreAutomatic), nameof(NameWithRom), nameof(CanWriteName),
-            nameof(WriteNameTooltip), nameof(NameWithoutRom), nameof(CanClearName), nameof(ClearNameTooltip), nameof(CanUndo), nameof(IsInArchive), nameof(Source), nameof(CurrentOrigin),
+            nameof(CanIgnore), nameof(IsIgnoreVisible), nameof(IgnoreTooltip), nameof(CanRestoreAutomatic), nameof(RestoreAutomaticLabel),
+            nameof(RestoreAutomaticTooltip), nameof(NameWithRom), nameof(CanWriteName), nameof(WriteNameTooltip), nameof(NameWithoutRom),
+            nameof(CanClearName), nameof(ClearNameTooltip), nameof(HasFileActions), nameof(CanUndo), nameof(LastChangeText), nameof(IsInArchive), nameof(Source), nameof(CurrentOrigin),
             nameof(Link), nameof(IsModified), nameof(PatchedNameText), nameof(HasPatchedName)
         })
         {

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -261,12 +262,23 @@ public sealed partial class GuiTests
 
                         apply.Content.Should().Be("Appliquer à cette ROM");
                         patchesWindow.FindControl<Button>("BtnPatchWriteName")!.IsEffectivelyVisible.Should().BeFalse("the patch is applied to no ROM");
+                        patchesWindow.FindControl<Control>("PanelPatchFile")!.IsVisible.Should().BeFalse("nothing to rename, no block of the file");
+                        patchesWindow.FindControl<Control>("LblPatchLastChange")!.IsVisible.Should().BeFalse("nothing changed yet");
+                        patchesWindow.FindControl<Button>("BtnPatchAutomatic")!.IsEffectivelyVisible.Should().BeFalse("no choice is recorded");
                         CaptureLotStep(patchesWindow, "patches");
                         await shown.ApplyCommand.ExecuteAsync(null);
                         Settle(patchesWindow);
                         again.IsEffectivelyEnabled.Should().BeTrue();
+                        // The state line offers the automatic choice back, the line under it says what changed and undoes it
+                        var lastChange = patchesWindow.FindControl<TextBlock>("LblPatchLastChange")!;
+                        lastChange.IsEffectivelyVisible.Should().BeTrue();
+                        lastChange.Inlines!.OfType<Run>().Single().Text.Should().Be("ROM choisie : Game (USA).sfc");
                         patchesWindow.FindControl<Button>("BtnPatchUndo")!.IsEffectivelyVisible.Should().BeTrue();
-                        patchesWindow.FindControl<Button>("BtnPatchAutomatic")!.IsEffectivelyVisible.Should().BeTrue();
+                        var automatic = patchesWindow.FindControl<Button>("BtnPatchAutomatic")!;
+                        automatic.IsEffectivelyVisible.Should().BeTrue();
+                        automatic.GetVisualAncestors().Should().Contain(patchesWindow.FindControl<TextBlock>("LblPatchState")!, "the link ends the state line");
+                        ((TextBlock)automatic.Content!).Text.Should().Be("Revenir au choix automatique");
+                        patchesWindow.FindControl<Control>("PanelPatchFile")!.IsEffectivelyVisible.Should().BeTrue();
                         patchesWindow.FindControl<Button>("BtnPatchWriteName")!.IsEffectivelyVisible.Should().BeTrue("for other tools");
                         patchesWindow.FindControl<TextBlock>("LblPatchesModified")!.Text.Should().Be("1 patch modifié");
 
@@ -394,6 +406,28 @@ public sealed partial class GuiTests
                 row.Link.Should().BeNull("Enter never records anything");
                 shown.HasModified.Should().BeFalse();
 
+                // Ctrl+Z undoes the last change, but not in the search, where it belongs to the text
+                await shown.ApplyCommand.ExecuteAsync(null);
+                Settle(patchesWindow);
+                row.CanUndo.Should().BeTrue();
+                search.Focus();
+                patchesWindow.KeyPress(Key.Z, RawInputModifiers.Control, PhysicalKey.Z, "z");
+                Settle(patchesWindow);
+                row.CanUndo.Should().BeTrue("Ctrl+Z in the search is that of the text");
+                patchesWindow.FindControl<Button>("BtnPatchesClose")!.Focus();
+                Settle(patchesWindow);
+                patchesWindow.FocusManager!.GetFocusedElement().Should().NotBeOfType<TextBox>();
+                patchesWindow.KeyPress(Key.Z, RawInputModifiers.Control, PhysicalKey.Z, "z");
+                if (shown.UndoCommand.ExecutionTask is { } undoing)
+                {
+                    await undoing;
+                }
+
+                Settle(patchesWindow);
+                row.CanUndo.Should().BeFalse("Ctrl+Z out of a text field undoes the choice");
+                row.Link.Should().BeNull();
+                shown.HasModified.Should().BeFalse();
+
                 if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
                 {
                     patchesWindow.Width = patchesWindow.MinWidth;
@@ -405,7 +439,7 @@ public sealed partial class GuiTests
                         AssertNotTrimmed(tb, $"origin CRC32 or status '{tb.Text}'");
                     }
 
-                    // A choice made, to show « Back to the automatic choice », « Undo » and the ROM written in the name
+                    // A choice made, to show « Back to the automatic choice », « Undo » and the block of the file
                     await shown.ApplyCommand.ExecuteAsync(null);
                     foreach (var locale in new[] { "fr", "en", "es" })
                     {
@@ -599,7 +633,10 @@ public sealed partial class GuiTests
 
                         await shown.IgnoreCommand.ExecuteAsync(null);
                         Settle(patchesWindow);
-                        ignore.IsEffectivelyEnabled.Should().BeFalse();
+                        ignore.IsEffectivelyVisible.Should().BeFalse("its state line says it is set aside");
+                        var takeBack = patchesWindow.FindControl<Button>("BtnPatchAutomatic")!;
+                        takeBack.IsEffectivelyVisible.Should().BeTrue();
+                        ((TextBlock)takeBack.Content!).Text.Should().Be("Reprendre ce patch");
                         patchesWindow.FindControl<Button>("BtnPatchesSimulateAgain")!.IsEffectivelyEnabled.Should().BeTrue();
                     }
                     finally

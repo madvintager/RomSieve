@@ -167,7 +167,9 @@ public sealed class PatchesViewModelTests : IDisposable
         ips.CanApply.Should().BeTrue();
         ips.ApplyTooltip.Should().StartWith("Enregistre votre choix");
         ips.CanIgnore.Should().BeTrue();
+        ips.IsIgnoreVisible.Should().BeTrue();
         ips.CanRestoreAutomatic.Should().BeFalse("no choice is recorded for it");
+        ips.LastChangeText.Should().BeEmpty("nothing changed in the window");
         ips.CanWriteName.Should().BeFalse("it is applied to no ROM");
         ips.HasPatchedName.Should().BeFalse();
 
@@ -199,8 +201,9 @@ public sealed class PatchesViewModelTests : IDisposable
         setAside.IsNeutral.Should().BeTrue();
         setAside.StatusText.Should().Be("Ce patch n'est pas appliqué : vous l'avez écarté.");
         setAside.CanIgnore.Should().BeFalse();
-        setAside.IgnoreTooltip.Should().Be("Ce patch est déjà écarté.");
+        setAside.IsIgnoreVisible.Should().BeFalse("its state line says so, and offers to take it back");
         setAside.CanRestoreAutomatic.Should().BeTrue();
+        setAside.RestoreAutomaticLabel.Should().Be("Reprendre ce patch");
 
         var unfixable = Row(window, "Other.bps");
         unfixable.State.Should().Be(PatchRowState.Unfixable);
@@ -276,6 +279,47 @@ public sealed class PatchesViewModelTests : IDisposable
         row.StatusText.Should().StartWith("Ce patch ne s'applique à aucune ROM : ni son nom");
         row.CanUndo.Should().BeFalse();
         ListOf(window).Should().Equal("ROM proposée (1)", row.Name);
+        window.HasModified.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task EachChange_ShouldSayWhatItDid_AndUndoShouldGoBackThroughThemInTurn()
+    {
+        WriteJapanAndUsa();
+        var patch = IpsDiff(Japan, Translate(Japan));
+        var original = _temp.WriteBytes("patches/Game (Japan) (T-Fr).ips", patch);
+        var window = await LoadAsync();
+        var row = window.SelectedRow!;
+        row.RestoreAutomaticLabel.Should().Be("Revenir au choix automatique");
+        row.RestoreAutomaticTooltip.Should().StartWith("Oublie votre choix pour ce patch");
+
+        await window.ApplyCommand.ExecuteAsync(null);
+        row.LastChangeText.Should().Be("ROM choisie : Game (Japan).sfc");
+
+        row.SelectedOrigin = row.Origins.Single(o => o.Label == "Game (USA).sfc");
+        await row.FormsLoading;
+        await window.ApplyCommand.ExecuteAsync(null);
+        row.LastChangeText.Should().Be("ROM choisie : Game (USA).sfc");
+
+        await window.WriteNameCommand.ExecuteAsync(null);
+        var named = $"Game (Japan) (T-Fr) [{Crc(Usa):x8}].ips";
+        File.Exists(Path.Combine(_patches, named)).Should().BeTrue();
+        row.LastChangeText.Should().Be($"Fichier renommé en {named}");
+
+        // Each « Undo » takes back one change, and the line then says the change before it
+        await window.UndoCommand.ExecuteAsync(null);
+        File.Exists(original).Should().BeTrue("undoing the renaming gives the patch its name back");
+        row.LastChangeText.Should().Be("ROM choisie : Game (USA).sfc");
+
+        await window.UndoCommand.ExecuteAsync(null);
+        LinkOf(patch)!.OriginCrc32.Should().Be(Crc(Japan), "undoing a choice goes back to the choice before it, not to the automatic one");
+        row.StatusText.Should().Be("Appliqué à Game (Japan).sfc : votre choix");
+        row.LastChangeText.Should().Be("ROM choisie : Game (Japan).sfc");
+
+        await window.UndoCommand.ExecuteAsync(null);
+        LinkOf(patch).Should().BeNull();
+        row.CanUndo.Should().BeFalse();
+        row.LastChangeText.Should().BeEmpty();
         window.HasModified.Should().BeFalse();
     }
 
@@ -524,6 +568,10 @@ public sealed class PatchesViewModelTests : IDisposable
 
         LinkOf(patch)!.Kind.Should().Be(PatchLinkKind.Ignored);
         row.State.Should().Be(PatchRowState.Ignored);
+        row.LastChangeText.Should().Be("Patch écarté");
+        row.IsIgnoreVisible.Should().BeFalse();
+        row.RestoreAutomaticLabel.Should().Be("Reprendre ce patch", "taking a patch set aside back is forgetting its choice");
+        row.RestoreAutomaticTooltip.Should().StartWith("Oublie votre choix d'écarter ce patch");
         row.HasPatchedName.Should().BeFalse("the patch no longer gives a patched version");
         ListOf(window).Should().Equal("Écartés (1)", "Game (T-En).bps");
         window.IgnoreCommand.CanExecute(null).Should().BeFalse();
@@ -538,6 +586,9 @@ public sealed class PatchesViewModelTests : IDisposable
         row.PatchedNameText.Should().Be("Version patchée : Game (Japan) [T-En].sfc");
         window.HasModified.Should().BeFalse();
         row.CanUndo.Should().BeTrue("each change is undone in turn");
+        row.LastChangeText.Should().Be("Retour au choix automatique");
+        row.IsIgnoreVisible.Should().BeTrue();
+        row.RestoreAutomaticLabel.Should().Be("Revenir au choix automatique");
     }
 
     [Fact]
@@ -584,6 +635,7 @@ public sealed class PatchesViewModelTests : IDisposable
         await window.SimulateAgainCommand.ExecuteAsync(null);
         var row = window.Rows.Single();
         row.CanUndo.Should().BeFalse();
+        row.LastChangeText.Should().BeEmpty("a new simulation forgets the changes of the window");
         row.Source.Should().Be(PatchCrcSource.Link, "the choice comes before the name");
         row.CanWriteName.Should().BeFalse("its name already gives its ROM");
         row.CanClearName.Should().BeTrue();

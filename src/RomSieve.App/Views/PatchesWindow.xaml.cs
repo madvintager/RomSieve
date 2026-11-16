@@ -111,6 +111,17 @@ public partial class PatchesWindow : Window
             return;
         }
 
+        // Ctrl+Z undoes the last change of the selected patch, but never in a text field, where it undoes the typing
+        if (e.Key == Key.Z && e.KeyModifiers == KeyModifiers.Control
+            && FocusManager?.GetFocusedElement() is not TextBox
+            && DataContext is PatchesViewModel { UndoCommand: var undo }
+            && undo.CanExecute(null))
+        {
+            undo.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         base.OnKeyDown(e);
     }
 

@@ -98,6 +98,34 @@
     <Style Selector="TextBlock.mark.neutral">
       <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
     </Style>
+    <!-- A link of the detail, after a sentence (« Back to the automatic choice », « Undo »): a bare underlined text, in
+         the color of the sentence, the whole of it clickable -->
+    <Style Selector="Button.detail-link">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.detail-link /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.detail-link:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.detail-link:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.detail-link TextBlock">
+      <Setter Property="TextDecorations" Value="Underline" />
+    </Style>
+    <Style Selector="Button.detail-link:disabled TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
+    </Style>
+    <!-- The dot between a sentence and its link: punctuation, not a word to translate -->
+    <Style Selector="TextBlock.link-separator">
+      <Setter Property="Text" Value=" · " />
+      <Setter Property="Foreground" Value="{DynamicResource HintForegroundBrush}" />
+    </Style>
     <!-- Cross at the end of the search of the patches, as in the fields of the main window -->
     <Style Selector="Button.field-clear">
       <Setter Property="Width" Value="20" />
@@ -248,6 +276,8 @@
               <TextBlock Classes="hint"
                          Text="{Binding SelectedRow.Location, FallbackValue=''}"
                          IsVisible="{Binding SelectedRow.HasLocation, FallbackValue=False}" />
+              <!-- Where it stands, then the link that forgets the choice of the user, next to the state it undoes. The run and
+                   its link touch: a line break between them would add a space before the dot -->
               <DockPanel Margin="0,8,0,0">
                 <TextBlock DockPanel.Dock="Left"
                            Width="16"
@@ -257,9 +287,21 @@
                            Classes.unfixable="{Binding SelectedRow.IsUnfixable, FallbackValue=False}"
                            Classes.neutral="{Binding SelectedRow.IsNeutral, FallbackValue=False}"
                            Text="{Binding SelectedRow.StateMark, FallbackValue=''}" />
-                <TextBlock x:Name="LblPatchState"
-                           TextWrapping="Wrap"
-                           Text="{Binding SelectedRow.StatusText, FallbackValue=''}" />
+                <TextBlock x:Name="LblPatchState" TextWrapping="Wrap">
+                  <Run Text="{Binding SelectedRow.StatusText, FallbackValue=''}" /><InlineUIContainer BaselineAlignment="TextBottom">
+                    <StackPanel Orientation="Horizontal"
+                                IsVisible="{Binding SelectedRow.CanRestoreAutomatic, FallbackValue=False}">
+                      <TextBlock Classes="link-separator" />
+                      <Button x:Name="BtnPatchAutomatic"
+                              Classes="detail-link"
+                              ToolTip.Tip="{Binding SelectedRow.RestoreAutomaticTooltip, FallbackValue=''}"
+                              AutomationProperties.Name="{Binding SelectedRow.RestoreAutomaticLabel, FallbackValue=''}"
+                              Command="{Binding RestoreAutomaticCommand}">
+                        <TextBlock Text="{Binding SelectedRow.RestoreAutomaticLabel, FallbackValue=''}" />
+                      </Button>
+                    </StackPanel>
+                  </InlineUIContainer>
+                </TextBlock>
               </DockPanel>
               <!-- The name of its patched version in the last run, as long as nothing changed it -->
               <TextBlock x:Name="LblPatchedName"
@@ -267,6 +309,24 @@
                          Classes="hint"
                          Text="{Binding SelectedRow.PatchedNameText, FallbackValue=''}"
                          IsVisible="{Binding SelectedRow.HasPatchedName, FallbackValue=False}" />
+              <!-- The last change made in the window, and « Undo » next to what it undoes; after it, the change before -->
+              <TextBlock x:Name="LblPatchLastChange"
+                         Margin="16,2,0,0"
+                         Classes="hint"
+                         IsVisible="{Binding SelectedRow.CanUndo, FallbackValue=False}">
+                <Run Text="{Binding SelectedRow.LastChangeText, FallbackValue=''}" /><InlineUIContainer BaselineAlignment="TextBottom">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Classes="link-separator" />
+                    <Button x:Name="BtnPatchUndo"
+                            Classes="detail-link"
+                            ToolTip.Tip="{Binding I18n[patches.tooltip_undo]}"
+                            AutomationProperties.Name="{Binding I18n[patches.btn_undo]}"
+                            Command="{Binding UndoCommand}">
+                      <TextBlock Text="{Binding I18n[patches.btn_undo]}" />
+                    </Button>
+                  </StackPanel>
+                </InlineUIContainer>
+              </TextBlock>
 
               <StackPanel IsVisible="{Binding SelectedRow.CanChoose, FallbackValue=False}">
                 <TextBlock Classes="section" Text="{Binding I18n[patches.question]}" />
@@ -408,42 +468,37 @@
                         ToolTip.ShowOnDisabled="True"
                         IsVisible="{Binding SelectedRow.CanChoose, FallbackValue=False}"
                         Command="{Binding ApplyCommand}" />
+                <!-- Hidden for a patch set aside: its state line says so, and takes it back -->
                 <Button x:Name="BtnPatchIgnore"
                         Margin="0,0,8,4"
                         Content="{Binding I18n[patches.btn_ignore]}"
                         ToolTip.Tip="{Binding SelectedRow.IgnoreTooltip, FallbackValue=''}"
                         ToolTip.ShowOnDisabled="True"
+                        IsVisible="{Binding SelectedRow.IsIgnoreVisible, FallbackValue=False}"
                         Command="{Binding IgnoreCommand}" />
-                <Button x:Name="BtnPatchAutomatic"
-                        Margin="0,0,8,4"
-                        Content="{Binding I18n[patches.btn_automatic]}"
-                        ToolTip.Tip="{Binding I18n[patches.tooltip_automatic]}"
-                        IsVisible="{Binding SelectedRow.CanRestoreAutomatic, FallbackValue=False}"
-                        Command="{Binding RestoreAutomaticCommand}" />
-                <Button x:Name="BtnPatchUndo"
-                        Margin="0,0,8,4"
-                        Content="{Binding I18n[patches.btn_undo]}"
-                        ToolTip.Tip="{Binding I18n[patches.tooltip_undo]}"
-                        IsVisible="{Binding SelectedRow.CanUndo, FallbackValue=False}"
-                        Command="{Binding UndoCommand}" />
               </WrapPanel>
 
-              <!-- For other tools only: the actions that rename the patch, never in an archive; the ROM written in its name,
-                   or removed from it, also after a new simulation, when « Undo » no longer can -->
-              <WrapPanel Margin="0,8,0,0">
-                <Button x:Name="BtnPatchWriteName"
-                        Margin="0,0,8,4"
-                        Content="{Binding I18n[patches.btn_write_rom_in_name]}"
-                        ToolTip.Tip="{Binding SelectedRow.WriteNameTooltip, FallbackValue=''}"
-                        IsVisible="{Binding SelectedRow.CanWriteName, FallbackValue=False}"
-                        Command="{Binding WriteNameCommand}" />
-                <Button x:Name="BtnPatchClearName"
-                        Margin="0,0,8,4"
-                        Content="{Binding I18n[patches.btn_clear_rom_from_name]}"
-                        ToolTip.Tip="{Binding SelectedRow.ClearNameTooltip, FallbackValue=''}"
-                        IsVisible="{Binding SelectedRow.CanClearName, FallbackValue=False}"
-                        Command="{Binding ClearNameCommand}" />
-              </WrapPanel>
+              <!-- For other tools only: the actions that rename the patch, right away, never in an archive; the ROM written
+                   in its name, or removed from it, also after a new simulation, when « Undo » no longer can -->
+              <StackPanel x:Name="PanelPatchFile"
+                          IsVisible="{Binding SelectedRow.HasFileActions, FallbackValue=False}">
+                <TextBlock Classes="section" Margin="0,14,0,2" Text="{Binding I18n[patches.file_section]}" />
+                <TextBlock Classes="hint" Text="{Binding I18n[patches.file_hint]}" />
+                <WrapPanel Margin="0,6,0,0">
+                  <Button x:Name="BtnPatchWriteName"
+                          Margin="0,0,8,4"
+                          Content="{Binding I18n[patches.btn_write_rom_in_name]}"
+                          ToolTip.Tip="{Binding SelectedRow.WriteNameTooltip, FallbackValue=''}"
+                          IsVisible="{Binding SelectedRow.CanWriteName, FallbackValue=False}"
+                          Command="{Binding WriteNameCommand}" />
+                  <Button x:Name="BtnPatchClearName"
+                          Margin="0,0,8,4"
+                          Content="{Binding I18n[patches.btn_clear_rom_from_name]}"
+                          ToolTip.Tip="{Binding SelectedRow.ClearNameTooltip, FallbackValue=''}"
+                          IsVisible="{Binding SelectedRow.CanClearName, FallbackValue=False}"
+                          Command="{Binding ClearNameCommand}" />
+                </WrapPanel>
+              </StackPanel>
             </StackPanel>
           </ScrollViewer>
 
