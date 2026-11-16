@@ -308,7 +308,10 @@ out): `FF3 extra` only shows the patches of the `Extra & Visual Patches` folder 
 **See the suggestions** keep only the patches found. The cross clears the search.
 
 On the right, the detail of the patch selected says in plain words where it stands (for a patch applied: what
-designates its ROM, and the name of its patched version), then gives its actions.
+designates its ROM, and the name of its patched version), then gives its actions: **Apply to this ROM** and **Do not
+apply this patch**. Once you made a choice for the patch, its state line ends with a link that forgets it (see
+[Not applying a patch](#not-applying-a-patch)). Under it, a line says your last change ("ROM chosen: …", "Patch set
+aside", "File renamed to …") and offers **Undo** (see [Your choices](#your-choices)).
 
 The footer counts the patches modified. **Run the simulation again** runs the simulation again, which follows your
 choices: the window stays open and shows its results, on the same patch. If you close the window with choices the
@@ -368,11 +371,12 @@ the simulation again at once.
 To set aside at once the patches that will never apply (those that apply to a ROM already patched, for example),
 search for them, then click **Do not apply the patches shown (*n*)…**, under the search. The button is greyed out
 without a search, which would show every patch. It shows the list of the patches found, all checked, with their
-folder: uncheck those to keep, then **Do not apply (*n*)**; **Back** saves nothing. Each patch set aside can then go
-back to the automatic choice.
+folder: uncheck those to keep, then **Do not apply (*n*)**; **Back** saves nothing. Each patch set aside can then be
+taken back.
 
-**Back to the automatic choice** forgets your choice for a patch (a ROM chosen, or a patch set aside): the next
-simulation applies it again from what it records, its name or its readme.
+**Back to the automatic choice**, at the end of the state line of a patch you chose a ROM for, forgets your choice: the
+next simulation applies it again from what it records, its name or its readme. For a patch set aside, the link reads
+**Take this patch back** and does the same; **Do not apply this patch** is then no longer shown.
 
 The patched version a sort already wrote in a destination stays in place: **Undo Last Sort** deletes it, if that sort
 is the last one.
@@ -383,19 +387,21 @@ is the last one.
   [Where RomSieve stores its files](installation.md#where-romsieve-stores-its-files)). They apply to every profile.
 * A patch is known there by its content, not by its name: your choice follows it if it is renamed, moved, or stored in
   an archive. Two copies of the same patch have the same choice.
-* No choice changes a file. **Undo** undoes your last change to the patch selected, as long as the window is open;
-  later, **Back to the automatic choice** does the same. The choices are not recorded in the journal of the sorts, and
-  **Undo Last Sort** does not undo them.
+* No choice changes a file. **Undo**, at the end of the line that says your last change to the patch selected, undoes
+  it: the patch gets back its previous choice or name, which is not necessarily the automatic choice. Each change is
+  undone in turn (Ctrl+Z, out of a text field), until the next simulation; after it, **Back to the automatic choice**
+  forgets a choice. The choices are not recorded in the journal of the sorts, and **Undo Last Sort** does not undo them.
 * A `patch_links.json` file that cannot be read is never lost: RomSieve keeps a copy of it next to it
   (`patch_links.unreadable-<date>-<time>.json`), says so in the log, and starts again without choices.
-* **For other tools**, **Write the ROM in the file name (for other tools)** renames an IPS applied to a ROM its name
-  does not give yet: the CRC32 of the ROM is added before the extension (`Game (T-Fr).ips` becomes
+* **For other tools**, the **Patch file** block renames the patch, right away. **Add the CRC32 to the file name**
+  renames an IPS applied to a ROM its name does not give yet: the CRC32 of the ROM, in the form the patch applies to
+  (the tooltip of the button gives it), is added before the extension (`Game (T-Fr).ips` becomes
   `Game (T-Fr) [47e70e08].ips`), or replaces the one the name gave. RomSieve does not need it, but the tools that apply
   an IPS from its name will apply it too. A patch stored in an archive is never renamed, and nothing is overwritten: a
   name already taken leaves the patch as it was, and the detail says so. **Undo** gives it back its old name. The CRC32
   added does not appear in the name of the patched version (see
   [Name of the patched version](#name-of-the-patched-version)).
-* **Remove the ROM from the file name** does the reverse, for any IPS on the disk whose name designates a ROM, written by
+* **Remove the CRC32 from the file name** does the reverse, for any IPS on the disk whose name gives a CRC32, written by
   RomSieve or by anyone: `Game (T-Fr) [47e70e08].ips` becomes `Game (T-Fr).ips` again. This is how a name written before
   a new simulation is taken back, when **Undo** no longer can. RomSieve applies the patch as before: a patch only its
   name applied first gets your choice for the same ROM. For it to apply no more, set it aside (see

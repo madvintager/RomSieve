@@ -317,7 +317,10 @@ quel ordre (`-mot` écarte) : `FF3 extra` ne montre que les patchs du dossier `E
 groupes, leurs comptes et **Voir les suggestions** ne gardent que les patchs trouvés. La croix efface la recherche.
 
 À droite, le détail du patch sélectionné dit en clair où il en est (pour un patch appliqué : ce qui désigne sa ROM, et
-le nom de sa version patchée), puis donne ses actions.
+le nom de sa version patchée), puis donne ses actions : **Appliquer à cette ROM** et **Ne pas appliquer ce patch**.
+Quand vous avez fait un choix pour le patch, sa ligne d'état se termine par un lien qui l'oublie (voir
+[Ne pas appliquer un patch](#ne-pas-appliquer-un-patch)). En dessous, une ligne dit votre dernier changement (« ROM
+choisie : … », « Patch écarté », « Fichier renommé en … ») et propose **Défaire** (voir [Vos choix](#vos-choix)).
 
 Le pied compte les patchs modifiés. **Relancer la simulation** relance la simulation, qui suit vos choix : la fenêtre
 reste ouverte et montre ses résultats, sur le même patch. Si vous fermez la fenêtre avec des choix que la simulation n'a
@@ -380,10 +383,12 @@ Pour écarter d'un coup les patchs qui ne s'appliqueront jamais (ceux qui s'appl
 exemple), cherchez-les, puis cliquez sur **Ne pas appliquer les patchs affichés (*n*)…**, sous la recherche. Le bouton
 est grisé sans recherche, qui montrerait tous les patchs. Il montre la liste des patchs trouvés, tous cochés, avec leur
 dossier : décochez ceux à garder, puis **Ne pas appliquer (*n*)** ; **Retour** n'enregistre rien. Chaque patch écarté
-peut ensuite revenir au choix automatique.
+peut ensuite être repris.
 
-**Revenir au choix automatique** oublie votre choix pour un patch (une ROM choisie, ou un patch écarté) : la prochaine
-simulation l'applique de nouveau d'après ce qu'il enregistre, son nom ou son readme.
+**Revenir au choix automatique**, au bout de la ligne d'état d'un patch pour lequel vous avez choisi une ROM, oublie
+votre choix : la prochaine simulation l'applique de nouveau d'après ce qu'il enregistre, son nom ou son readme. Pour un
+patch écarté, le lien s'appelle **Reprendre ce patch** et fait de même ; **Ne pas appliquer ce patch** n'est alors plus
+affiché.
 
 La version patchée qu'un tri a déjà écrite dans une destination reste en place : **Annuler le dernier tri** la supprime,
 si ce tri est le dernier.
@@ -395,20 +400,23 @@ si ce tri est le dernier.
   tous les profils.
 * Un patch y est reconnu par son contenu, pas par son nom : votre choix le suit s'il est renommé, déplacé, ou rangé dans
   une archive. Deux copies du même patch ont le même choix.
-* Aucun choix ne modifie de fichier. **Annuler** défait votre dernier changement pour le patch sélectionné, tant que la
-  fenêtre est ouverte ; plus tard, **Revenir au choix automatique** fait de même. Les choix ne sont pas inscrits au
-  journal des tris, et **Annuler le dernier tri** ne les défait pas.
+* Aucun choix ne modifie de fichier. **Défaire**, au bout de la ligne qui dit votre dernier changement pour le patch
+  sélectionné, le défait : le patch reprend son choix ou son nom d'avant, qui n'est pas forcément le choix automatique.
+  Chaque changement se défait à son tour (Ctrl+Z, hors d'un champ de texte), jusqu'à la prochaine simulation ; ensuite,
+  **Revenir au choix automatique** oublie un choix. Les choix ne sont pas inscrits au journal des tris, et **Annuler le
+  dernier tri** ne les défait pas.
 * Un fichier `patch_links.json` illisible n'est jamais perdu : RomSieve en garde une copie à côté
   (`patch_links.unreadable-<date>-<heure>.json`), le dit dans le journal, et repart sans choix.
-* **Pour d'autres outils**, **Écrire la ROM dans le nom du fichier (pour d'autres outils)** renomme un IPS appliqué à
-  une ROM que son nom ne donne pas encore : le CRC32 de la ROM s'ajoute avant l'extension (`Jeu (T-Fr).ips` devient
+* **Pour d'autres outils**, le bloc **Fichier du patch** renomme le patch, tout de suite. **Ajouter le CRC32 au nom du
+  fichier** renomme un IPS appliqué à une ROM que son nom ne donne pas encore : le CRC32 de la ROM, sous la forme à
+  laquelle le patch s'applique (l'infobulle du bouton le donne), s'ajoute avant l'extension (`Jeu (T-Fr).ips` devient
   `Jeu (T-Fr) [47e70e08].ips`), ou remplace celui que le nom donnait. RomSieve n'en a pas besoin, mais les outils qui
   appliquent un IPS d'après son nom l'appliqueront aussi. Un patch rangé dans une archive n'est jamais renommé, et rien
-  n'est écrasé : un nom déjà pris laisse le patch tel quel, et le détail le dit. **Annuler** lui rend son ancien nom. Le
+  n'est écrasé : un nom déjà pris laisse le patch tel quel, et le détail le dit. **Défaire** lui rend son ancien nom. Le
   CRC32 ajouté n'apparaît pas dans le nom de la version patchée (voir [Choix du nom](#choix-du-nom)).
-* **Retirer la ROM du nom du fichier** fait l'inverse, pour tout IPS du disque dont le nom désigne une ROM, écrit par
+* **Retirer le CRC32 du nom du fichier** fait l'inverse, pour tout IPS du disque dont le nom donne un CRC32, écrit par
   RomSieve ou par un autre : `Jeu (T-Fr) [47e70e08].ips` redevient `Jeu (T-Fr).ips`. C'est ainsi qu'on revient sur un
-  nom écrit avant une nouvelle simulation, quand **Annuler** ne le peut plus. RomSieve applique le patch comme avant :
+  nom écrit avant une nouvelle simulation, quand **Défaire** ne le peut plus. RomSieve applique le patch comme avant :
   un patch que seul son nom appliquait reçoit d'abord votre choix pour la même ROM. Pour qu'il ne s'applique plus,
   écartez-le (voir [Ne pas appliquer un patch](#ne-pas-appliquer-un-patch)).
 

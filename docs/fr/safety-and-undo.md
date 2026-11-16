@@ -23,8 +23,8 @@ RomSieve manipule des collections de plusieurs téraoctets. Il est conçu pour q
   Non écrit : le nom … est dangereux ou invalide », et rien n'est écrit pour lui ni pour les autres fichiers de son jeu
   ; les autres fichiers sont triés comme d'habitude. Chaque cible est encore vérifiée juste avant d'être écrite. Seule
   exception, hors de tout tri : la fenêtre **Patchs** renomme l'IPS du dossier des patchs sur lequel vous cliquez
-  **Écrire la ROM dans le nom du fichier (pour d'autres outils)** ou **Retirer la ROM du nom du fichier**, et
-  **Annuler** lui rend son ancien nom (voir [Vos choix](patches.md#vos-choix)). Rien d'autre n'y change : ni le contenu
+  **Ajouter le CRC32 au nom du fichier** ou **Retirer le CRC32 du nom du fichier**, et **Défaire** lui rend son
+  ancien nom (voir [Vos choix](patches.md#vos-choix)). Rien d'autre n'y change : ni le contenu
   des patchs, ni les archives, ni un fichier déjà présent. Vos autres choix pour les patchs ne modifient aucun fichier :
   ils sont gardés à côté des réglages.
 * **Une purge ne supprime rien** (voir ci-dessous).

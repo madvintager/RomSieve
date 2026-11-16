@@ -19,8 +19,8 @@ RomSieve handles collections of several terabytes. It is designed so that a wron
   found on the Internet are crafted to do. Such a file is in error from the simulation on, with the reason "Not written:
   the name … is unsafe or invalid", and nothing is written for it nor for the other files of its game; the other files
   are sorted as usual. Every target is checked once more just before it is written. The only exception, out of any sort:
-  the **Patches** window renames the IPS of the folder of the patches on which you click **Write the ROM in the file
-  name (for other tools)** or **Remove the ROM from the file name**, and **Undo** gives it back its old name (see [Your
+  the **Patches** window renames the IPS of the folder of the patches on which you click **Add the CRC32 to the file
+  name** or **Remove the CRC32 from the file name**, and **Undo** gives it back its old name (see [Your
   choices](patches.md#your-choices)). Nothing else changes there: neither the content of the patches, nor the archives,
   nor a file already there. Your other choices for the patches change no file: they are kept next to the settings.
 * **A purge deletes nothing** (see below).
