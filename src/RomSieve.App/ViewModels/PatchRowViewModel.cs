@@ -538,7 +538,10 @@ public sealed partial class PatchRowViewModel : ObservableObject
 
     public bool CanWriteName => NameWithRom is not null;
 
-    public string WriteNameTooltip => NameWithRom is { } newName ? _owner.Tr("patches.tooltip_write_rom_in_name", ("name", newName)) : string.Empty;
+    /// <summary>The name « Add the CRC32 to the file name » gives, and the CRC32 it writes: that of the form it is applied to.</summary>
+    public string WriteNameTooltip => NameWithRom is { } newName && CurrentCrc32 is { } crc
+        ? _owner.Tr("patches.tooltip_write_rom_in_name", ("name", newName), ("crc", $"{crc:X8}"), ("origin", OriginName))
+        : string.Empty;
 
     /// <summary>
     /// The name it would have without the ROM its name designates, for other tools: an IPS on the disk whose name gives a

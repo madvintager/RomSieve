@@ -545,7 +545,9 @@ public sealed class PatchesViewModelTests : IDisposable
         File.Exists(path).Should().BeTrue();
         row.StatusText.Should().Be("Appliqué à Game (USA).sfc : votre choix");
         row.CanWriteName.Should().BeTrue("its name gives another ROM");
-        row.WriteNameTooltip.Should().Contain($"Game (T-Fr) [{Crc(Usa):x8}].ips");
+        row.WriteNameTooltip.Should().StartWith(
+            $"Renomme le patch en Game (T-Fr) [{Crc(Usa):x8}].ips : son nom donne le CRC32 {Crc(Usa):X8} de Game (USA).sfc,",
+            "the tooltip says which CRC32 the name gets, and of which ROM");
         await SimulateAsync();
         PatchedVersion().Origin.DisplayName.Should().Be("Game (USA).sfc", "the choice comes before the name");
     }
