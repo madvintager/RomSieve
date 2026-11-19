@@ -165,6 +165,9 @@ public sealed class FrontendViewModelTests : IDisposable
         directories.DatFilePath = WriteGameBoyDat();
         await directories.DatLoadTask;
         directories.SourceDir = source;
+        // The listing of the source ends on a thread of the pool here (no UI thread): its refresh must not overlap
+        // the one of the recommended settings, which it would overwrite with the settings read before them
+        await directories.Preview.WhenIdleAsync();
         directories.Frontend = frontend;
         await directories.RecommendationTask;
         await directories.Preview.WhenIdleAsync();
