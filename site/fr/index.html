@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RomSieve : triez vos collections de ROMs</title>
-  <meta name="description" content="Triez vos collections de ROMs avec leur DAT (TOSEC, No-Intro, Redump, MAME), gardez la meilleure version de chaque jeu et une arborescence propre. Gratuit, Windows et Linux.">
+  <meta name="description" content="Triez vos ROMs avec leur DAT (TOSEC, No-Intro, Redump, MAME) : la meilleure version de chaque jeu, vos patchs appliqués, votre frontend rempli. Gratuit, Windows et Linux.">
   <link rel="canonical" href="https://madvintager.github.io/RomSieve/fr/">
   <link rel="alternate" hreflang="en" href="https://madvintager.github.io/RomSieve/">
   <link rel="alternate" hreflang="fr" href="https://madvintager.github.io/RomSieve/fr/">
@@ -13,21 +13,21 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="RomSieve">
   <meta property="og:title" content="RomSieve : triez vos collections de ROMs">
-  <meta property="og:description" content="Triez vos collections de ROMs avec leur DAT (TOSEC, No-Intro, Redump, MAME), gardez la meilleure version de chaque jeu et une arborescence propre. Gratuit, Windows et Linux.">
+  <meta property="og:description" content="Triez vos ROMs avec leur DAT (TOSEC, No-Intro, Redump, MAME) : la meilleure version de chaque jeu, vos patchs appliqués, votre frontend rempli. Gratuit, Windows et Linux.">
   <meta property="og:url" content="https://madvintager.github.io/RomSieve/fr/">
   <meta property="og:locale" content="fr_FR">
   <meta property="og:locale:alternate" content="en_US">
   <meta property="og:image" content="https://madvintager.github.io/RomSieve/social.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="RomSieve, le gestionnaire de collections de ROMs pour Windows et Linux">
+  <meta property="og:image:alt" content="RomSieve, le gestionnaire de collections de ROMs pour Windows et Linux : sa table de simulation, et le dossier des ROMs d'un frontend avec un jeu patché">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "RomSieve",
-    "description": "Triez vos collections de ROMs avec leur DAT (TOSEC, No-Intro, Redump, MAME), gardez la meilleure version de chaque jeu et une arborescence propre. Gratuit, Windows et Linux.",
+    "description": "Triez vos ROMs avec leur DAT (TOSEC, No-Intro, Redump, MAME) : la meilleure version de chaque jeu, vos patchs appliqués, votre frontend rempli. Gratuit, Windows et Linux.",
     "url": "https://madvintager.github.io/RomSieve/fr/",
     "inLanguage": "fr",
     "applicationCategory": "UtilitiesApplication",
@@ -64,6 +64,7 @@
       </div>
 
       <div class="hero-text">
+        <a class="new-badge" href="#nouveau"><span class="pill">Nouveau en 1.3</span>Patchs et frontends →</a>
         <h1>Votre collection de ROMs, enfin triée.</h1>
         <p class="lead">RomSieve vérifie vos jeux avec leur DAT, garde la meilleure version de chacun dans vos
           langues et reconstruit une arborescence propre. Vous voyez chaque opération avant qu'un seul fichier ne
@@ -87,6 +88,71 @@
   </header>
 
   <main>
+    <section class="new" id="nouveau">
+      <div class="wrap">
+        <span class="kicker">Nouveau dans la version 1.3</span>
+        <h2>Des jeux patchés, prêts pour votre frontend</h2>
+        <p class="section-lead">Appliquez vos traductions, corrections et hacks sans toucher à une seule ROM, et
+          écrivez la collection directement dans le dossier des ROMs de Batocera, RetroPie, ES-DE, Recalbox ou
+          MiSTer.</p>
+
+        <div class="feature">
+          <div class="feature-text">
+            <h3>Vos patchs, appliqués</h3>
+            <p>Indiquez à RomSieve un dossier de patchs IPS, UPS ou BPS, à plat ou dans des archives. Chaque patch dont
+              la ROM d'origine est dans votre collection donne une version patchée, un nouveau fichier : ni la ROM
+              d'origine ni le patch ne sont jamais modifiés.</p>
+            <ul>
+              <li>UPS et BPS rapprochés par la somme de contrôle qu'ils enregistrent, IPS par le CRC32 de leur nom ou
+                de leur readme, avec ou sans en-tête copieur.</li>
+              <li>La fenêtre Patchs montre tous les patchs : choisissez la ROM d'un IPS, passez en revue les
+                suggestions ou écartez un patch. RomSieve retient vos choix.</li>
+              <li>La traduction d'une version japonaise est appliquée même quand le 1G1R en garde une autre, à côté de
+                son origine ou dans son propre dossier.</li>
+            </ul>
+            <p class="more"><a href="../guide/fr/patches.html">Les patchs dans le guide</a></p>
+          </div>
+          <picture class="screenshot">
+            <source type="image/webp" srcset="../images/fr/patches_window_dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="../images/fr/patches_window.webp" width="1200" height="816" loading="lazy"
+              alt="La fenêtre Patchs : les patchs groupés par état, et les ROMs proposées pour un patch IPS">
+          </picture>
+        </div>
+
+        <div class="feature flip">
+          <div class="feature-text">
+            <h3>Directement dans votre frontend</h3>
+            <ul class="chips" aria-label="Frontends pris en charge">
+              <li>Batocera</li>
+              <li>RetroPie</li>
+              <li>ES-DE</li>
+              <li>Recalbox</li>
+              <li>MiSTer</li>
+            </ul>
+            <p>Choisissez votre frontend et la destination devient son dossier des ROMs : chaque DAT va dans le dossier
+              que le frontend donne à sa plateforme, pour une soixantaine de plateformes. Un pack de DAT entier le
+              remplit en un passage.</p>
+            <ul>
+              <li>Les réglages de sortie que le frontend lit le mieux, proposés en un clic.</li>
+              <li>Les jeux multi-disques comme il les attend : une playlist qu'ES-DE lit comme un seul jeu, un
+                dossier par jeu sur disque pour MiSTer.</li>
+              <li>Un avertissement pour les archives que le frontend ne lirait pas.</li>
+            </ul>
+            <p class="more"><a href="../guide/fr/destination-and-transfers.html#pour-un-frontend">Les frontends dans le guide</a></p>
+          </div>
+          <pre class="tree" aria-label="Un dossier des ROMs de Batocera écrit par RomSieve"><span class="folder">roms/</span>
+├── <span class="folder">amiga500/</span>    <span class="dat">← Commodore Amiga</span>
+├── <span class="folder">amiga1200/</span>   <span class="dat">← ses versions AGA</span>
+├── <span class="folder">megadrive/</span>   <span class="dat">← Sega - Mega Drive - Genesis</span>
+├── <span class="folder">psx/</span>         <span class="dat">← Sony - PlayStation</span>
+└── <span class="folder">snes/</span>        <span class="dat">← Nintendo - Super Nintendo…</span>
+    ├── Chrono Trigger (USA).sfc
+    ├── Seiken Densetsu 3 (Japan).sfc
+    └── <span class="added">Seiken Densetsu 3 (Japan) [T-En].sfc</span></pre>
+        </div>
+      </div>
+    </section>
+
     <section>
       <div class="wrap">
         <h2>Tous les standards de préservation</h2>
@@ -209,7 +275,8 @@
         </ul>
         <div class="terminal" aria-label="Exemple de ligne de commande">
           <div><span class="prompt">$ </span>romsieve-cli run --profile "Amiga 1G1R"</div>
-          <div><span class="prompt">$ </span>romsieve-cli run --dat ~/dats/No-Intro --dat-recursive --execute</div>
+          <div><span class="prompt">$ </span>romsieve-cli run --dat ~/dats/No-Intro --frontend batocera --execute</div>
+          <div><span class="prompt">$ </span>romsieve-cli run --patches ~/patchs --patch-only --execute</div>
           <div><span class="prompt">$ </span>romsieve-cli undo --yes</div>
         </div>
         <p>La ligne de commande, <code>romsieve-cli</code>, exécute le même tri avec les mêmes garde-fous, pour les

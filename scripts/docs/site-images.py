@@ -17,6 +17,7 @@ SCREENSHOTS = {
     "simulation_preview": 1200,
     "1g1r_settings": 1200,
     "output_settings": 1200,
+    "patches_window": 1200,
 }
 
 # Size of the icon of the page: twice the 36 pixels it is shown at, and more than enough for a browser tab

@@ -128,6 +128,36 @@ code {
   text-align: center;
 }
 
+/* Link of the banner to the new features of the version */
+.new-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+  padding: 0.3rem 0.9rem 0.3rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  color: var(--hero-text);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.new-badge:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.new-badge .pill {
+  padding: 0.05rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-text);
+  background: var(--accent);
+}
+
 .hero h1 {
   margin: 0 0 0.8rem;
   font-size: clamp(2rem, 5vw, 3.2rem);
@@ -281,6 +311,86 @@ h3 {
 
 .screenshot img {
   border: 1px solid var(--border);
+}
+
+/* New features of the version: a kicker above the title, the frontends as chips and a folder tree */
+.kicker {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+section.new {
+  border-bottom: 1px solid var(--border);
+}
+
+section.new .section-lead {
+  margin-bottom: 3rem;
+}
+
+section.new .feature h3 {
+  margin-bottom: 0.6rem;
+  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  line-height: 1.25;
+}
+
+.feature-text .more {
+  margin: 1rem 0 0;
+  font-weight: 600;
+}
+
+.chips,
+.feature .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.feature .chips li + li {
+  margin-top: 0;
+}
+
+.chips li {
+  padding: 0.25rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: var(--surface);
+}
+
+.tree {
+  overflow-x: auto;
+  margin: 0;
+  padding: 1.2rem 1.4rem;
+  border-radius: 10px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  white-space: pre;
+  color: #e9e4ff;
+  background: #151026;
+  box-shadow: var(--shadow);
+}
+
+.tree .folder {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.tree .dat {
+  color: #a99be0;
+}
+
+.tree .added {
+  color: #ff4fa3;
 }
 
 .checklist {

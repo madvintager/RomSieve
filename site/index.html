@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RomSieve: sort your ROM collections</title>
-  <meta name="description" content="Sort ROM collections against their DAT (TOSEC, No-Intro, Redump, MAME), keep the best release of each game and rebuild a clean folder tree. Free, for Windows and Linux.">
+  <meta name="description" content="Sort ROMs against their DAT (TOSEC, No-Intro, Redump, MAME), keep the best release of each game, apply your patches and fill your frontend. Free, for Windows and Linux.">
   <link rel="canonical" href="https://madvintager.github.io/RomSieve/">
   <link rel="alternate" hreflang="en" href="https://madvintager.github.io/RomSieve/">
   <link rel="alternate" hreflang="fr" href="https://madvintager.github.io/RomSieve/fr/">
@@ -13,21 +13,21 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="RomSieve">
   <meta property="og:title" content="RomSieve: sort your ROM collections">
-  <meta property="og:description" content="Sort ROM collections against their DAT (TOSEC, No-Intro, Redump, MAME), keep the best release of each game and rebuild a clean folder tree. Free, for Windows and Linux.">
+  <meta property="og:description" content="Sort ROMs against their DAT (TOSEC, No-Intro, Redump, MAME), keep the best release of each game, apply your patches and fill your frontend. Free, for Windows and Linux.">
   <meta property="og:url" content="https://madvintager.github.io/RomSieve/">
   <meta property="og:locale" content="en_US">
   <meta property="og:locale:alternate" content="fr_FR">
   <meta property="og:image" content="https://madvintager.github.io/RomSieve/social.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="RomSieve, the ROM collection organizer for Windows and Linux">
+  <meta property="og:image:alt" content="RomSieve, the ROM collection organizer for Windows and Linux: its simulation table, and a frontend ROM folder holding a patched game">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "RomSieve",
-    "description": "Sort ROM collections against their DAT (TOSEC, No-Intro, Redump, MAME), keep the best release of each game and rebuild a clean folder tree. Free, for Windows and Linux.",
+    "description": "Sort ROMs against their DAT (TOSEC, No-Intro, Redump, MAME), keep the best release of each game, apply your patches and fill your frontend. Free, for Windows and Linux.",
     "url": "https://madvintager.github.io/RomSieve/",
     "inLanguage": "en",
     "applicationCategory": "UtilitiesApplication",
@@ -64,6 +64,7 @@
       </div>
 
       <div class="hero-text">
+        <a class="new-badge" href="#new"><span class="pill">New in 1.3</span>Patches and frontends →</a>
         <h1>Your ROM collection, sorted.</h1>
         <p class="lead">RomSieve checks your games against their DAT, keeps the best release of each one in your
           languages, and rebuilds a clean folder tree. You see every move before a single file is touched.</p>
@@ -86,6 +87,69 @@
   </header>
 
   <main>
+    <section class="new" id="new">
+      <div class="wrap">
+        <span class="kicker">New in version 1.3</span>
+        <h2>Patched games, ready for your frontend</h2>
+        <p class="section-lead">Apply your translations, fixes and hacks without touching a single ROM, and write the
+          collection straight into the ROM folder of Batocera, RetroPie, ES-DE, Recalbox or MiSTer.</p>
+
+        <div class="feature">
+          <div class="feature-text">
+            <h3>Your patches, applied</h3>
+            <p>Point RomSieve to a folder of IPS, UPS or BPS patches, loose or in archives. Each patch whose original
+              ROM is in your collection gives a patched version, a new file: the original ROM and the patch are never
+              modified.</p>
+            <ul>
+              <li>UPS and BPS matched by the checksum they record, IPS by the CRC32 in their name or their readme,
+                copier header or not.</li>
+              <li>The Patches window shows every patch: choose the ROM of an IPS, review the suggestions or set a
+                patch aside. RomSieve remembers your choices.</li>
+              <li>A translation of a Japanese release is applied even when 1G1R keeps another one, next to its
+                original or in a folder of its own.</li>
+            </ul>
+            <p class="more"><a href="guide/en/patches.html">Patches in the guide</a></p>
+          </div>
+          <picture class="screenshot">
+            <source type="image/webp" srcset="images/patches_window_dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="images/patches_window.webp" width="1200" height="816" loading="lazy"
+              alt="The Patches window: the patches grouped by state, and the ROMs proposed for an IPS patch">
+          </picture>
+        </div>
+
+        <div class="feature flip">
+          <div class="feature-text">
+            <h3>Straight into your frontend</h3>
+            <ul class="chips" aria-label="Supported frontends">
+              <li>Batocera</li>
+              <li>RetroPie</li>
+              <li>ES-DE</li>
+              <li>Recalbox</li>
+              <li>MiSTer</li>
+            </ul>
+            <p>Choose your frontend and the destination becomes its ROM folder: each DAT goes into the folder the
+              frontend gives its platform, for about sixty platforms. A whole pack of DATs fills it in one pass.</p>
+            <ul>
+              <li>The output settings the frontend reads best, offered in one click.</li>
+              <li>Multi-disk games as it expects them: a playlist ES-DE reads as one game, a folder per disc game
+                for MiSTer.</li>
+              <li>Warnings about the archives the frontend would not read.</li>
+            </ul>
+            <p class="more"><a href="guide/en/destination-and-transfers.html#for-a-frontend">Frontends in the guide</a></p>
+          </div>
+          <pre class="tree" aria-label="A Batocera ROM folder written by RomSieve"><span class="folder">roms/</span>
+├── <span class="folder">amiga500/</span>    <span class="dat">← Commodore Amiga</span>
+├── <span class="folder">amiga1200/</span>   <span class="dat">← its AGA releases</span>
+├── <span class="folder">megadrive/</span>   <span class="dat">← Sega - Mega Drive - Genesis</span>
+├── <span class="folder">psx/</span>         <span class="dat">← Sony - PlayStation</span>
+└── <span class="folder">snes/</span>        <span class="dat">← Nintendo - Super Nintendo…</span>
+    ├── Chrono Trigger (USA).sfc
+    ├── Seiken Densetsu 3 (Japan).sfc
+    └── <span class="added">Seiken Densetsu 3 (Japan) [T-En].sfc</span></pre>
+        </div>
+      </div>
+    </section>
+
     <section>
       <div class="wrap">
         <h2>Every preservation standard</h2>
@@ -206,7 +270,8 @@
         </ul>
         <div class="terminal" aria-label="Command line example">
           <div><span class="prompt">$ </span>romsieve-cli run --profile "Amiga 1G1R"</div>
-          <div><span class="prompt">$ </span>romsieve-cli run --dat ~/dats/No-Intro --dat-recursive --execute</div>
+          <div><span class="prompt">$ </span>romsieve-cli run --dat ~/dats/No-Intro --frontend batocera --execute</div>
+          <div><span class="prompt">$ </span>romsieve-cli run --patches ~/patches --patch-only --execute</div>
           <div><span class="prompt">$ </span>romsieve-cli undo --yes</div>
         </div>
         <p>The command line, <code>romsieve-cli</code>, runs the same sort with the same safeguards, for scripts and
