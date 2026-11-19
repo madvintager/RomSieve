@@ -8,8 +8,9 @@ namespace RomSieve.Core.Services;
 /// a volume, a recycle bin, a NAS or a file manager adds are never part of a collection and are skipped
 /// (<see cref="IsSystemFolder"/>, <see cref="IsSystemFile"/>). A folder that cannot be read is skipped instead of
 /// stopping the whole scan, and a link to a folder is not followed, since it could loop or lead out of the folder: both
-/// are reported (<see cref="FileTreeSkips"/>). The files come in the order of
-/// <see cref="Directory.EnumerateFiles(string, string, SearchOption)"/>: those of a folder, then those of its subfolders.
+/// are reported (<see cref="FileTreeSkips"/>). The files come folder by folder, as
+/// <see cref="Directory.EnumerateFiles(string, string, SearchOption)"/> gives them (those of a folder, then those of its
+/// subfolders), but in the order of their names whatever the file system (<see cref="CompareNames"/>).
 /// </summary>
 public static class FileTree
 {
@@ -74,6 +75,8 @@ public static class FileTree
                 continue;
             }
 
+            var files = new List<Entry>();
+            var folders = new List<Entry>();
             using (entries)
             {
                 while (true)
@@ -99,23 +102,47 @@ public static class FileTree
                     {
                         if (!IsSystemFile(entry.Name))
                         {
-                            yield return entry.Path;
+                            files.Add(entry);
                         }
                     }
                     else if (recursive && !IsSystemFolder(entry.Name))
                     {
-                        if (entry.IsReparsePoint && IsLink(entry.Path))
-                        {
-                            skips.FolderLinks.Add(entry.Path);
-                        }
-                        else
-                        {
-                            pending.Enqueue(entry.Path);
-                        }
+                        folders.Add(entry);
                     }
                 }
             }
+
+            files.Sort(CompareNames);
+            foreach (var file in files)
+            {
+                yield return file.Path;
+            }
+
+            folders.Sort(CompareNames);
+            foreach (var folder in folders)
+            {
+                if (folder.IsReparsePoint && IsLink(folder.Path))
+                {
+                    skips.FolderLinks.Add(folder.Path);
+                }
+                else
+                {
+                    pending.Enqueue(folder.Path);
+                }
+            }
         }
+    }
+
+    /// <summary>
+    /// Order of the entries of a folder: by name, case ignored, then exact. The order of an enumeration depends on the
+    /// file system (alphabetical on NTFS, hashed on ext4, so different from one folder to another), and the order of the
+    /// files decides which of two files with the same target keeps its name and the order of the exports: the same
+    /// source gives the same sort on every system, the one NTFS gave.
+    /// </summary>
+    private static int CompareNames(Entry left, Entry right)
+    {
+        var ignoringCase = StringComparer.OrdinalIgnoreCase.Compare(left.Name, right.Name);
+        return ignoringCase != 0 ? ignoringCase : StringComparer.Ordinal.Compare(left.Name, right.Name);
     }
 
     /// <summary>

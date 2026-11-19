@@ -7,7 +7,7 @@ using RomSieve.Core.Tests.Fixtures;
 namespace RomSieve.Core.Tests;
 
 /// <summary>
-/// Files a scan reads (<see cref="FileTree"/>): in the order of .NET, hidden files included, without the folders and
+/// Files a scan reads (<see cref="FileTree"/>): folder by folder in the order of their names, hidden files included, without the folders and
 /// files of the system; a folder that cannot be read is skipped and reported instead of stopping the scan, and a link to
 /// a folder is never followed, even when it loops.
 /// </summary>
@@ -69,9 +69,9 @@ public sealed class FileTreeTests : IDisposable
     }
 
     [Fact]
-    public void Files_ShouldComeInTheOrderOfDotNet_HiddenOnesIncluded()
+    public void Files_ShouldComeFolderByFolder_InTheOrderOfTheirNames_HiddenOnesIncluded()
     {
-        foreach (var file in new[] { "b.adf", "a.adf", "Zeta/c.adf", "alpha/d.adf", "alpha/beta/e.adf", "alpha/beta/gamma/f.adf", "omega/g.adf" })
+        foreach (var file in new[] { "b.adf", "a.adf", "Zeta/c.adf", "alpha/d.adf", "alpha/beta/e.adf", "alpha/beta/gamma/f.adf", "omega/g.adf", "B.adf" })
         {
             _temp.WriteText(Path.Combine("src", file), file);
         }
@@ -82,11 +82,22 @@ public sealed class FileTreeTests : IDisposable
             File.SetAttributes(hidden, FileAttributes.Hidden);
         }
 
-        foreach (var recursive in new[] { true, false })
+        // Two names that differ by their case only are both kept where the file system tells them apart
+        var root = OperatingSystem.IsWindows() ? new[] { "a.adf", "b.adf", GameName } : ["a.adf", "B.adf", "b.adf", GameName];
+        ListSource().Should().Equal(
+            [.. root, "alpha/.hidden.adf", "alpha/d.adf", "omega/g.adf", "Zeta/c.adf", "alpha/beta/e.adf", "alpha/beta/gamma/f.adf"],
+            "the order of the files decides the collisions of a sort, whatever the order of the file system (hashed on ext4)");
+        FileTree.EnumerateFiles(_src, recursive: false, new FileTreeSkips())
+            .Select(p => Path.GetFileName(p)).Should().Equal(root);
+
+        if (OperatingSystem.IsWindows())
         {
-            FileTree.EnumerateFiles(_src, recursive, new FileTreeSkips()).Should().Equal(
-                Directory.EnumerateFiles(_src, "*", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly),
-                "the files keep the order of a former scan, which the collisions of a sort depend on");
+            foreach (var recursive in new[] { true, false })
+            {
+                FileTree.EnumerateFiles(_src, recursive, new FileTreeSkips()).Should().Equal(
+                    Directory.EnumerateFiles(_src, "*", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly),
+                    "on NTFS, the files keep the order of a former scan");
+            }
         }
     }
 
