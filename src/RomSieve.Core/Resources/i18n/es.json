@@ -775,7 +775,7 @@
   "reason.1g1r_reason_driver": "emulación {w_status} preferida a {l_status}",
   "reason.1g1r_reason_amiga_chipset": "versión {w_chipset} preferida a la versión {l_chipset} (Amiga AGA)",
   "reason.duplicate_in_unmatched": "Duplicado en _unmatched ignorado",
-  "reason.duplicate_1g1r": "Duplicado 1G1R del mismo soporte o disco descartado",
+  "reason.duplicate_1g1r": "Duplicado 1G1R del mismo soporte: {winner} conservada ({reason})",
   "reason.target_already_exists_skip": "El archivo de destino ya existe (omitido)",
   "reason.already_in_destination": "Ya presente en el destino (no se vuelve a escribir)",
   "reason.not_in_selection": "Fuera de la selección de la clasificación parcial",

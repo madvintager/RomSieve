@@ -171,6 +171,15 @@ décrit en général une variante (les mentions de rôle de disque `(Intro)`, `(
 ne sont pas comptées), puis le premier nom dans l'ordre des codes de caractères, pour que le résultat ne dépende jamais
 de l'ordre des fichiers sur le disque.
 
+La version retenue garde un fichier par support : chaque disque, chaque face d'un disque (`Disk 1 of 2 Side A` et
+`Disk 1 of 2 Side B`, ou `Side A` et `Side B`) et une disquette de documentation (`[docs]`) sont autant de supports.
+Quand elle contient plusieurs dumps d'un même support, par exemple avec **Compléter un set avec les disques d'un autre
+dump**, qui réunit dans une version les dumps d'un disque qui ne diffèrent que par un hack, un trainer ou un correctif,
+les mêmes critères, dans le même ordre, choisissent le meilleur dump de chaque support. Les autres sont des
+**Doublons**, dont la raison nomme le dump retenu et le critère qui l'a choisi : « Doublon 1G1R du même support : Jeu
+(Side A).d64 retenu (version originale vs modifiée) ». Une disquette `[savegame]` est le disque du jeu avec une partie
+sauvegardée : c'est un autre dump du même disque.
+
 #### Ordres par défaut
 
 | Critère | TOSEC | No-Intro | Redump | MAME | Listes MAME |

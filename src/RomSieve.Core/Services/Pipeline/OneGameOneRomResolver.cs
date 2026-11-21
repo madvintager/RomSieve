@@ -77,13 +77,15 @@ public sealed partial class OneGameOneRomResolver
         }
     }
 
-    private (int DiskNum, int NegCleanScore, int NegVerified, int NameLen, string Name) GetDiskSortKey(ProcessItem it)
+    // Order of the files of a release: by disk, then by side (side A first), then the cleanest dump first
+    private (int DiskNum, string Side, int NegCleanScore, int NegVerified, int NameLen, string Name) GetDiskSortKey(ProcessItem it)
     {
         var diskNum = MultiDiskEvaluator.ExtractDiskNumber(it.Parsed);
+        var side = MultiDiskEvaluator.ExtractSide(it.Parsed) ?? string.Empty;
         var cScore = _filterService.GetReleaseCleanlinessScore(it.Parsed);
         var verified = it.Parsed.IsVerified ? 1 : 0;
         var name = !string.IsNullOrEmpty(it.ArchiveMember) ? it.ArchiveMember : Path.GetFileName(it.SourcePath);
-        return (diskNum, -cScore, -verified, name.Length, name);
+        return (diskNum, side, -cScore, -verified, name.Length, name);
     }
 
     /// <summary>
@@ -291,100 +293,125 @@ public sealed partial class OneGameOneRomResolver
         foreach (var (relKey, relItems) in releaseGroups)
         {
             relItems.Sort((x, y) => GetDiskSortKey(x).CompareTo(GetDiskSortKey(y)));
-            var sampleParsed = relItems[0].Parsed;
-
-            // The format of a release is that of its parsed name: with a DAT, the name the DAT gives the file, which the
-            // sort writes (a file identified by its checksum may carry another extension in the source), otherwise the
-            // name of the file or of the archive member. TiebreakApplicability relies on it to grey out the format
-            // criteria of a DAT whose files all have one format
-            var firstFileName = sampleParsed.RawFilename;
-
-            var r = _config.Filters.PriorityLanguages.Count > 0
-                ? _filterService.GetLanguagePriorityRank(sampleParsed, _config.Filters.PriorityLanguages)
-                : null;
-            var cRank = _config.Filters.PriorityCountries.Count > 0
-                ? _filterService.GetCountryPriorityRank(sampleParsed, _config.Filters.PriorityCountries)
-                : null;
-
-            var dumpRank = _filterService.GetDumpQualityRank(sampleParsed);
-            var originalScore = _filterService.GetOriginalReleaseScore(sampleParsed);
-            var verTuple = _filterService.ParseVersionTuple(_filterService.GetEffectiveVersion(sampleParsed));
-            var revTuple = _filterService.ParseRevisionTuple(sampleParsed);
-            var dateTuple = _filterService.ParseDateTuple(sampleParsed.Date);
-            var videoStd = _filterService.GetEffectiveVideo(sampleParsed);
-            var mediaCat = _filterService.GetMediaCategory(firstFileName);
-            var mediaExt = _filterService.GetMediaExtension(firstFileName);
-            var mediaFidelity = _filterService.GetMediaFormatFidelityScore(firstFileName, sampleParsed);
-            var isMonolingual = !sampleParsed.IsMultilingual && sampleParsed.LanguageCodes.Count <= 1;
-            var regionAffinity = _filterService.GetRegionLanguageAffinity(sampleParsed, _config.Filters.PriorityLanguages, r);
-            var isParent = IsParentRelease(relItems) ? 1 : 0;
-
-            int completeness;
-            if (sampleParsed.IsMultiMedia)
-            {
-                var partsFound = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var it in relItems)
-                {
-                    var (partNum, _) = MultiDiskEvaluator.ExtractDiskPartInfo(it.Parsed);
-                    if (partNum.HasValue)
-                    {
-                        partsFound.Add(partNum.Value.ToString(CultureInfo.InvariantCulture));
-                    }
-                    else
-                    {
-                        var label = !string.IsNullOrEmpty(it.Parsed.MediaLabel) ? it.Parsed.MediaLabel : (it.Parsed.MediaType ?? string.Empty);
-                        if (!string.IsNullOrEmpty(label))
-                        {
-                            partsFound.Add(label.ToLowerInvariant());
-                        }
-                    }
-                }
-                completeness = partsFound.Count;
-            }
-            else
-            {
-                // A MAME set that lacks ROMs or disks ranks after a complete one
-                completeness = relItems.Any(it => it.MameSet is { IsComplete: false }) ? 0 : 1;
-            }
-
-            static int EffectiveNameLen(ProcessItem it)
-            {
-                var fileName = Path.GetFileName(it.SourcePath);
-                var cleaned = NeutralizedDiskRoleTagsRegex().Replace(fileName, string.Empty);
-                return cleaned.Length;
-            }
-
-            var minNameLen = relItems.Min(EffectiveNameLen);
-            var firstName = relItems.Select(it => Path.GetFileName(it.SourcePath)).OrderBy(n => n, StringComparer.Ordinal).First();
-
-            rankedReleases.Add(new RankedRelease
-            {
-                RelKey = relKey,
-                EditionKey = releaseEditionKeys[relKey],
-                Items = relItems,
-                Sample = sampleParsed,
-                Rank = r,
-                CountryRank = cRank,
-                DumpRank = dumpRank,
-                OriginalScore = originalScore,
-                VerTuple = verTuple,
-                RevTuple = revTuple,
-                DateTuple = dateTuple,
-                VideoStd = videoStd,
-                MediaCat = mediaCat,
-                MediaExt = mediaExt,
-                MediaFidelity = mediaFidelity,
-                IsMonolingual = isMonolingual,
-                RegionAffinity = regionAffinity,
-                IsParent = isParent,
-                DriverRank = GetDriverRank(sampleParsed.Machine?.DriverStatus ?? sampleParsed.SoftwareSupport),
-                AmigaRank = AmigaChipsets.GetAgaRank(sampleParsed),
-                Completeness = completeness,
-                MinNameLen = minNameLen,
-                FirstName = firstName
-            });
+            rankedReleases.Add(BuildRankedRelease(relKey, releaseEditionKeys[relKey], relItems));
         }
 
+        ResolveRankedReleases(groupItems, rankedReleases, multiDiskResult, isNoIntroGame);
+    }
+
+    /// <summary>
+    /// A release as the cascade compares it, from its files (sorted by <see cref="GetDiskSortKey"/>, the first one giving
+    /// its tags). With <paramref name="setOf"/>, a single dump of one medium of that release, compared with the other
+    /// dumps of the medium: the completeness and the parent / clone status, which belong to the set, are those of the
+    /// release, so that only what tells the dumps apart decides.
+    /// </summary>
+    private RankedRelease BuildRankedRelease(string relKey, string editionKey, List<ProcessItem> relItems, RankedRelease? setOf = null)
+    {
+        var sampleParsed = relItems[0].Parsed;
+
+        // The format of a release is that of its parsed name: with a DAT, the name the DAT gives the file, which the
+        // sort writes (a file identified by its checksum may carry another extension in the source), otherwise the
+        // name of the file or of the archive member. TiebreakApplicability relies on it to grey out the format
+        // criteria of a DAT whose files all have one format
+        var firstFileName = sampleParsed.RawFilename;
+
+        var r = _config.Filters.PriorityLanguages.Count > 0
+            ? _filterService.GetLanguagePriorityRank(sampleParsed, _config.Filters.PriorityLanguages)
+            : null;
+        var cRank = _config.Filters.PriorityCountries.Count > 0
+            ? _filterService.GetCountryPriorityRank(sampleParsed, _config.Filters.PriorityCountries)
+            : null;
+
+        var dumpRank = _filterService.GetDumpQualityRank(sampleParsed);
+        var originalScore = _filterService.GetOriginalReleaseScore(sampleParsed);
+        var verTuple = _filterService.ParseVersionTuple(_filterService.GetEffectiveVersion(sampleParsed));
+        var revTuple = _filterService.ParseRevisionTuple(sampleParsed);
+        var dateTuple = _filterService.ParseDateTuple(sampleParsed.Date);
+        var videoStd = _filterService.GetEffectiveVideo(sampleParsed);
+        var mediaCat = _filterService.GetMediaCategory(firstFileName);
+        var mediaExt = _filterService.GetMediaExtension(firstFileName);
+        var mediaFidelity = _filterService.GetMediaFormatFidelityScore(firstFileName, sampleParsed);
+        var isMonolingual = !sampleParsed.IsMultilingual && sampleParsed.LanguageCodes.Count <= 1;
+        var regionAffinity = _filterService.GetRegionLanguageAffinity(sampleParsed, _config.Filters.PriorityLanguages, r);
+        var isParent = setOf?.IsParent ?? (IsParentRelease(relItems) ? 1 : 0);
+
+        int completeness;
+        if (setOf is not null)
+        {
+            completeness = setOf.Completeness;
+        }
+        else if (sampleParsed.IsMultiMedia)
+        {
+            var partsFound = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var it in relItems)
+            {
+                var (partNum, _) = MultiDiskEvaluator.ExtractDiskPartInfo(it.Parsed);
+                if (partNum.HasValue)
+                {
+                    partsFound.Add(partNum.Value.ToString(CultureInfo.InvariantCulture));
+                }
+                else
+                {
+                    var label = !string.IsNullOrEmpty(it.Parsed.MediaLabel) ? it.Parsed.MediaLabel : (it.Parsed.MediaType ?? string.Empty);
+                    if (!string.IsNullOrEmpty(label))
+                    {
+                        partsFound.Add(label.ToLowerInvariant());
+                    }
+                }
+            }
+            completeness = partsFound.Count;
+        }
+        else
+        {
+            // A MAME set that lacks ROMs or disks ranks after a complete one
+            completeness = relItems.Any(it => it.MameSet is { IsComplete: false }) ? 0 : 1;
+        }
+
+        static int EffectiveNameLen(ProcessItem it)
+        {
+            var fileName = Path.GetFileName(it.SourcePath);
+            var cleaned = NeutralizedDiskRoleTagsRegex().Replace(fileName, string.Empty);
+            return cleaned.Length;
+        }
+
+        var minNameLen = relItems.Min(EffectiveNameLen);
+        var firstName = relItems.Select(it => Path.GetFileName(it.SourcePath)).OrderBy(n => n, StringComparer.Ordinal).First();
+
+        return new RankedRelease
+        {
+            RelKey = relKey,
+            EditionKey = editionKey,
+            Items = relItems,
+            Sample = sampleParsed,
+            Rank = r,
+            CountryRank = cRank,
+            DumpRank = dumpRank,
+            OriginalScore = originalScore,
+            VerTuple = verTuple,
+            RevTuple = revTuple,
+            DateTuple = dateTuple,
+            VideoStd = videoStd,
+            MediaCat = mediaCat,
+            MediaExt = mediaExt,
+            MediaFidelity = mediaFidelity,
+            IsMonolingual = isMonolingual,
+            RegionAffinity = regionAffinity,
+            IsParent = isParent,
+            DriverRank = GetDriverRank(sampleParsed.Machine?.DriverStatus ?? sampleParsed.SoftwareSupport),
+            AmigaRank = AmigaChipsets.GetAgaRank(sampleParsed),
+            Completeness = completeness,
+            IsCompleteMultidisk = setOf?.IsCompleteMultidisk ?? 1,
+            MinNameLen = minNameLen,
+            FirstName = firstName
+        };
+    }
+
+    private void ResolveRankedReleases(
+        List<ProcessItem> groupItems,
+        List<RankedRelease> rankedReleases,
+        MultiDiskEvaluationResult multiDiskResult,
+        bool isNoIntroGame)
+    {
         var multidiskMediaCats = rankedReleases
             .Where(rel => rel.Completeness > 1 && rel.Completeness >= multiDiskResult.ReleaseTotals.GetValueOrDefault(rel.RelKey, 1))
             .Select(rel => rel.MediaCat)
@@ -439,6 +466,7 @@ public sealed partial class OneGameOneRomResolver
                         var ky = GetDiskSortKey(y);
                         var cmp = kx.DiskNum.CompareTo(ky.DiskNum);
                         if (cmp != 0) return cmp;
+                        if ((cmp = string.CompareOrdinal(kx.Side, ky.Side)) != 0) return cmp;
                         var fx = ReferenceEquals(x, forcedItem) ? 0 : 1;
                         var fy = ReferenceEquals(y, forcedItem) ? 0 : 1;
                         if ((cmp = fx.CompareTo(fy)) != 0) return cmp;
@@ -455,7 +483,7 @@ public sealed partial class OneGameOneRomResolver
                             : Path.GetFileName(forcedItem.SourcePath);
                     }
 
-                    ApplyWinner(forcedRel, rankedReleases, groupItems, isManualOverride: true);
+                    ApplyWinner(forcedRel, rankedReleases, groupItems, isManualOverride: true, forcedItem);
                     return;
                 }
             }
@@ -588,48 +616,22 @@ public sealed partial class OneGameOneRomResolver
         RankedRelease winningRelease,
         IReadOnlyList<RankedRelease> rankedReleases,
         IReadOnlyList<ProcessItem> groupItems,
-        bool isManualOverride = false)
+        bool isManualOverride = false,
+        ProcessItem? forcedItem = null)
     {
         var winningName = winningRelease.FirstName;
-        var seenMediaKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var it in winningRelease.Items)
+        // One file per medium of the winning release (a disk, a side of a disk, a disk of documentation): the smart
+        // multi-disk key gathers the cracked and the hacked dumps of a disk, of which the cascade keeps the best
+        foreach (var slot in winningRelease.Items.GroupBy(MultiDiskEvaluator.MediaSlotKey, StringComparer.OrdinalIgnoreCase))
         {
-            string mKey;
-            if (it.IsMultiMedia)
-            {
-                var (partNum, _) = MultiDiskEvaluator.ExtractDiskPartInfo(it.Parsed);
-                if (partNum.HasValue)
-                {
-                    mKey = partNum.Value.ToString(CultureInfo.InvariantCulture);
-                }
-                else
-                {
-                    var label = !string.IsNullOrEmpty(it.Parsed.MediaLabel) ? it.Parsed.MediaLabel : (it.Parsed.MediaType ?? string.Empty);
-                    var mNum = MultiDiskEvaluator.SingleNumberRegex().Match(label);
-                    mKey = mNum.Success ? mNum.Groups[1].Value : label.ToLowerInvariant();
-                }
-            }
-            else
-            {
-                mKey = string.Empty;
-            }
-
-            if (!seenMediaKeys.Add(mKey))
-            {
-                it.Status = FileStatus.Duplicate;
-                it.Is1G1RWinner = false;
-                it.WinnerReference = winningName;
-                it.StatusReason = LocalizedMessage.Create("reason.duplicate_1g1r");
-            }
-            else
-            {
-                it.Is1G1RWinner = true;
-                it.Status = FileStatus.Valid;
-                it.StatusReason = isManualOverride
-                    ? LocalizedMessage.Create("reason.1g1r_winner_manual")
-                    : LocalizedMessage.Create("reason.1g1r_winner");
-            }
+            var dumps = slot.ToList();
+            var kept = dumps.Count == 1 ? dumps[0] : ApplySlotWinner(winningRelease, dumps, isManualOverride, forcedItem);
+            kept.Is1G1RWinner = true;
+            kept.Status = FileStatus.Valid;
+            kept.StatusReason = isManualOverride
+                ? LocalizedMessage.Create("reason.1g1r_winner_manual")
+                : LocalizedMessage.Create("reason.1g1r_winner");
         }
 
         foreach (var rel in rankedReleases)
@@ -673,6 +675,49 @@ public sealed partial class OneGameOneRomResolver
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Keeps one of several dumps of one medium of <paramref name="release"/>, the forced file when it is one of them,
+    /// otherwise the best by the cascade, each dump ranked as a release of its own file
+    /// (<see cref="BuildRankedRelease"/> with <c>setOf</c>). The others become duplicates that name the dump kept and
+    /// the criterion that decided, as a discarded release does.
+    /// </summary>
+    /// <returns>The dump kept.</returns>
+    private ProcessItem ApplySlotWinner(RankedRelease release, List<ProcessItem> dumps, bool isManualOverride, ProcessItem? forcedItem)
+    {
+        var ranked = dumps
+            .Select((it, index) => (Item: it, Index: index, Release: BuildRankedRelease(release.RelKey, release.EditionKey, [it], setOf: release)))
+            .ToList();
+
+        // The file order breaks the last ties (two members of one archive have the same file name)
+        ranked.Sort((a, b) => CompareReleaseOrder(a.Release, b.Release) is var cmp and not 0 ? cmp : a.Index.CompareTo(b.Index));
+
+        var keptIndex = forcedItem is null ? 0 : Math.Max(0, ranked.FindIndex(r => ReferenceEquals(r.Item, forcedItem)));
+        var kept = ranked[keptIndex];
+        var forced = isManualOverride && ReferenceEquals(kept.Item, forcedItem);
+
+        foreach (var (it, _, rel) in ranked)
+        {
+            if (ReferenceEquals(it, kept.Item))
+            {
+                continue;
+            }
+
+            var decisive = forced ? TiebreakCriterion.None : FindDecisiveCriterion(kept.Release, rel);
+            var detail = forced
+                ? LocalizedMessage.Create("reason.1g1r_reason_manual")
+                : FormatTiebreak(decisive, kept.Release, rel);
+
+            it.Status = FileStatus.Duplicate;
+            it.Is1G1RWinner = false;
+            it.WinnerReference = kept.Item.DisplayName;
+            it.EliminationDetail = detail;
+            it.EliminatedBy = decisive;
+            it.StatusReason = LocalizedMessage.Create("reason.duplicate_1g1r", ("winner", kept.Item.DisplayName), ("reason", detail));
+        }
+
+        return kept.Item;
     }
 
     /// <summary>

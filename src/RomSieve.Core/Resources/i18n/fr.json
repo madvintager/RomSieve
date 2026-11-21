@@ -775,7 +775,7 @@
   "reason.1g1r_reason_driver": "émulation {w_status} préférée à {l_status}",
   "reason.1g1r_reason_amiga_chipset": "version {w_chipset} préférée à la version {l_chipset} (Amiga AGA)",
   "reason.duplicate_in_unmatched": "Doublon dans _unmatched ignoré",
-  "reason.duplicate_1g1r": "Doublon 1G1R du même média/disque écarté",
+  "reason.duplicate_1g1r": "Doublon 1G1R du même support : {winner} retenu ({reason})",
   "reason.target_already_exists_skip": "Fichier cible déjà existant (Ignoré)",
   "reason.already_in_destination": "Déjà présent dans la destination (non réécrit)",
   "reason.not_in_selection": "Hors de la sélection du tri partiel",

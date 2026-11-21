@@ -40,26 +40,27 @@ public sealed partial class TosecParser : ITosecParser
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DevStatusRegex();
 
-    // Media physical pagination regexes
-    [GeneratedRegex(@"^Disk\s+\d+(?:\s+of\s+\d+)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    // Media physical pagination regexes. A disk, disc, tape or part may name its side in the same parenthesis
+    // ("Disk 1 of 3 Side B"), as the TOSEC sets of the floppy and tape computers do
+    [GeneratedRegex(@"^Disk\s+\d+(?:\s+of\s+\d+)?(?:\s+Side\s+[A-Z0-9])?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MediaDiskRegex();
 
     [GeneratedRegex(@"^Side\s+[A-Z0-9]$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MediaSideRegex();
 
-    [GeneratedRegex(@"^Part\s+\d+(?:\s+of\s+\d+)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^Part\s+\d+(?:\s+of\s+\d+)?(?:\s+Side\s+[A-Z0-9])?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MediaPartRegex();
 
-    [GeneratedRegex(@"^Tape\s+\d+(?:\s+of\s+\d+)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^Tape\s+\d+(?:\s+of\s+\d+)?(?:\s+Side\s+[A-Z0-9])?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MediaTapeRegex();
 
-    [GeneratedRegex(@"^Disc\s+\d+(?:\s+of\s+\d+)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^Disc\s+\d+(?:\s+of\s+\d+)?(?:\s+Side\s+[A-Z0-9])?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MediaDiscRegex();
 
     [GeneratedRegex(@"\b(\d+)\s+of\s+(\d+)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MediaNumberOfTotalRegex();
 
-    [GeneratedRegex(@"^(?:Disk|Disc|Tape|Part)\s+(\d+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?:Disk|Disc|Tape|Part)\s+(\d+)(?:\s+Side\s+[A-Z0-9])?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MediaSingleNumberRegex();
 
     // Language regex (ISO 639-1 lowercase or M / M1-M9)

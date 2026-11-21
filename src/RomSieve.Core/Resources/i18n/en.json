@@ -775,7 +775,7 @@
   "reason.1g1r_reason_driver": "{w_status} emulation preferred to {l_status}",
   "reason.1g1r_reason_amiga_chipset": "{w_chipset} version preferred to the {l_chipset} version (AGA Amiga)",
   "reason.duplicate_in_unmatched": "Duplicate in _unmatched ignored",
-  "reason.duplicate_1g1r": "1G1R duplicate of same media/disk discarded",
+  "reason.duplicate_1g1r": "1G1R duplicate of the same medium: {winner} retained ({reason})",
   "reason.target_already_exists_skip": "Target file already exists (Skipped)",
   "reason.already_in_destination": "Already in the destination (not written again)",
   "reason.not_in_selection": "Not in the selection of the partial sort",

@@ -69,7 +69,7 @@ lignes :
 | **Retenus** | Seront écrits dans la destination. |
 | **Exclus** | Écartés par un filtre ou par le 1G1R ; la raison est indiquée. Laissés tels quels dans la source. |
 | **Non conformes** | Nom non compris, ou fichier absent du DAT. Iront dans `_unmatched/` dans la destination. |
-| **Doublons** | Même fichier trouvé deux fois. Laissés tels quels dans la source. |
+| **Doublons** | Même fichier trouvé deux fois, ou autre dump d'un disque ou d'une face que le 1G1R a déjà retenu (la raison nomme le fichier retenu). Laissés tels quels dans la source. |
 
 Vérifiez quelques lignes, revenez aux réglages (**Modifier les réglages**, ou une étape de la colonne de gauche) pour
 modifier un réglage si besoin, et simulez à nouveau : une deuxième simulation de la même

@@ -68,7 +68,7 @@ The banner above the table counts the files by status; click a chip to show only
 | **Kept** (*Valid*) | Will be written to the destination. |
 | **Excluded** | Removed by a filter or by 1G1R; the reason is shown. Left untouched in the source. |
 | **Non-conforming** (*Unmatched*) | Name not understood, or file absent from the DAT. Will go to `_unmatched/` in the destination. |
-| **Duplicates** | Same file found twice. Left untouched in the source. |
+| **Duplicates** | Same file found twice, or another dump of a disk or a side that 1G1R already kept (the reason names the kept file). Left untouched in the source. |
 
 Check a few rows, go back to the settings (**Change the settings**, or a step of the column on the left) to change a
 setting if needed, and simulate again: a second simulation of the same source highlights
