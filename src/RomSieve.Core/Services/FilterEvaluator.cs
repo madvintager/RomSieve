@@ -174,6 +174,14 @@ public sealed class FilterEvaluator : IFilterEvaluator
                 ("target", config.AmigaTarget.ToMessage())));
         }
 
+        // A ZX Spectrum release for a later model than the chosen one does not run on it
+        if (!SpectrumMachines.RunsOn(SpectrumMachines.Of(item), config.SpectrumTarget))
+        {
+            return (false, LocalizedMessage.Create("reason.spectrum_machine_excluded",
+                ("machine", item.System ?? string.Empty),
+                ("target", config.SpectrumTarget.ToMessage())));
+        }
+
         if (config.DumpsVerifiedOnly)
         {
             if (!item.IsVerified)

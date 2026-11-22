@@ -96,6 +96,7 @@ public static class SortSettingsSerializer
         data["ignore_modifications_in_priority"] = s.IgnoreModificationsInPriority;
         data["preferred_media_type"] = s.PreferredMediaType.ToConfigString();
         data["amiga_target"] = s.AmigaTarget.ToConfigString();
+        data[ConfigSchema.SpectrumTargetKey] = s.SpectrumTarget.ToConfigString();
 
         // No-Intro and Redump criteria
         data["nointro_exclude_bad_dumps"] = s.NoIntroExcludeBadDumps;
@@ -216,6 +217,7 @@ public static class SortSettingsSerializer
                 IgnoreModificationsInPriority = s.IgnoreModificationsInPriority,
                 PreferredMediaType = s.PreferredMediaType,
                 AmigaTarget = s.AmigaTarget,
+                SpectrumTarget = s.SpectrumTarget,
 
                 NoIntroExcludeBadDumps = s.NoIntroExcludeBadDumps,
                 NoIntroExcludeAlternate = s.NoIntroExcludeAlternate,
@@ -343,6 +345,11 @@ public static class SortSettingsSerializer
         if (TryGetString(data, "amiga_target", out var at) && !string.IsNullOrWhiteSpace(at))
         {
             s.AmigaTarget = EnumExtensions.ParseAmigaTarget(at);
+        }
+
+        if (TryGetString(data, ConfigSchema.SpectrumTargetKey, out var st) && !string.IsNullOrWhiteSpace(st))
+        {
+            s.SpectrumTarget = EnumExtensions.ParseSpectrumTarget(st);
         }
     }
 

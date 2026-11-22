@@ -29,7 +29,10 @@ public enum DatCloneRelations
 /// <param name="HasOneMediaFormat">
 /// Whether all the names give the same media and the same format fidelity; <see langword="false"/> when they may not.
 /// </param>
-public sealed record DatNameTraits(bool HasAmigaChipsetMarks, bool HasOneMediaFormat);
+/// <param name="HasSpectrumMachineMarks">
+/// Whether a name may mark a ZX Spectrum model (<c>(128K)</c>, <c>(48K-128K)</c>...); <see langword="false"/> only when none does.
+/// </param>
+public sealed record DatNameTraits(bool HasAmigaChipsetMarks, bool HasOneMediaFormat, bool HasSpectrumMachineMarks = true);
 
 /// <summary>
 /// Criteria of an order of the 1G1R cascade that cannot separate two releases, given the DAT and the settings: the
@@ -44,10 +47,16 @@ public static partial class TiebreakApplicability
     [GeneratedRegex(@"\b(?:AGA|A1200|A4000T?|CD32)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex AmigaChipsetWordRegex();
 
+    // Every parenthesis from which SpectrumMachines reads a model: a superset, so that a DAT without any of them certainly
+    // gives the same rank to all its names
+    [GeneratedRegex(@"\((?:[^)]*-)?(?:16K|48K|128K|\+2A?|\+3|Pentagon)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SpectrumMachineWordRegex();
+
     /// <summary>
     /// Why <paramref name="criterion"/> of the order of <paramref name="convention"/> has no effect on a collection
     /// sorted with a DAT whose relations are <paramref name="cloneRelations"/>, or <c>null</c> when it may separate two
-    /// releases. <paramref name="amigaTarget"/> is the Amiga the collection is sorted for, and
+    /// releases. <paramref name="amigaTarget"/> and <paramref name="spectrumTarget"/> are the Amiga and the ZX Spectrum
+    /// the collection is sorted for, and
     /// <paramref name="preferredVideo"/> and <paramref name="preferredMediaType"/> the preferences of the criteria that
     /// compare the releases to them; <see langword="null"/> when not known, nothing being then claimed.
     /// <paramref name="nameTraits"/> is what the names of the files of the DAT tell, <see langword="null"/> when not
@@ -60,7 +69,8 @@ public static partial class TiebreakApplicability
         AmigaTarget? amigaTarget = null,
         VideoPreference? preferredVideo = null,
         MediaPreference? preferredMediaType = null,
-        DatNameTraits? nameTraits = null) => criterion switch
+        DatNameTraits? nameTraits = null,
+        SpectrumTarget? spectrumTarget = null) => criterion switch
         {
             _ when !TiebreakOrder.CriteriaOf(convention).Contains(criterion) =>
                 LocalizedMessage.Create("tiebreak.no_effect_convention"),
@@ -68,6 +78,10 @@ public static partial class TiebreakApplicability
                 LocalizedMessage.Create("tiebreak.no_effect_amiga_target"),
             TiebreakCriterion.AmigaChipset when nameTraits is { HasAmigaChipsetMarks: false } =>
                 LocalizedMessage.Create("tiebreak.no_effect_no_chipset_in_dat"),
+            TiebreakCriterion.SpectrumMachine when spectrumTarget == SpectrumTarget.Any =>
+                LocalizedMessage.Create("tiebreak.no_effect_spectrum_target"),
+            TiebreakCriterion.SpectrumMachine when nameTraits is { HasSpectrumMachineMarks: false } =>
+                LocalizedMessage.Create("tiebreak.no_effect_no_spectrum_machine_in_dat"),
             TiebreakCriterion.VideoStandard when preferredVideo == VideoPreference.None =>
                 LocalizedMessage.Create("tiebreak.no_effect_no_preference"),
             TiebreakCriterion.PreferredMediaType when preferredMediaType == MediaPreference.None =>
@@ -100,12 +114,14 @@ public static partial class TiebreakApplicability
     public static DatNameTraits GetDatNameTraits(DatCatalog catalog)
     {
         var hasChipsetMarks = catalog.Entries.Count == 0;
+        var hasSpectrumMarks = catalog.Entries.Count == 0;
         (string Category, int Fidelity)? format = null;
         var hasOneFormat = catalog.Entries.Count > 0;
         foreach (var entry in catalog.Entries)
         {
             var name = entry.IsDisk && !Path.HasExtension(entry.Name) ? entry.Name + ".chd" : entry.Name;
             hasChipsetMarks = hasChipsetMarks || AmigaChipsetWordRegex().IsMatch(name);
+            hasSpectrumMarks = hasSpectrumMarks || SpectrumMachineWordRegex().IsMatch(name);
             if (hasOneFormat)
             {
                 var entryFormat = (ReleaseScoringService.MediaCategoryOf(name), ReleaseScoringService.MediaFidelityOf(name));
@@ -113,12 +129,12 @@ public static partial class TiebreakApplicability
                 hasOneFormat = format == entryFormat;
             }
 
-            if (hasChipsetMarks && !hasOneFormat)
+            if (hasChipsetMarks && hasSpectrumMarks && !hasOneFormat)
             {
                 break;
             }
         }
 
-        return new DatNameTraits(hasChipsetMarks, hasOneFormat);
+        return new DatNameTraits(hasChipsetMarks, hasOneFormat, hasSpectrumMarks);
     }
 }

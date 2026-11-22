@@ -147,6 +147,14 @@ public sealed partial record ParsedRomName
     /// </summary>
     public bool MergesAmigaChipsets { get; init; }
 
+    /// <summary>
+    /// Set by the pipeline for a collection sorted for a ZX Spectrum model (<see cref="FilterConfig.SpectrumTarget"/>):
+    /// the machine mark of the system field (<c>(128K)</c>, <c>(48K-128K)</c>...) leaves the canonical game key, so that
+    /// the machine versions of a game are one game for the 1G1R, which keeps the one that makes the most of the model. A
+    /// Timex release stays a game of its own.
+    /// </summary>
+    public bool MergesSpectrumMachines { get; init; }
+
     /// <summary>What the MAME DAT says of the machine (BIOS, device, mechanical, emulation status); null for any other file.</summary>
     public MameMachineInfo? Machine { get; init; }
 

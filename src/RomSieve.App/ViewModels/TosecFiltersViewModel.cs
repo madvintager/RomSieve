@@ -5,8 +5,8 @@ using RomSieve.Core.Models;
 namespace RomSieve.App.ViewModels;
 
 /// <summary>
-/// TOSEC (TNC) filter options: dump integrity, modifications, multi-disk sets, the Amiga the collection is sorted for
-/// and the TOSEC-specific 1G1R options.
+/// TOSEC (TNC) filter options: dump integrity, modifications, multi-disk sets, the Amiga and the ZX Spectrum the
+/// collection is sorted for and the TOSEC-specific 1G1R options.
 /// The filters tab shows them while TOSEC is the shown convention (<see cref="FiltersViewModel"/>).
 /// </summary>
 public sealed partial class TosecFiltersViewModel : ConfigSectionViewModel
@@ -22,7 +22,33 @@ public sealed partial class TosecFiltersViewModel : ConfigSectionViewModel
             (AmigaTarget.Ocs, "amiga.target_ocs"),
             (AmigaTarget.Ecs, "amiga.target_ecs"),
             (AmigaTarget.Aga, "amiga.target_aga"));
+        SpectrumTargetOptions = new LocalizedOptionList<SpectrumTarget>(
+            localization,
+            (SpectrumTarget.Any, "spectrum.target_any"),
+            (SpectrumTarget.Zx48, "spectrum.target_48k"),
+            (SpectrumTarget.Zx128, "spectrum.target_128k"),
+            (SpectrumTarget.ZxPlus3, "spectrum.target_plus3"));
     }
+
+    /// <summary>ZX Spectrums the collection can be sorted for, from every machine to the +2A / +3.</summary>
+    public LocalizedOptionList<SpectrumTarget> SpectrumTargetOptions { get; }
+
+    /// <summary>
+    /// ZX Spectrum the collection is sorted for: the releases of a later model are excluded, and with a chosen model the
+    /// machine versions of a game are one game for the 1G1R.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SpectrumTargetHint))]
+    private SpectrumTarget _spectrumTarget = SpectrumTarget.Zx128;
+
+    /// <summary>What the chosen ZX Spectrum excludes, and what it does to the 1G1R.</summary>
+    public string SpectrumTargetHint => _localization.Tr(SpectrumTarget switch
+    {
+        SpectrumTarget.Zx48 => "filters.spectrum_hint_48k",
+        SpectrumTarget.Zx128 => "filters.spectrum_hint_128k",
+        SpectrumTarget.ZxPlus3 => "filters.spectrum_hint_plus3",
+        _ => "filters.spectrum_hint_any"
+    });
 
     /// <summary>Amigas the collection can be sorted for, from every machine to the AGA ones.</summary>
     public LocalizedOptionList<AmigaTarget> AmigaTargetOptions { get; }
@@ -172,6 +198,7 @@ public sealed partial class TosecFiltersViewModel : ConfigSectionViewModel
         settings.IgnoreModificationsInPriority = IgnoreModificationsInPriority;
         settings.PreferredMediaType = PreferredMediaType;
         settings.AmigaTarget = AmigaTarget;
+        settings.SpectrumTarget = SpectrumTarget;
     }
 
     public override void ReadFrom(SortSettings settings)
@@ -191,11 +218,14 @@ public sealed partial class TosecFiltersViewModel : ConfigSectionViewModel
         IgnoreModificationsInPriority = settings.IgnoreModificationsInPriority;
         PreferredMediaType = settings.PreferredMediaType;
         AmigaTarget = settings.AmigaTarget;
+        SpectrumTarget = settings.SpectrumTarget;
     }
 
     public override void RefreshTranslations()
     {
         AmigaTargetOptions.RefreshTranslations();
         OnPropertyChanged(nameof(AmigaTargetHint));
+        SpectrumTargetOptions.RefreshTranslations();
+        OnPropertyChanged(nameof(SpectrumTargetHint));
     }
 }

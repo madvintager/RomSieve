@@ -114,6 +114,11 @@ La raison affichée pour une version exclue nomme le critère décisif (par exem
   `(Demo)`, `(Kiosk)`...) et les ADF étendus ; chaque marqueur supplémentaire pénalise encore, et `[a2]`, `[cr3]`... passent après `[a]`, `[cr]`. Pour MAME, un bootleg ou un hack perd face au
   set original ; pour un logiciel d'une liste MAME, une version pirate, un hack, un crack, une version avec trainer ou
   un prototype perd face à la version commerciale.
+* **Machine ZX Spectrum** : sans effet tant que l'option *Machine ZX Spectrum* de la page Filtres vaut **Toutes les
+  machines**. Avec un modèle choisi, les versions machine d'un même jeu n'en font qu'un, et la version qui tire le
+  meilleur parti du modèle l'emporte : sur un 128K, la version `(128K)`, puis `(48K-128K)`, puis 48K (sans marque),
+  puis `(16K-48K)` et `(16K)`. Il passe après *Version originale* : une version propre l'emporte sur une version
+  modifiée faite pour un modèle plus récent.
 * **Émulation MAME (statut du driver)** : une machine dont l'émulation est *bonne* l'emporte sur une émulation
   *imparfaite*, qui l'emporte sur une émulation *préliminaire*. Le statut vient du DAT produit par `mame -listxml`.
   Pour un logiciel d'une liste MAME, c'est sa prise en charge par MAME (*pris en charge*, puis *partiellement*, puis
@@ -196,17 +201,18 @@ celui qui n'a pas la mention l'emporte (« nom de fichier le plus court »).
 | Chipset Amiga (machine AGA) | 3 | | | | |
 | Bon dump (vérifié d'abord) | 4 | 3 | | | |
 | Version originale | 5 | 4 | 3 | 2 | 3 |
+| Machine ZX Spectrum | 6 | | | | |
 | Émulation MAME (statut du driver) | | | | 3 | 4 |
-| Pays / région (rang de priorité) | 6 | 5 | 4 | 6 | 5 |
-| Standard vidéo préféré | 7 | 6 | 5 | | 6 |
-| Type de média préféré | 8 | | | | |
-| Fidélité du format | 9 | 7 | 6 | | |
-| Une ou plusieurs langues | 10 | 8 | 7 | | 7 |
-| Pays parlant la langue choisie | 11 | 9 | 8 | 10 | 8 |
-| Version la plus récente | 12 | 10 | 9 | 7 | 9 |
-| Révision la plus récente | 13 | 11 | 10 | 8 | 10 |
-| Date la plus récente | 14 | 12 | 11 | 9 | 11 |
-| Le plus de disques (set incomplet) | 15 | 13 | 12 | | |
+| Pays / région (rang de priorité) | 7 | 5 | 4 | 6 | 5 |
+| Standard vidéo préféré | 8 | 6 | 5 | | 6 |
+| Type de média préféré | 9 | | | | |
+| Fidélité du format | 10 | 7 | 6 | | |
+| Une ou plusieurs langues | 11 | 8 | 7 | | 7 |
+| Pays parlant la langue choisie | 12 | 9 | 8 | 10 | 8 |
+| Version la plus récente | 13 | 10 | 9 | 7 | 9 |
+| Révision la plus récente | 14 | 11 | 10 | 8 | 10 |
+| Date la plus récente | 15 | 12 | 11 | 9 | 11 |
+| Le plus de disques (set incomplet) | 16 | 13 | 12 | | |
 | Parent plutôt que clone | | 14 | 13 | 4 | 12 |
 
 Une case vide est un critère qui ne peut départager deux versions de la convention : il ne figure pas dans son ordre.
@@ -239,6 +245,8 @@ est certain qu'il ne départage aucune version :
 * **Chipset Amiga (machine AGA)** tant que la *Machine Amiga* choisie n'est pas un Amiga AGA, ou quand aucun nom du
   DAT ne marque un chipset (`(AGA)`, `(A1200)`, `(OCS-AGA)`...) ni une correction pour AGA (`[f AGA NOMAD]`), comme un
   DAT Atari ST ;
+* **Machine ZX Spectrum** tant que la *Machine ZX Spectrum* choisie est **Toutes les machines**, ou quand aucun nom
+  du DAT ne marque une machine ZX Spectrum (`(128K)`, `(48K-128K)`, `(16K)`...) ;
 * **Standard vidéo préféré** et **Type de média préféré** tant que leur ligne indique **Indifférent** ;
 * **Type de média préféré** et **Fidélité du format** quand tous les fichiers du DAT ont le même support et le même
   format, comme un DAT TOSEC (`[ADF]`, `[ST]`, `[TZX]`...) ou un DAT de cartouches. L'option avancée *Identifier les CHD

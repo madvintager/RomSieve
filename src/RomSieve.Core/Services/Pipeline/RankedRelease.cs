@@ -37,6 +37,9 @@ public sealed class RankedRelease
 
     /// <summary>Rank of the release for an AGA Amiga, the lowest first (<see cref="AmigaChipsets.GetAgaRank"/>).</summary>
     public int AmigaRank { get; init; }
+
+    /// <summary>Rank of the release for the chosen ZX Spectrum, the lowest first (<see cref="SpectrumMachines.GetRank"/>).</summary>
+    public int SpectrumRank { get; init; }
     public int Completeness { get; set; }
 
     /// <summary>

@@ -341,6 +341,15 @@ public sealed partial class PrioritiesViewModel : ConfigSectionViewModel
         }
     }
 
+    /// <summary>Greys out the ZX Spectrum machine criterion unless the collection is sorted for a chosen model.</summary>
+    public void ShowSpectrumTarget(SpectrumTarget target)
+    {
+        foreach (var order in CriteriaOrders)
+        {
+            order.ShowSpectrumTarget(target);
+        }
+    }
+
     /// <summary>Options that only apply to the 1G1R deduplication (including the TOSEC options of the section).</summary>
     public bool Are1G1ROptionsEnabled => !IsRunning && OneGameOneRom;
     public bool IsFallbackLanguagesEnabled => !IsRunning && FilterLanguages;

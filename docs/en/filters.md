@@ -169,6 +169,27 @@ With an AGA Amiga, *Theme Park (AGA)* and *Theme Park* thus keep a single versio
 version fixed for AGA is a modified version: it only counts when the modified versions are kept (or used as a fallback,
 *TOSEC names* option of the *Languages and 1G1R* page).
 
+## ZX Spectrum machine
+
+*(TOSEC)* The **ZX Spectrum machine** list, under the Amiga machine, says which ZX Spectrum the collection will be used
+on. RomSieve reads the machine in the system field of the TOSEC name: `(16K)`, `(16K-48K)`, `(48K-128K)`, `(128K)`,
+`(+2A-+3)`… A game without a mark is a 48K game and is never left out. A version for the Timex machines
+(`(TC2048-TS2068)`), which are not ZX Spectrums, stays a game of its own: it never replaces the Spectrum version.
+
+| Choice | Effect |
+|---|---|
+| **Every machine** | Nothing is excluded; each machine version of a game (48K, 48K-128K, 128K…) stays a game of its own. |
+| **ZX Spectrum 16K, 48K** | The 128K and +2A / +3 games are excluded (reason *Needs a ZX Spectrum 128K: does not run on the target machine*). With 1G1R, the 48K version first, then 48K-128K, then 16K. |
+| **ZX Spectrum 128K, +2** (default) | The +2A / +3 games are excluded. With 1G1R, the 128K version first, then 48K-128K, then 48K, then 16K. |
+| **ZX Spectrum +2A, +3** | Nothing is excluded. With 1G1R, the +2A / +3 version first, then 128K, then 48K-128K, then 48K. |
+
+With a chosen model, the machine versions of a game are one game for [1G1R](languages-regions-1g1r.md): *Arc of
+Yesod*, *Arc of Yesod (48K-128K)* and *Arc of Yesod (128K)* thus keep a single version, the 128K one on a 128K. The
+*ZX Spectrum machine* criterion comes after *Original release*: a clean 48K-128K version wins over a modified 128K one.
+The sides of two machine versions are never mixed. A new configuration starts on the 128K,
+the one the usual emulators and the MiSTer core emulate; a configuration saved before this option keeps *Every
+machine*.
+
 ## MAME machines
 
 With the MAME convention, the **MAME machines** frame, in the colours of the MAME badge of the *Collection* step, is

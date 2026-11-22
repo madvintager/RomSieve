@@ -301,15 +301,21 @@ public sealed partial class MainViewModel : ViewModelBase
         StatsBanner.FilterChanged += OnStatsBannerFilterChanged;
         WatchSettingsForSimulationState();
 
-        // The chipset criterion only separates the versions of a game for an AGA Amiga
+        // The chipset criterion only separates the versions of a game for an AGA Amiga, the ZX Spectrum machine criterion
+        // for a chosen model
         TosecFilters.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(TosecFiltersViewModel.AmigaTarget))
             {
                 Priorities.ShowAmigaTarget(TosecFilters.AmigaTarget);
             }
+            else if (e.PropertyName == nameof(TosecFiltersViewModel.SpectrumTarget))
+            {
+                Priorities.ShowSpectrumTarget(TosecFilters.SpectrumTarget);
+            }
         };
         Priorities.ShowAmigaTarget(TosecFilters.AmigaTarget);
+        Priorities.ShowSpectrumTarget(TosecFilters.SpectrumTarget);
 
         // A count of decided games next to a 1G1R criterion opens the table on those games
         foreach (var order in Priorities.CriteriaOrders)

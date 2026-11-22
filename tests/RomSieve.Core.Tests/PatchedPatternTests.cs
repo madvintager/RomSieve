@@ -119,7 +119,10 @@ public sealed class PatchedPatternTests : IDisposable
     {
         // A new key, without migration: a configuration of an earlier version keeps its result
         SortSettingsSerializer.Read(Parse(json)).PatchedPattern.Should().BeEmpty();
-        ConfigSchema.CurrentVersion.Should().Be(2, "the option does not change the format of the configuration");
+        if (!json.Contains("patched_pattern", StringComparison.Ordinal))
+        {
+            ConfigSchema.Migrate(Parse(json)).Should().NotContainKey("patched_pattern", "the option does not change the format of the configuration");
+        }
     }
 
     // =========================================================================

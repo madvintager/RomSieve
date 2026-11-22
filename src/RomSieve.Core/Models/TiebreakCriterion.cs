@@ -22,6 +22,13 @@ public enum TiebreakCriterion
     /// </summary>
     AmigaChipset,
 
+    /// <summary>
+    /// Machine of a ZX Spectrum release for the chosen model (<see cref="FilterConfig.SpectrumTarget"/>): the version that
+    /// makes the most of it, on a 128K the 128K version, then the 48K-128K one, then the 48K one (no effect without a
+    /// chosen model). It comes after the original release in the default order of TOSEC.
+    /// </summary>
+    SpectrumMachine,
+
     /// <summary>A good dump, verified first: no bad, over- or underdump, no virus.</summary>
     GoodDump,
 

@@ -106,6 +106,15 @@ public sealed class TiebreakExplanationTests : IDisposable
             ["3D Tunnel (1983)(New Generation).tzx", "3D Tunnel (1983)(ZX Data)(Side A)[re-release].tzx", "3D Tunnel (1983)(ZX Data)(Side B)[re-release].tzx"],
             f => f.PriorityLanguages = ["en"]
         ),
+        // For a ZX Spectrum 128K, the machine versions of a game are one game, the 128K version first
+        ["spectrum_machine"] = (
+            ["Game (1987)(Pub)(128K).tzx", "Game (1987)(Pub)(48K-128K).tzx"],
+            f =>
+            {
+                f.PriorityLanguages = ["en"];
+                f.SpectrumTarget = SpectrumTarget.Zx128;
+            }
+        ),
         ["set_over_single"] = (
             ["Sim City (1989)(Infogrames)(FR)(Disk 1 of 2).dsk", "Sim City (1989)(Infogrames)(FR)(Disk 2 of 2).dsk", "Sim City (1989)(Infogrames)(FR).dsk"],
             f => f.PriorityLanguages = ["fr"]
@@ -201,6 +210,8 @@ public sealed class TiebreakExplanationTests : IDisposable
         { "tosec_rerelease", "fr", "10th Frame (1987)(Erbe)(ES)(en)[re-release].tzx", "parution originale d'époque préférée à la réédition (re-release)" },
         { "tosec_rerelease", "en", "10th Frame (1987)(Erbe)(ES)(en)[re-release].tzx", "original period release vs re-release" },
         { "tape_sides_rerelease", "fr", "3D Tunnel (1983)(ZX Data)(Side A)[re-release].tzx", "parution originale d'époque préférée à la réédition (re-release)" },
+        { "spectrum_machine", "fr", "Game (1987)(Pub)(48K-128K).tzx", "version 128K préférée à la version 48K / 128K (ZX Spectrum 128K, +2)" },
+        { "spectrum_machine", "en", "Game (1987)(Pub)(48K-128K).tzx", "128K version preferred to the 48K / 128K version (ZX Spectrum 128K, +2)" },
         { "set_over_single", "fr", "Sim City (1989)(Infogrames)(FR).dsk", "set complet de 2 disques préféré à une version sur un seul disque" },
         { "set_over_single", "en", "Sim City (1989)(Infogrames)(FR).dsk", "complete set of 2 disks preferred to a single-disk release" },
         { "single_over_incomplete_set", "fr", "Sim City (1989)(Infogrames)(FR)(Disk 1 of 2).dsk", "Set multi-disquettes incomplet (1/2 disques trouvés)" },

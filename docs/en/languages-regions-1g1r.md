@@ -111,6 +111,10 @@ v1.0 > no version* against a name without a version number, which comes after al
   costs more, and `[a2]`, `[cr3]`... come after `[a]`, `[cr]`. For MAME, a bootleg or a
   hack loses to the original set; for a software of a MAME list, a pirate release, a hack, a crack, a trained release
   or a prototype loses to the retail release.
+* **ZX Spectrum machine**: no effect while the *ZX Spectrum machine* option of the Filters page is set to **Every
+  machine**. With a chosen model, the machine versions of a game are one game, and the version that makes the most of
+  the model wins: on a 128K, the `(128K)` version, then `(48K-128K)`, then 48K (without a mark), then `(16K-48K)` and
+  `(16K)`. It comes after *Original release*: a clean version wins over a modified one made for a later model.
 * **MAME emulation (driver status)**: a machine whose emulation is *good* wins over an *imperfect* emulation, which
   wins over a *preliminary* one. The status comes from the DAT made by `mame -listxml`. For a software of a MAME list,
   it is its support by MAME (*supported*, then *partially*, then *unsupported*), which only the hash files of MAME give.
@@ -190,17 +194,18 @@ and with equal marks the one without the mention wins ("shorter file name").
 | Amiga chipset (AGA machine) | 3 | | | | |
 | Good dump (verified first) | 4 | 3 | | | |
 | Original release | 5 | 4 | 3 | 2 | 3 |
+| ZX Spectrum machine | 6 | | | | |
 | MAME emulation (driver status) | | | | 3 | 4 |
-| Country / region (priority rank) | 6 | 5 | 4 | 6 | 5 |
-| Preferred video standard | 7 | 6 | 5 | | 6 |
-| Preferred media type | 8 | | | | |
-| Format fidelity | 9 | 7 | 6 | | |
-| One or several languages | 10 | 8 | 7 | | 7 |
-| Country speaking the chosen language | 11 | 9 | 8 | 10 | 8 |
-| Latest version | 12 | 10 | 9 | 7 | 9 |
-| Latest revision | 13 | 11 | 10 | 8 | 10 |
-| Latest date | 14 | 12 | 11 | 9 | 11 |
-| Most disks (incomplete set) | 15 | 13 | 12 | | |
+| Country / region (priority rank) | 7 | 5 | 4 | 6 | 5 |
+| Preferred video standard | 8 | 6 | 5 | | 6 |
+| Preferred media type | 9 | | | | |
+| Format fidelity | 10 | 7 | 6 | | |
+| One or several languages | 11 | 8 | 7 | | 7 |
+| Country speaking the chosen language | 12 | 9 | 8 | 10 | 8 |
+| Latest version | 13 | 10 | 9 | 7 | 9 |
+| Latest revision | 14 | 11 | 10 | 8 | 10 |
+| Latest date | 15 | 12 | 11 | 9 | 11 |
+| Most disks (incomplete set) | 16 | 13 | 12 | | |
 | Parent rather than clone | | 14 | 13 | 4 | 12 |
 
 An empty cell is a criterion that cannot separate two releases of the convention: it is not in its order. The No-Intro
@@ -231,6 +236,8 @@ criterion when it is certain that it separates no versions:
 
 * **Amiga chipset (AGA machine)** while the chosen *Amiga machine* is not an AGA Amiga, or when no name of the DAT
   marks a chipset (`(AGA)`, `(A1200)`, `(OCS-AGA)`...) or a fix for AGA (`[f AGA NOMAD]`), as in an Atari ST DAT;
+* **ZX Spectrum machine** while the chosen *ZX Spectrum machine* is **Every machine**, or when no name of the DAT
+  marks a ZX Spectrum machine (`(128K)`, `(48K-128K)`, `(16K)`...);
 * **Preferred video standard** and **Preferred media type** while their line says **Any**;
 * **Preferred media type** and **Format fidelity** when all the files of the DAT have the same media and the same
   format, as in a TOSEC DAT (`[ADF]`, `[ST]`, `[TZX]`...) or a DAT of cartridges. The advanced option *Identify CHDs by

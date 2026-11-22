@@ -17,13 +17,17 @@ public static class ConfigSchema
     /// <list type="bullet">
     /// <item>1: the format of RomSieve 1.0.0 to 1.1.1.</item>
     /// <item>2: <c>filter_not_in_dat</c>, on by default, off for a file of format 1.</item>
+    /// <item>3: <c>spectrum_target</c>, the ZX Spectrum 128K by default, every machine for a file of format 2.</item>
     /// </list>
     /// A file without a version (written by hand) is of the current format.
     /// </summary>
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     /// <summary>Key of the option that filters the files missing from the DAT (format 2).</summary>
     internal const string FilterNotInDatKey = "filter_not_in_dat";
+
+    /// <summary>Key of the ZX Spectrum the collection is sorted for (format 3).</summary>
+    internal const string SpectrumTargetKey = "spectrum_target";
 
     /// <summary>
     /// Steps of the migration: the step at index <c>n</c> turns a file of version <c>n + 1</c> into version
@@ -32,7 +36,10 @@ public static class ConfigSchema
     private static readonly Action<Dictionary<string, object?>>[] Steps =
     [
         // 1 to 2: the files missing from the DAT were never filtered, the option stays off (a value added by hand is kept)
-        data => data.TryAdd(FilterNotInDatKey, false)
+        data => data.TryAdd(FilterNotInDatKey, false),
+
+        // 2 to 3: the machine versions of a ZX Spectrum game stayed apart and none was excluded, which every machine keeps
+        data => data.TryAdd(SpectrumTargetKey, "any")
     ];
 
     /// <summary>

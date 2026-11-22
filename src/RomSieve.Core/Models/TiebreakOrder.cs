@@ -18,6 +18,10 @@ public static class TiebreakOrder
         TiebreakCriterion.AmigaChipset,
         TiebreakCriterion.GoodDump,
         TiebreakCriterion.OriginalRelease,
+
+        // After the original release: a 48K-128K version runs on a 128K, so that a clean one wins over a hacked 128K one
+        // or a re-release (measured on a TOSEC ZX Spectrum set, 39 modified versions won before it)
+        TiebreakCriterion.SpectrumMachine,
         TiebreakCriterion.CountryRank,
         TiebreakCriterion.VideoStandard,
         TiebreakCriterion.PreferredMediaType,

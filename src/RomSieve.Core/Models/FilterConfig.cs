@@ -33,6 +33,13 @@ public sealed class FilterConfig
     /// </summary>
     public AmigaTarget AmigaTarget { get; set; } = AmigaTarget.Any;
 
+    /// <summary>
+    /// ZX Spectrum the collection is sorted for: the releases it cannot run are excluded (TOSEC names), and the machine
+    /// versions of a game are one game, the 1G1R keeping the one that makes the most of the model. Every machine by default
+    /// here; a new configuration starts on the 128K (<see cref="SortSettings.SpectrumTarget"/>).
+    /// </summary>
+    public SpectrumTarget SpectrumTarget { get; set; } = SpectrumTarget.Any;
+
     // Integrity & Dumps (No-Intro & Redump): their names never mark a verified dump, so there is no "verified only"
     public bool NoIntroExcludeBadDumps { get; set; } = true;
     public bool NoIntroExcludeAlternate { get; set; } = false;

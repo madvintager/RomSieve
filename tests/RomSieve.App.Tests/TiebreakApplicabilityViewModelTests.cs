@@ -92,8 +92,10 @@ public sealed class TiebreakApplicabilityViewModelTests : IDisposable
         vm.Directories.EffectiveConvention.Should().Be(NamingConvention.Tosec);
         var order = vm.Priorities.ShownCriteriaOrder;
         order.Should().BeSameAs(vm.Priorities.TosecCriteriaOrder);
-        GreyedOut(order).Should().Equal(TiebreakCriterion.AmigaChipset, TiebreakCriterion.PreferredMediaType, TiebreakCriterion.MediaFidelity);
+        GreyedOut(order).Should().Equal(
+            TiebreakCriterion.AmigaChipset, TiebreakCriterion.SpectrumMachine, TiebreakCriterion.PreferredMediaType, TiebreakCriterion.MediaFidelity);
         Item(order, TiebreakCriterion.AmigaChipset).NoEffectText.Should().Be(vm.I18n["tiebreak.no_effect_amiga_target"]);
+        Item(order, TiebreakCriterion.SpectrumMachine).NoEffectText.Should().Be(vm.I18n["tiebreak.no_effect_no_spectrum_machine_in_dat"]);
         Item(order, TiebreakCriterion.PreferredMediaType).NoEffectText.Should().Be(vm.I18n["tiebreak.no_effect_one_format_in_dat"]);
         Item(vm.Priorities.NoIntroCriteriaOrder, TiebreakCriterion.ParentClone).NoEffectText.Should().Be(vm.I18n["tiebreak.no_effect_no_clones"]);
     }

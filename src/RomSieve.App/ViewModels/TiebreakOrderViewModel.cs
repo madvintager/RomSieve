@@ -159,10 +159,12 @@ public sealed partial class TiebreakOrderViewModel : ViewModelBase
 
     public IReadOnlyList<TiebreakCriterion> Order => Items.Select(i => i.Criterion).ToList();
 
-    // Collection and settings that the criteria are evaluated against (ShowApplicability, ShowAmigaTarget, ShowPreferences)
+    // Collection and settings that the criteria are evaluated against (ShowApplicability, ShowAmigaTarget,
+    // ShowSpectrumTarget, ShowPreferences)
     private DatCloneRelations _cloneRelations = DatCloneRelations.Unknown;
     private DatNameTraits? _nameTraits;
     private AmigaTarget? _amigaTarget;
+    private SpectrumTarget? _spectrumTarget;
     private VideoPreference? _preferredVideo;
     private MediaPreference? _preferredMediaType;
 
@@ -220,12 +222,22 @@ public sealed partial class TiebreakOrderViewModel : ViewModelBase
         RefreshItemStates();
     }
 
+    /// <summary>
+    /// Greys out the ZX Spectrum machine criterion unless the collection is sorted for a chosen model
+    /// (<paramref name="target"/>), with which the machine versions of a game are one game.
+    /// </summary>
+    public void ShowSpectrumTarget(SpectrumTarget target)
+    {
+        _spectrumTarget = target;
+        RefreshItemStates();
+    }
+
     private void RefreshItemStates()
     {
         foreach (var item in Items)
         {
             item.NoEffectReason = TiebreakApplicability.GetNoEffectReason(
-                item.Criterion, Convention, _cloneRelations, _amigaTarget, _preferredVideo, _preferredMediaType, _nameTraits);
+                item.Criterion, Convention, _cloneRelations, _amigaTarget, _preferredVideo, _preferredMediaType, _nameTraits, _spectrumTarget);
             item.NoEffectText = item.NoEffectReason is { } reason ? _localization.Format(reason) : null;
             item.DecidedGames = _decisions is null ? null : _decisions.GetValueOrDefault(item.Criterion);
             var decidedText = item.DecidedGames switch

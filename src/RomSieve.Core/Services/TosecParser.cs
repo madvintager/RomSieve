@@ -34,6 +34,14 @@ public sealed partial class TosecParser : ITosecParser
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SystemRegex();
 
+    // ZX Spectrum models joined by a hyphen, as TOSEC joins the machines a release runs on ("48K-128K", "16K-48K",
+    // "+2A-+3"), the Timex machines ("TC2048-TS2068", "Timex Tx2068") and the Pentagon: without them, the machine of a
+    // release was lost, and its versions for two machines taken for two dumps of one tape
+    [GeneratedRegex(
+        @"^(?:(?:16K|48K|128K|\+2A?|\+3)(?:-(?:16K|48K|128K|\+2A?|\+3))+|(?:TC|TS)20[46]8(?:-(?:TC|TS)20[46]8)*|Timex\s.+|Pentagon(?:\s+\d+K)?)$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SpectrumSystemRegex();
+
     // Development statuses
     [GeneratedRegex(
         @"^(?:alpha|beta|proto|preview|pre-release)(?:\s+.*)?$",
@@ -448,7 +456,7 @@ public sealed partial class TosecParser : ITosecParser
             }
 
             // 5. Hardware System
-            if (KnownSystems.Contains(token) || SystemRegex().IsMatch(token))
+            if (KnownSystems.Contains(token) || SystemRegex().IsMatch(token) || SpectrumSystemRegex().IsMatch(token))
             {
                 fields.System ??= token;
                 continue;

@@ -391,6 +391,57 @@ public enum AmigaTarget
     Aga
 }
 
+/// <summary>
+/// ZX Spectrum a release runs on, read from the system field of its TOSEC name (<c>(128K)</c>, <c>(48K-128K)</c>,
+/// <c>(+2A-+3)</c>...). A name without such a mark is <see cref="Unmarked"/>: a 48K release on a ZX Spectrum DAT.
+/// </summary>
+public enum SpectrumMachine
+{
+    /// <summary>No machine mark: a 48K release on a ZX Spectrum DAT, or a release of another system.</summary>
+    Unmarked,
+
+    /// <summary>A ZX Spectrum 16K release (<c>(16K)</c>), which runs on any later model.</summary>
+    K16,
+
+    /// <summary>A release for the 16K and the 48K models (<c>(16K-48K)</c>).</summary>
+    K16K48,
+
+    /// <summary>A 48K release marked as such (<c>(48K)</c>).</summary>
+    K48,
+
+    /// <summary>A release for the 48K and the 128K models (<c>(48K-128K)</c>), often with the 128K music.</summary>
+    K48K128,
+
+    /// <summary>A 128K release (<c>(128K)</c>, <c>(+2)</c>, <c>(Pentagon 128K)</c>), which does not run on a 48K model.</summary>
+    K128,
+
+    /// <summary>A release for the +2A and +3 models (<c>(+2A-+3)</c>, <c>(+3)</c>).</summary>
+    Plus3,
+
+    /// <summary>A release for the Timex machines (<c>(TC2048-TS2068)</c>): not a ZX Spectrum, a game of its own.</summary>
+    Timex
+}
+
+/// <summary>
+/// ZX Spectrum the collection is sorted for (<c>config.json</c> key <c>spectrum_target</c>): the releases it cannot
+/// run are excluded, and the machine versions of a game are one game for the 1G1R, which keeps the one that makes the
+/// most of the machine.
+/// </summary>
+public enum SpectrumTarget
+{
+    /// <summary>Every machine: nothing is excluded, each machine version stays a game of its own.</summary>
+    Any,
+
+    /// <summary>ZX Spectrum 16K, 48K.</summary>
+    Zx48,
+
+    /// <summary>ZX Spectrum 128K, +2.</summary>
+    Zx128,
+
+    /// <summary>ZX Spectrum +2A, +3.</summary>
+    ZxPlus3
+}
+
 public static class EnumExtensions
 {
     public static UiTheme ParseUiTheme(string? value) =>
@@ -415,6 +466,7 @@ public static class EnumExtensions
         (TiebreakCriterion.LanguageRank, "language"),
         (TiebreakCriterion.CompleteMultidiskSet, "complete_multidisk_set"),
         (TiebreakCriterion.AmigaChipset, "amiga_chipset"),
+        (TiebreakCriterion.SpectrumMachine, "spectrum_machine"),
         (TiebreakCriterion.GoodDump, "good_dump"),
         (TiebreakCriterion.OriginalRelease, "original_release"),
         (TiebreakCriterion.DriverStatus, "driver_status"),
@@ -858,6 +910,35 @@ public static class EnumExtensions
             AmigaTarget.Ecs => "amiga.target_ecs",
             AmigaTarget.Aga => "amiga.target_aga",
             _ => "amiga.target_any"
+        });
+
+    /// <summary>ZX Spectrum the collection is sorted for (<c>spectrum_target</c>); unknown values give <see cref="SpectrumTarget.Any"/>.</summary>
+    public static SpectrumTarget ParseSpectrumTarget(string? value) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            "48k" => SpectrumTarget.Zx48,
+            "128k" => SpectrumTarget.Zx128,
+            "plus3" => SpectrumTarget.ZxPlus3,
+            _ => SpectrumTarget.Any
+        };
+
+    public static string ToConfigString(this SpectrumTarget target) =>
+        target switch
+        {
+            SpectrumTarget.Zx48 => "48k",
+            SpectrumTarget.Zx128 => "128k",
+            SpectrumTarget.ZxPlus3 => "plus3",
+            _ => "any"
+        };
+
+    /// <summary>Name of the machines of a target, translated at display.</summary>
+    public static LocalizedMessage ToMessage(this SpectrumTarget target) =>
+        LocalizedMessage.Create(target switch
+        {
+            SpectrumTarget.Zx48 => "spectrum.target_48k",
+            SpectrumTarget.Zx128 => "spectrum.target_128k",
+            SpectrumTarget.ZxPlus3 => "spectrum.target_plus3",
+            _ => "spectrum.target_any"
         });
 
     /// <summary>Feature named by a MAME <c>&lt;feature type="..."/&gt;</c>; an unknown type gives <see cref="MameFeatures.None"/>.</summary>

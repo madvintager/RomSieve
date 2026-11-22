@@ -2184,6 +2184,26 @@
                              TextWrapping="Wrap"
                              Text="{Binding TosecFilters.AmigaTargetHint}" />
                 </StackPanel>
+
+                <!-- ZX Spectrum the collection is sorted for, from the machine of the TOSEC names: a TOSEC option -->
+                <StackPanel x:Name="GrpFilterSpectrum"
+                            Margin="0,12,0,0"
+                            Spacing="4"
+                            IsVisible="{Binding Filters.IsTosecShown}">
+                  <TextBlock Classes="section-title" Text="{Binding I18n[filters.grp_spectrum]}" />
+                  <ComboBox x:Name="ComboSpectrumTarget"
+                            FontSize="11"
+                            HorizontalAlignment="Stretch"
+                            ToolTip.Tip="{Binding I18n[filters.tooltip_spectrum_target]}"
+                            ItemsSource="{Binding TosecFilters.SpectrumTargetOptions}"
+                            SelectedValueBinding="{Binding Value}"
+                            DisplayMemberBinding="{Binding Label}"
+                            SelectedValue="{Binding TosecFilters.SpectrumTarget, Mode=TwoWay}" />
+                  <TextBlock x:Name="LblSpectrumTargetHint"
+                             Classes="form-hint"
+                             TextWrapping="Wrap"
+                             Text="{Binding TosecFilters.SpectrumTargetHint}" />
+                </StackPanel>
               </StackPanel>
 
             </Grid>

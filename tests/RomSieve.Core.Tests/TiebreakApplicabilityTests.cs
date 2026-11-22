@@ -45,6 +45,25 @@ public sealed class TiebreakApplicabilityTests
     }
 
     [Theory]
+    [InlineData(null, null, null)]
+    [InlineData(SpectrumTarget.Any, null, "tiebreak.no_effect_spectrum_target")]
+    [InlineData(SpectrumTarget.Zx48, null, null)]
+    [InlineData(SpectrumTarget.Zx128, null, null)]
+    [InlineData(SpectrumTarget.ZxPlus3, null, null)]
+    [InlineData(SpectrumTarget.Zx128, false, "tiebreak.no_effect_no_spectrum_machine_in_dat")]
+    [InlineData(SpectrumTarget.Zx128, true, null)]
+    public void SpectrumMachine_ShouldOnlySeparateTheVersionsOfAGameForAChosenModel(SpectrumTarget? target, bool? hasMarks, string? expected)
+    {
+        var traits = hasMarks is { } marks ? new DatNameTraits(HasAmigaChipsetMarks: false, HasOneMediaFormat: false, marks) : null;
+
+        (TiebreakApplicability.GetNoEffectReason(
+            TiebreakCriterion.SpectrumMachine, NamingConvention.Tosec, DatCloneRelations.None, nameTraits: traits, spectrumTarget: target)?.Key)
+            .Should().Be(expected);
+        TiebreakApplicability.GetNoEffectReason(TiebreakCriterion.SpectrumMachine, NamingConvention.NoIntro, DatCloneRelations.None)?.Key
+            .Should().Be("tiebreak.no_effect_convention");
+    }
+
+    [Theory]
     [InlineData(DatCloneRelations.NoDat, "tiebreak.no_effect_no_dat")]
     [InlineData(DatCloneRelations.None, "tiebreak.no_effect_no_clones")]
     [InlineData(DatCloneRelations.Present, null)]
@@ -166,12 +185,18 @@ public sealed class TiebreakApplicabilityTests
     public void DatNameTraits_ShouldComeFromTheNamesOfTheFilesOfTheDat()
     {
         // An Atari ST DAT: one format, no chipset
-        TraitsOf("Game (1990)(Pub).st", "Other (1991)(Pub)(Disk 1 of 2).st").Should().Be(new DatNameTraits(false, true));
+        TraitsOf("Game (1990)(Pub).st", "Other (1991)(Pub)(Disk 1 of 2).st").Should().Be(new DatNameTraits(false, true, false));
 
         // A chipset, or a fix for AGA, in a name
         TraitsOf("Game (1993)(Pub)(AGA).adf", "Other (1990)(Pub).adf").HasAmigaChipsetMarks.Should().BeTrue();
         TraitsOf("Game (1990)(Pub)[f AGA NOMAD].adf").HasAmigaChipsetMarks.Should().BeTrue();
         TraitsOf("Game (1993)(Pub)(A1200).adf").HasAmigaChipsetMarks.Should().BeTrue();
+
+        // A ZX Spectrum model in a name, alone or joined to another one; a name without a mark is a 48K one
+        TraitsOf("Game (1987)(Pub)(128K).tzx", "Other (1987)(Pub).tzx").HasSpectrumMachineMarks.Should().BeTrue();
+        TraitsOf("Game (1987)(Pub)(48K-128K)(Side A).tzx").HasSpectrumMachineMarks.Should().BeTrue();
+        TraitsOf("Game (1983)(Pub)(16K).tzx").HasSpectrumMachineMarks.Should().BeTrue();
+        TraitsOf("Game (1987)(Pub).tzx", "Other (1987)(Pub)(TC2048-TS2068).tzx").HasSpectrumMachineMarks.Should().BeFalse();
 
         // Two formats, a floppy image that keeps the protections, or a media read from the name of an unknown format
         TraitsOf("Game (1990)(Pub).adf", "Game (1990)(Pub).ipf").HasOneMediaFormat.Should().BeFalse();

@@ -112,6 +112,12 @@ public sealed class SortSettings
     public MediaPreference PreferredMediaType { get; set; } = MediaPreference.None;
     public AmigaTarget AmigaTarget { get; set; } = AmigaTarget.Any;
 
+    /// <summary>
+    /// ZX Spectrum the collection is sorted for: the 128K, which the emulators and the MiSTer core run, for a new
+    /// configuration; every machine for a file of format 2 (<see cref="Services.ConfigSchema"/>).
+    /// </summary>
+    public SpectrumTarget SpectrumTarget { get; set; } = SpectrumTarget.Zx128;
+
     // No-Intro and Redump criteria
     public bool NoIntroExcludeBadDumps { get; set; } = true;
     public bool NoIntroExcludeAlternate { get; set; }

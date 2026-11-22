@@ -885,6 +885,12 @@ public sealed class EntryClassifier
             item.Parsed = item.Parsed with { MergesAmigaChipsets = true };
         }
 
+        // For a chosen ZX Spectrum model, the machine versions of a TOSEC game are one game for the 1G1R
+        if (_config.Filters.SpectrumTarget != SpectrumTarget.Any && item.Parsed.Convention == NamingConvention.Tosec)
+        {
+            item.Parsed = item.Parsed with { MergesSpectrumMachines = true };
+        }
+
         var (isKept, reason) = _filterService.EvaluateFilter(item.Parsed, _config.Filters);
         if (!isKept)
         {

@@ -73,7 +73,9 @@ ordinateur, les versionner ou les modifier à la main. Seuls les profils du doss
 main) est lu au format actuel : une option qui lui manque garde sa valeur par défaut. Un fichier d'une version
 précédente est mis au format actuel à sa lecture, sans changer le résultat d'un tri : une configuration enregistrée
 avant l'option [Filtrer aussi les fichiers absents du DAT](filters.md#fichiers-absents-du-dat) la garde décochée,
-alors qu'elle est cochée pour une nouvelle configuration. Un fichier écrit par une version
+alors qu'elle est cochée pour une nouvelle configuration, et une configuration enregistrée avant la
+[Machine ZX Spectrum](filters.md#machine-zx-spectrum) garde *Toutes les machines*, alors qu'une nouvelle configuration
+commence sur le 128K. Un fichier écrit par une version
 plus récente de RomSieve est lu avec un avertissement,
 dans le journal de l'interface ou dans la sortie de la ligne de commande : les options que cette version ne connaît pas
 sont ignorées, et le `config.json` qu'elle enregistre ne les contient plus.

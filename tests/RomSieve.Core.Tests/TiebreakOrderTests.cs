@@ -14,8 +14,9 @@ public sealed class TiebreakOrderTests
     public void DefaultOrders_ShouldListTheCriteriaOfEachConvention()
     {
         TiebreakOrder.Default(NamingConvention.Tosec).Should().Equal(
-            LanguageRank, CompleteMultidiskSet, TiebreakCriterion.AmigaChipset, GoodDump, OriginalRelease, CountryRank, VideoStandard,
-            PreferredMediaType, MediaFidelity, LanguageCount, RegionAffinity, TiebreakCriterion.Version, Revision, Date, Completeness);
+            LanguageRank, CompleteMultidiskSet, TiebreakCriterion.AmigaChipset, GoodDump, OriginalRelease,
+            TiebreakCriterion.SpectrumMachine, CountryRank, VideoStandard, PreferredMediaType, MediaFidelity, LanguageCount,
+            RegionAffinity, TiebreakCriterion.Version, Revision, Date, Completeness);
         TiebreakOrder.Default(NamingConvention.NoIntro).Should().Equal(
             LanguageRank, CompleteMultidiskSet, GoodDump, OriginalRelease, CountryRank, VideoStandard, MediaFidelity, LanguageCount,
             RegionAffinity, TiebreakCriterion.Version, Revision, Date, Completeness, ParentClone);
@@ -29,9 +30,9 @@ public sealed class TiebreakOrderTests
 
     [Theory]
     [InlineData(NamingConvention.Tosec, new[] { DriverStatus, ParentClone })]
-    [InlineData(NamingConvention.NoIntro, new[] { TiebreakCriterion.AmigaChipset, DriverStatus, PreferredMediaType })]
-    [InlineData(NamingConvention.Redump, new[] { TiebreakCriterion.AmigaChipset, GoodDump, DriverStatus, PreferredMediaType })]
-    [InlineData(NamingConvention.Mame, new[] { TiebreakCriterion.AmigaChipset, GoodDump, VideoStandard, PreferredMediaType, MediaFidelity, LanguageCount, Completeness })]
+    [InlineData(NamingConvention.NoIntro, new[] { TiebreakCriterion.AmigaChipset, TiebreakCriterion.SpectrumMachine, DriverStatus, PreferredMediaType })]
+    [InlineData(NamingConvention.Redump, new[] { TiebreakCriterion.AmigaChipset, TiebreakCriterion.SpectrumMachine, GoodDump, DriverStatus, PreferredMediaType })]
+    [InlineData(NamingConvention.Mame, new[] { TiebreakCriterion.AmigaChipset, TiebreakCriterion.SpectrumMachine, GoodDump, VideoStandard, PreferredMediaType, MediaFidelity, LanguageCount, Completeness })]
     public void CriteriaOf_ShouldLeaveOutTheCriteriaThatCannotSeparateTwoReleasesOfTheConvention(NamingConvention convention, TiebreakCriterion[] leftOut)
     {
         var all = Enum.GetValues<TiebreakCriterion>().Where(c => c is not None and not Name);

@@ -171,6 +171,28 @@ Avec un Amiga AGA, *Theme Park (AGA)* et *Theme Park* ne gardent ainsi qu'une ve
 restent. Une version corrigée pour AGA est une version modifiée : elle n'entre en compte que si les versions modifiées
 sont gardées (ou servent de repli, option *Noms TOSEC* de la page *Langues et 1G1R*).
 
+## Machine ZX Spectrum
+
+*(TOSEC)* La liste **Machine ZX Spectrum**, sous la Machine Amiga, dit sur quel ZX Spectrum la collection sera
+utilisée. RomSieve lit la machine dans le champ système du nom TOSEC : `(16K)`, `(16K-48K)`, `(48K-128K)`, `(128K)`,
+`(+2A-+3)`… Un jeu sans marque est un jeu 48K et n'est jamais écarté. Une version pour les machines Timex
+(`(TC2048-TS2068)`), qui ne sont pas des ZX Spectrum, reste un jeu à part : elle ne remplace jamais la version
+Spectrum.
+
+| Choix | Effet |
+|---|---|
+| **Toutes les machines** | Rien n'est exclu ; chaque version machine d'un jeu (48K, 48K-128K, 128K…) reste un jeu à part. |
+| **ZX Spectrum 16K, 48K** | Les jeux 128K et +2A / +3 sont exclus (raison *Demande un ZX Spectrum 128K : ne tourne pas sur la machine cible*). Avec le 1G1R, la version 48K d'abord, puis 48K-128K, puis 16K. |
+| **ZX Spectrum 128K, +2** (par défaut) | Les jeux +2A / +3 sont exclus. Avec le 1G1R, la version 128K d'abord, puis 48K-128K, puis 48K, puis 16K. |
+| **ZX Spectrum +2A, +3** | Rien n'est exclu. Avec le 1G1R, la version +2A / +3 d'abord, puis 128K, puis 48K-128K, puis 48K. |
+
+Avec un modèle choisi, les versions machine d'un même jeu n'en font qu'un pour le [1G1R](languages-regions-1g1r.md) :
+*Arc of Yesod*, *Arc of Yesod (48K-128K)* et *Arc of Yesod (128K)* ne gardent ainsi qu'une version, la version 128K
+sur un 128K. Le critère *Machine ZX Spectrum* passe après *Version originale* : une version 48K-128K propre l'emporte
+sur une version 128K modifiée. Les faces de deux versions machine ne se mélangent
+jamais. Une nouvelle configuration commence sur le 128K, celui qu'émulent les émulateurs courants et le cœur MiSTer ;
+une configuration enregistrée avant cette option garde *Toutes les machines*.
+
 ## Machines MAME
 
 Avec la convention MAME, le cadre **Machines MAME**, aux couleurs du badge MAME de l'étape *Collection*, s'affiche en

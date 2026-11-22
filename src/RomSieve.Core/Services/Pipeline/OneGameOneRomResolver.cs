@@ -113,6 +113,7 @@ public sealed partial class OneGameOneRomResolver
 
             [TiebreakCriterion.CompleteMultidiskSet] = (a, b) => b.IsCompleteMultidisk.CompareTo(a.IsCompleteMultidisk),
             [TiebreakCriterion.AmigaChipset] = (a, b) => isAgaTarget ? a.AmigaRank.CompareTo(b.AmigaRank) : 0,
+            [TiebreakCriterion.SpectrumMachine] = (a, b) => a.SpectrumRank.CompareTo(b.SpectrumRank),
             [TiebreakCriterion.GoodDump] = (a, b) => b.DumpRank.CompareTo(a.DumpRank),
             [TiebreakCriterion.OriginalRelease] = (a, b) => b.OriginalScore.CompareTo(a.OriginalScore),
             [TiebreakCriterion.DriverStatus] = (a, b) => a.DriverRank.CompareTo(b.DriverRank),
@@ -437,6 +438,7 @@ public sealed partial class OneGameOneRomResolver
             IsParent = isParent,
             DriverRank = GetDriverRank(sampleParsed.Machine?.DriverStatus ?? sampleParsed.SoftwareSupport),
             AmigaRank = AmigaChipsets.GetAgaRank(sampleParsed),
+            SpectrumRank = SpectrumMachines.GetRank(sampleParsed, _config.Filters.SpectrumTarget),
             Completeness = completeness,
             Media = media,
             IsCompleteMultidisk = setOf?.IsCompleteMultidisk ?? 1,
@@ -846,6 +848,13 @@ public sealed partial class OneGameOneRomResolver
                     "reason.1g1r_reason_amiga_chipset",
                     ("w_chipset", AmigaChipsets.DescribeForAga(winner.Sample)),
                     ("l_chipset", AmigaChipsets.DescribeForAga(loser.Sample)));
+
+            case TiebreakCriterion.SpectrumMachine:
+                return LocalizedMessage.Create(
+                    "reason.1g1r_reason_spectrum_machine",
+                    ("w_machine", SpectrumMachines.Describe(winner.Sample)),
+                    ("l_machine", SpectrumMachines.Describe(loser.Sample)),
+                    ("target", filters.SpectrumTarget.ToMessage()));
 
             case TiebreakCriterion.GoodDump:
                 return FormatGoodDumpTiebreak(loser);

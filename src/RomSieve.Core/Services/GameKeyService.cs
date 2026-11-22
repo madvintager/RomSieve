@@ -149,6 +149,13 @@ public sealed partial class GameKeyService(IReleaseScoringService scoring) : IGa
             systemNorm = string.Empty;
         }
 
+        // For a chosen ZX Spectrum model, its machine versions are one game (the 1G1R prefers the one that makes the most of
+        // the model); a Timex release stays a game of its own
+        if (parsed.MergesSpectrumMachines && SpectrumMachines.IsSpectrumModel(SpectrumMachines.Of(parsed)))
+        {
+            systemNorm = string.Empty;
+        }
+
         // A group given by the DAT (MAME parent set) separates the games that share a title
         if (!string.IsNullOrEmpty(parsed.GameGroup))
         {

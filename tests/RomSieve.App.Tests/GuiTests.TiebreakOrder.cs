@@ -37,12 +37,12 @@ public sealed partial class GuiTests
             list.ItemCount.Should().Be(TiebreakOrder.CriteriaOf(NamingConvention.Tosec).Count);
             window.FindControl<RadioButton>("RadioTiebreakTosec")!.IsChecked.Should().BeTrue();
 
-            list.SelectedIndex = 5;
+            list.SelectedIndex = 6;
             Settle(window);
             vm.Priorities.TosecCriteriaOrder.SelectedItem!.Criterion.Should().Be(TiebreakCriterion.CountryRank);
             window.FindControl<Button>("BtnTiebreakMoveUp")!.Command!.Execute(null);
             Settle(window);
-            vm.Priorities.TosecCriteriaOrder.Order[4].Should().Be(TiebreakCriterion.CountryRank);
+            vm.Priorities.TosecCriteriaOrder.Order[5].Should().Be(TiebreakCriterion.CountryRank);
 
             // Another convention shows its own order in the same list
             window.FindControl<RadioButton>("RadioTiebreakMame")!.IsChecked = true;
