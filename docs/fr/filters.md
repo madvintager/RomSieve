@@ -127,8 +127,9 @@ avec un DAT MAME ou des listes de logiciels, où un fichier que le DAT ne conna�
   Le nombre de disques d'un set vient du DAT : un set auquel il manque son dernier disque est incomplet. Un fichier ne
   complète que le disque dont il porte le nom, même quand une piste identique figure sur un autre disque ; les ROMs que
   le DAT dit jamais dumpées (`nodump`) ne comptent pas, et un CHD rattaché à son jeu par **Identifier les CHD par leur
-  nom** vaut tout son disque. *(TOSEC)* Un disque n'est complet qu'avec chacune de ses faces, celles que nomment les
-  fichiers de la même édition, dans la source (un dump craqué ou un mauvais dump d'une face dit aussi qu'elle existe)
+  nom** vaut tout son disque. *(TOSEC, No-Intro)* Un disque n'est complet qu'avec chacune de ses faces
+  (`Disk 1 of 2 Side A`, ou `Disk 1 Side B` d'une disquette Famicom Disk System), celles que nomment les fichiers de la
+  même édition, dans la source (un dump craqué ou un mauvais dump d'une face dit aussi qu'elle existe)
   comme dans le DAT ; un dump sans face vaut tout le disque. La raison nomme alors la face absente : « Set
   multi-disquettes incomplet (1/2 disques complets : face A du disque 1 absente) », ou « Jeu incomplet (1/2 faces
   trouvées : face B absente) » pour un disque seul dont les faces sont nommées sans numéro (`Side A`, `Side B`). Avec la

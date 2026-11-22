@@ -378,6 +378,60 @@ public sealed partial class GuiTests
     }
 
     /// <summary>
+    /// The disk column shows the side of a disk ("10 sur 12, face B") within its default width, in every language.
+    /// Measured with the real fonts only (ROMSIEVE_HEADLESS_SKIA=1).
+    /// </summary>
+    [Fact]
+    public async Task PreviewTable_DiskWithItsSide_ShouldNotBeTrimmed()
+    {
+        if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") != "1")
+        {
+            return;
+        }
+
+        await RunOnUiThreadAsync(() =>
+        {
+            var parser = new RomSieve.Core.Services.TosecParser();
+            var items = new[] { "Game (1990)(Pub)(Disk 10 of 12 Side B).d64", "Game (1990)(Pub)(Disk 1 of 2 Side A).d64" }
+                .Select(name => new ProcessItem
+                {
+                    SourcePath = Path.Combine(_tempDir, "src", name),
+                    FileSize = 1,
+                    Parsed = parser.ParseFilename(name),
+                    Status = FileStatus.Valid,
+                    FinalTargetPath = Path.Combine(_tempDir, "dst", name)
+                })
+                .ToList();
+            var (vm, window) = ShowFinishedRun(items, streamRows: false);
+            try
+            {
+                window.Width = 1860;
+                vm.PreviewTable.SetHiddenColumnIds([], PreviewTableViewModel.ColumnIds);
+                foreach (var locale in vm.Localization.GetAvailableLocales().Select(l => l.Code))
+                {
+                    vm.UiLocale = locale;
+                    Settle(window);
+                    var expected = items.Select(it => PreviewItemViewModel.FormatItemDisk(it.Parsed, vm.Localization).DisplayText).ToHashSet();
+                    var cells = window.FindControl<DataGrid>("TablePreview")!.GetVisualDescendants().OfType<TextBlock>()
+                        .Where(t => t.Text is { } text && expected.Contains(text))
+                        .ToList();
+                    cells.Should().HaveCount(expected.Count);
+                    foreach (var cell in cells)
+                    {
+                        var full = cell.Bounds.Width;
+                        cell.Measure(Size.Infinity);
+                        cell.DesiredSize.Width.Should().BeLessThanOrEqualTo(full + 0.5, $"the disk '{cell.Text}' ({locale}) must not be trimmed");
+                    }
+                }
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>
     /// The headers of the columns shown by default fit in their default width, in every language. Measured
     /// with the real fonts only (ROMSIEVE_HEADLESS_SKIA=1): the headless text stub has no real glyph widths.
     /// </summary>

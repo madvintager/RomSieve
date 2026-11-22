@@ -135,8 +135,9 @@ The **Multi-disk games** frame, next to *Writing the files*:
 * **One .m3u playlist per game**: writes a playlist listing the disks of a multi-disk game, so that emulators and
   frontends (RetroArch, Batocera, Recalbox...) can swap them. Each side of a disk is an image of its own
   (`Disk 1 of 2 Side A`, `Disk 1 of 2 Side B`): the playlist lists them all, in the order of the disks then of the
-  sides, and its name keeps none of them (`Game (1988)(Publisher).m3u`). **Placement**, indented just below, chooses where it
-  goes:
+  sides. Its name keeps neither the disk, nor the side, nor the label of a disk (`(Boot)` in
+  `Game (1988)(Publisher)(Disk 1 of 2 Side A)(Boot).d64`): `Game (1988)(Publisher).m3u`. **Placement**, indented just
+  below, chooses where it goes:
   * *Parent folder (recommended)*: the playlist sits next to the game folder (recommended for frontends);
   * *Parent folder with hidden subfolder (.\*)*: the game folder starts with a dot, so that frontends only show the
     playlist;

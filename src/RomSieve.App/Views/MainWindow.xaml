@@ -3903,7 +3903,7 @@
                   </DataGridTemplateColumn>
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[1]}" Binding="{Binding Crc32Text}" Width="90" CanUserSort="False" IsVisible="{Binding PreviewTable.Columns[1].IsVisible}" />
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[2]}" Binding="{Binding TitleDisplay}" Width="170" IsVisible="{Binding PreviewTable.Columns[2].IsVisible}" />
-                  <DataGridTextColumn Header="{Binding PreviewColumnHeaders[3]}" Binding="{Binding DiskDisplay}" Width="105" IsVisible="{Binding PreviewTable.Columns[3].IsVisible}" />
+                  <DataGridTextColumn Header="{Binding PreviewColumnHeaders[3]}" Binding="{Binding DiskDisplay}" Width="135" IsVisible="{Binding PreviewTable.Columns[3].IsVisible}" />
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[4]}" Binding="{Binding Publisher}" Width="115" IsVisible="{Binding PreviewTable.Columns[4].IsVisible}" />
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[5]}" Binding="{Binding Date}" Width="85" IsVisible="{Binding PreviewTable.Columns[5].IsVisible}" />
                   <DataGridTextColumn Header="{Binding PreviewColumnHeaders[6]}" Binding="{Binding LanguagesDisplay}" Width="110" IsVisible="{Binding PreviewTable.Columns[6].IsVisible}" />

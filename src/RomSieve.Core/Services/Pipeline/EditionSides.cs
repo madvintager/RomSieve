@@ -18,7 +18,7 @@ namespace RomSieve.Core.Services;
 public readonly record struct SetMedia(int Found, int Held, int? MissingPart, string? MissingSide);
 
 /// <summary>
-/// The sides each disk of a TOSEC edition has (same <see cref="Abstractions.IGameKeyService.GetEditionKey"/>), read from
+/// The sides each disk of a TOSEC, No-Intro or Redump edition has (same <see cref="Abstractions.IGameKeyService.GetEditionKey"/>), read from
 /// the names of its files in the source, whatever their status, and in the DAT: a cracked dump or a bad dump of a side
 /// says that the side exists as well as a clean one. A disk of a release counts as found only with each of them, as a set
 /// counts as complete only with each of its disks; a dump without a side stands for the whole disk.
@@ -63,11 +63,11 @@ public sealed class EditionSides
         sides is not null && sides.TryGetValue(SingleDisk, out var single) && single.Count > 1 ? single.Count : 0;
 
     /// <summary>
-    /// The disk a medium belongs to: its number in a set of several disks, <see cref="SingleDisk"/> for a single disk (a side named alone,
-    /// <c>Side B</c>, or <c>Disk 1 of 1</c>), <c>null</c> for a numbered medium without a total (<c>Tape 2 Side B</c>),
-    /// whose set is not known.
+    /// The disk a medium belongs to: its number in a set of several disks, also without a total (<c>Disk 1 Side A</c>,
+    /// <c>Tape 2 Side B</c>), or <see cref="SingleDisk"/> for a single disk (a side named alone, <c>Side B</c>, or
+    /// <c>Disk 1 of 1</c>).
     /// </summary>
-    public static int? PartOf(ParsedRomName parsed)
+    public static int PartOf(ParsedRomName parsed)
     {
         var (number, total) = MultiDiskEvaluator.ExtractDiskPartInfo(parsed);
         if (number.HasValue)
@@ -75,7 +75,9 @@ public sealed class EditionSides
             return total is > 1 ? number.Value : SingleDisk;
         }
 
-        return parsed.DiscNumber.HasValue ? null : SingleDisk;
+        // A disk numbered without a total ("Disk 1 Side A", No-Intro): the total of its set is inferred later, its
+        // number already tells its disk
+        return parsed.DiscNumber ?? SingleDisk;
     }
 
     /// <summary>
@@ -88,11 +90,12 @@ public sealed class EditionSides
         var held = new SortedDictionary<int, (bool Whole, SortedSet<string> Sides)>();
         foreach (var item in items)
         {
-            if (MultiDiskEvaluator.HoldsDocumentation(item.Parsed) || PartOf(item.Parsed) is not { } part)
+            if (MultiDiskEvaluator.HoldsDocumentation(item.Parsed))
             {
                 continue;
             }
 
+            var part = PartOf(item.Parsed);
             if (!held.TryGetValue(part, out var disk))
             {
                 disk = (false, new SortedSet<string>(StringComparer.Ordinal));

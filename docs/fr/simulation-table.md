@@ -12,7 +12,7 @@ que l'on vérifie un résultat avant d'écrire quoi que ce soit.
 | **Nom d'origine** | Nom du fichier, ou du fichier dans l'archive, après la case qui [choisit son jeu](#choisir-des-jeux) pour un tri partiel ; une pastille compte les [fichiers associés](#fichiers-associes) |
 | **CRC32** | Somme de contrôle, quand elle a été calculée (masquée par défaut) |
 | **Titre** | Titre lu dans le nom ou dans le DAT |
-| **Média** | Position du fichier dans un jeu en plusieurs parties (disquettes, cassettes, CD, faces), *1 sur 2*, ou à défaut l'étiquette du média lue dans le nom, *Side A* (masquée par défaut) |
+| **Média** | Position du fichier dans un jeu en plusieurs parties (disquettes, cassettes, CD, faces), *1 sur 2*, avec la face d'un disque qui en a deux, *1 sur 2, face B*, ou à défaut l'étiquette du média lue dans le nom, *Side A* (masquée par défaut) |
 | **Associés** | Nombre de [fichiers associés](#fichiers-associes) transférés avec le fichier (masquée par défaut) |
 | **Éditeur** | Éditeur TOSEC (masquée par défaut) |
 | **Date** | Date TOSEC |

@@ -180,6 +180,35 @@ public sealed class PreviewDetailPanelTests : IDisposable
         row.MameSetText.Should().Be("19xx : complet" + Environment.NewLine + "non noté");
     }
 
+    [Theory]
+    [InlineData("Ultima IV (1986)(Origin)(Disk 1 of 2 Side B).d64", "1 sur 2, face B")]
+    [InlineData("Ultima IV (1986)(Origin)(Disk 2 of 2).d64", "2 sur 2")]
+    [InlineData("Law of the West (1985)(Accolade)(Side A).d64", "Side A")]
+    public void TosecDisk_ShouldShowItsSide(string name, string expected)
+    {
+        // The two sides of a disk showed the same "1 sur 2"
+        var parsed = _services.TosecParser.ParseTosecFilename(name);
+
+        PreviewItemViewModel.FormatItemDisk(parsed, _services.I18n).DisplayText.Should().Be(expected);
+    }
+
+    [Fact]
+    public void SidesOfADisk_ShouldSortSideAFirst()
+    {
+        var sideA = PreviewItemViewModel.FormatItemDisk(_services.TosecParser.ParseTosecFilename("U (1986)(O)(Disk 1 of 2 Side A).d64"), _services.I18n).SortKey;
+        var sideB = PreviewItemViewModel.FormatItemDisk(_services.TosecParser.ParseTosecFilename("U (1986)(O)(Disk 1 of 2 Side B).d64"), _services.I18n).SortKey;
+
+        sideA.CompareTo(sideB).Should().BeNegative();
+    }
+
+    [Fact]
+    public void NoIntroDiskWithoutTotal_ShouldShowItsSide()
+    {
+        var parsed = _services.NoIntroParser.ParseRomFilename("Game (Japan) (Disk 1 Side B).fds", null, 0, NamingConvention.NoIntro);
+
+        PreviewItemViewModel.FormatItemDisk(parsed, _services.I18n).DisplayText.Should().Be("1, face B");
+    }
+
     [Fact]
     public void SingleDiscGameWithADiscNumberInItsTitle_ShouldShowNoDisk()
     {

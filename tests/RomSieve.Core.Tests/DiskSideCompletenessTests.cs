@@ -279,6 +279,122 @@ public sealed class DiskSideCompletenessTests : IDisposable
         lines[1].Should().Be("Law of the West (1985)(Accolade)(Side B).d64");
     }
 
+    [Theory]
+    [InlineData("Bards Tale 3 (1988)(Electronic Arts)(Disk 1 of 2 Side A)(Boot).d64", "(Boot)")]
+    [InlineData("Ultima V (1988)(Origin)(Disk 4 of 4 Side A)(Castle).d64", "(Castle)")]
+    [InlineData("Newcomer (2001)(Protovision)(Disk 1 of 8 Side A)(Boot Disk Newsid).d64", "(Boot Disk Newsid)")]
+    [InlineData("Ultima V (1988)(Origin)(Disk 1 of 4 Side A).d64", null)]
+    [InlineData("Game (1990)(Pub)(de)(Disk 1 of 2).d64", null)]
+    [InlineData("Game (1990)(Pub)(Unknown).d64", null)]
+    public void TosecParser_ShouldReadTheLabelThatFollowsTheMedia(string name, string? label)
+    {
+        _services.TosecParser.ParseTosecFilename(name).DiscLabel.Should().Be(label);
+    }
+
+    public static TheoryData<M3uPlacementMode, string[], string> LabelledSets() => new()
+    {
+        {
+            // The boot side went to a game folder of its own, out of the playlist of the other sides
+            M3uPlacementMode.GameFolder,
+            [
+                "Bards Tale 3 (1988)(Electronic Arts)(Disk 1 of 2 Side A)(Boot).d64",
+                "Bards Tale 3 (1988)(Electronic Arts)(Disk 1 of 2 Side B).d64",
+                "Bards Tale 3 (1988)(Electronic Arts)(Disk 2 of 2 Side A).d64",
+                "Bards Tale 3 (1988)(Electronic Arts)(Disk 2 of 2 Side B).d64",
+            ],
+            "Bards Tale 3 (1988)(Electronic Arts).m3u"
+        },
+        {
+            // Each disk went to a game folder of its own, and no playlist was written
+            M3uPlacementMode.GameFolder,
+            ["Ultima V (1988)(Origin)(Disk 1 of 2)(Main).d64", "Ultima V (1988)(Origin)(Disk 2 of 2)(Castle).d64"],
+            "Ultima V (1988)(Origin).m3u"
+        },
+        {
+            // The playlist next to the game folder took the label of the first disk
+            M3uPlacementMode.Parent,
+            ["Ultima V (1988)(Origin)(Disk 1 of 2)(Main).d64", "Ultima V (1988)(Origin)(Disk 2 of 2)(Castle).d64"],
+            "Ultima V (1988)(Origin).m3u"
+        },
+    };
+
+    [Theory]
+    [MemberData(nameof(LabelledSets))]
+    public async Task RealSort_ShouldWriteOnePlaylistOfALabelledSetNamedWithoutTheLabels(M3uPlacementMode placement, string[] files, string playlistName)
+    {
+        var config = CreateConfig(files);
+        config.GenerateM3u = true;
+        config.SubfolderMultidisk = true;
+        config.M3uPlacement = placement;
+
+        await _services.Processor.ExecuteAsync(config, isDryRun: false);
+
+        var playlist = Directory.EnumerateFiles(config.DestinationDir, "*.m3u", SearchOption.AllDirectories).Should().ContainSingle().Which;
+        Path.GetFileName(playlist).Should().Be(playlistName);
+        File.ReadAllLines(playlist).Where(line => line.Length > 0).Select(line => line[(line.LastIndexOf('/') + 1)..])
+            .Should().Equal(files);
+
+        // Every disk of the set in one folder
+        Directory.EnumerateFiles(config.DestinationDir, "*.d64", SearchOption.AllDirectories)
+            .Select(Path.GetDirectoryName).Distinct().Should().ContainSingle();
+        if (placement == M3uPlacementMode.GameFolder)
+        {
+            Path.GetFileName(Path.GetDirectoryName(playlist)).Should().Be(playlistName);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task NoIntroSetLackingASide_ShouldBeIncomplete(bool lacksASide)
+    {
+        // A Famicom Disk System set: each side of each disk is a file of its own. The side B of disk 1 only exists as a
+        // bad dump, which the filters leave out: it still says that the disk has a side B
+        string[] files =
+        [
+            "Game (Japan) (Disk 1 Side A).fds",
+            lacksASide ? "Game (Japan) (Disk 1 Side B) [b].fds" : "Game (Japan) (Disk 1 Side B).fds",
+            "Game (Japan) (Disk 2 Side A).fds",
+            "Game (Japan) (Disk 2 Side B).fds",
+        ];
+        var config = CreateConfig(files);
+        config.Filters.PriorityLanguages = ["ja"];
+        config.Filters.NoIntroCompleteMultimediaSetsOnly = true;
+
+        var items = await SimulateAsync(config);
+
+        if (lacksASide)
+        {
+            items.Should().OnlyContain(it => it.Status == FileStatus.Excluded);
+            _services.I18n.Format(Named(items, "Game (Japan) (Disk 2 Side A).fds").StatusReason!).Should().Be(
+                "Set multi-disquettes incomplet (1/2 disques complets : face B du disque 1 absente)");
+        }
+        else
+        {
+            items.Should().OnlyContain(it => it.Status == FileStatus.Valid);
+        }
+    }
+
+    [Fact]
+    public async Task NoIntroSideNamedByTheDatOnly_ShouldMakeTheSetIncomplete()
+    {
+        string[] dat =
+        [
+            "Game (Japan) (Disk 1 Side A).fds",
+            "Game (Japan) (Disk 1 Side B).fds",
+            "Game (Japan) (Disk 2 Side A).fds",
+        ];
+        var config = CreateConfig(
+            [dat[0], dat[2]],
+            datFile: WriteDat(_temp, [.. dat.Select(name => (name, System.Text.Encoding.UTF8.GetBytes(name)))]));
+        config.Filters.PriorityLanguages = ["ja"];
+        config.Filters.NoIntroCompleteMultimediaSetsOnly = true;
+
+        var items = await SimulateAsync(config);
+
+        items.Should().HaveCount(2).And.OnlyContain(it => it.Status == FileStatus.Excluded);
+    }
+
     [Fact]
     public void Count_ShouldHoldADiskOnlyWithEachSideOfItsEdition()
     {

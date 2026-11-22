@@ -282,15 +282,17 @@ public sealed partial class MultiDiskEvaluator
         parsed.MoreInfo.Any(info => ExtraContentRegex().IsMatch(info));
 
     /// <summary>
-    /// The sides of each disk of the TOSEC editions of <paramref name="items"/> (<see cref="EditionSides"/>): those the
-    /// names of their files give, whatever their status (an unmatched or failed file excepted), and those of the
-    /// files of <paramref name="datCatalog"/> of the same editions, so that a set does not pass for complete because
-    /// the source lacks every dump of one of its sides.
+    /// The sides of each disk of the TOSEC, No-Intro and Redump editions of <paramref name="items"/>
+    /// (<see cref="EditionSides"/>): those the names of their files give, whatever their status (an unmatched or failed
+    /// file excepted), and those of the files of <paramref name="datCatalog"/> of the same editions, parsed in the
+    /// convention of the files, so that a set does not pass for complete because the source lacks every dump of one of
+    /// its sides (<c>Disk 1 of 2 Side A</c>, a Famicom Disk System <c>Disk 1 Side B</c>).
     /// </summary>
     internal EditionSides CollectEditionSides(IEnumerable<ProcessItem> items, DatCatalog? datCatalog)
     {
         var editionSides = new EditionSides();
-        var titles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var tosecTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var conventions = new HashSet<NamingConvention>();
         var datKeys = new HashSet<string?>();
         foreach (var item in items)
         {
@@ -301,12 +303,16 @@ public sealed partial class MultiDiskEvaluator
 
             if (AddSide(editionSides, item.Parsed, item.Parsed.DatKey, onlyKnownEditions: false))
             {
-                titles.Add(item.Parsed.Title.Trim());
+                conventions.Add(item.Parsed.Convention);
                 datKeys.Add(item.Parsed.DatKey);
+                if (item.Parsed.Convention == NamingConvention.Tosec)
+                {
+                    tosecTitles.Add(item.Parsed.Title.Trim());
+                }
             }
         }
 
-        if (datCatalog is null || titles.Count == 0)
+        if (datCatalog is null || conventions.Count == 0)
         {
             return editionSides;
         }
@@ -315,19 +321,28 @@ public sealed partial class MultiDiskEvaluator
         {
             foreach (var rom in game.Roms)
             {
-                // Only the names that give a side and the title of an edition of the source are parsed
-                var titleEnd = rom.Name.IndexOf(" (", StringComparison.Ordinal);
-                if (titleEnd <= 0 ||
-                    !rom.Name.Contains("Side", StringComparison.OrdinalIgnoreCase) ||
-                    !titles.Contains(rom.Name[..titleEnd].Trim()))
+                if (!rom.Name.Contains("Side", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
 
-                var parsed = TosecParser.ParseTosecFilenameStatic(rom.Name);
-                foreach (var datKey in datKeys)
+                foreach (var convention in conventions)
                 {
-                    AddSide(editionSides, parsed, datKey, onlyKnownEditions: true);
+                    // Only the TOSEC names of the title of an edition of the source are parsed: a TOSEC DAT names
+                    // thousands of sides. A No-Intro title may move its article ("Legend of Zelda, The")
+                    var titleEnd = rom.Name.IndexOf(" (", StringComparison.Ordinal);
+                    if (convention == NamingConvention.Tosec && (titleEnd <= 0 || !tosecTitles.Contains(rom.Name[..titleEnd].Trim())))
+                    {
+                        continue;
+                    }
+
+                    var parsed = convention == NamingConvention.Tosec
+                        ? TosecParser.ParseTosecFilenameStatic(rom.Name)
+                        : NoIntroRedumpParser.ParseNoIntroFilenameStatic(rom.Name, isRedump: convention == NamingConvention.Redump);
+                    foreach (var datKey in datKeys)
+                    {
+                        AddSide(editionSides, parsed, datKey, onlyKnownEditions: true);
+                    }
                 }
             }
         }
@@ -335,17 +350,17 @@ public sealed partial class MultiDiskEvaluator
         return editionSides;
     }
 
-    /// <summary>Records the side a TOSEC name gives, if any; <c>true</c> when it was recorded.</summary>
+    /// <summary>Records the side a TOSEC, No-Intro or Redump name gives, if any; <c>true</c> when it was recorded.</summary>
     private bool AddSide(EditionSides editionSides, ParsedRomName parsed, string? datKey, bool onlyKnownEditions)
     {
-        if (parsed.Convention != NamingConvention.Tosec ||
+        if (parsed.Convention is not (NamingConvention.Tosec or NamingConvention.NoIntro or NamingConvention.Redump) ||
             HoldsDocumentation(parsed) ||
-            ExtractSide(parsed) is not { } side ||
-            EditionSides.PartOf(parsed) is not { } part)
+            ExtractSide(parsed) is not { } side)
         {
             return false;
         }
 
+        var part = EditionSides.PartOf(parsed);
         var editionKey = _filterService.GetEditionKey(datKey == parsed.DatKey ? parsed : parsed with { DatKey = datKey });
         if (onlyKnownEditions && !editionSides.Contains(editionKey))
         {
@@ -605,7 +620,7 @@ public sealed partial class MultiDiskEvaluator
             {
                 (part, total) = (partNum.Value, partTot.Value);
             }
-            else if (isTosecItem && ExtractSide(item.Parsed) is not null && EditionSides.PartOf(item.Parsed) == EditionSides.SingleDisk &&
+            else if (item.MameSet is null && ExtractSide(item.Parsed) is not null && EditionSides.PartOf(item.Parsed) == EditionSides.SingleDisk &&
                      EditionSides.SingleDiskSides(editionSides.Of(edKey = _filterService.GetEditionKey(item.Parsed))) is > 1 and var sides)
             {
                 // A single disk whose names give several sides: a set of its sides
@@ -676,14 +691,17 @@ public sealed partial class MultiDiskEvaluator
             BorrowNoIntroDumps(itemsToProcess, itemRelKey, relCounts, relTotals, borrowedByRelease, cleanDisksParticipatingInCompleteSets);
         }
 
-        // What each TOSEC set holds, with the disks it borrows: a disk counts with each side its edition names
-        var tosecMedia = new Dictionary<string, SetMedia>(StringComparer.Ordinal);
+        // What each set holds, with the disks it borrows: a disk counts with each side its edition names. A TOSEC set
+        // is always counted so (its disks without sides count whole); a No-Intro / Redump set only when its edition
+        // names sides (a Famicom Disk System "Disk 1 Side A"), its other disks being counted by number
+        var sideMedia = new Dictionary<string, SetMedia>(StringComparer.Ordinal);
         foreach (var (rkey, items) in relItems)
         {
-            if (relIsTosec[rkey])
+            var knownSides = editionSides.Of(relEdKeys[rkey]);
+            if (relIsTosec[rkey] || knownSides is not null)
             {
                 var held = borrowedByRelease.TryGetValue(rkey, out var borrowed) ? items.Concat(borrowed) : items;
-                tosecMedia[rkey] = EditionSides.Count(held, editionSides.Of(relEdKeys[rkey]));
+                sideMedia[rkey] = EditionSides.Count(held, knownSides);
             }
         }
 
@@ -693,7 +711,7 @@ public sealed partial class MultiDiskEvaluator
                 itemRelKey.TryGetValue(item, out var rkey) &&
                 relTotals.TryGetValue(rkey, out var totalExpected))
             {
-                var media = tosecMedia.TryGetValue(rkey, out var setMedia) ? setMedia : (SetMedia?)null;
+                var media = sideMedia.TryGetValue(rkey, out var setMedia) ? setMedia : (SetMedia?)null;
                 var foundCount = media?.Found ?? (relCounts.TryGetValue(rkey, out var pSet) ? pSet.Count : 0);
                 if (foundCount < totalExpected && !cleanDisksParticipatingInCompleteSets.Contains(item))
                 {

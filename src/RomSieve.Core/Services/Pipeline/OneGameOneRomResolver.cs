@@ -316,7 +316,7 @@ public sealed partial class OneGameOneRomResolver
     /// A release as the cascade compares it, from its files (sorted by <see cref="GetDiskSortKey"/>, the first one giving
     /// its tags). With <paramref name="setOf"/>, a single dump of one medium of that release, compared with the other
     /// dumps of the medium: the completeness and the parent / clone status, which belong to the set, are those of the
-    /// release, so that only what tells the dumps apart decides. A TOSEC set holds a disk only with each side its edition
+    /// release, so that only what tells the dumps apart decides. A set holds a disk only with each side its edition
     /// names (<paramref name="knownSides"/>, <see cref="EditionSides"/>). The disks it borrows from another dump of its
     /// edition (<paramref name="borrowed"/>) complete it, but its tags and its names are those of its own files: a cracked
     /// release that borrows the clean side A it lacks, which sorts first, would otherwise rank as that clean dump.
@@ -369,7 +369,7 @@ public sealed partial class OneGameOneRomResolver
         {
             completeness = setOf.Completeness;
         }
-        else if (sampleParsed.IsMultiMedia && sampleParsed.Convention == NamingConvention.Tosec && knownSides is not null)
+        else if (sampleParsed.IsMultiMedia && knownSides is not null)
         {
             // The disks held whole, or the sides of a single disk: a set whose boot side only exists cracked is not complete
             media = EditionSides.Count(relItems, knownSides);

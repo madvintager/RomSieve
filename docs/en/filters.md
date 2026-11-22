@@ -124,8 +124,9 @@ where a file the DAT does not know is always non-conforming.
   lacks tracks, "Incomplete game" for a game without a descriptor. The number of discs of a set comes from the DAT: a
   set that lacks its last disc is incomplete. A file only completes the disc whose name it bears, even when an identical
   track is on another disc; the ROMs the DAT says were never dumped (`nodump`) do not count, and a CHD linked to its
-  game by **Identify CHDs by their name** stands for its whole disc. *(TOSEC)* A disk is only complete with each of its
-  sides, those that the files of the same edition name, in the source (a cracked dump or a bad dump of a side also
+  game by **Identify CHDs by their name** stands for its whole disc. *(TOSEC, No-Intro)* A disk is only complete with
+  each of its sides (`Disk 1 of 2 Side A`, or `Disk 1 Side B` of a Famicom Disk System floppy), those that the files of
+  the same edition name, in the source (a cracked dump or a bad dump of a side also
   says that it exists) as in the DAT; a dump without a side stands for the whole disk. The reason then names the
   missing side: "Incomplete multi-disk set (1/2 whole disks: side A of disk 1 missing)", or "Incomplete game (1/2 sides
   found: side B missing)" for a single disk whose sides are named without a number (`Side A`, `Side B`). With the MAME

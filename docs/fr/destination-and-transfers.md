@@ -135,8 +135,9 @@ Le cadre **Jeux multi-disques**, à côté de *Écriture des fichiers* :
 * **Une playlist .m3u par jeu** : écrit une playlist qui liste les disques d'un jeu multi-disques, pour que les
   émulateurs et frontends (RetroArch, Batocera, Recalbox...) puissent les échanger. Chaque face d'un disque est une
   image à part (`Disk 1 of 2 Side A`, `Disk 1 of 2 Side B`) : la playlist les liste toutes, dans l'ordre des disques
-  puis des faces, et son nom n'en garde aucune (`Jeu (1988)(Éditeur).m3u`). **Emplacement**, en retrait juste en
-  dessous, choisit où elle va :
+  puis des faces. Son nom ne garde ni le disque, ni la face, ni l'étiquette d'un disque (`(Boot)` dans
+  `Jeu (1988)(Éditeur)(Disk 1 of 2 Side A)(Boot).d64`) : `Jeu (1988)(Éditeur).m3u`. **Emplacement**, en retrait juste
+  en dessous, choisit où elle va :
   * *Dossier parent (recommandé)* : la playlist est à côté du dossier du jeu (recommandé pour les frontends) ;
   * *Dossier parent avec sous-dossier masqué (.\*)* : le dossier du jeu commence par un point, pour que les frontends
     n'affichent que la playlist ;

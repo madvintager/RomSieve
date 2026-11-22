@@ -12,7 +12,7 @@ a result before writing anything.
 | **Source Name** | File name, or archive member, after the check box that [chooses its game](#choosing-games) for a partial sort; a badge counts the [related files](#related-files) |
 | **CRC32** | Checksum, when it was computed (hidden by default) |
 | **Title** | Title read from the name or from the DAT |
-| **Media** | Position of the file in a game of several parts (floppies, tapes, CDs, sides), *1 of 2*, or failing that the media label read from the name, *Side A* (hidden by default) |
+| **Media** | Position of the file in a game of several parts (floppies, tapes, CDs, sides), *1 of 2*, with the side of a disk that has two, *1 of 2, side B*, or failing that the media label read from the name, *Side A* (hidden by default) |
 | **Related** | Number of [related files](#related-files) transferred with the file (hidden by default) |
 | **Publisher** | TOSEC publisher (hidden by default) |
 | **Date** | TOSEC date |

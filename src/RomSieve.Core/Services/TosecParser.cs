@@ -300,6 +300,7 @@ public sealed partial class TosecParser : ITosecParser
             Video = opt.Video,
             MediaType = opt.MediaType,
             MediaLabel = opt.MediaLabel,
+            DiscLabel = opt.DiscLabel,
             DiscNumber = opt.DiscNumber,
             DiscTotal = opt.DiscTotal,
             Copyright = opt.Copyright,
@@ -336,6 +337,7 @@ public sealed partial class TosecParser : ITosecParser
         public string? Video { get; set; }
         public string? MediaType { get; set; }
         public string? MediaLabel { get; set; }
+        public string? DiscLabel { get; set; }
         public int? DiscNumber { get; set; }
         public int? DiscTotal { get; set; }
         public string? Copyright { get; set; }
@@ -487,6 +489,15 @@ public sealed partial class TosecParser : ITosecParser
                 {
                     fields.CountryCodes.Add(countryPart.ToUpperInvariant());
                 }
+                continue;
+            }
+
+            // 8. Media label: the TOSEC naming puts it right after the media ("(Disk 1 of 2 Side A)(Boot)",
+            // "(Disk 4 of 4)(Castle)"). It names that disk alone, so that the playlist of a set and its folder read as a
+            // game are named without it
+            if (fields.MediaLabel is not null)
+            {
+                fields.DiscLabel ??= $"({token})";
             }
         }
     }

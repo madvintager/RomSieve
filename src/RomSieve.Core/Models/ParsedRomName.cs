@@ -116,8 +116,10 @@ public sealed partial record ParsedRomName
     public string? DiscLabelCandidate { get; init; }
 
     /// <summary>
-    /// The <see cref="DiscLabelCandidate"/> that <see cref="Services.DiscLabelResolver"/> found to be the label of this
-    /// disc alone: left out of the release key, so that the disks of a set labelled one by one form a single release.
+    /// The label of this disc alone. No-Intro / Redump: the <see cref="DiscLabelCandidate"/> that
+    /// <see cref="Services.DiscLabelResolver"/> found to be one, left out of the release key, so that the disks of a set
+    /// labelled one by one form a single release. TOSEC: the parenthesis that follows the media
+    /// (<c>(Boot)</c> in <c>(Disk 1 of 2 Side A)(Boot)</c>), which no key reads. The name of a playlist leaves it out.
     /// </summary>
     public string? DiscLabel { get; init; }
 

@@ -507,6 +507,8 @@
   "preview.mame_merged": "holds {count} clone(s)",
   "preview.mame_unknown_members": "{count} file(s) unknown to the DAT",
   "panel4.disk_n_of_total": "{current} of {total}",
+  "panel4.disk_n_of_total_side": "{current} of {total}, side {side}",
+  "panel4.disk_n_side": "{current}, side {side}",
   "panel4.ctx_force_1g1r_winner": "⭐ Keep this version as 1G1R winner",
   "panel4.ctx_open_patch": "Change the ROM of this patch…",
   "panel4.ctx_reset_1g1r_override": "\uD83D\uDD04 Restore automatic 1G1R choice for this game",

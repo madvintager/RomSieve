@@ -433,19 +433,25 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
     }
 
     /// <summary>
-    /// Formats the disc/media number (<c>1 of 2</c>) according to <c>_format_item_disk</c>.
+    /// Formats the disc/media number (<c>1 of 2</c>) according to <c>_format_item_disk</c>, with the side of the disk
+    /// when the name gives one (<c>1 of 2, side B</c>): the two sides of a disk are two files, which the column tells
+    /// apart and sorts side A first.
     /// </summary>
     public static (string DisplayText, (int DiscNum, int DiscTotal, string RawLabel) SortKey) FormatItemDisk(
         ParsedRomName parsed,
         ILocalizationService localization)
     {
+        var side = MultiDiskEvaluator.ExtractSide(parsed);
+
+        string OfTotal(int current, int total) => side is null
+            ? localization.Tr("panel4.disk_n_of_total", ("current", current), ("total", total))
+            : localization.Tr("panel4.disk_n_of_total_side", ("current", current), ("total", total), ("side", side));
+
         if (parsed.DiscNumber.HasValue && parsed.DiscTotal.HasValue)
         {
             if (parsed.DiscTotal.Value > 1)
             {
-                var txt = localization.Tr("panel4.disk_n_of_total",
-                    ("current", parsed.DiscNumber.Value),
-                    ("total", parsed.DiscTotal.Value));
+                var txt = OfTotal(parsed.DiscNumber.Value, parsed.DiscTotal.Value);
                 return (txt, (parsed.DiscNumber.Value, parsed.DiscTotal.Value, txt));
             }
 
@@ -467,7 +473,7 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
             {
                 if (tot > 1)
                 {
-                    var display = localization.Tr("panel4.disk_n_of_total", ("current", cur), ("total", tot));
+                    var display = OfTotal(cur, tot);
                     return (display, (cur, tot, display));
                 }
 
@@ -479,7 +485,9 @@ public sealed partial class PreviewItemViewModel : PreviewRowViewModel
         {
             if (parsed.DiscNumber.HasValue)
             {
-                var s = parsed.DiscNumber.Value.ToString();
+                var s = side is null
+                    ? parsed.DiscNumber.Value.ToString(CultureInfo.InvariantCulture)
+                    : localization.Tr("panel4.disk_n_side", ("current", parsed.DiscNumber.Value), ("side", side));
                 return (s, (parsed.DiscNumber.Value, 1, s));
             }
 

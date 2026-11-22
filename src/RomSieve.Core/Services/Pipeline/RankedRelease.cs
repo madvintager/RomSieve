@@ -40,7 +40,7 @@ public sealed class RankedRelease
     public int Completeness { get; set; }
 
     /// <summary>
-    /// What a TOSEC set holds of the sides its edition names (<see cref="EditionSides.Count"/>); <c>null</c> for any other
+    /// What a set holds of the sides its edition names (<see cref="EditionSides.Count"/>); <c>null</c> for any other
     /// release, or one of a dump of one medium.
     /// </summary>
     public SetMedia? Media { get; init; }
