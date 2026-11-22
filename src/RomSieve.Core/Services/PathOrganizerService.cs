@@ -63,7 +63,8 @@ public sealed partial class PathOrganizerService : IPathOrganizerService
     [GeneratedRegex(@"\{([a-zA-Z0-9_]+)\}", RegexOptions.CultureInvariant)]
     private static partial Regex PlaceholderNameRegex();
 
-    [GeneratedRegex(@"\s*\((?:Disc|Disk|Disque|Side|Tape|Part)\s+[0-9a-zA-Z]+(?:\s*(?:of|sur)\s*[0-9a-zA-Z]+)?\)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    // The medium of a disc name, "(Disk 1 of 2)", "(Side A)", and both in one parenthesis, "(Disk 1 of 2 Side B)" (TOSEC)
+    [GeneratedRegex(@"\s*\((?:Disc|Disk|Disque|Side|Tape|Part)\s+[0-9a-zA-Z]+(?:\s*(?:of|sur)\s*[0-9a-zA-Z]+)?(?:\s+Side\s+[0-9a-zA-Z]+)?\)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex M3uDiscMarkerStripRegex();
 
     private static readonly HashSet<string> WindowsReservedNames = new(StringComparer.OrdinalIgnoreCase)

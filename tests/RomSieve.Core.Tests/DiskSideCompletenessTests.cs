@@ -245,7 +245,38 @@ public sealed class DiskSideCompletenessTests : IDisposable
             "Ultima IV (1986)(Origin)(Disk 1 of 2 Side B).d64",
             "Ultima IV (1986)(Origin)(Disk 2 of 2 Side A)[cr ECA].d64",
             "Ultima IV (1986)(Origin)(Disk 2 of 2 Side B).d64");
-        Directory.EnumerateFiles(config.DestinationDir, "*.m3u", SearchOption.AllDirectories).Should().ContainSingle();
+
+        // Each side is an image of its own: the playlist listed the side A of each disk only, under the name of the first
+        var playlist = Directory.EnumerateFiles(config.DestinationDir, "*.m3u", SearchOption.AllDirectories).Should().ContainSingle().Which;
+        Path.GetFileName(playlist).Should().Be("Ultima IV (1986)(Origin)[cr ECA].m3u");
+        File.ReadAllLines(playlist).Where(line => line.Length > 0).Select(line => line[(line.LastIndexOf('/') + 1)..]).Should().Equal(
+            "Ultima IV (1986)(Origin)(Disk 1 of 2 Side A)[cr ECA].d64",
+            "Ultima IV (1986)(Origin)(Disk 1 of 2 Side B).d64",
+            "Ultima IV (1986)(Origin)(Disk 2 of 2 Side A)[cr ECA].d64",
+            "Ultima IV (1986)(Origin)(Disk 2 of 2 Side B).d64");
+    }
+
+    [Fact]
+    public async Task RealSort_ShouldListOneDumpOfEachSideInAPlaylistWithout1G1R()
+    {
+        // Without 1G1R, the release holds the two dumps of side A that only a hack tells apart
+        var config = CreateConfig(
+        [
+            "Law of the West (1985)(Accolade)(Side A).d64",
+            "Law of the West (1985)(Accolade)(Side A)[h ESI].d64",
+            "Law of the West (1985)(Accolade)(Side B).d64",
+        ]);
+        config.GenerateM3u = true;
+        config.Filters.OneGameOneRom = false;
+        config.Filters.ExcludeModifications = false;
+
+        await _services.Processor.ExecuteAsync(config, isDryRun: false);
+
+        var playlist = Directory.EnumerateFiles(config.DestinationDir, "*.m3u", SearchOption.AllDirectories).Should().ContainSingle().Which;
+        var lines = File.ReadAllLines(playlist).Where(line => line.Length > 0).Select(line => line[(line.LastIndexOf('/') + 1)..]).ToList();
+        lines.Should().HaveCount(2);
+        lines[0].Should().Contain("(Side A)");
+        lines[1].Should().Be("Law of the West (1985)(Accolade)(Side B).d64");
     }
 
     [Fact]

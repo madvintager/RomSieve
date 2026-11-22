@@ -1730,12 +1730,18 @@ public sealed partial class FileTransferExecutor
                 ? groupItems.Where(it => descriptorExts.Contains(Path.GetExtension(it.FinalTargetPath!).ToLowerInvariant())).ToList()
                 : groupItems;
 
-            var seenDiscs = new HashSet<int>();
+            // One line per medium, by disk then by side: each side of a disk is an image of its own ("Disk 1 of 2 Side A"
+            // and "Side B"), which the playlist lists; a group of several dumps of one medium (a sort without 1G1R) lists
+            // the first one. A medium with neither a number nor a side is always listed
+            var seenMedia = new HashSet<(int Disk, string Side)>();
             var uniqueDiscs = new List<ProcessItem>();
-            foreach (var it in candidateDiscs.OrderBy(it => MultiDiskEvaluator.ExtractDiskNumber(it.Parsed)))
+            foreach (var it in candidateDiscs
+                         .OrderBy(it => MultiDiskEvaluator.ExtractDiskNumber(it.Parsed))
+                         .ThenBy(it => MultiDiskEvaluator.ExtractSide(it.Parsed) ?? string.Empty, StringComparer.Ordinal))
             {
                 var dNum = MultiDiskEvaluator.ExtractDiskNumber(it.Parsed);
-                if (dNum == 0 || seenDiscs.Add(dNum))
+                var side = MultiDiskEvaluator.ExtractSide(it.Parsed);
+                if ((dNum == 0 && side is null) || seenMedia.Add((dNum, side ?? string.Empty)))
                 {
                     uniqueDiscs.Add(it);
                 }

@@ -205,6 +205,7 @@ public sealed class PathOrganizerServiceTests
     [InlineData("Shenmue (Europe) (Disc 1)", "Shenmue (Europe).m3u")]
     [InlineData("Game (France) (Disque 2 sur 3).bin", "Game (France).m3u")]
     [InlineData("Amiga Game (Side A).adf", "Amiga Game.m3u")]
+    [InlineData("Ultima IV (1986)(Origin)(Disk 1 of 2 Side A)[cr ECA].d64", "Ultima IV (1986)(Origin)[cr ECA].m3u")]
     [InlineData("Cassette (Tape 1 of 2).tzx", "Cassette.m3u")]
     [InlineData("Epic (Part 1).dsk", "Epic.m3u")]
     public void GenerateM3uFilename_ShouldStripPaginationAndAppendM3uExtension(string discFilename, string expectedM3u)
