@@ -779,6 +779,7 @@
   "reason.1g1r_reason_first_name": "first name in alphabetical order",
   "reason.1g1r_reason_no_difference": "no difference, first file found",
   "reason.1g1r_reason_identical_content": "identical content, same CRC32",
+  "reason.1g1r_reason_complete_set_over_single": "complete set of {total} disks preferred to a single-disk release",
   "reason.1g1r_reason_driver": "{w_status} emulation preferred to {l_status}",
   "reason.1g1r_reason_amiga_chipset": "{w_chipset} version preferred to the {l_chipset} version (AGA Amiga)",
   "reason.duplicate_in_unmatched": "Duplicate in _unmatched ignored",

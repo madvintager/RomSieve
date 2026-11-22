@@ -90,7 +90,10 @@ v1.0 > no version* against a name without a version number, which comes after al
 * **Complete set**: a set with all its disks present wins over an incomplete set; for MAME, a set that has all its ROMs
   and CHDs. The expected number of disks comes from the name (`(Disk 1 of 3)`) or, failing that, from the highest disk
   number found (`(Disc 1)`, `(Disk 2)`...). A set that lacks disks cannot be played: it also loses to a release on a
-  single disk, a demo for instance. A release on a single disk only loses to a complete set on the same type of media.
+  single disk, a demo for instance. A release on a single floppy only loses to a complete set of floppies: it is most
+  often that set packed onto one floppy by a cracking group, which its name does not say. Its reason tells so:
+  "complete set of 2 disks preferred to a single-disk release". A tape is not, as its image holds the whole tape: a
+  whole tape and its sides (`Side A`, `Side B`) are told apart by the next criteria.
 * **Amiga chipset (AGA machine)**: no effect until the *Amiga machine* option of the Filters page is set to
   **Amiga 1200, 4000, CD32 (AGA)**. With this machine, the AGA and OCS versions of a game are one game, and the AGA
   version (`(AGA)`, `(A1200)`...) wins over a version that runs on both families (`(OCS-AGA)`, `(ECS-AGA)`), which
@@ -101,7 +104,7 @@ v1.0 > no version* against a name without a version number, which comes after al
   dump of a Redump DAT is verified, and a MAME ROM marked *baddump* is the best dump known: their orders do not have
   this criterion.
 * **Original release**: the original release wins over a modified one, and the full game over its demo. From the least
-  to the most penalized: fixes (`[f]`), re-releases (`(Virtual Console)`, `(Switch Online)`...), translations (`[tr]`,
+  to the most penalized: fixes (`[f]`), re-releases (`(Virtual Console)`, `(Switch Online)`..., `[re-release]` in TOSEC), translations (`[tr]`,
   `[T-En]`), alternate dumps (`[a]`), cracks (`[cr]`), trainers (`[t]`, `[t +2]`), modified releases (`[m]`), hacks
   (`[h]`, `(Hack)`), pirate releases (`[p]`, `(Pirate)`), development versions (`(alpha)`, `(beta)`, `(proto)`,
   `(preview)`...), demos (`(demo)`, `(demo-playable)`, `(Demo)`, `(Kiosk)`...) and extended ADFs; each additional flag

@@ -40,6 +40,10 @@ public sealed partial class TosecParser : ITosecParser
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DevStatusRegex();
 
+    // A re-release of the game, as TOSEC names it in the brackets ("[re-release]", "[rerelease]", "[re-release 2]")
+    [GeneratedRegex(@"^re-?release\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex RereleaseRegex();
+
     // Media physical pagination regexes. A disk, disc, tape or part may name its side in the same parenthesis
     // ("Disk 1 of 3 Side B"), as the TOSEC sets of the floppy and tape computers do
     [GeneratedRegex(@"^Disk\s+\d+(?:\s+of\s+\d+)?(?:\s+Side\s+[A-Z0-9])?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -315,6 +319,7 @@ public sealed partial class TosecParser : ITosecParser
             DumpFlags = brackets.DumpFlags,
             SoftwareMods = brackets.SoftwareMods,
             MoreInfo = brackets.MoreInfo,
+            RereleaseTag = brackets.RereleaseTag,
             IsVerified = brackets.IsVerified,
             IsBadDump = brackets.IsBadDump,
             IsAlternate = brackets.IsAlternate,
@@ -357,6 +362,7 @@ public sealed partial class TosecParser : ITosecParser
         public List<string> DumpFlags { get; } = [];
         public List<string> SoftwareMods { get; } = [];
         public List<string> MoreInfo { get; } = [];
+        public string? RereleaseTag { get; set; }
         public bool IsVerified { get; set; }
         public bool IsBadDump { get; set; }
         public bool IsAlternate { get; set; }
@@ -614,6 +620,14 @@ public sealed partial class TosecParser : ITosecParser
                 fields.SoftwareMods.Add(bracketDisplay);
                 fields.IsTranslation = true;
                 continue;
+            }
+
+            // A re-release ("[re-release]", Erbe or Kixx editions of a game) stays an information of the release, and is
+            // a re-release for the original release criterion, as the No-Intro "(Rerelease)" is: without it, a re-release
+            // whose country gives the PAL standard won over the original release without a country
+            if (RereleaseRegex().IsMatch(token))
+            {
+                fields.RereleaseTag ??= token;
             }
 
             // Default to more info

@@ -89,6 +89,36 @@ public sealed class TiebreakExplanationTests : IDisposable
                 f.PriorityLanguages = ["fr"];
             }
         ),
+        // A single disk loses to a complete set of its media (most often a repack of it): it is a whole game, not a set
+        // that lacks a disk
+        // A TOSEC re-release whose country gives the PAL standard won over the original release without a country
+        ["tosec_rerelease"] = (
+            ["10th Frame (1987)(U.S. Gold).tzx", "10th Frame (1987)(Erbe)(ES)(en)[re-release].tzx"],
+            f =>
+            {
+                f.PriorityLanguages = ["en"];
+                f.PreferredVideo = VideoPreference.Pal;
+            }
+        ),
+        // A tape image holds the whole tape: the two sides of a re-release no longer win over the original tape as a
+        // "complete set", as a set of floppies does over a single floppy (most often a repack)
+        ["tape_sides_rerelease"] = (
+            ["3D Tunnel (1983)(New Generation).tzx", "3D Tunnel (1983)(ZX Data)(Side A)[re-release].tzx", "3D Tunnel (1983)(ZX Data)(Side B)[re-release].tzx"],
+            f => f.PriorityLanguages = ["en"]
+        ),
+        ["set_over_single"] = (
+            ["Sim City (1989)(Infogrames)(FR)(Disk 1 of 2).dsk", "Sim City (1989)(Infogrames)(FR)(Disk 2 of 2).dsk", "Sim City (1989)(Infogrames)(FR).dsk"],
+            f => f.PriorityLanguages = ["fr"]
+        ),
+        // A set that lacks a disk loses to a single disk: it lacks one of its own two disks, not "1/1"
+        ["single_over_incomplete_set"] = (
+            ["Sim City (1989)(Infogrames)(FR).dsk", "Sim City (1989)(Infogrames)(FR)(Disk 1 of 2).dsk"],
+            f =>
+            {
+                f.CompleteMultidiskSetsOnly = false;
+                f.PriorityLanguages = ["fr"];
+            }
+        ),
         ["complete_and_cleaner_set"] = (
             ["Zak (1988)(Lucas)(FR)(Disk 1 of 2).adf", "Zak (1988)(Lucas)(FR)(Disk 2 of 2).adf", "Zak (1988)(Lucas)(FR)(Disk 1 of 2)[cr X].adf"],
             f =>
@@ -168,6 +198,12 @@ public sealed class TiebreakExplanationTests : IDisposable
         { "date", "fr", "Game (1990)(Pub)(FR).adf", "date 1991 plus récente" },
         { "date", "en", "Game (1990)(Pub)(FR).adf", "newer date 1991" },
         { "complete_set", "fr", "Zak v1.1 (1988)(Lucas)(FR)(Disk 1 of 2).adf", "Set multi-disquettes incomplet (1/2 disques trouvés)" },
+        { "tosec_rerelease", "fr", "10th Frame (1987)(Erbe)(ES)(en)[re-release].tzx", "parution originale d'époque préférée à la réédition (re-release)" },
+        { "tosec_rerelease", "en", "10th Frame (1987)(Erbe)(ES)(en)[re-release].tzx", "original period release vs re-release" },
+        { "tape_sides_rerelease", "fr", "3D Tunnel (1983)(ZX Data)(Side A)[re-release].tzx", "parution originale d'époque préférée à la réédition (re-release)" },
+        { "set_over_single", "fr", "Sim City (1989)(Infogrames)(FR).dsk", "set complet de 2 disques préféré à une version sur un seul disque" },
+        { "set_over_single", "en", "Sim City (1989)(Infogrames)(FR).dsk", "complete set of 2 disks preferred to a single-disk release" },
+        { "single_over_incomplete_set", "fr", "Sim City (1989)(Infogrames)(FR)(Disk 1 of 2).dsk", "Set multi-disquettes incomplet (1/2 disques trouvés)" },
         { "complete_and_cleaner_set", "fr", "Zak (1988)(Lucas)(FR)(Disk 1 of 2)[cr X].adf", "version originale vs modifiée" },
         // The last tiebreak, on the name: it was said to be the "clean/official" release, which nothing had compared
         { "name", "fr", "Game (1990)(Publisher)(FR).adf", "nom de fichier le plus court" },

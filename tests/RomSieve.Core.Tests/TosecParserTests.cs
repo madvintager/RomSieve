@@ -26,6 +26,25 @@ public sealed class TosecParserTests
         p.DumpStatusSummary.Should().Be("Clean");
     }
 
+    [Theory]
+    [InlineData("10th Frame (1987)(Erbe)(ES)(en)[Alkatraz Protection System][re-release].tzx", "re-release")]
+    [InlineData("3D Tunnel (1983)(ZX Data)(DK)(en)[re-release].tzx", "re-release")]
+    [InlineData("Zzzz (1986)(Zenobi)[rerelease].tzx", "rerelease")]
+    [InlineData("10th Frame (1987)(U.S. Gold).tzx", null)]
+    [InlineData("Release Me (1990)(Pub)[release candidate].tzx", null)]
+    public void ReRelease_ShouldBeAReReleaseAndStayAnInformation(string filename, string? tag)
+    {
+        // The re-release was only an information of the release: the original release criterion ignored it
+        var p = _parser.ParseFilename(filename);
+
+        p.RereleaseTag.Should().Be(tag);
+        p.IsRerelease.Should().Be(tag is not null);
+        if (tag is not null)
+        {
+            p.MoreInfo.Should().Contain($"[{tag}]");
+        }
+    }
+
     [Fact]
     public void TitleWithVersion_ShouldSeparateBaseTitleAndVersion()
     {

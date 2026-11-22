@@ -141,6 +141,9 @@ public sealed partial class OneGameOneRomResolver
 
     private const int UnrankedValue = 999999;
 
+    /// <summary>The media of a floppy, as <see cref="ReleaseScoringService.MediaCategoryOf"/> names it.</summary>
+    private const string FloppyMedia = "floppy";
+
     /// <summary>
     /// Compares two releases along the tiebreaker cascade. <c>Result</c> is negative when <paramref name="a"/>
     /// is the better release; <c>DecidedBy</c> is the first criterion that separates them.
@@ -448,16 +451,23 @@ public sealed partial class OneGameOneRomResolver
         MultiDiskEvaluationResult multiDiskResult,
         bool isNoIntroGame)
     {
+        // Only floppies: a tape image holds the whole tape, whose sides are another way of dumping it (TOSEC ZX Spectrum:
+        // the rule kept the sides of a re-release or of a Timex version in place of 480 original tapes)
         var multidiskMediaCats = rankedReleases
-            .Where(rel => rel.Completeness > 1 && rel.Completeness >= multiDiskResult.ReleaseTotals.GetValueOrDefault(rel.RelKey, 1))
+            .Where(rel => rel.MediaCat == FloppyMedia &&
+                          rel.Completeness > 1 && rel.Completeness >= multiDiskResult.ReleaseTotals.GetValueOrDefault(rel.RelKey, 1))
             .Select(rel => rel.MediaCat)
             .ToHashSet(StringComparer.Ordinal);
 
         foreach (var rel in rankedReleases)
         {
             // A set that lacks disks loses to a complete release, even when no other set is complete (a demo on one disk
-            // beats a game whose first disk is missing); a release on one disk loses to a complete set of its media
+            // beats a game whose first disk is missing); a release on one floppy loses to a complete set of floppies: it
+            // is most often a repack of that set by a cracker (Amiga, C64), whose name does not say so. Measured on TOSEC
+            // CPC, Amiga and C64 sets, a single disk otherwise replaced 360 sets, with repacks, HD installers and
+            // compilations; a CP/M version of two disks (Super Monaco GP, CPC) is the price of the rule
             var totalExp = multiDiskResult.ReleaseTotals.GetValueOrDefault(rel.RelKey, 1);
+            rel.ExpectedTotal = totalExp;
             var isMultidiskRelease = rel.Completeness > 1 || totalExp > 1;
             rel.IsCompleteMultidisk = isMultidiskRelease
                 ? ((rel.Completeness > 1 && rel.Completeness >= totalExp) ? 1 : 0)
@@ -912,10 +922,23 @@ public sealed partial class OneGameOneRomResolver
     /// <summary>
     /// Why a set lost to a more complete one: the side a disk of a TOSEC set lacks, or the disks it holds.
     /// </summary>
-    private static LocalizedMessage DescribeIncompleteRelease(RankedRelease winner, RankedRelease loser) =>
-        loser.Media is { } media
-            ? MultiDiskEvaluator.DescribeIncompleteSet(loser.Sample.Title, media, winner.Completeness)
-            : LocalizedMessage.Create("reason.incomplete_multidisk_set", ("found", loser.Completeness), ("total", winner.Completeness));
+    private static LocalizedMessage DescribeIncompleteRelease(RankedRelease winner, RankedRelease loser)
+    {
+        // A release on one disk is a whole game: it lost to a complete set of its media, it is not a set that lacks a
+        // disk (it was said "Incomplete multi-disk set (1/2 disks found)")
+        if (loser.ExpectedTotal <= 1 && loser.Completeness <= 1 && loser.Media is null && winner.Completeness > 1)
+        {
+            return LocalizedMessage.Create("reason.1g1r_reason_complete_set_over_single", ("total", winner.Completeness));
+        }
+
+        // The disks the loser lacks out of its own set: the winner may hold another number of disks, or one only (an
+        // incomplete set that loses to a single disk was said to hold "1/1" disks). A set whose total is unknown is
+        // measured against the winner
+        var total = loser.ExpectedTotal > 1 ? loser.ExpectedTotal : Math.Max(winner.Completeness, loser.Completeness);
+        return loser.Media is { } media
+            ? MultiDiskEvaluator.DescribeIncompleteSet(loser.Sample.Title, media, total)
+            : LocalizedMessage.Create("reason.incomplete_multidisk_set", ("found", loser.Completeness), ("total", total));
+    }
 
     private static LocalizedMessage FormatGoodDumpTiebreak(RankedRelease loser) =>
         loser.DumpRank == 0

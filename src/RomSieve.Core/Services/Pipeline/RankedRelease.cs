@@ -45,6 +45,9 @@ public sealed class RankedRelease
     /// </summary>
     public SetMedia? Media { get; init; }
     public int IsCompleteMultidisk { get; set; } = 1;
+
+    /// <summary>The number of disks (or of sides of a single disk) the set of the release expects; 1 for a release of one medium.</summary>
+    public int ExpectedTotal { get; set; } = 1;
     public int MinNameLen { get; init; }
     public required string FirstName { get; set; }
 }

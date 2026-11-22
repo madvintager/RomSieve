@@ -37,7 +37,8 @@ public sealed record MameCabinet(
 /// <summary>
 /// Unified, immutable representation of a parsed ROM filename (TOSEC, No-Intro, or Redump), shared by the three
 /// conventions. Some fields only exist in one convention (<see cref="Publisher"/>, <see cref="RawOptParens"/> for
-/// TOSEC; <see cref="RereleaseTag"/>, <see cref="TrackNumber"/> for No-Intro / Redump). The DAT enrichment
+/// TOSEC; <see cref="TrackNumber"/> for No-Intro / Redump; <see cref="RereleaseTag"/> is the No-Intro
+/// <c>(Rerelease)</c> or the TOSEC <c>[re-release]</c>). The DAT enrichment
 /// (<see cref="CloneOf"/>, <see cref="ParentTitle"/>, <see cref="IsMultidiskOverride"/>) and the multi-disk
 /// inference (<see cref="DiscTotal"/>) produce a modified copy with a <c>with</c> expression.
 /// </summary>

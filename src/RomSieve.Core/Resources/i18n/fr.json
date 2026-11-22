@@ -779,6 +779,7 @@
   "reason.1g1r_reason_first_name": "premier nom dans l'ordre alphabétique",
   "reason.1g1r_reason_no_difference": "aucune différence, premier fichier trouvé",
   "reason.1g1r_reason_identical_content": "contenu identique, même CRC32",
+  "reason.1g1r_reason_complete_set_over_single": "set complet de {total} disques préféré à une version sur un seul disque",
   "reason.1g1r_reason_driver": "émulation {w_status} préférée à {l_status}",
   "reason.1g1r_reason_amiga_chipset": "version {w_chipset} préférée à la version {l_chipset} (Amiga AGA)",
   "reason.duplicate_in_unmatched": "Doublon dans _unmatched ignoré",

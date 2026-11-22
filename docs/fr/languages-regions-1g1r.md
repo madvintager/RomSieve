@@ -92,8 +92,11 @@ La raison affichée pour une version exclue nomme le critère décisif (par exem
 * **Set complet** : un set dont tous les disques sont présents l'emporte sur un set incomplet ; pour MAME, un set qui
   a toutes ses ROM et tous ses CHD. Le nombre de disques attendu vient du nom (`(Disk 1 of 3)`) ou, à défaut, du plus
   grand numéro de disque trouvé (`(Disc 1)`, `(Disk 2)`...). Un set auquel il manque des disques ne se joue pas : il
-  perd aussi face à une version sur un seul disque, une démo par exemple. Une version sur un seul disque ne perd que
-  face à un set complet sur le même type de support.
+  perd aussi face à une version sur un seul disque, une démo par exemple. Une version sur une seule disquette ne perd que
+  face à un set complet de disquettes : c'est le plus souvent ce set compacté sur une disquette par un groupe de crack,
+  ce que son nom ne dit pas. Sa raison le précise : « set complet de 2 disques préféré à une version sur un seul
+  disque ». Ce n'est pas le cas d'une cassette, dont l'image contient toute la bande : une cassette entière et ses faces
+  (`Side A`, `Side B`) sont départagées par les critères suivants.
 * **Chipset Amiga (machine AGA)** : sans effet tant que l'option *Machine Amiga* de la page Filtres ne vaut pas
   **Amiga 1200, 4000, CD32 (AGA)**. Avec cette machine, les versions AGA et OCS d'un même jeu n'en font qu'un, et la
   version AGA (`(AGA)`, `(A1200)`...) l'emporte sur une version qui tourne sur les deux familles (`(OCS-AGA)`,
@@ -104,7 +107,7 @@ La raison affichée pour une version exclue nomme le critère décisif (par exem
   Tous les dumps d'un DAT Redump sont vérifiés, et une ROM MAME marquée *baddump* est le meilleur dump connu : leurs
   ordres n'ont pas ce critère.
 * **Version originale** : la version originale l'emporte sur une version modifiée, et le jeu complet sur sa démo. Du
-  moins pénalisé au plus pénalisé : les correctifs (`[f]`), les rééditions (`(Virtual Console)`, `(Switch Online)`...),
+  moins pénalisé au plus pénalisé : les correctifs (`[f]`), les rééditions (`(Virtual Console)`, `(Switch Online)`..., `[re-release]` en TOSEC),
   les traductions (`[tr]`, `[T-Fr]`), les dumps alternatifs (`[a]`), les cracks (`[cr]`), les trainers (`[t]`,
   `[t +2]`), les versions modifiées (`[m]`), les hacks (`[h]`, `(Hack)`), les versions pirates (`[p]`, `(Pirate)`), les
   versions de développement (`(alpha)`, `(beta)`, `(proto)`, `(preview)`...), les démos (`(demo)`, `(demo-playable)`,
