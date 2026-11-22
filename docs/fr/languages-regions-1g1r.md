@@ -171,9 +171,8 @@ décrit en général une variante (les mentions de rôle de disque `(Intro)`, `(
 ne sont pas comptées), puis le premier nom dans l'ordre des codes de caractères, pour que le résultat ne dépende jamais
 de l'ordre des fichiers sur le disque.
 
-La version retenue garde un fichier par support : chaque disque, chaque face d'un disque (`Disk 1 of 2 Side A` et
-`Disk 1 of 2 Side B`, ou `Side A` et `Side B`) et une disquette de documentation (`[docs]`) sont autant de supports.
-Quand elle contient plusieurs dumps d'un même support, par exemple avec **Compléter un set avec les disques d'un autre
+La version retenue garde un fichier par support : chaque disque et chaque face d'un disque (`Disk 1 of 2 Side A` et
+`Disk 1 of 2 Side B`, ou `Side A` et `Side B`) sont autant de supports. Quand elle contient plusieurs dumps d'un même support, par exemple avec **Compléter un set avec les disques d'un autre
 dump**, qui réunit dans une version les dumps d'un disque qui ne diffèrent que par un hack, un trainer ou un correctif,
 les mêmes critères, dans le même ordre, choisissent le meilleur dump de chaque support. Les autres sont des
 **Doublons**, dont la raison nomme le dump retenu et le critère qui l'a choisi : « Doublon 1G1R du même support : Jeu
@@ -181,8 +180,9 @@ les mêmes critères, dans le même ordre, choisissent le meilleur dump de chaqu
 d'un même disque, `(Disk 1 of 2 Side B)` et `(Disk 1 of 2 Side B)(Character)`), la raison le dit : « nom de fichier le
 plus court » ou « premier nom dans l'ordre alphabétique ». Deux fichiers identiques sont dits de « contenu identique,
 même CRC32 » : c'est le cas d'un disque qu'un DAT TOSEC a retiré parce qu'il était identique à un autre, et qu'il
-identifie comme cet autre disque. Une disquette `[savegame]` est le disque du jeu avec une partie sauvegardée : c'est
-un autre dump du même disque.
+identifie comme cet autre disque. Un dump `[savegame]` est le disque du jeu avec une partie sauvegardée, un dump
+`[docs]` le disque du jeu avec sa documentation ajoutée : ce sont d'autres dumps du même disque, et à marques égales
+celui qui n'a pas la mention l'emporte (« nom de fichier le plus court »).
 
 #### Ordres par défaut
 

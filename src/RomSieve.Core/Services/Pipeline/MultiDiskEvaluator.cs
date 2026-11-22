@@ -32,12 +32,6 @@ public sealed partial class MultiDiskEvaluator
     [GeneratedRegex(@"\bSide\s+([A-Z0-9])\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SideRegex();
 
-    // A disk that holds the documentation of the game: the release key leaves the mark out
-    // (GameKeyService.DiskSpecificMoreInfoRegex), so that the disk joins the release of its game. A [savegame] disk is the
-    // game disk with a saved game on it, another dump of the same disk
-    [GeneratedRegex(@"^\[(docs)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex ExtraContentRegex();
-
     // Mastering codes of a Redump disc, "(1M)", "(2M, 3M)", "(2MB3)": they tell the pressings of one disc apart, not the
     // editions of a game
     [GeneratedRegex(@"^\(\d+M(?:B\d+)?(?:,\s*\d+M(?:B\d+)?)*\)$", RegexOptions.CultureInvariant)]
@@ -245,17 +239,17 @@ public sealed partial class MultiDiskEvaluator
     }
 
     /// <summary>
-    /// The medium a file holds within its release: its disk, the side of that disk, and whether the disk holds the
-    /// documentation of the game (<c>[docs]</c>). Two files of a release with the same key are two dumps of one medium, of
-    /// which the 1G1R keeps one; the two sides of a disk, or a game and its documentation disk, are two media.
+    /// The medium a file holds within its release: its disk and the side of that disk. Two files of a release with the
+    /// same key are two dumps of one medium, of which the 1G1R keeps one; the two sides of a disk are two media. A
+    /// <c>[docs]</c> dump is the game disk with its documentation added, another dump of the same disk, as a
+    /// <c>[savegame]</c> one: the release key leaves both marks out (<c>GameKeyService.DiskSpecificMoreInfoRegex</c>), and
+    /// on the TOSEC DATs nearly every one has a twin of the same name without the mark (2,935 of the 2,993 of the C64
+    /// games), most of them cracked or trained.
     /// </summary>
     public static string MediaSlotKey(ProcessItem item)
     {
         var parsed = item.Parsed;
         var side = ExtractSide(parsed) ?? string.Empty;
-        var content = parsed.MoreInfo
-            .Select(info => ExtraContentRegex().Match(info))
-            .FirstOrDefault(m => m.Success)?.Groups[1].Value.ToLowerInvariant() ?? string.Empty;
 
         var disk = string.Empty;
         if (item.IsMultiMedia)
@@ -274,12 +268,8 @@ public sealed partial class MultiDiskEvaluator
             }
         }
 
-        return string.Join("|", disk, side, content);
+        return string.Join("|", disk, side);
     }
-
-    /// <summary>Whether a disk holds the documentation of its game (<c>[docs]</c>), a medium that no set requires.</summary>
-    internal static bool HoldsDocumentation(ParsedRomName parsed) =>
-        parsed.MoreInfo.Any(info => ExtraContentRegex().IsMatch(info));
 
     /// <summary>
     /// The sides of each disk of the TOSEC, No-Intro and Redump editions of <paramref name="items"/>
@@ -354,7 +344,6 @@ public sealed partial class MultiDiskEvaluator
     private bool AddSide(EditionSides editionSides, ParsedRomName parsed, string? datKey, bool onlyKnownEditions)
     {
         if (parsed.Convention is not (NamingConvention.Tosec or NamingConvention.NoIntro or NamingConvention.Redump) ||
-            HoldsDocumentation(parsed) ||
             ExtractSide(parsed) is not { } side)
         {
             return false;
@@ -409,7 +398,7 @@ public sealed partial class MultiDiskEvaluator
                 continue;
             }
 
-            var held = releaseItems.Where(it => !HoldsDocumentation(it.Parsed) && EditionSides.PartOf(it.Parsed) == p).ToList();
+            var held = releaseItems.Where(it => EditionSides.PartOf(it.Parsed) == p).ToList();
             if (held.Any(it => ExtractSide(it.Parsed) is null))
             {
                 continue;
@@ -419,7 +408,7 @@ public sealed partial class MultiDiskEvaluator
             foreach (var (_, cleanDisk) in media.OrderBy(pair => pair.Key, StringComparer.Ordinal))
             {
                 if (held.Count == 0 ||
-                    (!HoldsDocumentation(cleanDisk.Parsed) && ExtractSide(cleanDisk.Parsed) is { } side && !heldSides.Contains(side)))
+                    (ExtractSide(cleanDisk.Parsed) is { } side && !heldSides.Contains(side)))
                 {
                     borrowed.Add((p, cleanDisk));
                 }
@@ -449,7 +438,11 @@ public sealed partial class MultiDiskEvaluator
             : null;
     }
 
-    /// <summary>Records a clean disk of an edition under its number and its medium; the last one of a medium is kept.</summary>
+    /// <summary>
+    /// Records a clean disk of an edition under its number and its medium. Of several clean dumps of one medium, the one
+    /// the cascade would keep with equal tags is lent: a verified dump, then the shortest file name, then the first in the
+    /// ordinal order (the dump without <c>[docs]</c>, rather than the last one read).
+    /// </summary>
     private static void AddCleanDisk(Dictionary<int, Dictionary<string, ProcessItem>> diskMap, int partNum, ProcessItem item)
     {
         if (!diskMap.TryGetValue(partNum, out var media))
@@ -458,7 +451,25 @@ public sealed partial class MultiDiskEvaluator
             diskMap[partNum] = media;
         }
 
-        media[MediaSlotKey(item)] = item;
+        var slot = MediaSlotKey(item);
+        if (!media.TryGetValue(slot, out var recorded) || IsBetterCleanDump(item, recorded))
+        {
+            media[slot] = item;
+        }
+    }
+
+    private static bool IsBetterCleanDump(ProcessItem candidate, ProcessItem recorded)
+    {
+        if (candidate.Parsed.IsVerified != recorded.Parsed.IsVerified)
+        {
+            return candidate.Parsed.IsVerified;
+        }
+
+        var candidateName = Path.GetFileName(candidate.SourcePath);
+        var recordedName = Path.GetFileName(recorded.SourcePath);
+        return candidateName.Length != recordedName.Length
+            ? candidateName.Length < recordedName.Length
+            : string.CompareOrdinal(candidateName, recordedName) < 0;
     }
 
     /// <summary>

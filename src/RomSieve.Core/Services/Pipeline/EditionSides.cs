@@ -83,18 +83,13 @@ public sealed class EditionSides
     /// <summary>
     /// What <paramref name="items"/> (a release, with the disks it borrows) hold of their set, against the sides of
     /// their edition (<paramref name="knownSides"/>, <c>null</c> when no name of the edition gives a side: every disk
-    /// held is then whole). A disk of documentation is no side of the game.
+    /// held is then whole).
     /// </summary>
     public static SetMedia Count(IEnumerable<ProcessItem> items, IReadOnlyDictionary<int, SortedSet<string>>? knownSides)
     {
         var held = new SortedDictionary<int, (bool Whole, SortedSet<string> Sides)>();
         foreach (var item in items)
         {
-            if (MultiDiskEvaluator.HoldsDocumentation(item.Parsed))
-            {
-                continue;
-            }
-
             var part = PartOf(item.Parsed);
             if (!held.TryGetValue(part, out var disk))
             {

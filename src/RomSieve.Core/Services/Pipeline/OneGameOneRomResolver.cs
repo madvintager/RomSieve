@@ -655,7 +655,7 @@ public sealed partial class OneGameOneRomResolver
         bool isManualOverride = false,
         ProcessItem? forcedItem = null)
     {
-        // One file per medium of the winning release (a disk, a side of a disk, a disk of documentation): the smart
+        // One file per medium of the winning release (a disk, a side of a disk): the smart
         // multi-disk key gathers the cracked and the hacked dumps of a disk, of which the cascade keeps the best
         var keptItems = new List<ProcessItem>();
         foreach (var slot in winningRelease.Items.GroupBy(MultiDiskEvaluator.MediaSlotKey, StringComparer.OrdinalIgnoreCase))

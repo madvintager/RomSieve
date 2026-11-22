@@ -165,8 +165,8 @@ and always last, the **name** itself: the shortest file name wins, since a name 
 a variant (the disk role mentions `(Intro)`, `(Game)`, `[bootable]` and `[non-bootable]` are not counted), then the
 first file name in character code order, so that the result never depends on the order of the files on disk.
 
-The kept release keeps one file per medium: each disk, each side of a disk (`Disk 1 of 2 Side A` and
-`Disk 1 of 2 Side B`, or `Side A` and `Side B`) and a documentation disk (`[docs]`) are as many media. When it holds
+The kept release keeps one file per medium: each disk and each side of a disk (`Disk 1 of 2 Side A` and
+`Disk 1 of 2 Side B`, or `Side A` and `Side B`) are as many media. When it holds
 several dumps of one medium, for example with **Complete a set with the disks of another dump**, which gathers in one
 release the dumps of a disk that differ only by a hack, a trainer or a fix, the same criteria, in the same order, pick
 the best dump of each medium. The others are **Duplicates**, whose reason names the dump kept and the criterion that
@@ -174,8 +174,9 @@ chose it: "1G1R duplicate of the same medium: Game (Side A).d64 retained (origin
 the names tell two dumps apart (two labels of one disk, `(Disk 1 of 2 Side B)` and
 `(Disk 1 of 2 Side B)(Character)`), the reason says so: "shorter file name" or "first name in alphabetical order". Two
 identical files are said to have "identical content, same CRC32": such is a disk that a TOSEC DAT dropped because it
-was identical to another one, and that it identifies as that other disk. A `[savegame]` disk is the game disk with a
-saved game on it: it is another dump of the same disk.
+was identical to another one, and that it identifies as that other disk. A `[savegame]` dump is the game disk with a
+saved game on it, a `[docs]` dump the game disk with its documentation added: they are other dumps of the same disk,
+and with equal marks the one without the mention wins ("shorter file name").
 
 #### Default orders
 

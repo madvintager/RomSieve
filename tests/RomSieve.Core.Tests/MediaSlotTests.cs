@@ -206,13 +206,46 @@ public sealed class MediaSlotTests : IDisposable
     [Theory]
     [InlineData("[Docs]")]
     [InlineData("[docs]")]
-    public async Task OneGameOneRom_ShouldKeepADiskOfDocumentationWithItsGame(string tag)
+    public async Task OneGameOneRom_ShouldKeepOneOfAGameDiskAndItsDocsDump(string tag)
     {
+        // A [docs] dump is the game disk with its documentation added, not a disk of documentation: both were written.
+        // On the TOSEC C64 DATs, 2,935 of the 2,993 [docs] dumps have a twin of the same name without the mark
         var items = await SimulateAsync(
-            "Jeff's Dungeon (1990)(Anderson, Jeff).d64",
-            $"Jeff's Dungeon (1990)(Anderson, Jeff){tag}.d64");
+            "Dive Bomber (1988)(Epyx)[cr NFI].d64",
+            $"Dive Bomber (1988)(Epyx)[cr NFI]{tag}.d64");
 
-        items.Should().OnlyContain(it => it.Status == FileStatus.Valid);
+        Kept(items).Should().Equal("Dive Bomber (1988)(Epyx)[cr NFI].d64");
+        var duplicate = Named(items, $"Dive Bomber (1988)(Epyx)[cr NFI]{tag}.d64");
+        duplicate.Status.Should().Be(FileStatus.Duplicate);
+        _services.I18n.Format(duplicate.EliminationDetail!).Should().Be("nom de fichier le plus court");
+    }
+
+    [Fact]
+    public async Task OneGameOneRom_ShouldKeepOneDisk1OfASetWithADocsDumpOfIt()
+    {
+        // The trained disk 1 with its documentation is another dump of disk 1: the set was written with two disks 1
+        var items = await SimulateAsync(
+            "Elvira - Mistress of the Dark (1990)(Accolade)(Disk 1 of 3)[h Defjam].adf",
+            "Elvira - Mistress of the Dark (1990)(Accolade)(Disk 1 of 3)[t +6 Enigma][docs].adf",
+            "Elvira - Mistress of the Dark (1990)(Accolade)(Disk 2 of 3).adf",
+            "Elvira - Mistress of the Dark (1990)(Accolade)(Disk 3 of 3).adf");
+
+        var disks1 = items.Where(it => it.DisplayName.Contains("(Disk 1 of 3)", StringComparison.Ordinal)).ToList();
+        disks1.Should().ContainSingle(it => it.Status == FileStatus.Valid);
+        disks1.Should().ContainSingle(it => it.Status == FileStatus.Duplicate);
+        Kept(items).Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task SmartMultidisk_ShouldLendThePlainCleanDiskRatherThanItsDocsDump()
+    {
+        // Of the two clean dumps of disk 2, the cracked set borrowed the last one read, the [docs] one
+        var items = await SimulateAsync(
+            "Centurion (1991)(Electronic Arts)(Disk 1 of 2)[cr].adf",
+            "Centurion (1991)(Electronic Arts)(Disk 2 of 2).adf",
+            "Centurion (1991)(Electronic Arts)(Disk 2 of 2)[docs].adf");
+
+        Kept(items).Should().Equal("Centurion (1991)(Electronic Arts)(Disk 1 of 2)[cr].adf", "Centurion (1991)(Electronic Arts)(Disk 2 of 2).adf");
     }
 
     [Fact]
