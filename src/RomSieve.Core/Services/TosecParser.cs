@@ -207,13 +207,49 @@ public sealed partial class TosecParser : ITosecParser
         if (cleaned.Contains(" - ", StringComparison.Ordinal))
         {
             var segments = cleaned.Split(" - ");
+            MoveTitleArticleToFirstSegment(segments);
             return string.Join(" - ", segments.Select(RestoreSingleSegmentArticle));
         }
 
         return RestoreSingleSegmentArticle(cleaned);
     }
 
-    private static string RestoreSingleSegmentArticle(string segment)
+    /// <summary>
+    /// The article of the whole title, which TOSEC may put at the end of a later segment that starts with an article of
+    /// its own ("Question of Scruples - The Computer Edition, A", "Bard's Tale II - The Destiny Knight, The"): a segment
+    /// never takes two articles, so that it belongs to the first one, before which it is put back. An article at the end
+    /// of a segment without one stays with it ("Barrier-System - Muro, El", the Spanish title "El Muro"), and so do the
+    /// articles of a title whose first segment has its own, or that several segments end with: nothing tells then.
+    /// </summary>
+    private static void MoveTitleArticleToFirstSegment(string[] segments)
+    {
+        if (TrySplitTrailingArticle(segments[0], out _, out _))
+        {
+            return;
+        }
+
+        var owners = Enumerable.Range(1, segments.Length - 1)
+            .Where(i => StartsWithArticle(segments[i]) && TrySplitTrailingArticle(segments[i], out _, out _))
+            .ToList();
+        if (owners.Count == 1 && TrySplitTrailingArticle(segments[owners[0]], out var basePart, out var article))
+        {
+            segments[owners[0]] = basePart;
+            segments[0] = $"{segments[0].Trim()}, {article.Trim()}";
+        }
+    }
+
+    private static bool StartsWithArticle(string segment)
+    {
+        var cleaned = segment.Trim();
+        return ArticlesWithSpace.Any(art => cleaned.StartsWith(art + " ", StringComparison.Ordinal)) ||
+               ArticlesWithApostrophe.Any(art => cleaned.StartsWith(art, StringComparison.Ordinal) && cleaned.Length > art.Length);
+    }
+
+    /// <summary>
+    /// Splits a segment that ends with an article ("Legend of TOSEC, The") into its base and the article as it goes
+    /// before it ("The ", or "L'" without space).
+    /// </summary>
+    private static bool TrySplitTrailingArticle(string segment, out string basePart, out string article)
     {
         var cleaned = segment.Trim();
 
@@ -222,8 +258,9 @@ public sealed partial class TosecParser : ITosecParser
             var suffix = $", {art}";
             if (cleaned.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             {
-                var basePart = cleaned[..^suffix.Length].Trim();
-                return $"{art}{basePart}";
+                basePart = cleaned[..^suffix.Length].Trim();
+                article = art;
+                return true;
             }
         }
 
@@ -232,13 +269,19 @@ public sealed partial class TosecParser : ITosecParser
             var suffix = $", {art}";
             if (cleaned.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             {
-                var basePart = cleaned[..^suffix.Length].Trim();
-                return $"{art} {basePart}";
+                basePart = cleaned[..^suffix.Length].Trim();
+                article = art + " ";
+                return true;
             }
         }
 
-        return cleaned;
+        basePart = cleaned;
+        article = string.Empty;
+        return false;
     }
+
+    private static string RestoreSingleSegmentArticle(string segment) =>
+        TrySplitTrailingArticle(segment, out var basePart, out var article) ? $"{article}{basePart}" : segment.Trim();
 
     private static bool IsMediaToken(string token) =>
         MediaDiskRegex().IsMatch(token) ||

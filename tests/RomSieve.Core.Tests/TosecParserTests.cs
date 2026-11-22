@@ -91,6 +91,20 @@ public sealed class TosecParserTests
     [InlineData("Mansion, Das", "Das Mansion")]
     [InlineData("Normal Title", "Normal Title")]
     [InlineData("Legend of Zelda, The - A Link to the Past", "The Legend of Zelda - A Link to the Past")]
+    // The article of the whole title at the end of a later segment that has its own: it was put before that segment
+    // ("Question of Scruples - A The Computer Edition")
+    [InlineData("Question of Scruples - The Computer Edition, A", "A Question of Scruples - The Computer Edition")]
+    [InlineData("Bard's Tale II - The Destiny Knight, The", "The Bard's Tale II - The Destiny Knight")]
+    [InlineData("Fall of Rome - La Caida de Roma, The", "The Fall of Rome - La Caida de Roma")]
+    [InlineData("Edifice - An Interactive Allegory, The - ZxZvm", "The Edifice - An Interactive Allegory - ZxZvm")]
+    [InlineData("Living Daylights - The Computer Game, The - 007 - The Living Daylights", "The Living Daylights - The Computer Game - 007 - The Living Daylights")]
+    // An article at the end of a segment without one belongs to it; nothing tells otherwise
+    [InlineData("Barrier-System - Muro, El", "Barrier-System - El Muro")]
+    [InlineData("Jadeworld I - Blood Sword, The", "Jadeworld I - The Blood Sword")]
+    [InlineData("Prophecy, The - Rising of Salandra, The - Part 1", "The Prophecy - The Rising of Salandra - Part 1")]
+    [InlineData("Great Art Series, The - Florence Renaissance - Renaissance of Florence, The", "The Great Art Series - Florence Renaissance - The Renaissance of Florence")]
+    // Two segments that end with an article: nothing is moved
+    [InlineData("Pugly Ugly - The Journey Longest, La - The Long Journey, La", "Pugly Ugly - La The Journey Longest - La The Long Journey")]
     public void RestoreArticles_ShouldRestoreInvertedLeadingArticles(string input, string expected)
     {
         _parser.RestoreTitleArticles(input).Should().Be(expected);

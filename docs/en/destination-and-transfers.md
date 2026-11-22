@@ -127,7 +127,9 @@ The `_unmatched` folder of the non-conforming files stays at the root of the des
 ### Related options
 
 * **Restore leading articles**, under the pattern and the folder of the patched versions: `Legend of Zelda, The`
-  becomes `The Legend of Zelda` in the folder names.
+  becomes `The Legend of Zelda` in the folder names. An article that TOSEC puts at the end of the whole title, after a
+  subtitle that already has its own, goes back to the front: `Question of Scruples - The Computer Edition, A` becomes
+  `A Question of Scruples - The Computer Edition`.
 
 The **Multi-disk games** frame, next to *Writing the files*:
 

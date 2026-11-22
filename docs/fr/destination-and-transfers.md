@@ -127,7 +127,9 @@ Le dossier `_unmatched` des fichiers non conformes reste à la racine de la dest
 ### Options associées
 
 * **Restaurer les articles initiaux**, sous le modèle et le dossier des versions patchées : `Legend of Zelda, The`
-  devient `The Legend of Zelda` dans les noms de dossiers.
+  devient `The Legend of Zelda` dans les noms de dossiers. Un article que TOSEC place au bout du titre entier, après un
+  sous-titre qui a déjà le sien, revient en tête : `Question of Scruples - The Computer Edition, A` devient
+  `A Question of Scruples - The Computer Edition`.
 
 Le cadre **Jeux multi-disques**, à côté de *Écriture des fichiers* :
 
