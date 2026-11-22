@@ -99,10 +99,68 @@ public sealed class MediaSlotTests : IDisposable
             "Bards Tale 3 (1988)(Electronic Arts)(Disk 2 of 2 Side A).d64",
             "Bards Tale 3 (1988)(Electronic Arts)(Disk 2 of 2 Side B).d64");
 
-        // The two dumps of the side B of disk 1 are one medium: the shortest name wins, and the duplicate says so
+        // The two dumps of the side B of disk 1 are one medium: the shortest name wins, and the duplicate says so (it
+        // was said to lose to the "clean/official" dump, which nothing had compared)
         var duplicate = Named(items, "Bards Tale 3 (1988)(Electronic Arts)(Disk 1 of 2 Side B)(Character).d64");
         duplicate.Status.Should().Be(FileStatus.Duplicate);
         duplicate.WinnerReference.Should().Be("Bards Tale 3 (1988)(Electronic Arts)(Disk 1 of 2 Side B).d64");
+        duplicate.EliminatedBy.Should().Be(TiebreakCriterion.Name);
+        _services.I18n.Format(duplicate.StatusReason!).Should().Be(
+            "Doublon 1G1R du même support : Bards Tale 3 (1988)(Electronic Arts)(Disk 1 of 2 Side B).d64 retenu (nom de fichier le plus court)");
+    }
+
+    [Fact]
+    public async Task OneGameOneRom_ShouldNameAWrittenFileAsTheWinnerOfTheDiscardedReleases()
+    {
+        // The first name of the winning release, "(Boot)", is a dump that loses its side to a shorter name: the files
+        // of the cracked release named it as the winner, although it is not written
+        var items = await SimulateAsync(
+            "Ultima IV (1986)(Origin)(Disk 1 of 2 Side A)(Boot).d64",
+            "Ultima IV (1986)(Origin)(Disk 1 of 2 Side A).d64",
+            "Ultima IV (1986)(Origin)(Disk 1 of 2 Side B).d64",
+            "Ultima IV (1986)(Origin)(Disk 2 of 2 Side A).d64",
+            "Ultima IV (1986)(Origin)(Disk 2 of 2 Side B).d64",
+            "Ultima IV (1986)(Origin)(Disk 1 of 2 Side A)[cr ECA].d64",
+            "Ultima IV (1986)(Origin)(Disk 1 of 2 Side B)[cr ECA].d64",
+            "Ultima IV (1986)(Origin)(Disk 2 of 2 Side A)[cr ECA].d64",
+            "Ultima IV (1986)(Origin)(Disk 2 of 2 Side B)[cr ECA].d64");
+
+        Named(items, "Ultima IV (1986)(Origin)(Disk 1 of 2 Side A)(Boot).d64").Status.Should().Be(FileStatus.Duplicate);
+        var cracked = items.Where(it => it.DisplayName.Contains("[cr ECA]", StringComparison.Ordinal)).ToList();
+        cracked.Should().HaveCount(4).And.OnlyContain(it => it.Status == FileStatus.Excluded);
+        cracked.Should().OnlyContain(it => it.WinnerReference == "Ultima IV (1986)(Origin)(Disk 1 of 2 Side A).d64");
+        Named(items, "Ultima IV (1986)(Origin)(Disk 1 of 2 Side A).d64").Status.Should().Be(FileStatus.Valid);
+    }
+
+    [Fact]
+    public async Task OneGameOneRom_ShouldSayThatTwoDumpsOfAMediumHaveTheSameContent()
+    {
+        // The DAT dropped "Disk 2 of 2 Side B", identical to the side B of disk 1: the file is identified as that side,
+        // and the duplicate says why rather than how the name decided
+        byte[] sideA = [1, 1], sideB = [2, 2], disk2SideA = [3, 3];
+        var src = _temp.CreateSubdirectory("src_identical");
+        File.WriteAllBytes(Path.Combine(src, "Rebel Force (1983)(ComputerMat)(Disk 1 of 2 Side A).d64"), sideA);
+        File.WriteAllBytes(Path.Combine(src, "Rebel Force (1983)(ComputerMat)(Disk 1 of 2 Side B).d64"), sideB);
+        File.WriteAllBytes(Path.Combine(src, "Rebel Force (1983)(ComputerMat)(Disk 2 of 2 Side A).d64"), disk2SideA);
+        File.WriteAllBytes(Path.Combine(src, "Rebel Force (1983)(ComputerMat)(Disk 2 of 2 Side B).d64"), sideB);
+        var dat = DiskSideCompletenessTests.WriteDat(_temp,
+            ("Rebel Force (1983)(ComputerMat)(Disk 1 of 2 Side A).d64", sideA),
+            ("Rebel Force (1983)(ComputerMat)(Disk 1 of 2 Side B).d64", sideB),
+            ("Rebel Force (1983)(ComputerMat)(Disk 2 of 2 Side A).d64", disk2SideA));
+
+        var result = await _services.Processor.ExecuteAsync(new SortConfig
+        {
+            SourceDir = src,
+            DestinationDir = _temp.CreateSubdirectory("dst_identical"),
+            DatFile = dat,
+            Filters = new FilterConfig { OneGameOneRom = true, PriorityLanguages = ["en"], CompleteMultidiskSetsOnly = true, SmartMultidiskGrouping = true }
+        }, isDryRun: true);
+
+        var duplicate = Named(result.Items, "Rebel Force (1983)(ComputerMat)(Disk 2 of 2 Side B).d64");
+        duplicate.Status.Should().Be(FileStatus.Duplicate);
+        _services.I18n.Format(duplicate.StatusReason!).Should().Be(
+            "Doublon 1G1R du même support : Rebel Force (1983)(ComputerMat)(Disk 1 of 2 Side B).d64 retenu (contenu identique, même CRC32)");
+        Kept(result.Items).Should().HaveCount(3);
     }
 
     [Fact]
@@ -195,9 +253,39 @@ public sealed class MediaSlotTests : IDisposable
         {
             [2] = new() { [MultiDiskEvaluator.MediaSlotKey(sideB)] = sideB, [MultiDiskEvaluator.MediaSlotKey(sideA)] = sideA }
         };
+        ProcessItem[] release =
+        [
+            Disk("Amazon (1984)(Trillium)(Disk 1 of 2 Side A)[cr X].d64"),
+            Disk("Amazon (1984)(Trillium)(Disk 1 of 2 Side B)[cr X].d64")
+        ];
 
-        var borrowed = MultiDiskEvaluator.FindBorrowableCleanDisks(new HashSet<int> { 1 }, 2, cleanDisks);
+        var borrowed = MultiDiskEvaluator.FindBorrowableCleanDisks(release, [1, 2], cleanDisks);
 
         borrowed.Should().Equal((2, sideA), (2, sideB));
+    }
+
+    [Fact]
+    public void FindBorrowableCleanDisks_ShouldBorrowOnlyTheSideADiskLacks()
+    {
+        ProcessItem Disk(string name) => new()
+        {
+            SourcePath = name,
+            FileSize = 1,
+            Parsed = _services.TosecParser.ParseTosecFilename(name)
+        };
+        var cleanA = Disk("Ultima IV (1986)(Origin)(Disk 1 of 2 Side A).d64");
+        var cleanB = Disk("Ultima IV (1986)(Origin)(Disk 1 of 2 Side B).d64");
+        var cleanDisks = new Dictionary<int, Dictionary<string, ProcessItem>>
+        {
+            [1] = new() { [MultiDiskEvaluator.MediaSlotKey(cleanA)] = cleanA, [MultiDiskEvaluator.MediaSlotKey(cleanB)] = cleanB }
+        };
+
+        var borrowed = MultiDiskEvaluator.FindBorrowableCleanDisks([Disk("Ultima IV (1986)(Origin)(Disk 1 of 2 Side A)[cr ECA].d64")], [1], cleanDisks);
+
+        borrowed.Should().Equal((1, cleanB));
+
+        // A dump of the whole disk lacks no side
+        MultiDiskEvaluator.FindBorrowableCleanDisks([Disk("Ultima IV (1986)(Origin)(Disk 1 of 2)[cr ECA].d64")], [1], cleanDisks)
+            .Should().BeEmpty();
     }
 }

@@ -127,13 +127,19 @@ avec un DAT MAME ou des listes de logiciels, où un fichier que le DAT ne conna�
   Le nombre de disques d'un set vient du DAT : un set auquel il manque son dernier disque est incomplet. Un fichier ne
   complète que le disque dont il porte le nom, même quand une piste identique figure sur un autre disque ; les ROMs que
   le DAT dit jamais dumpées (`nodump`) ne comptent pas, et un CHD rattaché à son jeu par **Identifier les CHD par leur
-  nom** vaut tout son disque. Avec la convention MAME, ce groupe laisse place à l'option **Sets complets uniquement (ROM
-  et CHD présents)** du cadre [Machines MAME](#machines-mame). Pour les logiciels d'une liste MAME, cette option exclut
-  un logiciel dont l'archive n'a pas toutes ses ROMs.
+  nom** vaut tout son disque. *(TOSEC)* Un disque n'est complet qu'avec chacune de ses faces, celles que nomment les
+  fichiers de la même édition, dans la source (un dump craqué ou un mauvais dump d'une face dit aussi qu'elle existe)
+  comme dans le DAT ; un dump sans face vaut tout le disque. La raison nomme alors la face absente : « Set
+  multi-disquettes incomplet (1/2 disques complets : face A du disque 1 absente) », ou « Jeu incomplet (1/2 faces
+  trouvées : face B absente) » pour un disque seul dont les faces sont nommées sans numéro (`Side A`, `Side B`). Avec la
+  convention MAME, ce groupe laisse place à l'option **Sets complets uniquement (ROM et CHD présents)** du cadre
+  [Machines MAME](#machines-mame). Pour les logiciels d'une liste MAME, cette option exclut un logiciel dont l'archive
+  n'a pas toutes ses ROMs.
 * **Compléter un set avec les disques d'un autre dump** : un set incomplet emprunte le disque qui lui manque à un autre
   dump de la même édition. *(TOSEC)* Un set est souvent incomplet parce que le disque 1 porte un trainer `[t]` ou un
   correctif `[f]` que les disques de données n'ont pas : RomSieve le complète avec les disques de données propres du
-  même jeu. *(No-Intro / Redump)* Un disque dumpé en plusieurs pressages, distingués par leurs codes de mastering
+  même jeu. Il emprunte de même les faces propres qui manquent à un disque dont la face de démarrage n'existe que
+  craquée (`Disk 1 of 2 Side A [cr]` avec `Disk 1 of 2 Side B`). *(No-Intro / Redump)* Un disque dumpé en plusieurs pressages, distingués par leurs codes de mastering
   (`Phantasm (Japan) (Disc 6) (4M)` et `(Disc 6) (5M)`), complète le set dont les autres disques n'en ont pas. Seul
   le set qui a le plus de disques emprunte, toujours le même dump (celui qui partage le plus de tags avec le set, puis
   celui qui en a le moins, puis le premier nom), et jamais un disque d'une autre édition (`(Premium Box)`). L'option

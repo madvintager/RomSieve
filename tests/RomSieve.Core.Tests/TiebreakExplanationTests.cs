@@ -99,6 +99,7 @@ public sealed class TiebreakExplanationTests : IDisposable
             }
         ),
         ["name"] = (["Game (1990)(Pub)(FR).adf", "Game (1990)(Publisher)(FR).adf"], f => f.PriorityLanguages = ["fr"]),
+        ["name_order"] = (["Game (1990)(PubA)(FR).adf", "Game (1990)(PubB)(FR).adf"], f => f.PriorityLanguages = ["fr"]),
         // For an AGA Amiga, the AGA and OCS versions of a game are one game, and the AGA one wins
         ["amiga_chipset"] = (["Game (1990)(Pub)(AGA)(FR).adf", "Game (1990)(Pub)(FR)[!].adf"], f =>
         {
@@ -168,8 +169,11 @@ public sealed class TiebreakExplanationTests : IDisposable
         { "date", "en", "Game (1990)(Pub)(FR).adf", "newer date 1991" },
         { "complete_set", "fr", "Zak v1.1 (1988)(Lucas)(FR)(Disk 1 of 2).adf", "Set multi-disquettes incomplet (1/2 disques trouvés)" },
         { "complete_and_cleaner_set", "fr", "Zak (1988)(Lucas)(FR)(Disk 1 of 2)[cr X].adf", "version originale vs modifiée" },
-        { "name", "fr", "Game (1990)(Publisher)(FR).adf", "officielle/propre" },
-        { "name", "en", "Game (1990)(Publisher)(FR).adf", "clean/official" },
+        // The last tiebreak, on the name: it was said to be the "clean/official" release, which nothing had compared
+        { "name", "fr", "Game (1990)(Publisher)(FR).adf", "nom de fichier le plus court" },
+        { "name", "en", "Game (1990)(Publisher)(FR).adf", "shorter file name" },
+        { "name_order", "fr", "Game (1990)(PubB)(FR).adf", "premier nom dans l'ordre alphabétique" },
+        { "name_order", "en", "Game (1990)(PubB)(FR).adf", "first name in alphabetical order" },
         { "amiga_chipset", "fr", "Game (1990)(Pub)(FR)[!].adf", "version AGA préférée à la version OCS / ECS (Amiga AGA)" },
         { "amiga_chipset", "en", "Game (1990)(Pub)(FR)[!].adf", "AGA version preferred to the OCS / ECS version (AGA Amiga)" },
         { "loser_with_better_language_outside_pool", "fr", "Game (1990)(Pub)(DE)(en).adf", "pays/région US préféré(e) à DE" },

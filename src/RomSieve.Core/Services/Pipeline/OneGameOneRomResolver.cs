@@ -271,6 +271,7 @@ public sealed partial class OneGameOneRomResolver
 
         // Also for No-Intro / Redump, whose releases borrow the disc they lack from another pressing of their edition; the
         // multi-disk evaluation keys them, as here, without the smart TOSEC key
+        var borrowedByRelease = new Dictionary<string, HashSet<ProcessItem>>(StringComparer.Ordinal);
         if (_config.Filters.SmartMultidiskGrouping)
         {
             // Clean data disks that the multi-disk evaluation found to complete a release compete with it
@@ -283,6 +284,12 @@ public sealed partial class OneGameOneRomResolver
                         if (!rItems.Contains(cleanDisk))
                         {
                             rItems.Add(cleanDisk);
+                            if (!borrowedByRelease.TryGetValue(rkey, out var added))
+                            {
+                                added = new HashSet<ProcessItem>(ReferenceEqualityComparer.Instance);
+                                borrowedByRelease[rkey] = added;
+                            }
+                            added.Add(cleanDisk);
                         }
                     }
                 }
@@ -293,7 +300,13 @@ public sealed partial class OneGameOneRomResolver
         foreach (var (relKey, relItems) in releaseGroups)
         {
             relItems.Sort((x, y) => GetDiskSortKey(x).CompareTo(GetDiskSortKey(y)));
-            rankedReleases.Add(BuildRankedRelease(relKey, releaseEditionKeys[relKey], relItems));
+            var editionKey = releaseEditionKeys[relKey];
+            rankedReleases.Add(BuildRankedRelease(
+                relKey,
+                editionKey,
+                relItems,
+                knownSides: multiDiskResult.EditionSides.Of(editionKey),
+                borrowed: borrowedByRelease.GetValueOrDefault(relKey)));
         }
 
         ResolveRankedReleases(groupItems, rankedReleases, multiDiskResult, isNoIntroGame);
@@ -303,11 +316,26 @@ public sealed partial class OneGameOneRomResolver
     /// A release as the cascade compares it, from its files (sorted by <see cref="GetDiskSortKey"/>, the first one giving
     /// its tags). With <paramref name="setOf"/>, a single dump of one medium of that release, compared with the other
     /// dumps of the medium: the completeness and the parent / clone status, which belong to the set, are those of the
-    /// release, so that only what tells the dumps apart decides.
+    /// release, so that only what tells the dumps apart decides. A TOSEC set holds a disk only with each side its edition
+    /// names (<paramref name="knownSides"/>, <see cref="EditionSides"/>). The disks it borrows from another dump of its
+    /// edition (<paramref name="borrowed"/>) complete it, but its tags and its names are those of its own files: a cracked
+    /// release that borrows the clean side A it lacks, which sorts first, would otherwise rank as that clean dump.
     /// </summary>
-    private RankedRelease BuildRankedRelease(string relKey, string editionKey, List<ProcessItem> relItems, RankedRelease? setOf = null)
+    private RankedRelease BuildRankedRelease(
+        string relKey,
+        string editionKey,
+        List<ProcessItem> relItems,
+        RankedRelease? setOf = null,
+        IReadOnlyDictionary<int, SortedSet<string>>? knownSides = null,
+        IReadOnlySet<ProcessItem>? borrowed = null)
     {
-        var sampleParsed = relItems[0].Parsed;
+        var ownItems = borrowed is null ? relItems : relItems.Where(it => !borrowed.Contains(it)).ToList();
+        if (ownItems.Count == 0)
+        {
+            ownItems = relItems;
+        }
+
+        var sampleParsed = ownItems[0].Parsed;
 
         // The format of a release is that of its parsed name: with a DAT, the name the DAT gives the file, which the
         // sort writes (a file identified by its checksum may carry another extension in the source), otherwise the
@@ -336,9 +364,16 @@ public sealed partial class OneGameOneRomResolver
         var isParent = setOf?.IsParent ?? (IsParentRelease(relItems) ? 1 : 0);
 
         int completeness;
+        SetMedia? media = null;
         if (setOf is not null)
         {
             completeness = setOf.Completeness;
+        }
+        else if (sampleParsed.IsMultiMedia && sampleParsed.Convention == NamingConvention.Tosec && knownSides is not null)
+        {
+            // The disks held whole, or the sides of a single disk: a set whose boot side only exists cracked is not complete
+            media = EditionSides.Count(relItems, knownSides);
+            completeness = media.Value.Found;
         }
         else if (sampleParsed.IsMultiMedia)
         {
@@ -374,8 +409,8 @@ public sealed partial class OneGameOneRomResolver
             return cleaned.Length;
         }
 
-        var minNameLen = relItems.Min(EffectiveNameLen);
-        var firstName = relItems.Select(it => Path.GetFileName(it.SourcePath)).OrderBy(n => n, StringComparer.Ordinal).First();
+        var minNameLen = ownItems.Min(EffectiveNameLen);
+        var firstName = ownItems.Select(it => Path.GetFileName(it.SourcePath)).OrderBy(n => n, StringComparer.Ordinal).First();
 
         return new RankedRelease
         {
@@ -400,6 +435,7 @@ public sealed partial class OneGameOneRomResolver
             DriverRank = GetDriverRank(sampleParsed.Machine?.DriverStatus ?? sampleParsed.SoftwareSupport),
             AmigaRank = AmigaChipsets.GetAgaRank(sampleParsed),
             Completeness = completeness,
+            Media = media,
             IsCompleteMultidisk = setOf?.IsCompleteMultidisk ?? 1,
             MinNameLen = minNameLen,
             FirstName = firstName
@@ -619,10 +655,9 @@ public sealed partial class OneGameOneRomResolver
         bool isManualOverride = false,
         ProcessItem? forcedItem = null)
     {
-        var winningName = winningRelease.FirstName;
-
         // One file per medium of the winning release (a disk, a side of a disk, a disk of documentation): the smart
         // multi-disk key gathers the cracked and the hacked dumps of a disk, of which the cascade keeps the best
+        var keptItems = new List<ProcessItem>();
         foreach (var slot in winningRelease.Items.GroupBy(MultiDiskEvaluator.MediaSlotKey, StringComparer.OrdinalIgnoreCase))
         {
             var dumps = slot.ToList();
@@ -632,7 +667,10 @@ public sealed partial class OneGameOneRomResolver
             kept.StatusReason = isManualOverride
                 ? LocalizedMessage.Create("reason.1g1r_winner_manual")
                 : LocalizedMessage.Create("reason.1g1r_winner");
+            keptItems.Add(kept);
         }
+
+        var winningName = WinningNameOf(winningRelease, keptItems);
 
         foreach (var rel in rankedReleases)
         {
@@ -678,6 +716,21 @@ public sealed partial class OneGameOneRomResolver
     }
 
     /// <summary>
+    /// The name the discarded releases give as the winner: the first name of the winning release when that file is
+    /// written, otherwise (another dump of its medium kept in its place) the first name of the files kept.
+    /// </summary>
+    private static string WinningNameOf(RankedRelease winningRelease, List<ProcessItem> keptItems)
+    {
+        var firstName = winningRelease.FirstName;
+        if (keptItems.Any(it => Path.GetFileName(it.SourcePath) == firstName || it.ArchiveMember == firstName))
+        {
+            return firstName;
+        }
+
+        return keptItems.Select(it => Path.GetFileName(it.SourcePath)).Order(StringComparer.Ordinal).First();
+    }
+
+    /// <summary>
     /// Keeps one of several dumps of one medium of <paramref name="release"/>, the forced file when it is one of them,
     /// otherwise the best by the cascade, each dump ranked as a release of its own file
     /// (<see cref="BuildRankedRelease"/> with <c>setOf</c>). The others become duplicates that name the dump kept and
@@ -705,8 +758,12 @@ public sealed partial class OneGameOneRomResolver
             }
 
             var decisive = forced ? TiebreakCriterion.None : FindDecisiveCriterion(kept.Release, rel);
-            var detail = forced
-                ? LocalizedMessage.Create("reason.1g1r_reason_manual")
+
+            // When nothing in the names tells the dumps apart and they are the same file, the duplicate says so rather
+            // than how the name decided (a TOSEC DAT that dropped a disk identical to another one identifies it as that disk)
+            var sameContent = (decisive is TiebreakCriterion.Name or TiebreakCriterion.None) && HaveSameContent(kept.Item, it);
+            var detail = forced ? LocalizedMessage.Create("reason.1g1r_reason_manual")
+                : sameContent ? LocalizedMessage.Create("reason.1g1r_reason_identical_content")
                 : FormatTiebreak(decisive, kept.Release, rel);
 
             it.Status = FileStatus.Duplicate;
@@ -719,6 +776,11 @@ public sealed partial class OneGameOneRomResolver
 
         return kept.Item;
     }
+
+    private static bool HaveSameContent(ProcessItem a, ProcessItem b) =>
+        !string.IsNullOrEmpty(a.Crc32) &&
+        string.Equals(a.Crc32, b.Crc32, StringComparison.OrdinalIgnoreCase) &&
+        a.FileSize == b.FileSize;
 
     /// <summary>
     /// Explains why <paramref name="winner"/> was kept over <paramref name="loser"/>. The decisive criterion is the
@@ -767,7 +829,7 @@ public sealed partial class OneGameOneRomResolver
 
                 return loser.Items.Select(it => it.MameSet).FirstOrDefault(set => set is { IsComplete: false }) is { } incompleteMameSet
                     ? ReleaseSelector.DescribeIncompleteSet(incompleteMameSet)
-                    : LocalizedMessage.Create("reason.incomplete_multidisk_set", ("found", loser.Completeness), ("total", winner.Completeness));
+                    : DescribeIncompleteRelease(winner, loser);
 
             case TiebreakCriterion.AmigaChipset:
                 return LocalizedMessage.Create(
@@ -829,16 +891,31 @@ public sealed partial class OneGameOneRomResolver
             case TiebreakCriterion.Completeness:
                 return loser.Items.Select(it => it.MameSet).FirstOrDefault(set => set is { IsComplete: false }) is { } incompleteSet
                     ? ReleaseSelector.DescribeIncompleteSet(incompleteSet)
-                    : LocalizedMessage.Create("reason.incomplete_multidisk_set", ("found", loser.Completeness), ("total", winner.Completeness));
+                    : DescribeIncompleteRelease(winner, loser);
 
             case TiebreakCriterion.ParentClone:
                 return LocalizedMessage.Create("reason.1g1r_reason_parent");
 
+            case TiebreakCriterion.Name:
+                // The last tiebreak of the cascade: the shortest name, then the first in the ordinal order
+                return winner.MinNameLen < loser.MinNameLen
+                    ? LocalizedMessage.Create("reason.1g1r_reason_shorter_name")
+                    : LocalizedMessage.Create("reason.1g1r_reason_first_name");
+
             default:
-                // The name, or no difference at all
-                return LocalizedMessage.Create("desc.clean_official");
+                // No difference at all, the name included (the same file name in two archives or two sources): the
+                // first file found
+                return LocalizedMessage.Create("reason.1g1r_reason_no_difference");
         }
     }
+
+    /// <summary>
+    /// Why a set lost to a more complete one: the side a disk of a TOSEC set lacks, or the disks it holds.
+    /// </summary>
+    private static LocalizedMessage DescribeIncompleteRelease(RankedRelease winner, RankedRelease loser) =>
+        loser.Media is { } media
+            ? MultiDiskEvaluator.DescribeIncompleteSet(loser.Sample.Title, media, winner.Completeness)
+            : LocalizedMessage.Create("reason.incomplete_multidisk_set", ("found", loser.Completeness), ("total", winner.Completeness));
 
     private static LocalizedMessage FormatGoodDumpTiebreak(RankedRelease loser) =>
         loser.DumpRank == 0

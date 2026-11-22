@@ -177,8 +177,12 @@ Quand elle contient plusieurs dumps d'un même support, par exemple avec **Compl
 dump**, qui réunit dans une version les dumps d'un disque qui ne diffèrent que par un hack, un trainer ou un correctif,
 les mêmes critères, dans le même ordre, choisissent le meilleur dump de chaque support. Les autres sont des
 **Doublons**, dont la raison nomme le dump retenu et le critère qui l'a choisi : « Doublon 1G1R du même support : Jeu
-(Side A).d64 retenu (version originale vs modifiée) ». Une disquette `[savegame]` est le disque du jeu avec une partie
-sauvegardée : c'est un autre dump du même disque.
+(Side A).d64 retenu (version originale vs modifiée) ». Quand seuls les noms départagent deux dumps (deux étiquettes
+d'un même disque, `(Disk 1 of 2 Side B)` et `(Disk 1 of 2 Side B)(Character)`), la raison le dit : « nom de fichier le
+plus court » ou « premier nom dans l'ordre alphabétique ». Deux fichiers identiques sont dits de « contenu identique,
+même CRC32 » : c'est le cas d'un disque qu'un DAT TOSEC a retiré parce qu'il était identique à un autre, et qu'il
+identifie comme cet autre disque. Une disquette `[savegame]` est le disque du jeu avec une partie sauvegardée : c'est
+un autre dump du même disque.
 
 #### Ordres par défaut
 

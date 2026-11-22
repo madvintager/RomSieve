@@ -277,6 +277,85 @@ public sealed partial class MultiDiskEvaluator
         return string.Join("|", disk, side, content);
     }
 
+    /// <summary>Whether a disk holds the documentation of its game (<c>[docs]</c>), a medium that no set requires.</summary>
+    internal static bool HoldsDocumentation(ParsedRomName parsed) =>
+        parsed.MoreInfo.Any(info => ExtraContentRegex().IsMatch(info));
+
+    /// <summary>
+    /// The sides of each disk of the TOSEC editions of <paramref name="items"/> (<see cref="EditionSides"/>): those the
+    /// names of their files give, whatever their status (an unmatched or failed file excepted), and those of the
+    /// files of <paramref name="datCatalog"/> of the same editions, so that a set does not pass for complete because
+    /// the source lacks every dump of one of its sides.
+    /// </summary>
+    internal EditionSides CollectEditionSides(IEnumerable<ProcessItem> items, DatCatalog? datCatalog)
+    {
+        var editionSides = new EditionSides();
+        var titles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var datKeys = new HashSet<string?>();
+        foreach (var item in items)
+        {
+            if (item.Status is FileStatus.Unmatched or FileStatus.Error)
+            {
+                continue;
+            }
+
+            if (AddSide(editionSides, item.Parsed, item.Parsed.DatKey, onlyKnownEditions: false))
+            {
+                titles.Add(item.Parsed.Title.Trim());
+                datKeys.Add(item.Parsed.DatKey);
+            }
+        }
+
+        if (datCatalog is null || titles.Count == 0)
+        {
+            return editionSides;
+        }
+
+        foreach (var game in datCatalog.Games)
+        {
+            foreach (var rom in game.Roms)
+            {
+                // Only the names that give a side and the title of an edition of the source are parsed
+                var titleEnd = rom.Name.IndexOf(" (", StringComparison.Ordinal);
+                if (titleEnd <= 0 ||
+                    !rom.Name.Contains("Side", StringComparison.OrdinalIgnoreCase) ||
+                    !titles.Contains(rom.Name[..titleEnd].Trim()))
+                {
+                    continue;
+                }
+
+                var parsed = TosecParser.ParseTosecFilenameStatic(rom.Name);
+                foreach (var datKey in datKeys)
+                {
+                    AddSide(editionSides, parsed, datKey, onlyKnownEditions: true);
+                }
+            }
+        }
+
+        return editionSides;
+    }
+
+    /// <summary>Records the side a TOSEC name gives, if any; <c>true</c> when it was recorded.</summary>
+    private bool AddSide(EditionSides editionSides, ParsedRomName parsed, string? datKey, bool onlyKnownEditions)
+    {
+        if (parsed.Convention != NamingConvention.Tosec ||
+            HoldsDocumentation(parsed) ||
+            ExtractSide(parsed) is not { } side ||
+            EditionSides.PartOf(parsed) is not { } part)
+        {
+            return false;
+        }
+
+        var editionKey = _filterService.GetEditionKey(datKey == parsed.DatKey ? parsed : parsed with { DatKey = datKey });
+        if (onlyKnownEditions && !editionSides.Contains(editionKey))
+        {
+            return false;
+        }
+
+        editionSides.Add(editionKey, part, side);
+        return true;
+    }
+
     /// <summary>
     /// Whether a TOSEC medium is a clean, unaltered original (no crack, trainer, hack, modification, bad dump, development
     /// build...).
@@ -296,27 +375,63 @@ public sealed partial class MultiDiskEvaluator
           !string.IsNullOrEmpty(parsed.DevStatus));
 
     /// <summary>
-    /// The clean disks a multi-disk set can borrow to complete itself: every disk it lacks, with all its media (both
-    /// sides of a disk), from the clean disks of its edition (<paramref name="cleanDisks"/>, by disk number, then by
-    /// <see cref="MediaSlotKey"/>). A disk counts once however many sides it has.
+    /// The clean disks a multi-disk set (<paramref name="releaseItems"/>) can borrow to complete itself, from the clean
+    /// disks of its edition (<paramref name="cleanDisks"/>, by disk number, then by <see cref="MediaSlotKey"/>): every
+    /// disk of <paramref name="parts"/> it lacks, with all its media (both sides of a disk), and the sides it lacks of a
+    /// disk it holds only some sides of (its boot side only exists cracked, its other side clean). A dump without a side
+    /// stands for its whole disk.
     /// </summary>
     public static List<(int PartNum, ProcessItem Disk)> FindBorrowableCleanDisks(
-        IReadOnlySet<int> existingParts,
-        int totalExpected,
+        IReadOnlyCollection<ProcessItem> releaseItems,
+        IEnumerable<int> parts,
         IReadOnlyDictionary<int, Dictionary<string, ProcessItem>> cleanDisks)
     {
         var borrowed = new List<(int PartNum, ProcessItem Disk)>();
-        for (var p = 1; p <= totalExpected; p++)
+        foreach (var p in parts)
         {
-            if (!existingParts.Contains(p) && cleanDisks.TryGetValue(p, out var media))
+            if (!cleanDisks.TryGetValue(p, out var media))
             {
-                foreach (var (_, cleanDisk) in media.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                continue;
+            }
+
+            var held = releaseItems.Where(it => !HoldsDocumentation(it.Parsed) && EditionSides.PartOf(it.Parsed) == p).ToList();
+            if (held.Any(it => ExtractSide(it.Parsed) is null))
+            {
+                continue;
+            }
+
+            var heldSides = held.Select(it => ExtractSide(it.Parsed)).ToHashSet(StringComparer.Ordinal);
+            foreach (var (_, cleanDisk) in media.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            {
+                if (held.Count == 0 ||
+                    (!HoldsDocumentation(cleanDisk.Parsed) && ExtractSide(cleanDisk.Parsed) is { } side && !heldSides.Contains(side)))
                 {
                     borrowed.Add((p, cleanDisk));
                 }
             }
         }
         return borrowed;
+    }
+
+    /// <summary>
+    /// The disks a TOSEC release is a set of: its numbered disks (1 to the total its names give), or its single disk
+    /// (<see cref="EditionSides.SingleDisk"/>) when the names of its edition give it several sides; and how many of them make it complete (the disks, or the
+    /// sides of the single disk). <c>null</c> for a release of one medium.
+    /// </summary>
+    private static (IReadOnlyList<int> Parts, int Total)? SetShapeOf(
+        IEnumerable<ProcessItem> items,
+        IReadOnlyDictionary<int, SortedSet<string>>? knownSides)
+    {
+        var total = items.Select(it => ExtractDiskPartInfo(it.Parsed).PartTotal ?? 0).DefaultIfEmpty(0).Max();
+        if (total > 1)
+        {
+            return (Enumerable.Range(1, total).ToList(), total);
+        }
+
+        var sides = EditionSides.SingleDiskSides(knownSides);
+        return sides > 0 && items.All(it => EditionSides.PartOf(it.Parsed) == EditionSides.SingleDisk)
+            ? ([EditionSides.SingleDisk], sides)
+            : null;
     }
 
     /// <summary>Records a clean disk of an edition under its number and its medium; the last one of a medium is kept.</summary>
@@ -331,8 +446,21 @@ public sealed partial class MultiDiskEvaluator
         media[MediaSlotKey(item)] = item;
     }
 
-    private static int CountDisks(List<(int PartNum, ProcessItem Disk)> borrowed) =>
-        borrowed.Select(b => b.PartNum).Distinct().Count();
+    /// <summary>
+    /// Why a TOSEC set is incomplete: the side a disk it holds lacks, when it lacks no whole disk (or the side its
+    /// single disk lacks), otherwise the disks it holds.
+    /// </summary>
+    internal static LocalizedMessage DescribeIncompleteSet(string title, SetMedia media, int total) =>
+        media.MissingSide is { } side && (media.MissingPart == EditionSides.SingleDisk || media.Held >= total)
+            ? media.MissingPart == EditionSides.SingleDisk
+                ? LocalizedMessage.Create("reason.incomplete_sides", ("found", media.Found), ("total", total), ("side", side))
+                : LocalizedMessage.Create(
+                    "reason.incomplete_multidisk_set_side",
+                    ("found", media.Found),
+                    ("total", total),
+                    ("disk", media.MissingPart ?? 0),
+                    ("side", side))
+            : LocalizedMessage.Create("reason.incomplete_multidisk_set", ("game", title), ("found", media.Held), ("total", total));
 
     public MultiDiskEvaluationResult Evaluate(
         IList<ProcessItem> itemsToProcess,
@@ -387,10 +515,16 @@ public sealed partial class MultiDiskEvaluator
             }
         }
 
-        return EvaluateReleaseMultidisk(itemsToProcess, DiscLabelResolver.ParseDatDiscs(itemsToProcess, datCatalog));
+        return EvaluateReleaseMultidisk(
+            itemsToProcess,
+            DiscLabelResolver.ParseDatDiscs(itemsToProcess, datCatalog),
+            CollectEditionSides(itemsToProcess, datCatalog));
     }
 
-    private MultiDiskEvaluationResult EvaluateReleaseMultidisk(IList<ProcessItem> itemsToProcess, IReadOnlyList<ParsedRomName> datDiscs)
+    private MultiDiskEvaluationResult EvaluateReleaseMultidisk(
+        IList<ProcessItem> itemsToProcess,
+        IReadOnlyList<ParsedRomName> datDiscs,
+        EditionSides editionSides)
     {
         // Infer DiscTotal for releases that use (Disc 1) / (Disk 1) without explicit 'of N', from the disks of the
         // source and those of the DAT: a set that lacks its last disc is not taken for complete
@@ -452,41 +586,60 @@ public sealed partial class MultiDiskEvaluator
         var relEdKeys = new Dictionary<string, string>(StringComparer.Ordinal);
         var relIsTosec = new Dictionary<string, bool>(StringComparer.Ordinal);
         var itemRelKey = new Dictionary<ProcessItem, string>(ReferenceEqualityComparer.Instance);
+        var relItems = new Dictionary<string, List<ProcessItem>>(StringComparer.Ordinal);
         var cleanEditionDisks = new Dictionary<string, Dictionary<int, Dictionary<string, ProcessItem>>>(StringComparer.Ordinal);
 
         foreach (var item in itemsToProcess)
         {
-            if (item.Status == FileStatus.Valid)
+            if (item.Status != FileStatus.Valid)
             {
-                var (partNum, partTot) = ExtractDiskPartInfo(item.Parsed);
-                if (partNum.HasValue && partTot is > 1)
+                continue;
+            }
+
+            var isTosecItem = item.Parsed.Convention == NamingConvention.Tosec;
+            var itemSmartMulti = smartMultiCfg && isTosecItem;
+            var (partNum, partTot) = ExtractDiskPartInfo(item.Parsed);
+            int part, total;
+            string? edKey = null;
+            if (partNum.HasValue && partTot is > 1)
+            {
+                (part, total) = (partNum.Value, partTot.Value);
+            }
+            else if (isTosecItem && ExtractSide(item.Parsed) is not null && EditionSides.PartOf(item.Parsed) == EditionSides.SingleDisk &&
+                     EditionSides.SingleDiskSides(editionSides.Of(edKey = _filterService.GetEditionKey(item.Parsed))) is > 1 and var sides)
+            {
+                // A single disk whose names give several sides: a set of its sides
+                (part, total) = (EditionSides.SingleDisk, sides);
+            }
+            else
+            {
+                continue;
+            }
+
+            var rkey = _filterService.GetReleaseKey(item.Parsed, smartMultidisk: itemSmartMulti);
+            edKey ??= _filterService.GetEditionKey(item.Parsed, smartMultidisk: itemSmartMulti);
+
+            if (!relCounts.TryGetValue(rkey, out var pSet))
+            {
+                pSet = [];
+                relCounts[rkey] = pSet;
+                relItems[rkey] = [];
+            }
+            pSet.Add(part);
+            relItems[rkey].Add(item);
+            relTotals[rkey] = total;
+            relEdKeys[rkey] = edKey;
+            relIsTosec[rkey] = isTosecItem;
+            itemRelKey[item] = rkey;
+
+            if (isTosecItem && IsCleanUnmodifiedDisk(item.Parsed))
+            {
+                if (!cleanEditionDisks.TryGetValue(edKey, out var diskMap))
                 {
-                    var isTosecItem = item.Parsed.Convention == NamingConvention.Tosec;
-                    var itemSmartMulti = smartMultiCfg && isTosecItem;
-                    var rkey = _filterService.GetReleaseKey(item.Parsed, smartMultidisk: itemSmartMulti);
-                    var edKey = _filterService.GetEditionKey(item.Parsed, smartMultidisk: itemSmartMulti);
-
-                    if (!relCounts.TryGetValue(rkey, out var pSet))
-                    {
-                        pSet = [];
-                        relCounts[rkey] = pSet;
-                    }
-                    pSet.Add(partNum.Value);
-                    relTotals[rkey] = partTot.Value;
-                    relEdKeys[rkey] = edKey;
-                    relIsTosec[rkey] = isTosecItem;
-                    itemRelKey[item] = rkey;
-
-                    if (isTosecItem && IsCleanUnmodifiedDisk(item.Parsed))
-                    {
-                        if (!cleanEditionDisks.TryGetValue(edKey, out var diskMap))
-                        {
-                            diskMap = [];
-                            cleanEditionDisks[edKey] = diskMap;
-                        }
-                        AddCleanDisk(diskMap, partNum.Value, item);
-                    }
+                    diskMap = [];
+                    cleanEditionDisks[edKey] = diskMap;
                 }
+                AddCleanDisk(diskMap, part, item);
             }
         }
 
@@ -503,25 +656,35 @@ public sealed partial class MultiDiskEvaluator
                 }
 
                 var edKey = relEdKeys[rkey];
-                if (cleanEditionDisks.TryGetValue(edKey, out var cleanDisks))
+                var knownSides = editionSides.Of(edKey);
+                if (cleanEditionDisks.TryGetValue(edKey, out var cleanDisks) && SetShapeOf(relItems[rkey], knownSides) is { } shape)
                 {
-                    var borrowed = FindBorrowableCleanDisks(relCounts[rkey], total, cleanDisks);
-                    if (relCounts[rkey].Count + CountDisks(borrowed) >= total)
+                    var borrowed = FindBorrowableCleanDisks(relItems[rkey], shape.Parts, cleanDisks);
+                    if (borrowed.Count > 0 &&
+                        EditionSides.Count(relItems[rkey].Concat(borrowed.Select(b => b.Disk)), knownSides).Found >= total)
                     {
                         foreach (var (p, cleanIt) in borrowed)
                         {
                             relCounts[rkey].Add(p);
                             cleanDisksParticipatingInCompleteSets.Add(cleanIt);
                         }
-                        if (borrowed.Count > 0)
-                        {
-                            borrowedByRelease[rkey] = borrowed.Select(b => b.Disk).ToList();
-                        }
+                        borrowedByRelease[rkey] = borrowed.Select(b => b.Disk).ToList();
                     }
                 }
             }
 
             BorrowNoIntroDumps(itemsToProcess, itemRelKey, relCounts, relTotals, borrowedByRelease, cleanDisksParticipatingInCompleteSets);
+        }
+
+        // What each TOSEC set holds, with the disks it borrows: a disk counts with each side its edition names
+        var tosecMedia = new Dictionary<string, SetMedia>(StringComparer.Ordinal);
+        foreach (var (rkey, items) in relItems)
+        {
+            if (relIsTosec[rkey])
+            {
+                var held = borrowedByRelease.TryGetValue(rkey, out var borrowed) ? items.Concat(borrowed) : items;
+                tosecMedia[rkey] = EditionSides.Count(held, editionSides.Of(relEdKeys[rkey]));
+            }
         }
 
         foreach (var item in itemsToProcess)
@@ -530,7 +693,8 @@ public sealed partial class MultiDiskEvaluator
                 itemRelKey.TryGetValue(item, out var rkey) &&
                 relTotals.TryGetValue(rkey, out var totalExpected))
             {
-                var foundCount = relCounts.TryGetValue(rkey, out var pSet) ? pSet.Count : 0;
+                var media = tosecMedia.TryGetValue(rkey, out var setMedia) ? setMedia : (SetMedia?)null;
+                var foundCount = media?.Found ?? (relCounts.TryGetValue(rkey, out var pSet) ? pSet.Count : 0);
                 if (foundCount < totalExpected && !cleanDisksParticipatingInCompleteSets.Contains(item))
                 {
                     item.IsMultidiskComplete = false;
@@ -542,11 +706,13 @@ public sealed partial class MultiDiskEvaluator
                     if (mustExclude)
                     {
                         item.Status = FileStatus.Excluded;
-                        item.StatusReason = LocalizedMessage.Create(
-                            "reason.incomplete_multidisk_set",
-                            ("game", item.Parsed.Title),
-                            ("found", foundCount),
-                            ("total", totalExpected));
+                        item.StatusReason = media is { } m
+                            ? DescribeIncompleteSet(item.Parsed.Title, m, totalExpected)
+                            : LocalizedMessage.Create(
+                                "reason.incomplete_multidisk_set",
+                                ("game", item.Parsed.Title),
+                                ("found", foundCount),
+                                ("total", totalExpected));
                     }
                 }
                 else
@@ -556,7 +722,7 @@ public sealed partial class MultiDiskEvaluator
             }
         }
 
-        return new MultiDiskEvaluationResult(relTotals, borrowedByRelease);
+        return new MultiDiskEvaluationResult(relTotals, borrowedByRelease, editionSides);
     }
 
     /// <summary>
@@ -583,6 +749,9 @@ public sealed partial class MultiDiskEvaluator
         var groupEditionKeys = new Dictionary<(string GameKey, string RelKey, string TargetParent), (string EdKey, bool IsTosec)>();
         var cleanEditionDisks = new Dictionary<(string GameKey, string EdKey, string TargetParent), Dictionary<int, Dictionary<string, ProcessItem>>>();
 
+        // The sides of each disk, from the names of every file of the sort: a playlist holds the sets the sort counted
+        var editionSides = smartMultiCfg ? CollectEditionSides(processedItems, datCatalog: null) : new EditionSides();
+
         foreach (var it in validMediaItems)
         {
             var isTosec = it.Parsed.Convention == NamingConvention.Tosec;
@@ -601,10 +770,15 @@ public sealed partial class MultiDiskEvaluator
             }
             list.Add(it);
 
-            if (itemSmartMulti)
+            if (itemSmartMulti && IsCleanUnmodifiedDisk(it.Parsed))
             {
+                // A disk of a set, or a side of a single disk whose edition names several
                 var (partNum, partTot) = ExtractDiskPartInfo(it.Parsed);
-                if (partNum.HasValue && partTot is > 1 && IsCleanUnmodifiedDisk(it.Parsed))
+                int? part = partNum.HasValue && partTot is > 1 ? partNum.Value
+                    : ExtractSide(it.Parsed) is not null && EditionSides.PartOf(it.Parsed) == EditionSides.SingleDisk &&
+                      EditionSides.SingleDiskSides(editionSides.Of(edKey)) > 1 ? EditionSides.SingleDisk
+                    : null;
+                if (part is { } p)
                 {
                     var cleanKey = (gKey, edKey, targetParent);
                     if (!cleanEditionDisks.TryGetValue(cleanKey, out var diskMap))
@@ -612,7 +786,7 @@ public sealed partial class MultiDiskEvaluator
                         diskMap = [];
                         cleanEditionDisks[cleanKey] = diskMap;
                     }
-                    AddCleanDisk(diskMap, partNum.Value, it);
+                    AddCleanDisk(diskMap, p, it);
                 }
             }
         }
@@ -635,29 +809,16 @@ public sealed partial class MultiDiskEvaluator
                     continue;
                 }
 
-                var existingParts = new HashSet<int>();
-                var totalExpected = 0;
-                foreach (var it in rItems)
-                {
-                    var (pNum, pTot) = ExtractDiskPartInfo(it.Parsed);
-                    if (pNum.HasValue)
-                    {
-                        existingParts.Add(pNum.Value);
-                    }
-                    if (pTot is > 1 && pTot.Value > totalExpected)
-                    {
-                        totalExpected = pTot.Value;
-                    }
-                }
-
-                if (totalExpected <= 1 || existingParts.Count >= totalExpected)
+                var knownSides = editionSides.Of(edKey);
+                if (SetShapeOf(rItems, knownSides) is not { } shape || EditionSides.Count(rItems, knownSides).Found >= shape.Total)
                 {
                     continue;
                 }
 
-                var borrowed = FindBorrowableCleanDisks(existingParts, totalExpected, cleanDisks);
-                if (existingParts.Count + CountDisks(borrowed) >= totalExpected ||
-                    (!_config.Filters.CompleteMultidiskSetsOnly && borrowed.Count > 0))
+                var borrowed = FindBorrowableCleanDisks(rItems, shape.Parts, cleanDisks);
+                if (borrowed.Count > 0 &&
+                    (EditionSides.Count(rItems.Concat(borrowed.Select(b => b.Disk)), knownSides).Found >= shape.Total ||
+                     !_config.Filters.CompleteMultidiskSetsOnly))
                 {
                     foreach (var (_, cleanDisk) in borrowed)
                     {
@@ -675,20 +836,11 @@ public sealed partial class MultiDiskEvaluator
                 var keysToRemove = new List<(string GameKey, string RelKey, string TargetParent)>();
                 foreach (var (groupKey, rItems) in releaseGroups)
                 {
-                    var totalExpected = rItems
-                        .Select(it => ExtractDiskPartInfo(it.Parsed).PartTotal ?? 0)
-                        .DefaultIfEmpty(0)
-                        .Max();
-                    var distinctParts = rItems
-                        .Select(it => ExtractDiskPartInfo(it.Parsed).PartNum)
-                        .Where(p => p.HasValue)
-                        .Select(p => p!.Value)
-                        .Distinct()
-                        .Count();
-
-                    if (totalExpected > 1 &&
-                        distinctParts < totalExpected &&
-                        rItems.All(it => borrowedCleanItems.Contains(it)))
+                    var (edKey, isTosec) = groupEditionKeys[groupKey];
+                    var knownSides = isTosec ? editionSides.Of(edKey) : null;
+                    if (rItems.All(it => borrowedCleanItems.Contains(it)) &&
+                        SetShapeOf(rItems, knownSides) is { } shape &&
+                        EditionSides.Count(rItems, knownSides).Found < shape.Total)
                     {
                         keysToRemove.Add(groupKey);
                     }

@@ -38,6 +38,12 @@ public sealed class RankedRelease
     /// <summary>Rank of the release for an AGA Amiga, the lowest first (<see cref="AmigaChipsets.GetAgaRank"/>).</summary>
     public int AmigaRank { get; init; }
     public int Completeness { get; set; }
+
+    /// <summary>
+    /// What a TOSEC set holds of the sides its edition names (<see cref="EditionSides.Count"/>); <c>null</c> for any other
+    /// release, or one of a dump of one medium.
+    /// </summary>
+    public SetMedia? Media { get; init; }
     public int IsCompleteMultidisk { get; set; } = 1;
     public int MinNameLen { get; init; }
     public required string FirstName { get; set; }

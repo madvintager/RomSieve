@@ -124,12 +124,19 @@ where a file the DAT does not know is always non-conforming.
   lacks tracks, "Incomplete game" for a game without a descriptor. The number of discs of a set comes from the DAT: a
   set that lacks its last disc is incomplete. A file only completes the disc whose name it bears, even when an identical
   track is on another disc; the ROMs the DAT says were never dumped (`nodump`) do not count, and a CHD linked to its
-  game by **Identify CHDs by their name** stands for its whole disc. With the MAME convention, this group gives way to
-  the **Complete sets only (ROMs and CHDs present)** option of the [MAME machines](#mame-machines) frame. For the
-  software of a MAME list, this option excludes a software whose archive lacks a ROM.
+  game by **Identify CHDs by their name** stands for its whole disc. *(TOSEC)* A disk is only complete with each of its
+  sides, those that the files of the same edition name, in the source (a cracked dump or a bad dump of a side also
+  says that it exists) as in the DAT; a dump without a side stands for the whole disk. The reason then names the
+  missing side: "Incomplete multi-disk set (1/2 whole disks: side A of disk 1 missing)", or "Incomplete game (1/2 sides
+  found: side B missing)" for a single disk whose sides are named without a number (`Side A`, `Side B`). With the MAME
+  convention, this group gives way to the **Complete sets only (ROMs and CHDs present)** option of the
+  [MAME machines](#mame-machines) frame. For the software of a MAME list, this option excludes a software whose archive
+  lacks a ROM.
 * **Complete a set with the disks of another dump**: an incomplete set borrows the disk it lacks from another dump of
   the same edition. *(TOSEC)* A set is often incomplete because disk 1 carries a trainer `[t]` or a fix `[f]` that the
-  data disks do not: RomSieve completes it with the clean data disks of the same game. *(No-Intro / Redump)* A disc
+  data disks do not: RomSieve completes it with the clean data disks of the same game. It borrows in the same way the
+  clean sides that a disk lacks when its boot side only exists cracked (`Disk 1 of 2 Side A [cr]` with
+  `Disk 1 of 2 Side B`). *(No-Intro / Redump)* A disc
   dumped in several pressings, told apart by their mastering codes (`Phantasm (Japan) (Disc 6) (4M)` and
   `(Disc 6) (5M)`), completes the set whose other discs have none. Only the set with the most discs borrows, always
   the same dump (the one that shares the most tags with the set, then the one with the fewest tags, then the first

@@ -170,8 +170,12 @@ The kept release keeps one file per medium: each disk, each side of a disk (`Dis
 several dumps of one medium, for example with **Complete a set with the disks of another dump**, which gathers in one
 release the dumps of a disk that differ only by a hack, a trainer or a fix, the same criteria, in the same order, pick
 the best dump of each medium. The others are **Duplicates**, whose reason names the dump kept and the criterion that
-chose it: "1G1R duplicate of the same medium: Game (Side A).d64 retained (original release vs modified)". A
-`[savegame]` disk is the game disk with a saved game on it: it is another dump of the same disk.
+chose it: "1G1R duplicate of the same medium: Game (Side A).d64 retained (original release vs modified)". When only
+the names tell two dumps apart (two labels of one disk, `(Disk 1 of 2 Side B)` and
+`(Disk 1 of 2 Side B)(Character)`), the reason says so: "shorter file name" or "first name in alphabetical order". Two
+identical files are said to have "identical content, same CRC32": such is a disk that a TOSEC DAT dropped because it
+was identical to another one, and that it identifies as that other disk. A `[savegame]` disk is the game disk with a
+saved game on it: it is another dump of the same disk.
 
 #### Default orders
 
