@@ -115,6 +115,10 @@ public sealed partial class MainViewModel : ViewModelBase
             {
                 Filters.ShowMameDat(Directories.DatMameSummary);
             }
+            else if (e.PropertyName == nameof(DirectoriesViewModel.DatCategoryCounts))
+            {
+                Filters.DatCategories.ShowDat(Directories.DatCategoryCounts);
+            }
             else if (e.PropertyName == nameof(DirectoriesViewModel.DatFilePath) && Export is not null)
             {
                 // The filtered DAT of the catalog only needs a DAT file

@@ -1945,6 +1945,13 @@
                 <Style Selector="Grid.mame WrapPanel#GrpFilterContent > CheckBox#ChkFilterNotInDat">
                   <Setter Property="Margin" Value="0,0,24,4" />
                 </Style>
+                <Style Selector="WrapPanel#GrpFilterContent > DropDownButton#BtnDatCategories">
+                  <Setter Property="Margin" Value="0,2,0,4" />
+                  <Setter Property="HorizontalAlignment" Value="Left" />
+                </Style>
+                <Style Selector="Grid.mame WrapPanel#GrpFilterContent > DropDownButton#BtnDatCategories">
+                  <Setter Property="Margin" Value="0,0,24,4" />
+                </Style>
               </Grid.Styles>
 
               <!-- Column 1: dump quality, a single level; the exclusions one by one in a drop-down panel. Greyed with the
@@ -2127,6 +2134,76 @@
                             IsChecked="{Binding Filters.KeepRereleases, Mode=TwoWay}">
                     <TextBlock TextWrapping="Wrap"><Run Text="{Binding I18n[filters.chk_keep_rereleases]}" /> <Run Text="{Binding I18n[filters.tag_nointro_rereleases]}" Classes="tag" /></TextBlock>
                   </CheckBox>
+                  <!-- BIOS by their name ([BIOS]), whatever the category their DAT gives them: the DATs file them under
+                       several categories, even Games -->
+                  <CheckBox x:Name="ChkKeepBios"
+                            FontSize="11"
+                            ToolTip.Tip="{Binding Filters.BiosTooltip}"
+                            ToolTip.ShowOnDisabled="True"
+                            IsVisible="{Binding Filters.IsNoIntroShown}"
+                            IsEnabled="{Binding Filters.AreNoIntroOnlyOptionsApplicable}"
+                            IsChecked="{Binding Filters.KeepBios, Mode=TwoWay}">
+                    <TextBlock TextWrapping="Wrap"><Run Text="{Binding I18n[filters.chk_keep_bios]}" /> <Run Text="{Binding I18n[filters.tag_nointro_bios]}" Classes="tag" /></TextBlock>
+                  </CheckBox>
+                  <!-- Categories the No-Intro and Redump DATs give their games (Games, Add-Ons, Applications...), in a
+                       drop-down panel: those of the DAT read with their number of games, or those the DATs use -->
+                  <DropDownButton x:Name="BtnDatCategories"
+                                  Classes="advanced-options"
+                                  Classes.changed="{Binding Filters.DatCategories.IsRestricted}"
+                                  IsVisible="{Binding Filters.IsNoIntroShown}"
+                                  IsEnabled="{Binding Filters.AreNoIntroOnlyOptionsApplicable}"
+                                  ToolTip.ShowOnDisabled="True"
+                                  Content="{Binding Filters.DatCategories.SummaryText}"
+                                  ToolTip.Tip="{Binding Filters.DatCategoriesTooltip}">
+                    <DropDownButton.Flyout>
+                      <Flyout Placement="BottomEdgeAlignedLeft">
+                        <StackPanel x:Name="PanelDatCategories" Spacing="4" MaxWidth="340">
+                          <TextBlock x:Name="LblDatCategoriesStatus"
+                                     FontSize="11"
+                                     TextWrapping="Wrap"
+                                     Foreground="{DynamicResource HintForegroundBrush}"
+                                     Text="{Binding Filters.DatCategories.StatusText}" />
+                          <TextBlock x:Name="LblDatCategoriesHint"
+                                     FontSize="11"
+                                     TextWrapping="Wrap"
+                                     Foreground="{DynamicResource HintForegroundBrush}"
+                                     Margin="0,0,0,2"
+                                     Text="{Binding I18n[filters.dat_categories_hint]}" />
+                          <!-- To keep only a few categories: uncheck them all, then check those to keep -->
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Button x:Name="BtnDatCategoriesKeepAll"
+                                    Classes="secondary-action"
+                                    FontSize="11"
+                                    Padding="10,2"
+                                    MinHeight="24"
+                                    ToolTip.Tip="{Binding I18n[filters.tooltip_dat_categories_keep_all]}"
+                                    Command="{Binding Filters.DatCategories.KeepAllCommand}"
+                                    Content="{Binding I18n[filters.btn_dat_categories_keep_all]}" />
+                            <Button x:Name="BtnDatCategoriesExcludeAll"
+                                    Classes="secondary-action"
+                                    FontSize="11"
+                                    Padding="10,2"
+                                    MinHeight="24"
+                                    ToolTip.Tip="{Binding I18n[filters.tooltip_dat_categories_exclude_all]}"
+                                    Command="{Binding Filters.DatCategories.ExcludeAllCommand}"
+                                    Content="{Binding I18n[filters.btn_dat_categories_exclude_all]}" />
+                          </StackPanel>
+                          <ScrollViewer MaxHeight="300" HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl x:Name="ListDatCategories" ItemsSource="{Binding Filters.DatCategories.Categories}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DatCategoryOptionViewModel">
+                                  <CheckBox FontSize="11"
+                                            Margin="0,2"
+                                            Content="{Binding Label}"
+                                            IsChecked="{Binding IsKept, Mode=TwoWay}" />
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </ScrollViewer>
+                        </StackPanel>
+                      </Flyout>
+                    </DropDownButton.Flyout>
+                  </DropDownButton>
                   <!-- Whether these filters also apply to the files the DAT does not know: an option of every
                        convention, greyed in a MAME run or with software lists, where it has no effect. Last of the
                        group, so that with the MAME options it takes the room left on a row of boxes -->

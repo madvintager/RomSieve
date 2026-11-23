@@ -54,6 +54,12 @@ public sealed class FilterEvaluator : IFilterEvaluator
             }
             else
             {
+                // What the release is (a game, an add-on, a BIOS...), before how it was dumped or released
+                if (EvaluateDatCategories(item, config) is { } categoryReason)
+                    return (false, categoryReason);
+                if (config.NoIntroExcludeBios && DatCategory.IsBios(item))
+                    return (false, LocalizedMessage.Create("reason.bios_excluded"));
+
                 if (config.NoIntroExcludeBadDumps && item.IsBadDump)
                     return (false, LocalizedMessage.Create("reason.bad_dump_excluded"));
                 if (config.NoIntroExcludeAlternate && item.IsAlternate)
@@ -80,6 +86,26 @@ public sealed class FilterEvaluator : IFilterEvaluator
 
         // --- TOSEC (TNC) Filter Pipeline ---
         return EvaluateTosec(item, config);
+    }
+
+    /// <summary>
+    /// Why a No-Intro or Redump release is excluded by its category: the first of its categories the options exclude,
+    /// those of its DAT game, otherwise the one its name tells (named with its tag).
+    /// </summary>
+    private static LocalizedMessage? EvaluateDatCategories(ParsedRomName item, FilterConfig config)
+    {
+        if (config.NoIntroExcludedDatCategories.Count == 0)
+        {
+            return null;
+        }
+
+        var (categories, tag) = DatCategory.Of(item);
+        var excluded = categories.FirstOrDefault(c => config.NoIntroExcludedDatCategories.Contains(c, StringComparer.OrdinalIgnoreCase));
+        return excluded is null
+            ? null
+            : tag is null
+                ? LocalizedMessage.Create("reason.dat_category_excluded", ("category", excluded))
+                : LocalizedMessage.Create("reason.name_category_excluded", ("category", excluded), ("tag", tag));
     }
 
     /// <summary>

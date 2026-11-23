@@ -77,6 +77,7 @@ differently, save a [profile](settings-and-profiles.md#named-profiles) for each 
 | **Public domain and freeware** *(TOSEC)* | PD, freeware, shareware... | - | - | Yes |
 | **Unofficial releases** *(No-Intro / Redump)* | - | Unl, Homebrew, Aftermarket | - | Yes |
 | **Modern re-releases** *(No-Intro / Redump)* | - | Virtual Console, Switch Online, Classic Mini, LodgeNet... | - | Yes |
+| **BIOS** *(No-Intro / Redump)* | - | Name that starts with `[BIOS]` | - | Yes |
 
 With the MAME convention, the categories are read in the description of the machine, and the boxes a MAME set never
 falls under (translations, unofficial releases, modern re-releases) are greyed, their tooltip saying why. Their tags and tooltips then quote the
@@ -90,6 +91,37 @@ never mark, are greyed, their tooltip saying why.
 
 Only the wording changed since the versions that showed "Exclude translations"...: `config.json` and the profiles keep
 the same options (`exclude_translations`...), so a file is read back unchanged.
+
+### Games, applications and add-ons
+
+The No-Intro and Redump DATs file each game under one or more categories: `Games`, `Add-Ons`, `Applications`, `Demos`,
+`Educational`, `Preproduction`, `Coverdiscs`, `Bonus Discs`... The **DAT categories** button, after the boxes of the
+**Content to keep** group, opens the list of these categories: uncheck those whose games you do not want. Once the DAT
+is read, the list gives its categories with the number of games of each; before that, or for a lot of DATs, it gives
+the categories No-Intro and Redump use. The button names the excluded category, or counts the excluded categories, and
+turns bold as long as it excludes one.
+
+* A game is excluded as soon as **one** of its categories is: a beta is both `Games` and `Preproduction`, so unchecking
+  `Preproduction` excludes the betas, and unchecking `Games` excludes them too.
+* A game its DAT files under no category (older DATs, a file missing from the DAT, a sort without DAT) is filed by its
+  name: an enhancement chip `(Enhancement Chip)` goes in `Add-Ons`. The category the DAT gives always wins over the
+  name.
+* The reason of an excluded game names its category: "Category Add-Ons excluded", or "Category Add-Ons excluded (from
+  (Enhancement Chip))" when it comes from the name.
+
+A new configuration excludes `Add-Ons`: the Super Nintendo enhancement chips (`CX4`, `DSP1`, `ST018`,
+`Super Game Boy SGB-CPU`...) and the SuFami Turbo are not games. Super Nintendo emulators still need these chips in
+their BIOS folder: keep a copy of them. A configuration or a profile saved by an earlier version of RomSieve excludes
+no category.
+
+The DATs file the BIOS under several categories (`Miscellaneous`, `Add-Ons`, `Applications`, and even `Games` for a
+Master System BIOS that holds a game): the **BIOS `[BIOS]`** box recognizes them by their name, whatever their category.
+It is checked by default.
+
+The Miss List and the fixdat depend on no filter: they always list everything missing from the DAT. The [filtered DAT
+of the catalog](exports.md) applies these filters as a sort does. With a MAME DAT or software lists, the button and the
+box are greyed: the categories of a MAME machine come from the category file (see [Categories](#categories)), and its
+BIOS are set in the **MAME machines** card.
 
 ### Files missing from the DAT
 

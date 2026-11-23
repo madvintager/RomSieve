@@ -737,6 +737,7 @@ public sealed partial class DatService : IDatService
                 string? year = null;
                 string? manufacturer = null;
                 string? publisher = null;
+                var categories = new List<string>();
                 var driverStatus = MameDriverStatus.Unknown;
                 var emulationStatus = MameDriverStatus.Unknown;
                 var roms = new List<DatRomEntry>();
@@ -858,6 +859,7 @@ public sealed partial class DatService : IDatService
                                 case "year": year = v; break;
                                 case "manufacturer": manufacturer = v; break;
                                 case "publisher": publisher = v; break;
+                                case "category" when v.Trim() is { Length: > 0 } category: categories.Add(category); break;
                             }
                         }
                     }
@@ -886,6 +888,7 @@ public sealed partial class DatService : IDatService
                     Year = year,
                     Manufacturer = manufacturer,
                     Publisher = publisher,
+                    Categories = categories,
                     DriverStatus = driverStatus,
                     EmulationStatus = emulationStatus
                 });
@@ -1161,6 +1164,13 @@ public sealed partial class DatService : IDatService
                     break;
                 case "publisher":
                     game.Publisher = ReadXmlElementText(xml);
+                    break;
+                case "category":
+                    // A few names shared by thousands of games: one string per category
+                    if (ReadXmlElementText(xml).Trim() is { Length: > 0 } category)
+                    {
+                        game.Categories.Add(xml.NameTable.Add(category));
+                    }
                     break;
                 case "rom":
                     game.Roms.Add(ReadXmlRom(xml, isDisk: false));
@@ -2207,6 +2217,7 @@ public sealed partial class DatService : IDatService
                     Id = gameId,
                     CloneOf = cloneOf,
                     CloneOfId = cloneOfId,
+                    Categories = origGame is null ? [] : [.. origGame.Categories],
                     Roms = []
                 };
                 gamesDict[gameName] = gameObj;

@@ -28,6 +28,7 @@ public sealed class FiltersViewModel : ViewModelBase
         Cabinet = new MameCabinetFiltersViewModel(localization, noIntro);
         Categories = new MameCategoryFiltersViewModel(localization, noIntro);
         Ratings = new MameRatingFiltersViewModel(localization, noIntro);
+        DatCategories = new DatCategoryFiltersViewModel(localization, noIntro);
         Tosec.PropertyChanged += OnSectionPropertyChanged;
         NoIntro.PropertyChanged += OnSectionPropertyChanged;
     }
@@ -44,6 +45,9 @@ public sealed class FiltersViewModel : ViewModelBase
 
     /// <summary>Rating filters and size budget of the MAME machines, shown in the MAME card.</summary>
     public MameRatingFiltersViewModel Ratings { get; }
+
+    /// <summary>Categories of the No-Intro and Redump DATs, shown with the content to keep of these conventions.</summary>
+    public DatCategoryFiltersViewModel DatCategories { get; }
 
     /// <summary>
     /// Convention whose options are shown: <see cref="TosecConventionIndex"/> or <see cref="NoIntroConventionIndex"/>
@@ -455,6 +459,13 @@ public sealed class FiltersViewModel : ViewModelBase
         set => NoIntro.ExcludeRereleases = !value;
     }
 
+    /// <summary>No-Intro and Redump BIOS (<c>[BIOS]</c>), whatever their DAT category; shown for No-Intro / Redump only.</summary>
+    public bool KeepBios
+    {
+        get => !NoIntro.ExcludeBios;
+        set => NoIntro.ExcludeBios = !value;
+    }
+
     /// <summary>
     /// Complete sets only: TOSEC multi-disk games, or No-Intro and Redump multi-media sets. Already a positive wording:
     /// it keeps the sense of its option.
@@ -503,6 +514,19 @@ public sealed class FiltersViewModel : ViewModelBase
         "filters.tooltip_keep_nointro_rereleases", "filters.tooltip_keep_nointro_rereleases", "filters.tooltip_no_effect_mame_category",
         "filters.tooltip_no_effect_softlist_category");
 
+    public string BiosTooltip => ShownText(
+        "filters.tooltip_keep_nointro_bios", "filters.tooltip_keep_nointro_bios", "filters.tooltip_keep_bios_mame",
+        "filters.tooltip_no_effect_softlist_category");
+
+    /// <summary>
+    /// Tooltip of the DAT categories button: what it does and the excluded categories, or why it has no effect on a MAME
+    /// set or a software of a list (greyed then, with <see cref="AreNoIntroOnlyOptionsApplicable"/>).
+    /// </summary>
+    public string DatCategoriesTooltip =>
+        AreMameOptionsShown ? _localization.Tr("filters.tooltip_dat_categories_mame")
+        : AreSoftwareListOptionsShown ? _localization.Tr("filters.tooltip_dat_categories_softlist")
+        : DatCategories.SummaryTooltip;
+
     /// <summary>Why the dump quality has no effect, shown above its greyed group: on a MAME set, or on a software of a list.</summary>
     public string DumpsNoEffectText => ShownText(
         "filters.dumps_no_effect_mame", "filters.dumps_no_effect_mame", "filters.dumps_no_effect_mame", "filters.dumps_no_effect_softlist");
@@ -521,6 +545,7 @@ public sealed class FiltersViewModel : ViewModelBase
         Cabinet.RefreshTranslations();
         Categories.RefreshTranslations();
         Ratings.RefreshTranslations();
+        DatCategories.RefreshTranslations();
     }
 
     private void ChooseDumpLevel(bool isChecked, DumpQualityLevel level)
@@ -564,6 +589,8 @@ public sealed class FiltersViewModel : ViewModelBase
             OnPropertyChanged(nameof(HasEmulationWarning));
             OnPropertyChanged(nameof(KeepMameUnemulatedSound));
             OnPropertyChanged(nameof(KeepMameAlternateSets));
+            OnPropertyChanged(nameof(KeepBios));
+            OnPropertyChanged(nameof(DatCategoriesTooltip));
         }
     }
 
@@ -596,6 +623,8 @@ public sealed class FiltersViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSmartMultidiskApplicable));
         OnPropertyChanged(nameof(UnlicensedTooltip));
         OnPropertyChanged(nameof(RereleasesTooltip));
+        OnPropertyChanged(nameof(BiosTooltip));
+        OnPropertyChanged(nameof(DatCategoriesTooltip));
         OnPropertyChanged(nameof(DumpsNoEffectText));
         OnPropertyChanged(nameof(ModificationsTag));
         OnPropertyChanged(nameof(PirateTag));

@@ -43,6 +43,17 @@ public sealed partial class NoIntroFiltersViewModel : ConfigSectionViewModel
     private bool _excludeRereleases;
 
     /// <summary>
+    /// Categories of the No-Intro and Redump DATs whose games are excluded (<see cref="SortSettings.NoIntroExcludedDatCategories"/>),
+    /// in alphabetical order; replaced as a whole on each change.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _excludedDatCategories = Defaults.NoIntroExcludedDatCategories.ToList();
+
+    /// <summary>Excludes the BIOS of the No-Intro and Redump names (<c>[BIOS]</c>), whatever their category.</summary>
+    [ObservableProperty]
+    private bool _excludeBios;
+
+    /// <summary>
     /// Filters the files missing from the DAT by their name too (<see cref="SortSettings.FilterNotInDat"/>): an option of
     /// every convention, kept by this section like those of the MAME machines.
     /// </summary>
@@ -166,6 +177,8 @@ public sealed partial class NoIntroFiltersViewModel : ConfigSectionViewModel
         settings.NoIntroExcludeUnlicensed = ExcludeUnlicensed;
         settings.NoIntroExcludeDemos = ExcludeDemos;
         settings.NoIntroExcludeRereleases = ExcludeRereleases;
+        settings.NoIntroExcludedDatCategories = ExcludedDatCategories.ToList();
+        settings.NoIntroExcludeBios = ExcludeBios;
         settings.FilterNotInDat = FilterNotInDat;
         settings.MameExcludeBios = ExcludeMameBios;
         settings.MameExcludeDevices = ExcludeMameDevices;
@@ -202,6 +215,8 @@ public sealed partial class NoIntroFiltersViewModel : ConfigSectionViewModel
         ExcludeUnlicensed = settings.NoIntroExcludeUnlicensed;
         ExcludeDemos = settings.NoIntroExcludeDemos;
         ExcludeRereleases = settings.NoIntroExcludeRereleases;
+        ExcludedDatCategories = settings.NoIntroExcludedDatCategories.ToList();
+        ExcludeBios = settings.NoIntroExcludeBios;
         FilterNotInDat = settings.FilterNotInDat;
         ExcludeMameBios = settings.MameExcludeBios;
         ExcludeMameDevices = settings.MameExcludeDevices;

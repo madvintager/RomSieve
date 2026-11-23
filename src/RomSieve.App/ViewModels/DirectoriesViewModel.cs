@@ -370,6 +370,14 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
     [ObservableProperty]
     private MameDatSummary? _datMameSummary;
 
+    /// <summary>
+    /// Number of games of each category of the chosen DAT (<see cref="DatCategory.CountGames"/>), known once the whole DAT
+    /// is read, empty when it gives none; <c>null</c> before, without a DAT, or for a lot (its DATs are read by their
+    /// headers only).
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyDictionary<string, int>? _datCategoryCounts;
+
     [ObservableProperty]
     private string _conventionBadgeText = string.Empty;
 
@@ -1194,13 +1202,14 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         DatCatalog? catalog = null;
         MameDatSummary? mameSummary = null;
         DatNameTraits? nameTraits = null;
+        IReadOnlyDictionary<string, int>? categoryCounts = null;
         Exception? error = null;
         try
         {
-            (catalog, mameSummary, nameTraits) = await Task.Run(async () =>
+            (catalog, mameSummary, nameTraits, categoryCounts) = await Task.Run(async () =>
             {
                 var read = await _datService.ParseDatFileAsync(path, cancellationToken);
-                return (read, MameDatSummary.FromCatalog(read), TiebreakApplicability.GetDatNameTraits(read));
+                return (read, MameDatSummary.FromCatalog(read), TiebreakApplicability.GetDatNameTraits(read), DatCategory.CountGames(read));
             }, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -1242,7 +1251,8 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
             DetectConvention(catalog),
             TiebreakApplicability.GetCloneRelations(catalog),
             mameSummary,
-            nameTraits);
+            nameTraits,
+            categoryCounts);
     }
 
     /// <summary>
@@ -1370,13 +1380,15 @@ public sealed partial class DirectoriesViewModel : ConfigSectionViewModel
         NamingConvention? detected,
         DatCloneRelations cloneRelations,
         MameDatSummary? mameSummary = null,
-        DatNameTraits? nameTraits = null)
+        DatNameTraits? nameTraits = null,
+        IReadOnlyDictionary<string, int>? categoryCounts = null)
     {
         _datInfoMessage = message;
         _datInfoIsLot = false;
         DatCloneRelations = cloneRelations;
         _datNameTraitsRead = nameTraits;
         DatMameSummary = mameSummary;
+        DatCategoryCounts = categoryCounts;
         DatInfoText = message is null ? string.Empty : _localization.Format(message);
         DatInfoTone = tone;
         DetectedDatConvention = detected;

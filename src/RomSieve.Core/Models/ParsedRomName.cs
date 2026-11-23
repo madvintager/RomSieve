@@ -155,6 +155,14 @@ public sealed partial record ParsedRomName
     /// </summary>
     public bool MergesSpectrumMachines { get; init; }
 
+    /// <summary>
+    /// Categories the DAT gives the game of the release (<see cref="DatGame.Categories"/>: <c>Games</c>, <c>Add-Ons</c>...),
+    /// set by the pipeline for a file identified with a No-Intro or Redump DAT; empty when the DAT gives none, or without a
+    /// DAT game (a file the DAT does not know, a sort without DAT), the filters then reading the name
+    /// (<see cref="DatCategory.InferFromName"/>).
+    /// </summary>
+    public IReadOnlyList<string> DatCategories { get; init; } = [];
+
     /// <summary>What the MAME DAT says of the machine (BIOS, device, mechanical, emulation status); null for any other file.</summary>
     public MameMachineInfo? Machine { get; init; }
 

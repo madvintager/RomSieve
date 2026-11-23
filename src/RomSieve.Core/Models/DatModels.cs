@@ -109,6 +109,13 @@ public sealed partial class DatGame
     public string? Publisher { get; set; }
 
     /// <summary>
+    /// Categories of the game (<c>&lt;category&gt;</c> of the No-Intro and Redump DATs: <c>Games</c>, <c>Add-Ons</c>,
+    /// <c>Applications</c>...), in DAT order; a game may have several (<c>Games</c> and <c>Preproduction</c> for a beta).
+    /// Empty when the DAT gives none (TOSEC, MAME, older DATs).
+    /// </summary>
+    public List<string> Categories { get; set; } = [];
+
+    /// <summary>
     /// MAME software list of a software (<c>megadriv</c>): the folder MAME looks for it in. Set by
     /// <see cref="DatCatalog.CompleteSoftwareList"/>; <c>null</c> for the games of the other DATs.
     /// </summary>
@@ -1134,6 +1141,7 @@ public sealed partial class DatCatalog
             Year = game.Year,
             Manufacturer = game.Manufacturer,
             Publisher = game.Publisher,
+            Categories = [.. game.Categories],
             SoftwareList = game.SoftwareList,
             DriverStatus = game.DriverStatus,
             EmulationStatus = game.EmulationStatus,
@@ -1211,6 +1219,9 @@ public sealed partial class DatCatalog
                 attrs.Add("runnable=\"no\"");
 
             sb.AppendLine($"\t<game {string.Join(" ", attrs)}>");
+            // Before the description, where the No-Intro and Redump DATs write them
+            foreach (var category in game.Categories)
+                sb.AppendLine($"\t\t<category>{EscapeXmlText(category)}</category>");
             if (!string.IsNullOrEmpty(game.Description))
                 sb.AppendLine($"\t\t<description>{EscapeXmlText(game.Description)}</description>");
             if (!string.IsNullOrEmpty(game.Year))
@@ -1284,6 +1295,8 @@ public sealed partial class DatCatalog
             // The CLRMAMEPRO format of MAME writes its BIOS sets as resources
             sb.AppendLine(game.IsBios ? "resource (" : "game (");
             sb.AppendLine($"\tname \"{EscapeClrMamePro(game.Name)}\"");
+            foreach (var category in game.Categories)
+                sb.AppendLine($"\tcategory \"{EscapeClrMamePro(category)}\"");
             if (!string.IsNullOrEmpty(game.Description))
                 sb.AppendLine($"\tdescription \"{EscapeClrMamePro(game.Description)}\"");
             if (!string.IsNullOrEmpty(game.Year))

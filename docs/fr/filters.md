@@ -79,6 +79,7 @@ différemment, enregistrez un [profil](settings-and-profiles.md#profils-nommes) 
 | **Domaine public et freewares** *(TOSEC)* | PD, freeware, shareware... | - | - | Oui |
 | **Parutions non officielles** *(No-Intro / Redump)* | - | Unl, Homebrew, Aftermarket | - | Oui |
 | **Rééditions modernes** *(No-Intro / Redump)* | - | Virtual Console, Switch Online, Classic Mini, LodgeNet... | - | Oui |
+| **BIOS** *(No-Intro / Redump)* | - | Nom qui commence par `[BIOS]` | - | Oui |
 
 Avec la convention MAME, les catégories sont lues dans la description de la machine, et les cases dont un set MAME
 ne relève jamais (traductions, parutions non officielles, rééditions modernes) sont grisées, leur infobulle disant
@@ -93,6 +94,37 @@ descriptions ne marquent jamais, sont grisées, leur infobulle disant pourquoi.
 
 Seule la présentation a changé depuis les versions qui affichaient « Exclure les traductions »... : `config.json` et
 les profils gardent les mêmes options (`exclude_translations`...), si bien qu'un fichier est relu à l'identique.
+
+### Jeux, applications et add-ons
+
+Les DAT No-Intro et Redump rangent chaque jeu dans une ou plusieurs catégories : `Games`, `Add-Ons`, `Applications`,
+`Demos`, `Educational`, `Preproduction`, `Coverdiscs`, `Bonus Discs`... Le bouton **Catégories du DAT**, après les
+cases du groupe **Contenu à garder**, ouvre la liste de ces catégories : décochez celles dont vous ne voulez pas les
+jeux. Une fois le DAT lu, la liste donne ses catégories avec le nombre de jeux de chacune ; avant, ou pour un lot de
+DAT, elle donne les catégories qu'utilisent No-Intro et Redump. Le bouton nomme la catégorie exclue, ou compte les
+catégories exclues, et passe en gras tant qu'il en exclut une.
+
+* Un jeu est exclu dès que **l'une** de ses catégories l'est : une bêta est à la fois `Games` et `Preproduction`, si
+  bien que décocher `Preproduction` exclut les bêtas, et décocher `Games` les exclut aussi.
+* Un jeu que son DAT ne range dans aucune catégorie (anciens DAT, fichier absent du DAT, tri sans DAT) est classé
+  d'après son nom : une puce d'extension `(Enhancement Chip)` va dans `Add-Ons`. La catégorie que donne le DAT passe
+  toujours avant le nom.
+* La raison d'un jeu exclu nomme sa catégorie : « Catégorie Add-Ons exclue », ou « Catégorie Add-Ons exclue (d'après
+  (Enhancement Chip)) » quand elle vient du nom.
+
+Une nouvelle configuration exclut `Add-Ons` : les puces d'extension de la Super Nintendo (`CX4`, `DSP1`, `ST018`,
+`Super Game Boy SGB-CPU`...) et le SuFami Turbo ne sont pas des jeux. Les émulateurs Super Nintendo ont pourtant besoin
+de ces puces dans leur dossier BIOS : gardez-en une copie. Une configuration ou un profil enregistré par une version
+précédente de RomSieve n'exclut aucune catégorie.
+
+Les DAT rangent les BIOS dans plusieurs catégories (`Miscellaneous`, `Add-Ons`, `Applications`, et même `Games` pour
+un BIOS de Master System qui contient un jeu) : la case **BIOS `[BIOS]`** les reconnaît à leur nom, quelle que soit
+leur catégorie. Elle est cochée par défaut.
+
+La Miss List et le fixdat ne dépendent d'aucun filtre : ils listent toujours tout ce qui manque du DAT. Le [DAT filtré
+du catalogue](exports.md) applique ces filtres comme un tri. Avec un DAT MAME ou des listes de logiciels, le bouton et
+la case sont grisés : les catégories d'une machine MAME viennent du fichier de catégories (voir [Filtres de
+genre](#filtres-de-genre)), et ses BIOS se règlent dans le cadre **Machines MAME**.
 
 ### Fichiers absents du DAT
 

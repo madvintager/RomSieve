@@ -709,6 +709,50 @@ public sealed class CliApplicationTests : IDisposable
         File.ReadAllText(output).Should().StartWith("clrmamepro (");
     }
 
+    /// <summary>
+    /// The categories of a No-Intro DAT (issue #7) are read from the configuration as by the interface: a new one leaves
+    /// out the add-ons, one that excludes no category keeps them, both in the filtered DAT and in a sort.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExcludedDatCategories_ShouldBeReadFromTheConfiguration(bool excludesAddOns)
+    {
+        const string chip = "CX4 (World) (Enhancement Chip).bin";
+        const string game = "Super Mario World (USA).sfc";
+        static string Crc(string text) => Crc32.HashToUInt32(Encoding.UTF8.GetBytes(text)).ToString("x8");
+        var dat = _temp.WriteText("snes.dat", $"""
+            <?xml version="1.0"?>
+            <datafile>
+              <header><name>Nintendo - Super Nintendo Entertainment System</name><homepage>No-Intro</homepage></header>
+              <game name="CX4 (World) (Enhancement Chip)"><category>Add-Ons</category><rom name="{chip}" size="8" crc="{Crc("cx4 chip")}"/></game>
+              <game name="Super Mario World (USA)"><category>Games</category><rom name="{game}" size="5" crc="{Crc("mario")}"/></game>
+            </datafile>
+            """);
+        var source = _temp.CreateSubdirectory("snes");
+        File.WriteAllText(Path.Combine(source, chip), "cx4 chip");
+        File.WriteAllText(Path.Combine(source, game), "mario");
+        WriteConfig(s =>
+        {
+            s.SourceDir = source;
+            s.DatFile = dat;
+            s.Pattern = string.Empty;
+            if (!excludesAddOns)
+            {
+                s.NoIntroExcludedDatCategories = [];
+            }
+        });
+        var output = Path.Combine(_temp.Path, "filtered.xml");
+
+        var filtered = await RunAsync("dat", "--output", output);
+        var sort = await RunAsync("run", "--execute");
+
+        filtered.ExitCode.Should().Be(ExitCodes.Success, filtered.Error);
+        sort.ExitCode.Should().Be(ExitCodes.Success, sort.Error);
+        File.ReadAllText(output).Contains("CX4 (World)", StringComparison.Ordinal).Should().Be(!excludesAddOns);
+        DestinationFiles().Should().Equal(excludesAddOns ? [game] : [chip, game]);
+    }
+
     [Fact]
     public async Task Dat_ShouldNeedADatAndAnOutputOfAKnownFormat()
     {

@@ -181,6 +181,78 @@ public sealed partial class GuiTests
     }
 
     /// <summary>
+    /// The BIOS box and the DAT categories button (issue #7): with the content to keep of the No-Intro / Redump options,
+    /// greyed for MAME sets and software lists, their tooltip saying why; the button names what it excludes and opens the
+    /// list of the categories.
+    /// </summary>
+    [Fact]
+    public async Task FiltersTab_BiosAndDatCategories_ShouldBeNoIntroContentOptions()
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            var window = new MainWindow(vm);
+            window.Show();
+            try
+            {
+                vm.Navigation.CurrentStep = WorkflowStep.Filters;
+                vm.Filters.IsTosecShown = true;
+                Settle(window);
+
+                var group = window.FindControl<WrapPanel>("GrpFilterContent")!;
+                var box = window.FindControl<CheckBox>("ChkKeepBios")!;
+                var button = window.FindControl<DropDownButton>("BtnDatCategories")!;
+                box.Parent.Should().BeSameAs(group);
+                button.Parent.Should().BeSameAs(group);
+                box.IsEffectivelyVisible.Should().BeFalse("TOSEC names have no [BIOS] prefix and TOSEC DATs no category");
+                button.IsEffectivelyVisible.Should().BeFalse();
+
+                vm.Filters.IsNoIntroShown = true;
+                Settle(window);
+                box.IsEffectivelyVisible.Should().BeTrue();
+                box.IsEffectivelyEnabled.Should().BeTrue();
+                box.IsChecked.Should().BeTrue("the BIOS are kept by default");
+                ContentText(box).Should().Be("BIOS [BIOS]");
+                ToolTip.GetTip(box).Should().Be(vm.Localization.Tr("filters.tooltip_keep_nointro_bios"));
+                button.IsEffectivelyEnabled.Should().BeTrue();
+                button.Content.Should().Be("Catégories du DAT : sans Add-Ons");
+                button.Classes.Should().Contain("changed");
+                ToolTip.GetTip(button).Should().Be(vm.Filters.DatCategories.SummaryTooltip);
+
+                box.IsChecked = false;
+                vm.NoIntroFilters.ExcludeBios.Should().BeTrue();
+                vm.Filters.DatCategories.KeepAllCommand.Execute(null);
+                Settle(window);
+                button.Content.Should().Be("Catégories du DAT : toutes");
+                button.Classes.Should().NotContain("changed");
+
+                // MAME sets and software lists: greyed, the tooltip saying why
+                foreach (var (convention, boxTip, buttonTip) in new[]
+                {
+                    (NamingConvention.Mame, "filters.tooltip_keep_bios_mame", "filters.tooltip_dat_categories_mame"),
+                    (NamingConvention.MameSoftwareList, "filters.tooltip_no_effect_softlist_category", "filters.tooltip_dat_categories_softlist")
+                })
+                {
+                    vm.Directories.SelectedNamingConvention = convention;
+                    vm.Filters.IsNoIntroShown = true;
+                    Settle(window);
+                    box.IsEffectivelyVisible.Should().BeTrue(convention.ToString());
+                    box.IsEffectivelyEnabled.Should().BeFalse(convention.ToString());
+                    button.IsEffectivelyEnabled.Should().BeFalse(convention.ToString());
+                    ToolTip.GetShowOnDisabled(box).Should().BeTrue();
+                    ToolTip.GetShowOnDisabled(button).Should().BeTrue();
+                    ToolTip.GetTip(box).Should().Be(vm.Localization.Tr(boxTip));
+                    ToolTip.GetTip(button).Should().Be(vm.Localization.Tr(buttonTip));
+                }
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>
     /// The tag after the label of a box ("(Translated)") is lighter than the label while the box is enabled, and greyed
     /// out with it when it is disabled: a color set on the tag itself kept it readable next to a greyed-out label.
     /// </summary>

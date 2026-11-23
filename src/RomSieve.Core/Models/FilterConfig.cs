@@ -54,6 +54,17 @@ public sealed class FilterConfig
     public bool NoIntroExcludeDemos { get; set; } = false;
     public bool NoIntroExcludeRereleases { get; set; } = false;
 
+    /// <summary>
+    /// Categories of the No-Intro and Redump DATs whose games are excluded (<c>Add-Ons</c>, <c>Applications</c>...), any
+    /// case: a game is excluded as soon as one of its categories is. A game the DAT gives no category takes the one its
+    /// name tells (<see cref="DatCategory.InferFromName"/>). None here; a new configuration excludes the add-ons
+    /// (<see cref="SortSettings.NoIntroExcludedDatCategories"/>).
+    /// </summary>
+    public List<string> NoIntroExcludedDatCategories { get; set; } = [];
+
+    /// <summary>Excludes the BIOS of the No-Intro and Redump names (<c>[BIOS]</c>), whatever the category of their DAT.</summary>
+    public bool NoIntroExcludeBios { get; set; } = false;
+
     // MAME machines (with the No-Intro / Redump options above)
     public bool MameExcludeBios { get; set; } = false;
     public bool MameExcludeDevices { get; set; } = false;

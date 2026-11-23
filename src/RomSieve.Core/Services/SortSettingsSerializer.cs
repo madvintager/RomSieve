@@ -109,6 +109,8 @@ public static class SortSettingsSerializer
         data["nointro_exclude_unlicensed"] = s.NoIntroExcludeUnlicensed;
         data["nointro_exclude_demos"] = s.NoIntroExcludeDemos;
         data["nointro_exclude_rereleases"] = s.NoIntroExcludeRereleases;
+        data[ConfigSchema.ExcludedDatCategoriesKey] = s.NoIntroExcludedDatCategories.ToList();
+        data["nointro_exclude_bios"] = s.NoIntroExcludeBios;
 
         // MAME machines
         data["mame_exclude_bios"] = s.MameExcludeBios;
@@ -229,6 +231,8 @@ public static class SortSettingsSerializer
                 NoIntroExcludeUnlicensed = s.NoIntroExcludeUnlicensed,
                 NoIntroExcludeDemos = s.NoIntroExcludeDemos,
                 NoIntroExcludeRereleases = s.NoIntroExcludeRereleases,
+                NoIntroExcludedDatCategories = s.NoIntroExcludedDatCategories.ToList(),
+                NoIntroExcludeBios = s.NoIntroExcludeBios,
 
                 MameExcludeBios = s.MameExcludeBios,
                 MameExcludeDevices = s.MameExcludeDevices,
@@ -365,6 +369,11 @@ public static class SortSettingsSerializer
         if (TryGetBool(data, "nointro_exclude_unlicensed", out var eu)) s.NoIntroExcludeUnlicensed = eu;
         if (TryGetBool(data, "nointro_exclude_demos", out var ed)) s.NoIntroExcludeDemos = ed;
         if (TryGetBool(data, "nointro_exclude_rereleases", out var er)) s.NoIntroExcludeRereleases = er;
+        if (TryGetStringList(data, ConfigSchema.ExcludedDatCategoriesKey, out var edc))
+        {
+            s.NoIntroExcludedDatCategories = edc.Select(c => c.Trim()).Where(c => c.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        if (TryGetBool(data, "nointro_exclude_bios", out var eb)) s.NoIntroExcludeBios = eb;
         if (TryGetBool(data, "mame_exclude_bios", out var mb)) s.MameExcludeBios = mb;
         if (TryGetBool(data, "mame_exclude_devices", out var md)) s.MameExcludeDevices = md;
         if (TryGetBool(data, "mame_exclude_mechanical", out var mm)) s.MameExcludeMechanical = mm;

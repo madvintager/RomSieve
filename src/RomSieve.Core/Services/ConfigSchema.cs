@@ -17,7 +17,8 @@ public static class ConfigSchema
     /// <list type="bullet">
     /// <item>1: the format of RomSieve 1.0.0 to 1.1.1.</item>
     /// <item>2: <c>filter_not_in_dat</c>, on by default, off for a file of format 1.</item>
-    /// <item>3: <c>spectrum_target</c>, the ZX Spectrum 128K by default, every machine for a file of format 2.</item>
+    /// <item>3: <c>spectrum_target</c>, the ZX Spectrum 128K by default, every machine for a file of format 2; and
+    /// <c>nointro_excluded_dat_categories</c>, the add-ons by default, none for a file of format 2.</item>
     /// </list>
     /// A file without a version (written by hand) is of the current format.
     /// </summary>
@@ -29,6 +30,9 @@ public static class ConfigSchema
     /// <summary>Key of the ZX Spectrum the collection is sorted for (format 3).</summary>
     internal const string SpectrumTargetKey = "spectrum_target";
 
+    /// <summary>Key of the categories of the No-Intro and Redump DATs whose games are excluded (format 3).</summary>
+    internal const string ExcludedDatCategoriesKey = "nointro_excluded_dat_categories";
+
     /// <summary>
     /// Steps of the migration: the step at index <c>n</c> turns a file of version <c>n + 1</c> into version
     /// <c>n + 2</c>.
@@ -38,8 +42,13 @@ public static class ConfigSchema
         // 1 to 2: the files missing from the DAT were never filtered, the option stays off (a value added by hand is kept)
         data => data.TryAdd(FilterNotInDatKey, false),
 
-        // 2 to 3: the machine versions of a ZX Spectrum game stayed apart and none was excluded, which every machine keeps
-        data => data.TryAdd(SpectrumTargetKey, "any")
+        // 2 to 3: the machine versions of a ZX Spectrum game stayed apart and none was excluded, which every machine keeps;
+        // the categories of the DATs were not read, so no category is excluded
+        data =>
+        {
+            data.TryAdd(SpectrumTargetKey, "any");
+            data.TryAdd(ExcludedDatCategoriesKey, new List<string>());
+        }
     ];
 
     /// <summary>

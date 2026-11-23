@@ -803,7 +803,7 @@ public sealed class EntryClassifier
 
     /// <summary>
     /// Item of a file identified with the DAT game <paramref name="game"/>: the parse result is enriched with the
-    /// parent / clone relation and the multi-disk status of the game (as a modified copy), then filtered.
+    /// parent / clone relation, the categories and the multi-disk status of the game (as a modified copy), then filtered.
     /// </summary>
     private ProcessItem BuildIdentifiedItem(ScanEntry entry, ParsedRomName parsed, DatGame? game, string targetFilename)
     {
@@ -819,6 +819,12 @@ public sealed class EntryClassifier
                 !string.Equals(canonicalParent, game.Name, StringComparison.OrdinalIgnoreCase))
             {
                 parsed = parsed with { ParentTitle = canonicalParent, CloneOf = canonicalParent };
+            }
+
+            // What the game is (a game, an add-on, an application...), for the filter of the DAT categories
+            if (game.Categories.Count > 0)
+            {
+                parsed = parsed with { DatCategories = game.Categories };
             }
         }
 

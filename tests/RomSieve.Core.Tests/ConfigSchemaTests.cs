@@ -68,6 +68,44 @@ public sealed class ConfigSchemaTests
     }
 
     [Fact]
+    public void FileOfFormat2_ShouldExcludeNoDatCategory()
+    {
+        const string key = "nointro_excluded_dat_categories";
+        var migrated = ConfigSchema.Migrate(Data((ConfigSchema.VersionKey, 2L)));
+
+        migrated[key].Should().BeAssignableTo<IEnumerable<string>>().Which.Should().BeEmpty();
+        SortSettingsSerializer.Read(Data((ConfigSchema.VersionKey, 2L))).NoIntroExcludedDatCategories
+            .Should().BeEmpty("the categories of the DATs were not read before format 3");
+        SortSettingsSerializer.Read(Data((ConfigSchema.VersionKey, 1L))).NoIntroExcludedDatCategories
+            .Should().BeEmpty("a file of format 1 goes through the step of format 3 too");
+        SortSettingsSerializer.Read(Data((ConfigSchema.VersionKey, 2L), (key, new List<string> { "Demos" }))).NoIntroExcludedDatCategories
+            .Should().Equal(["Demos"], "a value added by hand is kept");
+    }
+
+    [Fact]
+    public void NewConfigurationOrFileOfTheCurrentFormat_ShouldExcludeTheAddOns()
+    {
+        const string key = "nointro_excluded_dat_categories";
+        new SortSettings().NoIntroExcludedDatCategories.Should().Equal(DatCategory.AddOns);
+        new SortSettings().NoIntroExcludeBios.Should().BeFalse();
+        new FilterConfig().NoIntroExcludedDatCategories.Should().BeEmpty("a sort without configuration excludes nothing");
+        new FilterConfig().NoIntroExcludeBios.Should().BeFalse();
+        SortSettingsSerializer.Read(Data()).NoIntroExcludedDatCategories.Should().Equal(DatCategory.AddOns);
+        SortSettingsSerializer.Read(Current()).NoIntroExcludedDatCategories.Should().Equal(DatCategory.AddOns);
+        SortSettingsSerializer.Read(Current((key, new List<string>()))).NoIntroExcludedDatCategories.Should().BeEmpty();
+        SortSettingsSerializer.Read(Current((key, new List<string> { " Demos ", "demos", "", "Applications" }))).NoIntroExcludedDatCategories
+            .Should().Equal(["Demos", "Applications"], "trimmed, without blanks nor duplicates in any case");
+
+        var data = new Dictionary<string, object?>();
+        SortSettingsSerializer.Write(new SortSettings { NoIntroExcludedDatCategories = ["Demos"], NoIntroExcludeBios = true }, data);
+        data[key].Should().BeAssignableTo<IEnumerable<string>>().Which.Should().Equal("Demos");
+        data["nointro_exclude_bios"].Should().Be(true);
+        var filters = SortSettingsSerializer.ToSortConfig(SortSettingsSerializer.Read(data)).Filters;
+        filters.NoIntroExcludedDatCategories.Should().Equal("Demos");
+        filters.NoIntroExcludeBios.Should().BeTrue();
+    }
+
+    [Fact]
     public void Migrate_ShouldBringEveryVersionToTheCurrentOneWithoutChangingItsInput()
     {
         for (var version = 1; version <= ConfigSchema.CurrentVersion; version++)

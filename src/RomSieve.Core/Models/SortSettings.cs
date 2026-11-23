@@ -130,6 +130,15 @@ public sealed class SortSettings
     public bool NoIntroExcludeDemos { get; set; }
     public bool NoIntroExcludeRereleases { get; set; }
 
+    /// <summary>
+    /// Categories of the No-Intro and Redump DATs whose games are excluded: the add-ons (SNES enhancement chips...) for a
+    /// new configuration; none for a file of format 2 (<see cref="Services.ConfigSchema"/>).
+    /// </summary>
+    public List<string> NoIntroExcludedDatCategories { get; set; } = [DatCategory.AddOns];
+
+    /// <summary>Excludes the BIOS of the No-Intro and Redump names (<c>[BIOS]</c>).</summary>
+    public bool NoIntroExcludeBios { get; set; }
+
     // MAME machines
     public bool MameExcludeBios { get; set; }
     public bool MameExcludeDevices { get; set; }
@@ -199,6 +208,7 @@ public sealed class SortSettings
     {
         var copy = (SortSettings)MemberwiseClone();
         copy.MameExcludedGenres = [.. MameExcludedGenres];
+        copy.NoIntroExcludedDatCategories = [.. NoIntroExcludedDatCategories];
         copy.ExcludedDats = [.. ExcludedDats];
         copy.PriorityLanguages = [.. PriorityLanguages];
         copy.PriorityCountries = [.. PriorityCountries];
