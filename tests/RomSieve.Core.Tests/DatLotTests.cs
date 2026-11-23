@@ -277,7 +277,8 @@ public sealed class DatLotTests : IDisposable
             <datafile><header><name>{Nes}</name><homepage>No-Intro</homepage></header>{games}<game name="Broken"><rom name=
             """);
 
-        await FluentActions.Invoking(() => ReadLot()).Should().ThrowAsync<Exception>("the DAT is broken");
+        var refusal = await Refusal(() => ReadLot());
+        refusal.Reason.Key.Should().Be("dat.lot_dat_unreadable", "the DAT is broken, and unchecking it lets the others be sorted");
 
         var lot = await ReadLot(false, Nes.ToLowerInvariant());
         lot.Dats!.Select(d => d.Name).Should().Equal(GameBoy);
@@ -298,6 +299,76 @@ public sealed class DatLotTests : IDisposable
     // =========================================================================
     // Refusals
     // =========================================================================
+
+    // A DAT whose games outnumber those its preview reads, cut before its closing tag (issue #5: "</datafile>" missing)
+    private void WriteTruncatedNes(string relativePath)
+    {
+        var games = string.Concat(Enumerable.Range(0, DatService.PreviewGameCount + 1)
+            .Select(i => $"""<game name="Game {i} (World)"><rom name="Game {i} (World).nes" size="{i + 1}" crc="{i:x8}"/></game>{Environment.NewLine}"""));
+        _tmp.WriteText(Path.Combine("dats", relativePath), $"""
+            <?xml version="1.0"?>
+            <datafile>
+            <header><name>{Nes}</name><homepage>No-Intro</homepage></header>
+            {games}
+            """);
+    }
+
+    [Fact]
+    public async Task TruncatedDat_ShouldRefuseTheLotByItsPathInIt_AndBeLeftOutOnceUnchecked()
+    {
+        WriteGameBoy();
+        var path = Path.Combine("No-Intro", "Nintendo - NES (20201227 143421).dat");
+        WriteTruncatedNes(path);
+
+        // Its header is read: the list of the DATs shows it, so it can be unchecked
+        _services.DatService.ReadDatFolderPreview(_dats, recursive: true).Select(e => e.Name).Should().Contain(Nes);
+
+        var refusal = await Refusal(() => ReadLot(recursive: true));
+
+        refusal.Reason.Key.Should().Be("dat.lot_dat_unreadable");
+        var message = _services.I18n.Format(refusal.Reason);
+        message.Should().Contain(path, "the message of the parser alone does not tell which DAT of the lot is broken")
+            .And.Contain("datafile", "the error of the parser is kept")
+            .And.Contain("Choisir les DAT", "the message tells how to sort the other DATs");
+
+        (await ReadLot(true, Nes)).Dats!.Select(d => d.Name).Should().Equal(GameBoy);
+    }
+
+    [Fact]
+    public async Task DatWhoseHeaderCannotBeRead_ShouldRefuseTheFolderByItsPath_FromThePreviewToo()
+    {
+        WriteGameBoy();
+        var path = "Broken.dat";
+        _tmp.WriteText(Path.Combine("dats", path), """
+            <?xml version="1.0"?>
+            <datafile><header><name>Nintendo - Broken</na
+            """);
+
+        var preview = FluentActions.Invoking(() => _services.DatService.ReadDatFolderPreview(_dats))
+            .Should().Throw<DatFolderException>("the list of the DATs is refused as the sort would refuse it").Which;
+        var lot = await Refusal(() => ReadLot());
+
+        foreach (var refusal in new[] { preview, lot })
+        {
+            refusal.Reason.Key.Should().Be("dat.folder_dat_unreadable", "even unchecked, a DAT has its header read");
+            _services.I18n.Format(refusal.Reason).Should().Contain(path);
+        }
+    }
+
+    [Fact]
+    public void FirstDatOfAFolderThatCannotBeRead_ShouldBeNamedByThePreviewOfTheFolder()
+    {
+        _tmp.WriteText(Path.Combine("dats", "A broken.dat"), """
+            <?xml version="1.0"?>
+            <datafile><header><name>Nintendo - Broken</na
+            """);
+        WriteGameBoy();
+
+        var refusal = FluentActions.Invoking(() => _services.DatService.ReadDatPreview(_dats)).Should().Throw<DatFolderException>().Which;
+
+        refusal.Reason.Key.Should().Be("dat.folder_dat_unreadable");
+        _services.I18n.Format(refusal.Reason).Should().Contain("A broken.dat");
+    }
 
     [Fact]
     public async Task FolderWithoutDat_ShouldBeRefused()

@@ -344,7 +344,17 @@ public sealed class CliApplication
             }
         });
 
-        var result = await processor.ExecuteAsync(config, isDryRun: !execute, logProgress: log, cancellationToken: cancellationToken);
+        SortExecutionResult result;
+        try
+        {
+            result = await processor.ExecuteAsync(config, isDryRun: !execute, logProgress: log, cancellationToken: cancellationToken);
+        }
+        catch (DatLoadException ex)
+        {
+            // A DAT that cannot be read is named by the message: a configuration to fix, not a crash
+            return Fail(ExitCodes.InvalidConfiguration, ex.Message);
+        }
+
         WriteSummary(result.Stats, result.DatCatalog is not null);
         WriteFrontendSummary(config.Frontend, frontendNotes);
         if ((missListPath is not null || fixDatPath is not null) && result.Stats.DescribeLotExportScope() is { } scope)
@@ -543,6 +553,10 @@ public sealed class CliApplication
         {
             return Fail(ExitCodes.CompletedWithErrors, Tr("cli.export_failed", ("path", outputPath), ("error", ex.Message)));
         }
+        catch (DatLoadException ex)
+        {
+            return Fail(ExitCodes.InvalidConfiguration, ex.Message);
+        }
         catch (InvalidOperationException ex)
         {
             // An output that would replace the DAT read (DatCatalog.IsReadFrom)
@@ -740,7 +754,15 @@ public sealed class CliApplication
             }
         });
         var processor = services.GetRequiredService<ISortProcessorService>();
-        var result = await processor.ExecuteAsync(config, isDryRun: true, logProgress: log, cancellationToken: cancellationToken);
+        SortExecutionResult result;
+        try
+        {
+            result = await processor.ExecuteAsync(config, isDryRun: true, logProgress: log, cancellationToken: cancellationToken);
+        }
+        catch (DatLoadException ex)
+        {
+            return Fail(ExitCodes.InvalidConfiguration, ex.Message);
+        }
 
         var applied = result.Items.Select(it => it.Patch).OfType<PatchedVersion>().DistinctBy(p => p.File).ToList();
         WriteLine(_localization.Format(LocalizedMessage.Create(

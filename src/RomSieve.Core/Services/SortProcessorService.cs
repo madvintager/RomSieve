@@ -1322,11 +1322,13 @@ public sealed class SortProcessorService : ISortProcessorService
         }
         catch (DatFolderException ex)
         {
-            throw new InvalidOperationException(_i18n.Tr("log.dat_load_error", ("error", _i18n.Format(ex.Reason))), ex);
+            throw new DatLoadException(_i18n.Tr("log.dat_load_error", ("error", _i18n.Format(ex.Reason))), ex);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            throw new InvalidOperationException(_i18n.Tr("log.dat_load_error", ("error", ex.Message)), ex);
+            // The message of the parser gives a line and a position, never the file: the log names it
+            throw new DatLoadException(
+                _i18n.Tr("log.dat_file_load_error", ("path", config.DatFile), ("error", ex.Message)), ex);
         }
     }
 

@@ -104,6 +104,15 @@ dossiers ne sont pas triés. Donnez-vous le droit de lire le dossier, ou choisis
 mène le lien. Les dossiers et fichiers du système (corbeilles, `System Volume Information`, `lost+found`, `Thumbs.db`,
 `.DS_Store`...) sont ignorés sans un mot : ils n'appartiennent jamais à une collection.
 
+### « Le DAT … est illisible »
+
+Un DAT est abîmé : souvent un fichier tronqué par un téléchargement, à qui manque sa dernière ligne (`</datafile>`). Le
+message le nomme, par son chemin dans le dossier ou l'archive de DAT, et donne la ligne où la lecture s'est arrêtée.
+Téléchargez de nouveau le DAT, ou réparez-le. Dans un lot, vous pouvez aussi le décocher avec **Choisir les DAT…** pour
+trier avec les autres DAT (voir [Choisir les DAT du lot](naming-conventions-and-dats.md#choisir-les-dat-du-lot)) ; en
+ligne de commande, ne le nommez pas dans `--dat-only`. Un DAT dont même l'en-tête est illisible ne peut pas être
+décoché : retirez-le du dossier. La ligne de commande sort avec le code 3.
+
 ### « Erreur inattendue »
 
 RomSieve a rencontré une erreur qu'il ne prévoyait pas. Il enregistre un rapport d'erreur et vous dit où ; la

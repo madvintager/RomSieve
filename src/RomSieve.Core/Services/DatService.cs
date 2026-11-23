@@ -1700,31 +1700,70 @@ public sealed partial class DatService : IDatService
         // About a hundred reports, whatever the number of DATs: each one updates the interface
         var step = Math.Max(1, (files.Count + 99) / 100);
         var read = 0;
-        Parallel.For(
-            0,
-            files.Count,
-            new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism, CancellationToken = cancellationToken },
-            index =>
-            {
-                entries[index] = PreviewEntry(folder, files[index]);
-                var done = Interlocked.Increment(ref read);
-                if (progress is not null && (done % step == 0 || done == files.Count))
+        try
+        {
+            Parallel.For(
+                0,
+                files.Count,
+                new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism, CancellationToken = cancellationToken },
+                index =>
                 {
-                    progress.Report(new DatFolderReadProgress(done, files.Count));
-                }
-            });
-        _datHeaders.Save();
+                    entries[index] = PreviewEntry(folder, files[index]);
+                    var done = Interlocked.Increment(ref read);
+                    if (progress is not null && (done % step == 0 || done == files.Count))
+                    {
+                        progress.Report(new DatFolderReadProgress(done, files.Count));
+                    }
+                });
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.OfType<DatFolderException>().FirstOrDefault() is { } refusal)
+        {
+            // A DAT whose header cannot be read refuses the folder by its path, as a sort would
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(refusal).Throw();
+        }
+        finally
+        {
+            // The headers read before a DAT that cannot be read are not read again
+            _datHeaders.Save();
+        }
+
         return entries;
     }
 
-    // A DAT of a folder or of an archive of DATs as its header tells it, read unless cached
+    // A DAT of a folder or of an archive of DATs as its header tells it, read unless cached; refused by its path in the
+    // folder when even its header cannot be read (unchecking it would not help: the header of every DAT is read)
     private DatFolderEntry PreviewEntry(string folder, DatLocation file)
     {
-        var header = file.Recorded is { } recorded
+        var path = file.RelativeTo(folder);
+        var header = ReadingDatOfFolder(path, "dat.folder_dat_unreadable", () => file.Recorded is { } recorded
             ? _datHeaders.GetOrRead(recorded, () => ReadHeaderInfo(file))
-            : _datHeaders.GetOrRead(file.Path, () => ReadHeaderInfo(file));
-        return new DatFolderEntry(file.RelativeTo(folder), header.Name, header.Convention);
+            : _datHeaders.GetOrRead(file.Path, () => ReadHeaderInfo(file)));
+        return new DatFolderEntry(path, header.Name, header.Convention);
     }
+
+    /// <summary>
+    /// Reads a DAT of a folder or of an archive of DATs (<paramref name="read"/>); a DAT that cannot be read (malformed
+    /// XML, a truncated file, an unreadable file or archive member) refuses the folder with a
+    /// <see cref="DatFolderException"/> that names it by <paramref name="file"/>, its path in the folder (the message of
+    /// the parser only gives a line and a position), with the reason <paramref name="reasonKey"/>.
+    /// </summary>
+    private static T ReadingDatOfFolder<T>(string file, string reasonKey, Func<T> read)
+    {
+        try
+        {
+            return read();
+        }
+        catch (Exception ex) when (IsUnreadableDat(ex))
+        {
+            throw new DatFolderException(LocalizedMessage.Create(reasonKey, ("file", file), ("error", ex.Message)));
+        }
+    }
+
+    // What reading a DAT throws when the file cannot be read or parsed; a refusal of the folder is already one
+    private static bool IsUnreadableDat(Exception ex) =>
+        ex is XmlException or InvalidDataException or UnauthorizedAccessException or FormatException
+            or SharpCompress.Common.SharpCompressException
+        || (ex is IOException && ex is not DatFolderException);
 
     private DatHeaderInfo ReadHeaderInfo(DatLocation file)
     {
@@ -1850,7 +1889,8 @@ public sealed partial class DatService : IDatService
                 var entry = entries[included[position]];
                 var file = files[included[position]];
                 var lotFile = lotFiles[included[position]];
-                var catalog = ReadLotDat(file, entry.Name, token);
+                // A DAT checked that cannot be read refuses the lot by its path; unchecked, it would not be read
+                var catalog = ReadingDatOfFolder(entry.RelativePath, "dat.lot_dat_unreadable", () => ReadLotDat(file, entry.Name, token));
                 members[position] = options.LoadOnDemand
                     ? new DatLotMember(
                         entry.Name,
@@ -1900,7 +1940,7 @@ public sealed partial class DatService : IDatService
             new ParallelOptions { MaxDegreeOfParallelism = DatFolderParallelism, CancellationToken = cancellationToken },
             (index, token) =>
             {
-                catalogs[index] = ParseDatFile(files[index], token);
+                catalogs[index] = ReadingDatOfFolder(files[index].FileName, "dat.folder_dat_unreadable", () => ParseDatFile(files[index], token));
                 return ValueTask.CompletedTask;
             }).ConfigureAwait(false);
 
@@ -1967,8 +2007,12 @@ public sealed partial class DatService : IDatService
                 throw new DatFolderException(LocalizedMessage.Create(isFolder ? "dat.folder_empty" : "dat.archive_empty", ("path", path)));
             }
 
-            var first = ReadDatPreview(files[0], maxGames);
-            if (isFolder || files.Count > 1)
+            // The single DAT of an archive is that DAT: only the first DAT of a folder is named by its path in it
+            var isLot = isFolder || files.Count > 1;
+            var first = isLot
+                ? ReadingDatOfFolder(files[0].RelativeTo(path), "dat.folder_dat_unreadable", () => ReadDatPreview(files[0], maxGames))
+                : ReadDatPreview(files[0], maxGames);
+            if (isLot)
             {
                 first.Header.Name = LotName(path);
             }

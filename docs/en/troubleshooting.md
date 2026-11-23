@@ -96,6 +96,15 @@ Give yourself the right to read the folder, or choose the folder a link leads to
 the system (recycle bins, `System Volume Information`, `lost+found`, `Thumbs.db`, `.DS_Store`...) are skipped without a
 word: they never belong to a collection.
 
+### "The DAT … cannot be read"
+
+A DAT is damaged: often a file cut short by a download, which lacks its last line (`</datafile>`). The message names it,
+by its path in the folder or the archive of DATs, and gives the line where reading stopped. Download the DAT again, or
+repair it. In a lot, you can also uncheck it with **Choose DATs…** to sort with the other DATs (see
+[Choosing the DATs of the lot](naming-conventions-and-dats.md#choosing-the-dats-of-the-lot)); from the command line,
+leave it out of `--dat-only`. A DAT whose very header cannot be read cannot be unchecked: take it out of the folder.
+The command line exits with code 3.
+
 ### "Unexpected error"
 
 RomSieve met an error it did not expect. It saves a crash report and tells you where; the window stays open, but

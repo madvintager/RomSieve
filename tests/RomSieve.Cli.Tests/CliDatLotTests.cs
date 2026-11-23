@@ -93,6 +93,35 @@ public sealed class CliDatLotTests : IDisposable
     }
 
     [Fact]
+    public async Task DatOfTheLotThatCannotBeRead_ShouldBeAnInvalidConfigurationThatNamesIt()
+    {
+        // Issue #5: a DAT without its closing tag, its header and first games readable
+        const string file = "Nintendo - Game Boy Color (20230501).dat";
+        var games = string.Concat(Enumerable.Range(0, DatService.PreviewGameCount + 1)
+            .Select(i => $"""<game name="Game {i} (World)"><rom name="Game {i} (World).gbc" size="{i + 1}" crc="{i:x8}"/></game>{Environment.NewLine}"""));
+        _temp.WriteText(Path.Combine("dats", file), $"""
+            <?xml version="1.0"?>
+            <datafile>
+            <header><name>{GameBoyColor}</name><homepage>No-Intro</homepage></header>
+            {games}
+            """);
+
+        var result = await RunAsync("run", "--dat", _dats);
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidConfiguration, result.Output);
+        result.Error.Should().Contain($"The DAT {file} cannot be read").And.Contain("--dat-only");
+        Directory.Exists(Path.Combine(Path.GetDirectoryName(_configPath)!, "crashes")).Should().BeFalse("a DAT to repair is not a crash");
+
+        (await RunAsync("run", "--dat", _dats, "--dat-only", GameBoy)).ExitCode.Should().Be(ExitCodes.Success, "the DAT left out is not read");
+
+        // A DAT whose header cannot be read is refused before the run, as a folder the sort would refuse
+        _temp.WriteText(Path.Combine("dats", file), "<?xml version=\"1.0\"?><datafile><header><name>Broken</na");
+        var header = await RunAsync("run", "--dat", _dats);
+        header.ExitCode.Should().Be(ExitCodes.InvalidConfiguration);
+        header.Error.Should().Contain($"The DAT {file} cannot be read");
+    }
+
+    [Fact]
     public async Task Run_WithTheSubfoldersOfTheLot_ShouldSortWithTheirDats()
     {
         var result = await RunAsync("run", "--dat", _dats, "--dat-recursive", "--execute");

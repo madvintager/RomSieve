@@ -118,6 +118,22 @@ public sealed class DatArchiveTests : IDisposable
     // =========================================================================
 
     [Fact]
+    public async Task DatOfAnArchiveThatCannotBeRead_ShouldRefuseTheLotByItsMember_UnlessItIsTheOnlyDat()
+    {
+        var truncated = GameBoyDat.Replace("</datafile>", string.Empty, StringComparison.Ordinal);
+        var lotZip = WriteZip("Pack.zip", ("Nintendo/Nintendo - Game Boy.dat", Text(truncated)), ("Nintendo - Nintendo Entertainment System.dat", Text(NesDat)));
+
+        var refusal = (await FluentActions.Invoking(() => Read(lotZip)).Should().ThrowAsync<DatFolderException>()).Which;
+
+        refusal.Reason.Key.Should().Be("dat.folder_dat_unreadable");
+        _services.I18n.Format(refusal.Reason).Should().Contain(Path.Combine("Nintendo", "Nintendo - Game Boy.dat"), "the DAT is named by its member");
+
+        // The single DAT of an archive is that DAT, not a DAT of a folder
+        var singleZip = WriteZip("Single.zip", ("Nintendo - Game Boy.dat", Text(truncated)));
+        await FluentActions.Invoking(() => Read(singleZip)).Should().ThrowAsync<System.Xml.XmlException>();
+    }
+
+    [Fact]
     public async Task ArchiveOfSeveralDats_ShouldBeALotOfAllItsDatsWhateverTheirFolder()
     {
         var zip = WriteZip(

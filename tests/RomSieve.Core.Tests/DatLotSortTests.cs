@@ -116,6 +116,38 @@ public sealed class DatLotSortTests : IDisposable
     private string Relative(string? path) => Path.GetRelativePath(_dst, path!).Replace('\\', '/');
 
     // =========================================================================
+    // DATs that cannot be read (issue #5)
+    // =========================================================================
+
+    [Fact]
+    public async Task DatOfTheLotThatCannotBeRead_ShouldStopTheSortWithItsPathInTheLot()
+    {
+        WriteTetrisSources();
+        WriteGameBoy();
+        WriteGameBoyColor();
+        var broken = _tmp.GetFilePath(Path.Combine("dats", GameBoyColorFile));
+        File.WriteAllText(broken, File.ReadAllText(broken).Replace("</datafile>", string.Empty, StringComparison.Ordinal));
+
+        var error = (await FluentActions.Invoking(() => SimulateAsync(Config())).Should().ThrowAsync<InvalidOperationException>()).Which;
+
+        error.Message.Should().StartWith("Erreur lors du chargement du fichier DAT").And.Contain(GameBoyColorFile);
+    }
+
+    [Fact]
+    public async Task SingleDatThatCannotBeRead_ShouldStopTheSortWithItsPath()
+    {
+        WriteTetrisSources();
+        WriteGameBoy();
+        var dat = _tmp.GetFilePath(Path.Combine("dats", GameBoyFile));
+        File.WriteAllText(dat, File.ReadAllText(dat).Replace("</datafile>", string.Empty, StringComparison.Ordinal));
+
+        var error = (await FluentActions.Invoking(() => SimulateAsync(Config(c => c.DatFile = dat))).Should().ThrowAsync<InvalidOperationException>()).Which;
+
+        error.Message.Should().Contain(dat, "the message of the parser gives a line and a position, never the file")
+            .And.Contain("datafile");
+    }
+
+    // =========================================================================
     // Identification
     // =========================================================================
 
