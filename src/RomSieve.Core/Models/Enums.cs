@@ -340,7 +340,12 @@ public enum DatExportFormat
     /// <summary>CLRMAMEPRO text format.</summary>
     ClrMamePro,
     /// <summary>CLRMAMEPRO for a <c>.dat</c> path (except <c>.xml.dat</c>), Logiqx XML otherwise.</summary>
-    Auto
+    Auto,
+    /// <summary>
+    /// Not a DAT: the names of its games, one per line (<c>.txt</c>), for a script that compares them with the files of
+    /// a collection (<see cref="DatCatalog.WriteGameNamesAsync"/>).
+    /// </summary>
+    NameList
 }
 
 /// <summary>
@@ -575,6 +580,7 @@ public static class EnumExtensions
         {
             "clrmamepro" or "cmp" => DatExportFormat.ClrMamePro,
             "auto" => DatExportFormat.Auto,
+            "names" => DatExportFormat.NameList,
             _ => DatExportFormat.LogiqxXml
         };
 
@@ -583,6 +589,7 @@ public static class EnumExtensions
         {
             DatExportFormat.ClrMamePro => "clrmamepro",
             DatExportFormat.Auto => "auto",
+            DatExportFormat.NameList => "names",
             _ => "xml"
         };
 

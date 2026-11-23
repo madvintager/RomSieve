@@ -432,6 +432,21 @@ public sealed class SoftwareListFolderTests : IDisposable
     }
 
     [Fact]
+    public async Task CatalogNames_ShouldWriteAListOfTheSoftwareKeptPerListAtTheRootOfTheFolder()
+    {
+        WriteLists();
+        var folder = _tmp.GetFilePath("names");
+
+        var result = await _services.Processor.ExportCatalogDatAsync(Config(source: string.Empty), folder, DatExportFormat.NameList);
+
+        result.KeptCount.Should().Be(4);
+        Directory.GetFiles(folder).Select(Path.GetFileName).Should().BeEquivalentTo(["a2600.txt", "gamegear.txt", "megadriv.txt"]);
+
+        // The names of the software, as MAME names their archives, without any DAT
+        File.ReadAllLines(Path.Combine(folder, "gamegear.txt")).Should().Equal("shinobi", "sonic");
+    }
+
+    [Fact]
     public async Task Catalog_OfHashFiles_ShouldBeWrittenAsMameSoftwareLists()
     {
         WriteHashFiles();

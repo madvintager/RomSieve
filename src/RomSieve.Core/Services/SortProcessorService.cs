@@ -859,18 +859,22 @@ public sealed class SortProcessorService : ISortProcessorService
                 if (kept.Count > 0)
                 {
                     var filtered = dat.Catalog.CreateFilteredDat(kept);
-                    var (path, clrMamePro) = LotDatTarget(filtered, dat.Name, outputFolder, format, lot, names);
+                    var (path, fileFormat) = LotDatTarget(filtered, dat.Name, outputFolder, format, lot, names);
                     Directory.CreateDirectory(outputFolder);
                     var temporary = $"{path}.{Guid.NewGuid():N}.tmp";
                     written.Add((temporary, path));
                     ReportStep(progress, LocalizedMessage.Create("progress.writing_dat", ("name", Path.GetFileName(path))));
-                    await WriteDatFileAsync(filtered, temporary, clrMamePro, cancellationToken).ConfigureAwait(false);
+                    await WriteDatFileAsync(filtered, temporary, fileFormat, cancellationToken).ConfigureAwait(false);
+
+                    // A list of names is not a DAT to read again: the filtered DAT is made again from its DAT
                     outputs.Add(new DatLotMember(
                         dat.Name,
                         dat.RelativePath,
                         DatLotSummary.Of(filtered),
                         DatLotKeys.Of(filtered),
-                        token => _datService.ParseDatFileAsync(path, token).GetAwaiter().GetResult()));
+                        fileFormat == DatExportFormat.NameList
+                            ? token => dat.Load(token).CreateFilteredDat(kept)
+                            : token => _datService.ParseDatFileAsync(path, token).GetAwaiter().GetResult()));
                 }
 
                 if (!wasLoaded)
@@ -1031,9 +1035,11 @@ public sealed class SortProcessorService : ISortProcessorService
     /// folder <paramref name="outputPath"/>, a DAT per list at its root (<c>megadriv.xml</c>, or
     /// <c>fixDat_megadriv.xml</c> for a <paramref name="fixDat"/>), as MAME and a ROM manager look for them; a list read
     /// from a file of MAME (<see cref="DatHeader.SoftwareListFile"/>) in MAME's own format, any other in Logiqx XML,
-    /// whatever <paramref name="format"/>. The DATs of a lot (<see cref="DatCatalog.Dats"/> of <paramref name="dat"/>) are
-    /// written into the folder <paramref name="outputPath"/> too (<see cref="WriteLotDatsAsync"/>). No DAT is ever written
-    /// over a file the catalog was read from.
+    /// whatever <paramref name="format"/> but <see cref="DatExportFormat.NameList"/> (<c>megadriv.txt</c>). The DATs of a
+    /// lot (<see cref="DatCatalog.Dats"/> of <paramref name="dat"/>) are written into the folder <paramref name="outputPath"/>
+    /// too (<see cref="WriteLotDatsAsync"/>). <see cref="DatExportFormat.NameList"/> writes the names of the games of each
+    /// DAT instead of the DAT (<see cref="DatCatalog.WriteGameNamesAsync"/>). No DAT is ever written over a file the
+    /// catalog was read from.
     /// </summary>
     private async Task WriteDatAsync(
         DatCatalog dat,
@@ -1053,7 +1059,11 @@ public sealed class SortProcessorService : ISortProcessorService
         if (!catalog.IsSoftwareListCatalog)
         {
             RefuseSourceOverwrite(outputPath, catalog);
-            if (DatService.IsClrMameProOutput(format, outputPath))
+            if (format == DatExportFormat.NameList)
+            {
+                await dat.WriteGameNamesAsync(outputPath, cancellationToken).ConfigureAwait(false);
+            }
+            else if (DatService.IsClrMameProOutput(format, outputPath))
             {
                 await dat.WriteClrMameProAsync(outputPath, cancellationToken).ConfigureAwait(false);
             }
@@ -1067,11 +1077,12 @@ public sealed class SortProcessorService : ISortProcessorService
 
         // Every path is checked before the first DAT is written
         IEnumerable<DatCatalog> lists = dat.SoftwareLists is { } several ? several.Values : [dat];
+        var names = format == DatExportFormat.NameList;
         var targets = lists
             .Select(list =>
             {
                 var name = DatListFileName(list);
-                var path = Path.Combine(outputPath, _organizer.SanitizePathSegment((fixDat ? "fixDat_" : string.Empty) + name) + ".xml");
+                var path = Path.Combine(outputPath, _organizer.SanitizePathSegment((fixDat ? "fixDat_" : string.Empty) + name) + (names ? ".txt" : ".xml"));
                 var sourceHeader = (catalog.SoftwareLists is { } sourceLists ? sourceLists.GetValueOrDefault(name) : catalog)?.Header;
                 RefuseSourceOverwrite(path, catalog);
                 return (List: list, Path: path, Source: fixDat || sourceHeader?.SoftwareListFile is null ? null : sourceHeader);
@@ -1082,7 +1093,11 @@ public sealed class SortProcessorService : ISortProcessorService
         foreach (var (list, path, sourceHeader) in targets)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (sourceHeader is not null)
+            if (names)
+            {
+                await list.WriteGameNamesAsync(path, cancellationToken).ConfigureAwait(false);
+            }
+            else if (sourceHeader is not null)
             {
                 await DatService.WriteMameSoftwareListAsync(list, sourceHeader, path, cancellationToken).ConfigureAwait(false);
             }
@@ -1095,8 +1110,9 @@ public sealed class SortProcessorService : ISortProcessorService
 
     /// <summary>
     /// Writes the DATs of a lot into the folder <paramref name="outputFolder"/>, a file per DAT at its root (flat, whatever
-    /// the folders of the lot), named after its header: in Logiqx XML (<c>.xml</c>) or CLRMAMEPRO (<c>.dat</c>) as
-    /// <paramref name="format"/> says, <see cref="DatExportFormat.Auto"/> taking the format of the DAT of the lot it comes
+    /// the folders of the lot), named after its header: in Logiqx XML (<c>.xml</c>), CLRMAMEPRO (<c>.dat</c>) or as the
+    /// names of its games (<c>.txt</c>) as <paramref name="format"/> says, <see cref="DatExportFormat.Auto"/> taking the
+    /// format of the DAT of the lot it comes
     /// from (<see cref="DatHeader.IsClrMameProSource"/>). Every path is checked before the first DAT is written; the folder
     /// of the lot read is refused, since the next sort would read the DATs exported there.
     /// </summary>
@@ -1109,28 +1125,28 @@ public sealed class SortProcessorService : ISortProcessorService
     {
         RefuseLotFolder(outputFolder, source);
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var targets = new List<(DatCatalog Dat, string Path, bool ClrMamePro)>(dats.Count);
+        var targets = new List<(DatCatalog Dat, string Path, DatExportFormat Format)>(dats.Count);
         foreach (var dat in dats)
         {
-            var (path, clrMamePro) = LotDatTarget(dat.Catalog, dat.Name, outputFolder, format, source, names);
-            targets.Add((dat.Catalog, path, clrMamePro));
+            var (path, fileFormat) = LotDatTarget(dat.Catalog, dat.Name, outputFolder, format, source, names);
+            targets.Add((dat.Catalog, path, fileFormat));
         }
 
         Directory.CreateDirectory(outputFolder);
-        foreach (var (dat, path, clrMamePro) in targets)
+        foreach (var (dat, path, fileFormat) in targets)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await WriteDatFileAsync(dat, path, clrMamePro, cancellationToken).ConfigureAwait(false);
+            await WriteDatFileAsync(dat, path, fileFormat, cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>
     /// File of the DAT <paramref name="dat"/> exported from the DAT <paramref name="datName"/> of a lot: at the root of
     /// <paramref name="outputFolder"/>, named after its header (a number when <paramref name="names"/> already has the
-    /// name), in the format asked or, for <see cref="DatExportFormat.Auto"/>, that of the DAT read; refused when it is a
-    /// file the lot was read from.
+    /// name), in the format asked or, for <see cref="DatExportFormat.Auto"/>, that of the DAT read (Logiqx XML or
+    /// CLRMAMEPRO, never <see cref="DatExportFormat.Auto"/>); refused when it is a file the lot was read from.
     /// </summary>
-    private (string Path, bool ClrMamePro) LotDatTarget(
+    private (string Path, DatExportFormat Format) LotDatTarget(
         DatCatalog dat,
         string datName,
         string outputFolder,
@@ -1138,13 +1154,19 @@ public sealed class SortProcessorService : ISortProcessorService
         DatCatalog source,
         HashSet<string> names)
     {
-        var clrMamePro = format switch
+        var fileFormat = format switch
         {
-            DatExportFormat.ClrMamePro => true,
-            DatExportFormat.Auto => source.DatMemberFor(datName)?.Header.IsClrMameProSource == true,
-            _ => false
+            DatExportFormat.Auto => source.DatMemberFor(datName)?.Header.IsClrMameProSource == true
+                ? DatExportFormat.ClrMamePro
+                : DatExportFormat.LogiqxXml,
+            _ => format
         };
-        var extension = clrMamePro ? ".dat" : ".xml";
+        var extension = fileFormat switch
+        {
+            DatExportFormat.ClrMamePro => ".dat",
+            DatExportFormat.NameList => ".txt",
+            _ => ".xml"
+        };
         var name = _organizer.SanitizePathSegment(string.IsNullOrWhiteSpace(dat.Header.Name) ? datName : dat.Header.Name);
 
         // Two names the sanitization makes the same (a forbidden character, a case) get a number
@@ -1156,11 +1178,16 @@ public sealed class SortProcessorService : ISortProcessorService
 
         var path = Path.Combine(outputFolder, fileName);
         RefuseSourceOverwrite(path, source);
-        return (path, clrMamePro);
+        return (path, fileFormat);
     }
 
-    private static Task WriteDatFileAsync(DatCatalog dat, string path, bool clrMamePro, CancellationToken cancellationToken) =>
-        clrMamePro ? dat.WriteClrMameProAsync(path, cancellationToken) : dat.WriteLogiqxXmlAsync(path, cancellationToken);
+    private static Task WriteDatFileAsync(DatCatalog dat, string path, DatExportFormat format, CancellationToken cancellationToken) =>
+        format switch
+        {
+            DatExportFormat.ClrMamePro => dat.WriteClrMameProAsync(path, cancellationToken),
+            DatExportFormat.NameList => dat.WriteGameNamesAsync(path, cancellationToken),
+            _ => dat.WriteLogiqxXmlAsync(path, cancellationToken)
+        };
 
     /// <summary>
     /// Refuses to export DATs into the folder a lot was read from, or into one of its subfolders

@@ -250,6 +250,32 @@ public sealed class DatLotExportTests : IDisposable
     }
 
     [Fact]
+    public async Task CatalogNames_ShouldWriteTheNamesOfTheGamesKeptPerDat_FlatInTheFolder()
+    {
+        WriteLot();
+        var config = Config();
+        config.Filters.OneGameOneRom = true;
+        config.Filters.PriorityLanguages = ["ja"];
+
+        var result = await _services.Processor.ExportCatalogDatAsync(config, _out, DatExportFormat.NameList);
+
+        // A list per DAT with a game kept, named as its filtered DAT, whatever the format of the DAT read
+        OutputFiles().Should().BeEquivalentTo(
+            $"{Amiga} (RomSieve).txt",
+            $"{GameBoy} (RomSieve).txt",
+            $"{GameBoyColor} (RomSieve).txt");
+        // Sorted by code point without case: '[' comes after the letters
+        File.ReadAllLines(Path.Combine(_out, $"{GameBoy} (RomSieve).txt")).Should().Equal("Tetris (Japan)", "[BIOS] Shared (World)");
+        result.KeptCount.Should().Be(5);
+        result.CandidateCount.Should().Be(7);
+
+        // The filtered DAT of each DAT is still there to read, made again from the DAT of the lot
+        result.FilteredDat.Dats!.Single(dat => dat.Name == GameBoyColor).Catalog.Games.Select(g => g.Name)
+            .Should().BeEquivalentTo(File.ReadAllLines(Path.Combine(_out, $"{GameBoyColor} (RomSieve).txt")));
+        Directory.EnumerateFiles(_out, "*.tmp").Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task CatalogDat_ShouldTakeTheFormatAskedForEveryDat()
     {
         WriteLot();

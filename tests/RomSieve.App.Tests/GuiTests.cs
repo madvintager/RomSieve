@@ -111,6 +111,9 @@ public sealed partial class GuiTests : IDisposable
         public Task<bool> ShowConfirmationAsync(string title, string message) =>
             Task.FromResult(ConfirmationResult);
 
+        public Task<int?> ShowChoiceAsync(string title, string message, IReadOnlyList<string> choices) =>
+            Task.FromResult<int?>(null);
+
         public Task OpenUrlAsync(string url) => Task.CompletedTask;
 
         public Task<bool> OpenFileAsync(string path) => Task.FromResult(false);

@@ -222,7 +222,37 @@ public sealed class CatalogDatTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportCatalogDat_KeepingNoGame_ShouldWriteNothing()
+    public async Task ExportCatalogNames_ShouldWriteTheNamesOfTheGamesKept_OnePerLineWithoutByteOrderMark()
+    {
+        var datPath = WriteNoIntroDat();
+        var outputPath = _tmp.GetFilePath("snes.txt");
+
+        var result = await _services.Processor.ExportCatalogDatAsync(NoIntroConfig(datPath), outputPath, DatExportFormat.NameList);
+
+        // The names of the games as the DAT gives them, which name their files without the extension, sorted
+        var lines = File.ReadAllLines(outputPath);
+        lines.Should().Equal(result.FilteredDat.Games.Select(g => g.Name).Order(StringComparer.OrdinalIgnoreCase));
+        lines.Should().Equal("Other Game (Japan)", "Puzzle Time (France)", "Super Game (USA)");
+        File.ReadAllBytes(outputPath).Take(3).Should().NotEqual(Encoding.UTF8.GetPreamble());
+        File.ReadAllText(outputPath).Should().EndWith(Environment.NewLine);
+    }
+
+    [Fact]
+    public void GameNames_ShouldBeSortedWithoutCaseThenByCase()
+    {
+        var catalog = new DatCatalog();
+        foreach (var name in new[] { "Zool (Europe)", "alien 8 (Europe)", "Alien 8 (Europe)", "Bubble (Japan)" })
+        {
+            catalog.AddGame(new DatGame { Name = name });
+        }
+
+        catalog.GameNames().Should().Equal("Alien 8 (Europe)", "alien 8 (Europe)", "Bubble (Japan)", "Zool (Europe)");
+    }
+
+    [Theory]
+    [InlineData("empty.xml", DatExportFormat.LogiqxXml)]
+    [InlineData("empty.txt", DatExportFormat.NameList)]
+    public async Task ExportCatalogDat_KeepingNoGame_ShouldWriteNothing(string fileName, DatExportFormat format)
     {
         var datPath = _tmp.WriteText("beta.xml", $"""
             <?xml version="1.0"?>
@@ -232,11 +262,11 @@ public sealed class CatalogDatTests : IDisposable
             </datafile>
             """);
         var config = NoIntroConfig(datPath);
-        var outputPath = _tmp.GetFilePath("empty.xml");
+        var outputPath = _tmp.GetFilePath(fileName);
         var logs = new List<LogMessage>();
 
         var result = await _services.Processor.ExportCatalogDatAsync(
-            config, outputPath, logProgress: new SynchronousProgress<LogMessage>(logs.Add));
+            config, outputPath, format, logProgress: new SynchronousProgress<LogMessage>(logs.Add));
 
         result.KeptCount.Should().Be(0);
         File.Exists(outputPath).Should().BeFalse();

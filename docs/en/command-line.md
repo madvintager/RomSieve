@@ -10,7 +10,7 @@ and only **simulates** unless you add `--execute`.
 |---|---|
 | `romsieve-cli run` | Simulates the sort (default) or runs it (`--execute`) |
 | `romsieve-cli undo` | Shows the last real sort; undoes it with `--yes` |
-| `romsieve-cli dat` | Writes the filtered DAT of the catalog (`--output`), without reading the source |
+| `romsieve-cli dat` | Writes the filtered DAT of the catalog (`--output`), or the list of the names of its games (`.txt`), without reading the source |
 | `romsieve-cli quarantine` | Shows the quarantine of the purges of the destination; empties it with `--empty --yes` |
 | `romsieve-cli profiles` | Lists the saved profiles |
 | `romsieve-cli patches` | Simulates the sort and lists its [patches](patches.md): not applied, with the ROMs proposed, applied, with their ROM, and set aside; saves your choices (`--link --rom`, `--ignore`, `--auto`, with `--yes`); with `--name-from-notes --yes`, writes the CRC32 in the name of the IPS applied thanks to their readme |
@@ -72,6 +72,8 @@ romsieve-cli quarantine -d /mnt/roms/sorted     # the one of another destination
 romsieve-cli dat --output "Amiga (RomSieve).xml"
 romsieve-cli dat --profile "Amiga 1G1R" --dat "Commodore - Amiga.dat" -o amiga-1g1r.dat
 romsieve-cli dat --dat /dats/No-Intro -o /dats/No-Intro-1G1R      # a lot: a folder, a DAT per DAT
+romsieve-cli dat --dat "Nintendo - Game Boy.dat" -o "Game Boy (1G1R).txt"   # the names of the games kept, one per line
+romsieve-cli dat --dat /dats/No-Intro -o /lists/No-Intro --names            # a lot: a list of names per DAT
 ```
 
 `quarantine` reads the destination of the settings or of the profile (`--profile`), or that of `--destination`.
@@ -80,7 +82,8 @@ romsieve-cli dat --dat /dats/No-Intro -o /dats/No-Intro-1G1R      # a lot: a fol
 
 | Option | Role |
 |---|---|
-| `-o`, `--output <file>` | DAT file to write (required): `.xml` for Logiqx XML, `.dat` for ClrMamePro. With [MAME software lists](naming-conventions-and-dats.md#mame-software-lists), the **folder** where a DAT per list is written at the root (`megadriv.xml`...), as MAME software lists when they were read from MAME's `hash` files, otherwise in Logiqx XML; with a [lot of DATs](naming-conventions-and-dats.md#several-dats), the **folder** where a DAT per DAT of the lot is written, each in the format of its own. A file `.xml` or `.dat` is then refused (code 2), and the DATs of the folder that the export did not replace are named |
+| `-o`, `--output <file>` | File to write (required): `.xml` for Logiqx XML, `.dat` for ClrMamePro, `.txt` for the [list of the names of the games kept](exports.md#list-of-the-names-of-the-games), one per line. With [MAME software lists](naming-conventions-and-dats.md#mame-software-lists), the **folder** where a DAT per list is written at the root (`megadriv.xml`...), as MAME software lists when they were read from MAME's `hash` files, otherwise in Logiqx XML; with a [lot of DATs](naming-conventions-and-dats.md#several-dats), the **folder** where a DAT per DAT of the lot is written, each in the format of its own. A file `.xml`, `.dat` or `.txt` is then refused (code 2), and the DATs of the folder that the export did not replace are named |
+| `--names` | Writes the names of the games kept, one per line, instead of the DAT: for a lot of DATs or MAME software lists, a `.txt` per DAT or per list into the folder `--output` (the DATs of the folder are left alone); for a single DAT, a `.txt` output says the same, and `--names` with an output `.xml` or `.dat` is refused (code 2) |
 | `-p`, `--profile <name>` | Uses a saved profile instead of the settings of the interface |
 | `--dat <file>` | DAT file of the catalog, or folder or archive (ZIP, 7z, RAR) of DATs: a lot of No-Intro, Redump or TOSEC DATs, or MAME software lists; an archive of a single DAT is that DAT |
 | `--dat-recursive` | Also reads the DATs of the subfolders of the folder of DATs; an archive is always read whole |
@@ -194,7 +197,7 @@ frontend does not read, and the folders that gather several DATs.
 |---|---|
 | 0 | Success |
 | 1 | Unexpected error (a crash report is saved in `crashes/` next to the settings, and its path printed) |
-| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT or with a frontend, `--frontend` of an unknown value, unsupported export format, `dat --output` over the DAT read, `patches --link` without `--rom`, of a UPS or a BPS, or of an unknown, ambiguous or two-form ROM, `patches` of an unknown or ambiguous patch, `--auto` without a saved choice, `--name-from-notes` with a choice, `--no-patches` with `--patches`) |
+| 2 | Invalid arguments (unknown option, invalid value, incompatible options, `--dat` repeated, `--dat-only` without a lot or of a DAT not in it, `--dir-dat-mirror` without a folder per DAT or with a frontend, `--frontend` of an unknown value, unsupported export format, `dat --names` with an output `.xml` or `.dat`, `dat --output` over the DAT read, `patches --link` without `--rom`, of a UPS or a BPS, or of an unknown, ambiguous or two-form ROM, `patches` of an unknown or ambiguous patch, `--auto` without a saved choice, `--name-from-notes` with a choice, `--no-patches` with `--patches`) |
 | 3 | Invalid configuration (settings file or profile missing or unreadable, source, DAT or destination not found, folder or archive of DATs refused, DAT that cannot be read, overlapping folders, pattern that starts with `_purged` or `.romsieve`, folder of the patched versions that would leave the destination) |
 | 4 | Finished, but some files are in error (including a sort stopped by a full destination or a journal that cannot be written), an export failed (or `dat` kept no game), some operations could not be undone or some items of the quarantine could not be deleted |
 | 5 | Cancelled (Ctrl+C) |

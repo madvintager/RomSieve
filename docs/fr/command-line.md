@@ -10,7 +10,7 @@ et ne fait qu'une **simulation** tant que vous n'ajoutez pas `--execute`.
 |---|---|
 | `romsieve-cli run` | Simule le tri (par défaut) ou l'exécute (`--execute`) |
 | `romsieve-cli undo` | Affiche le dernier tri réel ; l'annule avec `--yes` |
-| `romsieve-cli dat` | Écrit le DAT filtré du catalogue (`--output`), sans lire la source |
+| `romsieve-cli dat` | Écrit le DAT filtré du catalogue (`--output`), ou la liste des noms de ses jeux (`.txt`), sans lire la source |
 | `romsieve-cli quarantine` | Affiche la quarantaine des purges de la destination ; la vide avec `--empty --yes` |
 | `romsieve-cli profiles` | Liste les profils enregistrés |
 | `romsieve-cli patches` | Simule le tri et liste ses [patchs](patches.md) : non appliqués, avec les ROMs proposées, appliqués, avec leur ROM, et écartés ; enregistre vos choix (`--link --rom`, `--ignore`, `--auto`, avec `--yes`) ; avec `--name-from-notes --yes`, écrit le CRC32 dans le nom des IPS appliqués grâce à leur readme |
@@ -72,6 +72,8 @@ romsieve-cli quarantine -d /mnt/roms/sorted     # celle d'une autre destination
 romsieve-cli dat --output "Amiga (RomSieve).xml"
 romsieve-cli dat --profile "Amiga 1G1R" --dat "Commodore - Amiga.dat" -o amiga-1g1r.dat
 romsieve-cli dat --dat /dats/No-Intro -o /dats/No-Intro-1G1R      # un lot : un dossier, un DAT par DAT
+romsieve-cli dat --dat "Nintendo - Game Boy.dat" -o "Game Boy (1G1R).txt"   # les noms des jeux gardés, un par ligne
+romsieve-cli dat --dat /dats/No-Intro -o /listes/No-Intro --names           # un lot : une liste de noms par DAT
 ```
 
 `quarantine` lit la destination des réglages ou du profil (`--profile`), ou celle de `--destination`.
@@ -80,7 +82,8 @@ romsieve-cli dat --dat /dats/No-Intro -o /dats/No-Intro-1G1R      # un lot : un 
 
 | Option | Rôle |
 |---|---|
-| `-o`, `--output <fichier>` | Fichier DAT à écrire (obligatoire) : `.xml` pour Logiqx XML, `.dat` pour ClrMamePro. Avec des [listes de logiciels MAME](naming-conventions-and-dats.md#listes-de-logiciels-mame), le **dossier** à la racine duquel s'écrit un DAT par liste (`megadriv.xml`...), comme des listes de logiciels MAME quand elles ont été lues dans les fichiers `hash` de MAME, sinon en Logiqx XML ; avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), le **dossier** où s'écrit un DAT par DAT du lot, chacun dans le format du sien. Un fichier `.xml` ou `.dat` est alors refusé (code 2), et les DAT du dossier que l'export n'a pas remplacés sont nommés |
+| `-o`, `--output <fichier>` | Fichier à écrire (obligatoire) : `.xml` pour Logiqx XML, `.dat` pour ClrMamePro, `.txt` pour la [liste des noms des jeux gardés](exports.md#liste-des-noms-des-jeux), un par ligne. Avec des [listes de logiciels MAME](naming-conventions-and-dats.md#listes-de-logiciels-mame), le **dossier** à la racine duquel s'écrit un DAT par liste (`megadriv.xml`...), comme des listes de logiciels MAME quand elles ont été lues dans les fichiers `hash` de MAME, sinon en Logiqx XML ; avec un [lot de DAT](naming-conventions-and-dats.md#plusieurs-dat), le **dossier** où s'écrit un DAT par DAT du lot, chacun dans le format du sien. Un fichier `.xml`, `.dat` ou `.txt` est alors refusé (code 2), et les DAT du dossier que l'export n'a pas remplacés sont nommés |
+| `--names` | Écrit les noms des jeux gardés, un par ligne, au lieu du DAT : pour un lot de DAT ou des listes de logiciels MAME, un `.txt` par DAT ou par liste dans le dossier `--output` (les DAT du dossier ne sont pas touchés) ; pour un DAT seul, une sortie `.txt` revient au même, et `--names` avec une sortie `.xml` ou `.dat` est refusé (code 2) |
 | `-p`, `--profile <nom>` | Utilise un profil enregistré au lieu des réglages de l'interface |
 | `--dat <fichier>` | Fichier DAT du catalogue, ou dossier ou archive (ZIP, 7z, RAR) de DAT : un lot No-Intro, Redump ou TOSEC, ou des listes de logiciels MAME ; une archive d'un seul DAT est ce DAT |
 | `--dat-recursive` | Lit aussi les DAT des sous-dossiers du dossier de DAT ; une archive est toujours lue entière |
@@ -195,7 +198,7 @@ frontend ne lit pas, et les dossiers qui réunissent plusieurs DAT.
 |---|---|
 | 0 | Succès |
 | 1 | Erreur inattendue (un rapport d'erreur est enregistré dans `crashes/` à côté des réglages, et son chemin affiché) |
-| 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT ou avec un frontend, `--frontend` d'une valeur inconnue, format d'export non pris en charge, `dat --output` sur le DAT lu, `patches --link` sans `--rom`, d'un UPS ou d'un BPS, ou d'une ROM inconnue, ambiguë ou à deux formes, `patches` d'un patch inconnu ou ambigu, `--auto` sans choix enregistré, `--name-from-notes` avec un choix, `--no-patches` avec `--patches`) |
+| 2 | Arguments invalides (option inconnue, valeur invalide, options incompatibles, `--dat` répété, `--dat-only` sans lot ou d'un DAT absent, `--dir-dat-mirror` sans dossier par DAT ou avec un frontend, `--frontend` d'une valeur inconnue, format d'export non pris en charge, `dat --names` avec une sortie `.xml` ou `.dat`, `dat --output` sur le DAT lu, `patches --link` sans `--rom`, d'un UPS ou d'un BPS, ou d'une ROM inconnue, ambiguë ou à deux formes, `patches` d'un patch inconnu ou ambigu, `--auto` sans choix enregistré, `--name-from-notes` avec un choix, `--no-patches` avec `--patches`) |
 | 3 | Configuration invalide (fichier de réglages ou profil absent ou illisible, source, DAT ou destination introuvable, dossier ou archive de DAT refusé, DAT illisible, dossiers qui se chevauchent, modèle qui commence par `_purged` ou `.romsieve`, dossier des versions patchées qui sortirait de la destination) |
 | 4 | Terminé, mais des fichiers sont en erreur (dont un tri arrêté par une destination pleine ou un journal impossible à écrire), un export a échoué (ou `dat` n'a gardé aucun jeu), des opérations n'ont pas pu être annulées ou des éléments de la quarantaine n'ont pas pu être supprimés |
 | 5 | Interrompu (Ctrl+C) |

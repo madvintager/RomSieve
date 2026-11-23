@@ -158,7 +158,8 @@ public interface ISortProcessorService
 
     /// <summary>
     /// <see cref="SelectFromCatalogAsync"/>, then writes the filtered DAT to <paramref name="outputPath"/> (Logiqx XML or
-    /// CLRMAMEPRO, <see cref="DatExportFormat.Auto"/> following the extension). Nothing is written when no game is kept.
+    /// CLRMAMEPRO, <see cref="DatExportFormat.Auto"/> following the extension), or the names of its games, one per line
+    /// (<see cref="DatExportFormat.NameList"/>). Nothing is written when no game is kept.
     /// </summary>
     Task<CatalogSelectionResult> ExportCatalogDatAsync(
         SortConfig config,

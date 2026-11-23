@@ -44,6 +44,12 @@ public interface IDialogService
 
     Task<bool> ShowConfirmationAsync(string title, string message);
 
+    /// <summary>
+    /// Asks the user to choose one of <paramref name="choices"/> (a button each, then Cancel): the index of the choice,
+    /// or null when cancelled or when nobody can answer.
+    /// </summary>
+    Task<int?> ShowChoiceAsync(string title, string message, IReadOnlyList<string> choices);
+
     Task OpenUrlAsync(string url);
 
     /// <summary>Opens a local file with the application the system associates with it; false if none was launched.</summary>

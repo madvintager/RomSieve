@@ -89,9 +89,28 @@ Each game is written whole, with all its ROMs (and the tracks of a disc). A MAME
 like a non-merged set: the sets it needs (devices whose ROMs it does not list) are kept with it. A relation to a game
 left out (the parent of a kept clone, the BIOS of a kept game) is removed, the game then standing alone. The header of
 the DAT keeps its name, followed by " (RomSieve)", and its version. The format follows the extension chosen: `.xml`
-for Logiqx XML, `.dat` for ClrMamePro (the DATs of a lot and those of MAME software lists are written into a folder:
-see below). The footer shows the step under way, and **Stop export** stops it without
-writing anything; when the settings keep no game, no file is written.
+for Logiqx XML, `.dat` for ClrMamePro, `.txt` for the [list of the names of its games](#list-of-the-names-of-the-games)
+(the DATs of a lot and those of MAME software lists are written into a folder: see below). The footer shows the step
+under way, and **Stop export** stops it without writing anything; when the settings keep no game, no file is written.
+
+### List of the names of the games
+
+Choose the file type **Game Name List (*.txt)** to write, instead of the DAT, the names of the games it would hold, one
+per line: the same games, chosen the same way. The list is meant for a script that compares it with the files of a
+collection, to find the games missing and those that do not belong there.
+
+* Each line is the name of a game as the DAT gives it, which is also the name of its file without its extension in a
+  No-Intro, Redump or TOSEC set: `Tetris (World) (Rev 1)` for `Tetris (World) (Rev 1).gb` or `.zip`. A MAME set or
+  software is named by its short name (`sf2`), as its archive. A game of several discs has a name per disc, as in the
+  DAT: a script that compares the list with a collection sorted into multi-disk subfolders or playlists has to look in
+  them.
+* The names are sorted by code point without case, then with case, so that two lists compare line by line. The file is
+  in UTF-8 without a byte order mark, each line ended by the line break of the system: a batch file (cmd) that reads
+  names with accents or in other scripts runs `chcp 65001` first.
+* With a lot of DATs or MAME software lists, RomSieve first asks whether to write **Filtered DATs** or **Lists of names
+  (.txt)**, then asks for the folder: a list per DAT or per software list at its root, named as its DAT with `.txt`
+  (`Nintendo - Game Boy (RomSieve).txt`, `megadriv.txt`). When the folder already holds `.txt` files, RomSieve names
+  them and asks before writing: each list replaces the file of its name. The DATs of the folder are left alone.
 
 ## MAME software lists
 
@@ -135,5 +154,5 @@ Logiqx XML.
 ## From the command line
 
 `romsieve-cli run` writes the same exports with `--report`, `--miss-list` and `--fixdat`, and
-`romsieve-cli dat --output <file>` the filtered DAT of the catalog (a folder for a lot or MAME software lists): see
-[Command line](command-line.md).
+`romsieve-cli dat --output <file>` the filtered DAT of the catalog (a folder for a lot or MAME software lists), or the
+list of the names of its games with a `.txt` file (`--names` for a folder): see [Command line](command-line.md).

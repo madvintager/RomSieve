@@ -693,7 +693,7 @@ public sealed class CliApplicationTests : IDisposable
         var result = await RunAsync("dat", "--dat", lists, "--output", output);
 
         result.ExitCode.Should().Be(ExitCodes.InvalidArguments);
-        result.Error.Should().Contain("a DAT per list");
+        result.Error.Should().Contain("a file per list");
         Path.Exists(output).Should().BeFalse();
     }
 
@@ -707,6 +707,38 @@ public sealed class CliApplicationTests : IDisposable
 
         result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
         File.ReadAllText(output).Should().StartWith("clrmamepro (");
+    }
+
+    /// <summary>
+    /// A .txt output (issue #8) writes the names of the games kept, one per line, for a script that compares them with
+    /// the files of a collection; --names says the same, and is refused with the output of a DAT.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Dat_WithATxtOutput_ShouldWriteTheNamesOfTheGamesKept(bool namesOption)
+    {
+        WriteConfig();
+        var output = Path.Combine(_temp.Path, "filtered.txt");
+
+        var result = await RunAsync(namesOption ? ["dat", "--dat", WriteDat(), "-o", output, "--names"] : ["dat", "--dat", WriteDat(), "-o", output]);
+
+        result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
+        File.ReadAllLines(output).Should().Equal("Alpha (1990)(Ocean)", "Gamma (1992)(Ocean)");
+        result.Output.Should().Contain("List of the games of the catalog written: 2 games kept out of 2");
+    }
+
+    [Fact]
+    public async Task Dat_WithNamesAndTheOutputOfADat_ShouldBeRefused()
+    {
+        WriteConfig();
+        var output = Path.Combine(_temp.Path, "filtered.xml");
+
+        var result = await RunAsync("dat", "--dat", WriteDat(), "-o", output, "--names");
+
+        result.ExitCode.Should().Be(ExitCodes.InvalidArguments);
+        result.Error.Should().Contain("is not a .txt file");
+        File.Exists(output).Should().BeFalse();
     }
 
     /// <summary>
@@ -760,7 +792,7 @@ public sealed class CliApplicationTests : IDisposable
 
         var withoutDat = await RunAsync("dat", "--output", Path.Combine(_temp.Path, "filtered.xml"));
         var missingDat = await RunAsync("dat", "--dat", Path.Combine(_temp.Path, "missing.xml"), "--output", Path.Combine(_temp.Path, "filtered.xml"));
-        var badExtension = await RunAsync("dat", "--dat", WriteDat(), "--output", Path.Combine(_temp.Path, "filtered.txt"));
+        var badExtension = await RunAsync("dat", "--dat", WriteDat(), "--output", Path.Combine(_temp.Path, "filtered.csv"));
         var withoutOutput = await RunAsync("dat", "--dat", WriteDat());
 
         withoutDat.ExitCode.Should().Be(ExitCodes.InvalidConfiguration);

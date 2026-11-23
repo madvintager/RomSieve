@@ -69,6 +69,7 @@ public sealed class CliApplication
     private readonly Option<string?> _fixDatOption = new("--fixdat");
     private readonly Option<bool> _emptyOption = new("--empty");
     private readonly Option<string> _outputOption = new("--output", "-o") { Required = true };
+    private readonly Option<bool> _namesOption = new("--names");
 
     /// <param name="output">Messages and logs.</param>
     /// <param name="error">Errors that stop a command.</param>
@@ -204,6 +205,7 @@ public sealed class CliApplication
         _emptyOption.Description = Tr("cli.option_empty");
         _outputOption.Description = Tr("cli.option_output_dat");
         _outputOption.HelpName = Tr("cli.help_file");
+        _namesOption.Description = Tr("cli.option_names");
 
         var run = new Command("run", Tr("cli.command_run"))
         {
@@ -219,7 +221,7 @@ public sealed class CliApplication
 
         var dat = new Command("dat", Tr("cli.command_dat"))
         {
-            _profileOption, _datOption, _datRecursiveOption, _datOnlyOption, _categoriesOption, _ratingsOption, _outputOption
+            _profileOption, _datOption, _datRecursiveOption, _datOnlyOption, _categoriesOption, _ratingsOption, _outputOption, _namesOption
         };
         dat.SetAction((parseResult, cancellationToken) => ExportCatalogDatAsync(parseResult, cancellationToken));
 
@@ -487,11 +489,13 @@ public sealed class CliApplication
     /// <summary>
     /// Writes the filtered DAT of the catalog of the configuration (or of a profile, or <c>--dat</c>): the games the
     /// options keep, chosen on the DAT alone, as the interface does. Neither the source nor the destination is read.
+    /// A <c>.txt</c> output, or <c>--names</c> (the only way for a folder), writes the names of the games kept instead.
     /// </summary>
     private async Task<int> ExportCatalogDatAsync(ParseResult parseResult, CancellationToken cancellationToken)
     {
         var quiet = parseResult.GetValue(_quietOption);
         var outputPath = parseResult.GetValue(_outputOption)!;
+        var names = parseResult.GetValue(_namesOption);
 
         var configPath = GetConfigPath(parseResult);
         var (settings, settingsError) = await LoadSettingsAsync(parseResult, configPath, quiet);
@@ -512,8 +516,8 @@ public sealed class CliApplication
             return Fail(ExitCodes.InvalidConfiguration, Tr("log.dat_file_not_found", ("path", config.DatFile)));
         }
 
-        // The DATs of MAME software lists and of a lot are written into a folder, a DAT per list or per DAT at its root;
-        // any other into a file
+        // The DATs of MAME software lists and of a lot are written into a folder, a DAT (or a list of names) per list or
+        // per DAT at its root; any other into a file, whose extension gives the format
         using var services = BuildServices(configPath);
         if (ChooseLotDats(parseResult, settings, services.GetRequiredService<IDatService>(), out var lot) is { } lotError)
         {
@@ -523,15 +527,22 @@ public sealed class CliApplication
         config = SortSettingsSerializer.ToSortConfig(settings);
         var softwareLists = lot is null && IsSoftwareListDat(config, services.GetRequiredService<IDatService>());
         var inFolder = softwareLists || lot is not null;
-        if (inFolder && (File.Exists(outputPath) || HasExtension(outputPath, ".xml", ".dat")))
+        if (inFolder && (File.Exists(outputPath) || HasExtension(outputPath, ".xml", ".dat", ".txt")))
         {
             return Fail(ExitCodes.InvalidArguments, Tr(lot is null ? "cli.output_softlist_folder" : "cli.output_lot_folder", ("path", outputPath)));
         }
 
-        if (!inFolder && !HasExtension(outputPath, ".xml", ".dat"))
+        if (!inFolder && !HasExtension(outputPath, ".xml", ".dat", ".txt"))
         {
             return Fail(ExitCodes.InvalidArguments, Tr("cli.output_dat_extension", ("path", outputPath)));
         }
+
+        if (!inFolder && names && !HasExtension(outputPath, ".txt"))
+        {
+            return Fail(ExitCodes.InvalidArguments, Tr("cli.output_names_extension", ("path", outputPath)));
+        }
+
+        names |= !inFolder && HasExtension(outputPath, ".txt");
 
         var log = new SynchronousProgress<LogMessage>(message =>
         {
@@ -542,12 +553,13 @@ public sealed class CliApplication
         });
 
         var processor = services.GetRequiredService<ISortProcessorService>();
-        var existingDats = inFolder ? DatService.GetDatFiles(outputPath) : null;
+        // A ROM manager reads every DAT of the folder; the lists of names leave the DATs there alone
+        var existingDats = inFolder && !names ? DatService.GetDatFiles(outputPath) : null;
         CatalogSelectionResult result;
         try
         {
             result = await processor.ExportCatalogDatAsync(
-                config, outputPath, DatExportFormat.Auto, logProgress: log, cancellationToken: cancellationToken);
+                config, outputPath, names ? DatExportFormat.NameList : DatExportFormat.Auto, logProgress: log, cancellationToken: cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
@@ -569,7 +581,7 @@ public sealed class CliApplication
         }
 
         ReportUntouchedDats(outputPath, existingDats, lot is not null);
-        WriteLine(Tr("cli.catalog_dat_written", ("kept", result.KeptCount), ("total", result.CandidateCount), ("path", outputPath)));
+        WriteLine(Tr(names ? "cli.catalog_names_written" : "cli.catalog_dat_written", ("kept", result.KeptCount), ("total", result.CandidateCount), ("path", outputPath)));
         return ExitCodes.Success;
     }
 

@@ -1373,6 +1373,31 @@ public sealed partial class DatCatalog
         await File.WriteAllTextAsync(path, ToClrMamePro(), new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Names of the games of the DAT, one per line, sorted (<see cref="StringComparer.OrdinalIgnoreCase"/>, then
+    /// <see cref="StringComparer.Ordinal"/>), so that two lists compare line by line whatever the order of their DATs.
+    /// </summary>
+    public IReadOnlyList<string> GameNames() =>
+        Games.Select(game => game.Name)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(name => name, StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
+    /// Writes <see cref="GameNames"/> to <paramref name="path"/>, in UTF-8 without a byte order mark (a script would read
+    /// it as part of the first name), each line ended by the line break of the system.
+    /// </summary>
+    public async Task WriteGameNamesAsync(string path, CancellationToken cancellationToken = default)
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        await File.WriteAllLinesAsync(path, GameNames(), new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+    }
+
     private static void AddMameXmlAttributes(List<string> attrs, DatRomEntry rom)
     {
         if (!string.IsNullOrEmpty(rom.Merge))

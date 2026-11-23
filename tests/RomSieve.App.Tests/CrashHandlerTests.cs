@@ -175,6 +175,8 @@ public sealed class CrashHandlerTests : IDisposable
 
         public Task<bool> ShowConfirmationAsync(string title, string message) => Task.FromResult(false);
 
+        public Task<int?> ShowChoiceAsync(string title, string message, IReadOnlyList<string> choices) => Task.FromResult<int?>(null);
+
         public Task OpenUrlAsync(string url) => Task.CompletedTask;
 
         public Task<bool> OpenFileAsync(string path) => Task.FromResult(false);
@@ -203,6 +205,8 @@ public sealed class CrashHandlerTests : IDisposable
         public Task ShowWarningAsync(string title, string message) => Task.CompletedTask;
 
         public Task<bool> ShowConfirmationAsync(string title, string message) => Task.FromResult(false);
+
+        public Task<int?> ShowChoiceAsync(string title, string message, IReadOnlyList<string> choices) => Task.FromResult<int?>(null);
 
         public Task OpenUrlAsync(string url) => Task.CompletedTask;
 

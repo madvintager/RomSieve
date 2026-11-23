@@ -345,21 +345,42 @@ public sealed partial class ExportViewModel : ViewModelBase
         var config = _buildConfig();
 
         // The DATs of MAME software lists and of a lot go into a folder, a DAT per list or per DAT at its root, in the
-        // format of their source
+        // format of their source, or a list of the names of its games per list or per DAT
         var inFolder = _isFolderDat();
         var isLot = inFolder && _isDatLot();
         var suggestedName = string.IsNullOrWhiteSpace(config.DatFile)
             ? "catalog.xml"
             : Path.GetFileNameWithoutExtension(config.DatFile) + DatCatalog.FilteredDatSuffix + ".xml";
-        var (path, fmt) = inFolder
-            ? (await PickDatFolderAsync(isLot), isLot ? DatExportFormat.Auto : DatExportFormat.LogiqxXml)
-            : await PickDatFileAsync(_localization.Tr("dialog.export_catalog_dat_title"), suggestedName);
+        string? path;
+        DatExportFormat fmt;
+        if (inFolder)
+        {
+            var choice = await _dialogService.ShowChoiceAsync(
+                _localization.Tr("dialog.export_catalog_dat_title"),
+                _localization.Tr(isLot ? "dialog.export_catalog_lot_choice" : "dialog.export_catalog_softlist_choice"),
+                [_localization.Tr("dialog.export_catalog_choice_dats"), _localization.Tr("dialog.export_catalog_choice_names")]);
+            if (choice is null)
+            {
+                return;
+            }
+
+            var names = choice == 1;
+            path = names ? await PickNamesFolderAsync(isLot) : await PickDatFolderAsync(isLot);
+            fmt = names ? DatExportFormat.NameList : isLot ? DatExportFormat.Auto : DatExportFormat.LogiqxXml;
+        }
+        else
+        {
+            (path, fmt) = await PickDatFileAsync(_localization.Tr("dialog.export_catalog_dat_title"), suggestedName, allowNames: true);
+        }
+
         if (path is null)
         {
             return;
         }
 
-        var existingDats = inFolder ? DatService.GetDatFiles(path) : null;
+        // A ROM manager reads every DAT of the folder; the lists of names leave the DATs there alone
+        var namesOnly = fmt == DatExportFormat.NameList;
+        var existingDats = inFolder && !namesOnly ? DatService.GetDatFiles(path) : null;
 
         using var cancellation = new CancellationTokenSource();
         _exportCancellation = cancellation;
@@ -391,13 +412,13 @@ public sealed partial class ExportViewModel : ViewModelBase
             }
 
             ReportUntouchedDats(path, existingDats, isLot);
-            _log(LogLevel.Ok, LocalizedMessage.Create("log.catalog_dat_exported",
+            _log(LogLevel.Ok, LocalizedMessage.Create(namesOnly ? "log.catalog_names_exported" : "log.catalog_dat_exported",
                 ("kept", result.KeptCount),
                 ("total", result.CandidateCount),
                 ("path", path)));
             await _dialogService.ShowInfoAsync(
                 _localization.Tr("dialog.export_success_title"),
-                _localization.Tr("dialog.export_catalog_dat_success",
+                _localization.Tr(namesOnly ? "dialog.export_catalog_names_success" : "dialog.export_catalog_dat_success",
                     ("kept", result.KeptCount),
                     ("total", result.CandidateCount),
                     ("path", path)));
@@ -420,19 +441,34 @@ public sealed partial class ExportViewModel : ViewModelBase
         }
     }
 
-    /// <summary>A DAT file to write and its format, after its extension (Logiqx XML or CLRMAMEPRO); null when cancelled.</summary>
-    private async Task<(string? Path, DatExportFormat Format)> PickDatFileAsync(string title, string suggestedName)
+    /// <summary>
+    /// A DAT file to write and its format, after its extension (Logiqx XML or CLRMAMEPRO, or, when
+    /// <paramref name="allowNames"/>, the names of its games for a <c>.txt</c>); null when cancelled.
+    /// </summary>
+    private async Task<(string? Path, DatExportFormat Format)> PickDatFileAsync(string title, string suggestedName, bool allowNames = false)
     {
-        FileDialogFilter[] filters =
-        [
-            new(_localization.Tr("dialog.export_dat_xml_filter"), ["xml"]),
-            new(_localization.Tr("dialog.export_dat_cmp_filter"), ["dat"])
-        ];
+        FileDialogFilter[] filters = allowNames
+            ?
+            [
+                new(_localization.Tr("dialog.export_dat_xml_filter"), ["xml"]),
+                new(_localization.Tr("dialog.export_dat_cmp_filter"), ["dat"]),
+                new(_localization.Tr("dialog.export_names_filter"), ["txt"])
+            ]
+            :
+            [
+                new(_localization.Tr("dialog.export_dat_xml_filter"), ["xml"]),
+                new(_localization.Tr("dialog.export_dat_cmp_filter"), ["dat"])
+            ];
 
         var path = await _dialogService.PickSaveFileAsync(title, suggestedName, filters);
         if (string.IsNullOrWhiteSpace(path))
         {
             return (null, DatExportFormat.LogiqxXml);
+        }
+
+        if (allowNames && path.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+        {
+            return (path, DatExportFormat.NameList);
         }
 
         var isXml = path.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) ||
@@ -472,6 +508,51 @@ public sealed partial class ExportViewModel : ViewModelBase
             _localization.Tr("dialog.export_softlist_existing_title"),
             _localization.Tr(
                 isLot ? "dialog.export_dat_folder_existing" : "dialog.export_softlist_existing",
+                ("path", folder),
+                ("count", existing.Count),
+                ("names", _localization.Format(MameSetDependencies.FormatNames(existing)))));
+        return confirmed ? folder : null;
+    }
+
+    /// <summary>
+    /// The folder where the lists of the names of the games of MAME software lists, or of the DATs of a lot
+    /// (<paramref name="isLot"/>), are written, a <c>.txt</c> per list or per DAT at its root; a folder that already
+    /// holds <c>.txt</c> files is confirmed first, since a list replaces the file of its name. Null when cancelled.
+    /// </summary>
+    private async Task<string?> PickNamesFolderAsync(bool isLot)
+    {
+        var folder = await _dialogService.PickFolderAsync(_localization.Tr(isLot ? "dialog.export_names_folder_title" : "dialog.export_softlist_names_title"));
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            return null;
+        }
+
+        List<string> existing;
+        try
+        {
+            existing = Directory.Exists(folder)
+                ? Directory.EnumerateFiles(folder, "*.txt")
+                    .Select(Path.GetFileName)
+                    .OfType<string>()
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The export reports the folder it cannot write to
+            existing = [];
+        }
+
+        if (existing.Count == 0)
+        {
+            return folder;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmationAsync(
+            _localization.Tr("dialog.export_names_existing_title"),
+            _localization.Tr(
+                "dialog.export_names_existing",
                 ("path", folder),
                 ("count", existing.Count),
                 ("names", _localization.Format(MameSetDependencies.FormatNames(existing)))));

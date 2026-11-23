@@ -281,7 +281,7 @@ public sealed class CliDatLotTests : IDisposable
     {
         var file = await RunAsync("dat", "--dat", _dats, "--output", Path.Combine(_temp.Path, "lot.xml"));
         file.ExitCode.Should().Be(ExitCodes.InvalidArguments);
-        file.Error.Should().Contain("a DAT per DAT of the lot");
+        file.Error.Should().Contain("a file per DAT of the lot");
 
         var folder = Path.Combine(_temp.Path, "lot");
         var result = await RunAsync("dat", "--dat", _dats, "--dat-recursive", "--output", folder);
@@ -290,6 +290,26 @@ public sealed class CliDatLotTests : IDisposable
         Directory.EnumerateFiles(folder).Select(Path.GetFileName).Order(StringComparer.Ordinal).Should().Equal(
             $"{Amiga} (RomSieve).xml", $"{GameBoy} (RomSieve).xml", $"{GameBoyColor} (RomSieve).xml");
         result.Output.Should().Contain("4");
+    }
+
+    [Fact]
+    public async Task CatalogNames_OfALot_ShouldWriteAListPerDatIntoAFolder()
+    {
+        var file = await RunAsync("dat", "--dat", _dats, "--names", "--output", Path.Combine(_temp.Path, "lot.txt"));
+        file.ExitCode.Should().Be(ExitCodes.InvalidArguments);
+        file.Error.Should().Contain("a file per DAT of the lot");
+
+        // The DATs of the folder are left alone and never reported: a list of names is not read by a ROM manager
+        var folder = _temp.CreateSubdirectory("names");
+        File.WriteAllText(Path.Combine(folder, "Other.xml"), "<datafile/>");
+        var result = await RunAsync("dat", "--dat", _dats, "--dat-recursive", "--names", "--output", folder);
+
+        result.ExitCode.Should().Be(ExitCodes.Success, result.Error);
+        Directory.EnumerateFiles(folder).Select(Path.GetFileName).Order(StringComparer.Ordinal).Should().Equal(
+            $"{Amiga} (RomSieve).txt", $"{GameBoy} (RomSieve).txt", $"{GameBoyColor} (RomSieve).txt", "Other.xml");
+        File.ReadAllLines(Path.Combine(folder, $"{GameBoy} (RomSieve).txt")).Should().Equal("Alleyway (World)", "Tetris (World)");
+        result.Output.Should().Contain("List of the games of the catalog written: 4 games kept");
+        result.Output.Should().NotContain("Other.xml");
     }
 
     [Fact]

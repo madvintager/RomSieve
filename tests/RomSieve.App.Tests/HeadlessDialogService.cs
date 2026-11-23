@@ -17,6 +17,9 @@ public sealed class HeadlessDialogService : IDialogService
     /// <summary>Answers of the next confirmations, in order; once empty, <see cref="NextConfirmationResult"/> answers.</summary>
     public Queue<bool> NextConfirmationResults { get; } = new();
 
+    /// <summary>Answer of the next choices: the index of the choice, or null for Cancel (the first choice by default).</summary>
+    public int? NextChoiceResult { get; set; } = 0;
+
     public List<(string Level, string Title, string Message)> ShownMessages { get; } = [];
 
     public List<string> OpenedUrls { get; } = [];
@@ -83,6 +86,12 @@ public sealed class HeadlessDialogService : IDialogService
     {
         ShownMessages.Add(("CONFIRM", title, message));
         return Task.FromResult(NextConfirmationResults.TryDequeue(out var answer) ? answer : NextConfirmationResult);
+    }
+
+    public Task<int?> ShowChoiceAsync(string title, string message, IReadOnlyList<string> choices)
+    {
+        ShownMessages.Add(("CHOICE", title, message));
+        return Task.FromResult(NextChoiceResult);
     }
 
     public Task OpenUrlAsync(string url)

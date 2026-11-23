@@ -175,15 +175,40 @@ public sealed class AvaloniaDialogService(Func<Window?> ownerProvider) : IDialog
 
     private async Task<bool> ShowMessageDialogAsync(string title, string message, bool isConfirmation)
     {
-        var owner = _preferencesWindow ?? ownerProvider();
         var i18n = (ownerProvider()?.DataContext as MainViewModel)?.Localization;
-        if (owner is null || !owner.IsVisible || i18n is null)
+        if (i18n is null)
         {
             // Nobody can answer: a confirmation is refused, never accepted in the user's place
             return false;
         }
 
-        var result = false;
+        var choice = await ShowButtonsDialogAsync(
+            title,
+            message,
+            [isConfirmation ? i18n.Tr("dialog.btn_yes") : i18n.Tr("dialog.btn_ok")],
+            isConfirmation);
+        return choice == 0;
+    }
+
+    public async Task<int?> ShowChoiceAsync(string title, string message, IReadOnlyList<string> choices) =>
+        choices.Count == 0 ? null : await ShowButtonsDialogAsync(title, message, choices, cancellable: true);
+
+    /// <summary>
+    /// A modal window with <paramref name="message"/> and a button per choice, then Cancel when
+    /// <paramref name="cancellable"/>: the index of the button clicked, or null when cancelled, closed or when nobody can
+    /// answer (no visible owner window).
+    /// </summary>
+    private async Task<int?> ShowButtonsDialogAsync(string title, string message, IReadOnlyList<string> choices, bool cancellable)
+    {
+        var owner = _preferencesWindow ?? ownerProvider();
+        var i18n = (ownerProvider()?.DataContext as MainViewModel)?.Localization;
+        if (owner is null || !owner.IsVisible || i18n is null)
+        {
+            // Nobody can answer: a confirmation is refused, never accepted in the user's place
+            return null;
+        }
+
+        int? result = null;
         var dialog = new Window
         {
             Title = title,
@@ -196,27 +221,30 @@ public sealed class AvaloniaDialogService(Func<Window?> ownerProvider) : IDialog
         var cleanText = System.Text.RegularExpressions.Regex.Replace(message ?? string.Empty, "<br\\s*/?>", Environment.NewLine);
         cleanText = System.Text.RegularExpressions.Regex.Replace(cleanText, "<[^>]+>", string.Empty);
 
-        var okButton = new Button
-        {
-            Content = isConfirmation ? i18n.Tr("dialog.btn_yes") : i18n.Tr("dialog.btn_ok"),
-            MinWidth = 85,
-            HorizontalContentAlignment = HorizontalAlignment.Center
-        };
-        okButton.Click += (_, _) =>
-        {
-            result = true;
-            dialog.Close();
-        };
-
         var buttonPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
             Spacing = 8
         };
-        buttonPanel.Children.Add(okButton);
+        for (var index = 0; index < choices.Count; index++)
+        {
+            var choice = index;
+            var button = new Button
+            {
+                Content = choices[index],
+                MinWidth = 85,
+                HorizontalContentAlignment = HorizontalAlignment.Center
+            };
+            button.Click += (_, _) =>
+            {
+                result = choice;
+                dialog.Close();
+            };
+            buttonPanel.Children.Add(button);
+        }
 
-        if (isConfirmation)
+        if (cancellable)
         {
             var cancelButton = new Button
             {
@@ -226,7 +254,7 @@ public sealed class AvaloniaDialogService(Func<Window?> ownerProvider) : IDialog
             };
             cancelButton.Click += (_, _) =>
             {
-                result = false;
+                result = null;
                 dialog.Close();
             };
             buttonPanel.Children.Add(cancelButton);

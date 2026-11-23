@@ -109,6 +109,7 @@ public sealed class ConfigurationServiceTests
     [InlineData("clrmamepro", DatExportFormat.ClrMamePro)]
     [InlineData("cmp", DatExportFormat.ClrMamePro)]
     [InlineData("auto", DatExportFormat.Auto)]
+    [InlineData("names", DatExportFormat.NameList)]
     [InlineData("txt", DatExportFormat.LogiqxXml)]
     [InlineData(null, DatExportFormat.LogiqxXml)]
     public void ParseDatExportFormat_ShouldReadTheHistoricalValuesAndDefaultOtherwise(string? value, DatExportFormat expected) =>
@@ -120,7 +121,7 @@ public sealed class ConfigurationServiceTests
         Enum.GetValues<RegionPriorityMode>().Select(v => v.ToConfigString()).Should().Equal("lang_first", "country_first");
         Enum.GetValues<VideoPreference>().Select(v => v.ToConfigString()).Should().Equal("none", "pal", "ntsc");
         Enum.GetValues<MediaPreference>().Select(v => v.ToConfigString()).Should().Equal("none", "floppy", "tape", "cartridge", "cd", "hd");
-        Enum.GetValues<DatExportFormat>().Select(v => v.ToConfigString()).Should().Equal("xml", "clrmamepro", "auto");
+        Enum.GetValues<DatExportFormat>().Select(v => v.ToConfigString()).Should().Equal("xml", "clrmamepro", "auto", "names");
         Enum.GetValues<LogLevel>().Select(v => v.ToTag()).Should().Equal("OK", "SKIP", "UNMATCHED", "INFO", "WARN", "ERROR", "PLANNED");
     }
 }

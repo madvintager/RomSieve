@@ -811,6 +811,109 @@ public sealed class ExportViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task ExportCatalogDatAsync_OfALot_ShouldAskForDatsOrListsOfNames()
+    {
+        var lot = WriteLotFolder();
+        var folder = _temp.CreateSubdirectory("names_lot");
+        File.WriteAllText(Path.Combine(folder, "Other.xml"), "<datafile/>");
+        _dialogService.NextPickedFolder = folder;
+        _dialogService.ChoiceResult = 1;
+        var vm = CreateCatalogExportViewModel(
+            () => new SortConfig { SourceDir = string.Empty, DestinationDir = string.Empty, DatFile = lot },
+            () => true,
+            new Lock(),
+            lot: true);
+
+        await vm.ExportCatalogDatAsync();
+
+        // The choice comes before the folder, and a list of names per DAT replaces no DAT nor warns about them
+        _dialogService.Choices.Should().ContainSingle().Which.Choices.Should().Equal(
+            _services.I18n.Tr("dialog.export_catalog_choice_dats"), _services.I18n.Tr("dialog.export_catalog_choice_names"));
+        _dialogService.PickedFolderTitles.Should().Equal(_services.I18n.Tr("dialog.export_names_folder_title"));
+        Directory.GetFiles(folder).Select(Path.GetFileName).Should().BeEquivalentTo(
+            "Nintendo - Game Boy (RomSieve).txt", "Nintendo - Game Boy Color (RomSieve).txt", "Other.xml");
+        _dialogService.Confirmations.Should().BeEmpty();
+        _logs.Should().NotContain(l => l.Message.Key == "log.export_dat_folder_untouched");
+        _logs.Should().ContainSingle(l => l.Level == LogLevel.Ok && l.Message.Key == "log.catalog_names_exported");
+        _dialogService.InfoDialogs.Should().ContainSingle().Which.Message.Should().Contain(folder);
+    }
+
+    [Fact]
+    public async Task ExportCatalogDatAsync_OfALot_Cancelled_ShouldAskNoFolderAndWriteNothing()
+    {
+        var lot = WriteLotFolder();
+        _dialogService.NextPickedFolder = _temp.CreateSubdirectory("never");
+        _dialogService.ChoiceResult = null;
+        var vm = CreateCatalogExportViewModel(
+            () => new SortConfig { SourceDir = string.Empty, DestinationDir = string.Empty, DatFile = lot },
+            () => true,
+            new Lock(),
+            lot: true);
+
+        await vm.ExportCatalogDatAsync();
+
+        _dialogService.PickedFolderTitles.Should().BeEmpty();
+        Directory.GetFiles(_dialogService.NextPickedFolder).Should().BeEmpty();
+        _dialogService.InfoDialogs.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ExportCatalogDatAsync_OfALotAsNames_IntoAFolderOfTextFilesNotConfirmed_ShouldWriteNothing()
+    {
+        var lot = WriteLotFolder();
+        var folder = _temp.CreateSubdirectory("names_existing");
+        var existing = Path.Combine(folder, "Nintendo - Game Boy (RomSieve).txt");
+        File.WriteAllText(existing, "mine");
+        _dialogService.NextPickedFolder = folder;
+        _dialogService.ChoiceResult = 1;
+        _dialogService.ConfirmationResult = false;
+        var vm = CreateCatalogExportViewModel(
+            () => new SortConfig { SourceDir = string.Empty, DestinationDir = string.Empty, DatFile = lot },
+            () => true,
+            new Lock(),
+            lot: true);
+
+        await vm.ExportCatalogDatAsync();
+
+        _dialogService.Confirmations.Should().ContainSingle().Which.Message.Should().Be(_services.I18n.Tr(
+            "dialog.export_names_existing", ("path", folder), ("count", 1), ("names", "Nintendo - Game Boy (RomSieve).txt")));
+        File.ReadAllText(existing).Should().Be("mine");
+        Directory.GetFiles(folder).Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ExportCatalogDatAsync_ToATxtFile_ShouldWriteTheNamesOfTheGamesKept()
+    {
+        var datPath = WriteCatalogDat("Super Game (USA)", "Space Quest (USA) (Beta)", "Puzzle Time (France)");
+        var outputPath = _temp.GetFilePath("filtered.txt");
+        IReadOnlyList<FileDialogFilter>? offered = null;
+        _dialogService.PickSaveFileHandler = (_, _, filters, _) =>
+        {
+            offered = filters;
+            return outputPath;
+        };
+        var vm = CreateCatalogExportViewModel(
+            () => new SortConfig
+            {
+                SourceDir = string.Empty,
+                DestinationDir = string.Empty,
+                DatFile = datPath,
+                Filters = new FilterConfig { NoIntroExcludeDevVersions = true }
+            },
+            () => true,
+            new Lock());
+
+        await vm.ExportCatalogDatAsync();
+
+        // A file type more, after the two formats of DAT; no question for a single DAT
+        offered!.Select(f => f.Extensions.Single()).Should().Equal("xml", "dat", "txt");
+        _dialogService.Choices.Should().BeEmpty();
+        File.ReadAllLines(outputPath).Should().Equal("Puzzle Time (France)", "Super Game (USA)");
+        _dialogService.InfoDialogs.Should().ContainSingle()
+            .Which.Message.Should().Be(_services.I18n.Tr("dialog.export_catalog_names_success", ("kept", 2), ("total", 3), ("path", outputPath)));
+    }
+
+    [Fact]
     public async Task ExportCatalogDatAsync_IntoTheFolderOfTheLot_ShouldBeRefused()
     {
         var lot = WriteLotFolder();
@@ -876,6 +979,10 @@ public sealed class ExportViewModelTests : IDisposable
         public bool ConfirmationResult { get; set; } = true;
         public List<(string Title, string Message)> Confirmations { get; } = [];
 
+        /// <summary>Answer of the choices: the index of the choice, or null for Cancel (the first choice by default).</summary>
+        public int? ChoiceResult { get; set; } = 0;
+        public List<(string Title, string Message, IReadOnlyList<string> Choices)> Choices { get; } = [];
+
         public Task<string?> PickFolderAsync(string title, string? initialDirectory = null)
         {
             PickedFolderTitles.Add(title);
@@ -920,6 +1027,12 @@ public sealed class ExportViewModelTests : IDisposable
         {
             Confirmations.Add((title, message));
             return Task.FromResult(ConfirmationResult);
+        }
+
+        public Task<int?> ShowChoiceAsync(string title, string message, IReadOnlyList<string> choices)
+        {
+            Choices.Add((title, message, choices));
+            return Task.FromResult(ChoiceResult);
         }
 
         public Task OpenUrlAsync(string url) =>
