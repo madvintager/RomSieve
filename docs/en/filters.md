@@ -173,7 +173,9 @@ version fixed for AGA is a modified version: it only counts when the modified ve
 
 *(TOSEC)* The **ZX Spectrum machine** list, under the Amiga machine, says which ZX Spectrum the collection will be used
 on. RomSieve reads the machine in the system field of the TOSEC name: `(16K)`, `(16K-48K)`, `(48K-128K)`, `(128K)`,
-`(+2A-+3)`… A game without a mark is a 48K game and is never left out. A version for the Timex machines
+`(+2A-+3)`… When the title ends with one of the machines of that field, as in
+*Apulija 13 v2.01 - 128K (…)(48K-128K)*, that machine is the one that counts, and the title is that of the other
+versions of the game. A game without a mark is a 48K game and is never left out. A version for the Timex machines
 (`(TC2048-TS2068)`), which are not ZX Spectrums, stays a game of its own: it never replaces the Spectrum version.
 
 | Choice | Effect |

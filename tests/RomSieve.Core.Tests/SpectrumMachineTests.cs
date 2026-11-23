@@ -68,6 +68,52 @@ public sealed class SpectrumMachineTests : IDisposable
     }
 
     [Theory]
+    [InlineData("Apulija 13 v2.01 - 128K (2013)(Grussu, Alessandro)(48K-128K)(IT)(fr).tzx", "Apulija 13", "v2.01", "128K")]
+    [InlineData("Apulija 13 v2.01 - 48K (2013)(Grussu, Alessandro)(48K-128K)(IT)(fr).tzx", "Apulija 13", "v2.01", "48K")]
+    [InlineData("Game - 128K (1987)(Pub)(128K).tzx", "Game", "", "128K")]
+    [InlineData("Game - +3 (1988)(Pub)(+2A-+3).tzx", "Game", "", "+3")]
+    [InlineData("Game - 128K (1987)(Pub)(16K-48K).tzx", "Game - 128K", "", "16K-48K")]
+    [InlineData("Simulador de Voo - 48K (1983)(TMX Portugal)(PT).tzx", "Simulador de Voo - 48K", "", null)]
+    [InlineData("Game - 48K Edition (1983)(Pub)(48K-128K).tzx", "Game - 48K Edition", "", "48K-128K")]
+    public void TosecParser_ShouldReadTheMachineThatEndsTheTitle(string name, string title, string version, string? system)
+    {
+        // The 48K and 128K editions of Apulija 13 were two games, and the 128K one kept on a 48K
+        var parsed = _services.TosecParser.ParseTosecFilename(name);
+
+        parsed.Title.Should().Be(title);
+        parsed.Version.Should().Be(version);
+        parsed.System.Should().Be(system);
+    }
+
+    [Fact]
+    public async Task MachineInTheTitle_OnA48K_ShouldExcludeThe128KEditionAndKeepTheLatest48KOne()
+    {
+        // Three Apulija 13 were kept on a 48K: V2.0, v2.01 - 48K and v2.01 - 128K
+        var items = await SimulateAsync(
+            SpectrumTarget.Zx48,
+            "Apulija 13 V2.0 (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx",
+            "Apulija 13 v2.01 - 48K (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx",
+            "Apulija 13 v2.01 - 128K (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx");
+
+        Kept(items).Should().Equal("Apulija 13 v2.01 - 48K (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx");
+        _services.I18n.Format(Named(items, "Apulija 13 v2.01 - 128K (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx").StatusReason!)
+            .Should().Be("Demande un ZX Spectrum 128K : ne tourne pas sur la machine cible (ZX Spectrum 16K, 48K)");
+        Named(items, "Apulija 13 V2.0 (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx").Status.Should().Be(FileStatus.Excluded);
+    }
+
+    [Fact]
+    public async Task MachineInTheTitle_OnA128K_ShouldKeepThe128KEdition()
+    {
+        var items = await SimulateAsync(
+            SpectrumTarget.Zx128,
+            "Apulija 13 V2.0 (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx",
+            "Apulija 13 v2.01 - 48K (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx",
+            "Apulija 13 v2.01 - 128K (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx");
+
+        Kept(items).Should().Equal("Apulija 13 v2.01 - 128K (2013)(Grussu, Alessandro)(48K-128K)(IT)(en).tzx");
+    }
+
+    [Theory]
     [InlineData(SpectrumMachine.K128, SpectrumTarget.Zx48, false)]
     [InlineData(SpectrumMachine.Plus3, SpectrumTarget.Zx48, false)]
     [InlineData(SpectrumMachine.K48K128, SpectrumTarget.Zx48, true)]

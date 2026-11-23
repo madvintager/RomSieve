@@ -175,7 +175,9 @@ sont gardées (ou servent de repli, option *Noms TOSEC* de la page *Langues et 1
 
 *(TOSEC)* La liste **Machine ZX Spectrum**, sous la Machine Amiga, dit sur quel ZX Spectrum la collection sera
 utilisée. RomSieve lit la machine dans le champ système du nom TOSEC : `(16K)`, `(16K-48K)`, `(48K-128K)`, `(128K)`,
-`(+2A-+3)`… Un jeu sans marque est un jeu 48K et n'est jamais écarté. Une version pour les machines Timex
+`(+2A-+3)`… Quand le titre se termine par l'une des machines de ce champ, comme dans
+*Apulija 13 v2.01 - 128K (…)(48K-128K)*, c'est cette machine qui compte, et le titre est celui des autres versions du
+jeu. Un jeu sans marque est un jeu 48K et n'est jamais écarté. Une version pour les machines Timex
 (`(TC2048-TS2068)`), qui ne sont pas des ZX Spectrum, reste un jeu à part : elle ne remplace jamais la version
 Spectrum.
 

@@ -42,6 +42,12 @@ public sealed partial class TosecParser : ITosecParser
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SpectrumSystemRegex();
 
+    // A ZX Spectrum machine at the end of a TOSEC title ("Apulija 13 v2.01 - 128K"), the system field keeping the range
+    // of the game ("(48K-128K)"): the title names the machine of the file. Left in the title, it made the 48K and 128K
+    // editions two games, neither of them excluded on a 48K
+    [GeneratedRegex(@"^(?<title>.+?)\s+-\s+(?<machine>16K|48K|128K|\+2A?|\+3)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex TitleMachineRegex();
+
     // Development statuses
     [GeneratedRegex(
         @"^(?:alpha|beta|proto|preview|pre-release)(?:\s+.*)?$",
@@ -317,6 +323,10 @@ public sealed partial class TosecParser : ITosecParser
         var bracketsStr = match.Groups["brackets"].Value;
         var extension = match.Groups["extension"].Value;
 
+        var opt = new OptParensFields();
+        PopulateOptParens(opt, optParensStr);
+        (baseTitle, opt.System) = SplitTitleMachine(baseTitle, opt.System);
+
         string title;
         string version;
         var tvMatch = TitleVersionRegex().Match(baseTitle);
@@ -331,8 +341,6 @@ public sealed partial class TosecParser : ITosecParser
             version = string.Empty;
         }
 
-        var opt = new OptParensFields();
-        PopulateOptParens(opt, optParensStr);
         var brackets = new BracketFields();
         PopulateBrackets(brackets, bracketsStr);
 
@@ -428,6 +436,32 @@ public sealed partial class TosecParser : ITosecParser
         public bool IsTrainer { get; set; }
         public bool IsTranslation { get; set; }
     }
+
+    /// <summary>
+    /// Takes the ZX Spectrum machine that ends a TOSEC title out of it (<see cref="TitleMachineRegex"/>) when the system
+    /// field names it, alone or in a range (<c>"Apulija 13 v2.01 - 128K (2013)(Grussu, Alessandro)(48K-128K)"</c>): the
+    /// machine becomes the system of the release, and the title is that of the other editions of the game. Any other
+    /// title, or a machine that the system field does not name, is left as it is.
+    /// </summary>
+    private static (string BaseTitle, string? System) SplitTitleMachine(string baseTitle, string? system)
+    {
+        if (string.IsNullOrEmpty(system))
+        {
+            return (baseTitle, system);
+        }
+
+        var match = TitleMachineRegex().Match(baseTitle);
+        if (!match.Success)
+        {
+            return (baseTitle, system);
+        }
+
+        var machine = match.Groups["machine"].Value.ToUpperInvariant();
+        return system.Split('-').Contains(machine, StringComparer.OrdinalIgnoreCase)
+            ? (match.Groups["title"].Value.TrimEnd(), machine)
+            : (baseTitle, system);
+    }
+
     private static void PopulateOptParens(OptParensFields fields, string optParensStr)
     {
         if (string.IsNullOrEmpty(optParensStr))
