@@ -95,11 +95,11 @@ the same options (`exclude_translations`...), so a file is read back unchanged.
 ### Games, applications and add-ons
 
 The No-Intro and Redump DATs file each game under one or more categories: `Games`, `Add-Ons`, `Applications`, `Demos`,
-`Educational`, `Preproduction`, `Coverdiscs`, `Bonus Discs`... The **DAT categories** button, after the boxes of the
-**Content to keep** group, opens the list of these categories: uncheck those whose games you do not want. Once the DAT
-is read, the list gives its categories with the number of games of each; before that, or for a lot of DATs, it gives
-the categories No-Intro and Redump use. The button names the excluded category, or counts the excluded categories, and
-turns bold as long as it excludes one.
+`Educational`, `Preproduction`, `Coverdiscs`, `Bonus Discs`... The **DAT categories** section, under **Multi-disc**,
+gives these categories on two columns: uncheck those whose games you do not want. Once the DAT is read, it gives its
+categories with the number of games of each; before that, or for a lot of DATs, it gives the categories No-Intro and
+Redump use. **Check all** keeps every category; **Uncheck all** excludes them all, so that you check again only those
+you want to keep.
 
 * A game is excluded as soon as **one** of its categories is: a beta is both `Games` and `Preproduction`, so unchecking
   `Preproduction` excludes the betas, and unchecking `Games` excludes them too.
@@ -119,9 +119,10 @@ Master System BIOS that holds a game): the **BIOS `[BIOS]`** box recognizes them
 It is checked by default.
 
 The Miss List and the fixdat depend on no filter: they always list everything missing from the DAT. The [filtered DAT
-of the catalog](exports.md) applies these filters as a sort does. With a MAME DAT or software lists, the button and the
-box are greyed: the categories of a MAME machine come from the category file (see [Categories](#categories)), and its
-BIOS are set in the **MAME machines** card.
+of the catalog](exports.md) applies these filters as a sort does. With software lists, the DAT categories and the **BIOS**
+box are greyed. With a MAME DAT, the box is greyed and the DAT categories, reduced to their title and a sentence, move
+under **Dump quality**: the categories of a MAME machine come from the category file (see [Categories](#categories)),
+and its BIOS are set in the **MAME machines** card.
 
 ### Files missing from the DAT
 

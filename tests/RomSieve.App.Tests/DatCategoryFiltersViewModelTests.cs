@@ -44,10 +44,9 @@ public sealed class DatCategoryFiltersViewModelTests : IDisposable
         vm.Filters.KeepBios.Should().BeTrue();
         categories.Categories.Select(c => c.Name).Should().Equal(DatCategory.Known);
         categories.Categories.Where(c => !c.IsKept).Select(c => c.Name).Should().Equal(DatCategory.AddOns);
-        categories.StatusText.Should().StartWith("Catégories des DAT No-Intro et Redump.");
-        categories.IsRestricted.Should().BeTrue();
-        categories.SummaryText.Should().Be("Catégories du DAT : sans Add-Ons");
-        categories.SummaryTooltip.Should().EndWith("Exclues : Add-Ons");
+        categories.StatusText.Should().Be("Catégories des DAT No-Intro et Redump.");
+        categories.Tooltip.Should().StartWith(vm.Localization.Tr("filters.tooltip_dat_categories"))
+            .And.EndWith("une puce d'extension, (Enhancement Chip), va dans Add-Ons.", "the tooltip tells how a game is filed by its name");
         vm.BuildConfigUnchecked().Filters.NoIntroExcludedDatCategories.Should().Equal(DatCategory.AddOns);
     }
 
@@ -59,9 +58,6 @@ public sealed class DatCategoryFiltersViewModelTests : IDisposable
 
         vm.NoIntroFilters.ExcludedDatCategories.Should().BeEmpty();
         categories.Categories.Should().OnlyContain(c => c.IsKept);
-        categories.IsRestricted.Should().BeFalse();
-        categories.SummaryText.Should().Be("Catégories du DAT : toutes");
-        categories.SummaryTooltip.Should().Be(vm.Localization.Tr("filters.tooltip_dat_categories"));
     }
 
     [Fact]
@@ -80,8 +76,8 @@ public sealed class DatCategoryFiltersViewModelTests : IDisposable
         // In the order the DATs use, games first; a category excluded before stays in sight, to be kept again
         Shown(categories).Should().Equal(
             ("Games (2)", true), ("Add-Ons (1)", false), ("Applications (1)", true), ("Preproduction (1)", true), ("Coverdiscs", false));
-        categories.StatusText.Should().Be("Catégories de ce DAT, avec le nombre de jeux de chacune.");
-        categories.SummaryText.Should().Be("Catégories du DAT : 2 exclues");
+        categories.StatusText.Should().Be("Catégories de ce DAT, avec leur nombre de jeux.");
+        vm.Filters.DatCategoriesStatusText.Should().Be(categories.StatusText);
 
         // Without a DAT, the categories the DATs use come back
         vm.Directories.DatFilePath = string.Empty;
@@ -103,7 +99,7 @@ public sealed class DatCategoryFiltersViewModelTests : IDisposable
             """);
         await vm.Directories.DatLoadTask;
 
-        categories.StatusText.Should().StartWith("Ce DAT ne donne aucune catégorie");
+        categories.StatusText.Should().Be("Ce DAT ne donne aucune catégorie : un jeu n'est classé que d'après son nom.");
         categories.Categories.Select(c => c.Name).Should().Equal(DatCategory.Known);
     }
 
@@ -116,7 +112,7 @@ public sealed class DatCategoryFiltersViewModelTests : IDisposable
         categories.Categories.Single(c => c.Name == "Demos").IsKept = false;
         categories.Categories.Single(c => c.Name == "Add-Ons").IsKept = true;
         vm.NoIntroFilters.ExcludedDatCategories.Should().Equal("Demos");
-        categories.SummaryText.Should().Be("Catégories du DAT : sans Demos");
+        categories.Categories.Where(c => !c.IsKept).Select(c => c.Name).Should().Equal("Demos");
         vm.Filters.KeepBios = false;
         vm.NoIntroFilters.ExcludeBios.Should().BeTrue();
 
@@ -145,7 +141,6 @@ public sealed class DatCategoryFiltersViewModelTests : IDisposable
         vm.NoIntroFilters.ExcludedDatCategories.Should().BeEquivalentTo(DatCategory.Known);
         categories.Categories.Should().OnlyContain(c => !c.IsKept);
         categories.ExcludeAllCommand.CanExecute(null).Should().BeFalse();
-        categories.SummaryText.Should().Be($"Catégories du DAT : {DatCategory.Known.Count} exclues");
     }
 
     [Fact]
@@ -154,9 +149,13 @@ public sealed class DatCategoryFiltersViewModelTests : IDisposable
         var vm = CreateViewModel();
         var categories = vm.Filters.DatCategories;
 
+        var notified = new List<string?>();
+        categories.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
         vm.UiLocale = "en";
-        categories.SummaryText.Should().Be("DAT categories: no Add-Ons");
-        categories.StatusText.Should().StartWith("Categories of the No-Intro and Redump DATs.");
+        notified.Should().Contain([nameof(categories.StatusText), nameof(categories.Tooltip)]);
+        categories.Tooltip.Should().StartWith("Categories the No-Intro or Redump DAT gives each game");
+        categories.StatusText.Should().Be("Categories of the No-Intro and Redump DATs.");
+        vm.Filters.DatCategoriesStatusText.Should().Be(categories.StatusText);
         vm.Filters.BiosTooltip.Should().Be(vm.Localization.Tr("filters.tooltip_keep_nointro_bios"));
     }
 }

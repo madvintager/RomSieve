@@ -29,6 +29,7 @@ public sealed class FiltersViewModel : ViewModelBase
         Categories = new MameCategoryFiltersViewModel(localization, noIntro);
         Ratings = new MameRatingFiltersViewModel(localization, noIntro);
         DatCategories = new DatCategoryFiltersViewModel(localization, noIntro);
+        DatCategories.PropertyChanged += OnDatCategoriesPropertyChanged;
         Tosec.PropertyChanged += OnSectionPropertyChanged;
         NoIntro.PropertyChanged += OnSectionPropertyChanged;
     }
@@ -46,7 +47,10 @@ public sealed class FiltersViewModel : ViewModelBase
     /// <summary>Rating filters and size budget of the MAME machines, shown in the MAME card.</summary>
     public MameRatingFiltersViewModel Ratings { get; }
 
-    /// <summary>Categories of the No-Intro and Redump DATs, shown with the content to keep of these conventions.</summary>
+    /// <summary>
+    /// Categories of the No-Intro and Redump DATs, in their own section after the multi-disc group (under the dump quality,
+    /// reduced to its title and <see cref="DatCategoriesStatusText"/>, with the MAME options).
+    /// </summary>
     public DatCategoryFiltersViewModel DatCategories { get; }
 
     /// <summary>
@@ -519,13 +523,13 @@ public sealed class FiltersViewModel : ViewModelBase
         "filters.tooltip_no_effect_softlist_category");
 
     /// <summary>
-    /// Tooltip of the DAT categories button: what it does and the excluded categories, or why it has no effect on a MAME
+    /// Sentence under the title of the DAT categories: what the list shows, or why the categories have no effect on a MAME
     /// set or a software of a list (greyed then, with <see cref="AreNoIntroOnlyOptionsApplicable"/>).
     /// </summary>
-    public string DatCategoriesTooltip =>
-        AreMameOptionsShown ? _localization.Tr("filters.tooltip_dat_categories_mame")
-        : AreSoftwareListOptionsShown ? _localization.Tr("filters.tooltip_dat_categories_softlist")
-        : DatCategories.SummaryTooltip;
+    public string DatCategoriesStatusText =>
+        AreMameOptionsShown ? _localization.Tr("filters.dat_categories_no_effect_mame")
+        : AreSoftwareListOptionsShown ? _localization.Tr("filters.dat_categories_no_effect_softlist")
+        : DatCategories.StatusText;
 
     /// <summary>Why the dump quality has no effect, shown above its greyed group: on a MAME set, or on a software of a list.</summary>
     public string DumpsNoEffectText => ShownText(
@@ -590,7 +594,14 @@ public sealed class FiltersViewModel : ViewModelBase
             OnPropertyChanged(nameof(KeepMameUnemulatedSound));
             OnPropertyChanged(nameof(KeepMameAlternateSets));
             OnPropertyChanged(nameof(KeepBios));
-            OnPropertyChanged(nameof(DatCategoriesTooltip));
+        }
+    }
+
+    private void OnDatCategoriesPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DatCategoryFiltersViewModel.StatusText))
+        {
+            OnPropertyChanged(nameof(DatCategoriesStatusText));
         }
     }
 
@@ -624,7 +635,7 @@ public sealed class FiltersViewModel : ViewModelBase
         OnPropertyChanged(nameof(UnlicensedTooltip));
         OnPropertyChanged(nameof(RereleasesTooltip));
         OnPropertyChanged(nameof(BiosTooltip));
-        OnPropertyChanged(nameof(DatCategoriesTooltip));
+        OnPropertyChanged(nameof(DatCategoriesStatusText));
         OnPropertyChanged(nameof(DumpsNoEffectText));
         OnPropertyChanged(nameof(ModificationsTag));
         OnPropertyChanged(nameof(PirateTag));

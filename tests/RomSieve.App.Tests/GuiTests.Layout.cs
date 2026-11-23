@@ -78,6 +78,54 @@ public sealed partial class GuiTests
     }
 
     /// <summary>
+    /// With the No-Intro / Redump options and no DAT read, the DAT categories show the twelve categories the DATs use, all
+    /// in sight on two columns after the multi-disc group: the whole page needs no scrolling at the default size, in any
+    /// language, and no category label is cut or wrapped (a drop-down panel of the categories went past the bottom of the
+    /// window).
+    /// </summary>
+    [Theory]
+    [InlineData("fr")]
+    [InlineData("en")]
+    [InlineData("es")]
+    public async Task FiltersStep_WithNoIntro_ShouldShowEveryDatCategoryWithoutScrolling(string locale)
+    {
+        await RunOnUiThreadAsync(() =>
+        {
+            var vm = CreateViewModel();
+            vm.UiLocale = locale;
+            var window = new MainWindow(vm) { Width = 1280, Height = 700 };
+            window.Show();
+            try
+            {
+                vm.Directories.SelectedNamingConvention = NamingConvention.NoIntro;
+                vm.Navigation.CurrentStep = WorkflowStep.Filters;
+                Settle(window);
+
+                var page = window.FindControl<Control>("PageFilters")!;
+                var boxes = window.FindControl<ItemsControl>("ListDatCategories")!.GetVisualDescendants().OfType<CheckBox>().ToList();
+                boxes.Should().HaveCount(DatCategory.Known.Count);
+                boxes.Should().OnlyContain(c => c.IsEffectivelyVisible);
+                var scroller = page.GetVisualDescendants().OfType<ScrollViewer>().First();
+                scroller.Extent.Width.Should().BeLessThanOrEqualTo(scroller.Viewport.Width + 1, "the page never scrolls sideways");
+
+                // Measured with the real fonts only, as the stand-in font of the session is wider
+                if (Environment.GetEnvironmentVariable("ROMSIEVE_HEADLESS_SKIA") == "1")
+                {
+                    scroller.Extent.Height.Should().BeLessThanOrEqualTo(scroller.Viewport.Height + 1, $"the No-Intro filters need no scrolling ({locale})");
+                    foreach (var label in boxes.Select(c => (TextBlock)c.Content!))
+                    {
+                        label.TextLayout.TextLines.Should().HaveCount(1, $"{label.Text} fits on one line ({locale})");
+                    }
+                }
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>
     /// With the MAME convention, the Collection step also offers the folder of the CHDs: it fits in the page, which needs
     /// no scrolling at the default size, and its label is not cut in any language (measured with Skia only).
     /// </summary>

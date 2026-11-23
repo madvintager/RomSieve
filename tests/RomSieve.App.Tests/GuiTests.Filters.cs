@@ -181,12 +181,13 @@ public sealed partial class GuiTests
     }
 
     /// <summary>
-    /// The BIOS box and the DAT categories button (issue #7): with the content to keep of the No-Intro / Redump options,
-    /// greyed for MAME sets and software lists, their tooltip saying why; the button names what it excludes and opens the
-    /// list of the categories.
+    /// The BIOS box and the DAT categories (issue #7): the box with the content to keep of the No-Intro / Redump options,
+    /// the categories in their own section after the multi-disc group, every one in sight (a drop-down panel went past
+    /// the bottom of the window). Greyed for software lists, reduced to their title and a sentence under the dump quality
+    /// for a MAME run, whose column they leave to the content to keep; the tooltips and sentences say why.
     /// </summary>
     [Fact]
-    public async Task FiltersTab_BiosAndDatCategories_ShouldBeNoIntroContentOptions()
+    public async Task FiltersTab_BiosAndDatCategories_ShouldBeNoIntroOptions()
     {
         await RunOnUiThreadAsync(() =>
         {
@@ -201,11 +202,18 @@ public sealed partial class GuiTests
 
                 var group = window.FindControl<WrapPanel>("GrpFilterContent")!;
                 var box = window.FindControl<CheckBox>("ChkKeepBios")!;
-                var button = window.FindControl<DropDownButton>("BtnDatCategories")!;
+                var section = window.FindControl<StackPanel>("GrpFilterDatCategories")!;
+                var mameSection = window.FindControl<StackPanel>("GrpDatCategoriesMame")!;
+                var title = window.FindControl<TextBlock>("LblDatCategories")!;
+                var status = window.FindControl<TextBlock>("LblDatCategoriesStatus")!;
+                var panel = window.FindControl<StackPanel>("PanelDatCategories")!;
                 box.Parent.Should().BeSameAs(group);
-                button.Parent.Should().BeSameAs(group);
+                group.Children.OfType<DropDownButton>().Should().BeEmpty("the categories are no longer between the boxes");
+                section.Parent.Should().BeSameAs(window.FindControl<StackPanel>("ColFilterMultidisk"));
+                mameSection.Parent.Should().BeSameAs(window.FindControl<StackPanel>("ColFilterDumps"));
                 box.IsEffectivelyVisible.Should().BeFalse("TOSEC names have no [BIOS] prefix and TOSEC DATs no category");
-                button.IsEffectivelyVisible.Should().BeFalse();
+                section.IsEffectivelyVisible.Should().BeFalse("the TOSEC options show the Amiga and ZX Spectrum machines there");
+                mameSection.IsEffectivelyVisible.Should().BeFalse();
 
                 vm.Filters.IsNoIntroShown = true;
                 Settle(window);
@@ -214,36 +222,70 @@ public sealed partial class GuiTests
                 box.IsChecked.Should().BeTrue("the BIOS are kept by default");
                 ContentText(box).Should().Be("BIOS [BIOS]");
                 ToolTip.GetTip(box).Should().Be(vm.Localization.Tr("filters.tooltip_keep_nointro_bios"));
-                button.IsEffectivelyEnabled.Should().BeTrue();
-                button.Content.Should().Be("Catégories du DAT : sans Add-Ons");
-                button.Classes.Should().Contain("changed");
-                ToolTip.GetTip(button).Should().Be(vm.Filters.DatCategories.SummaryTooltip);
+                section.IsEffectivelyVisible.Should().BeTrue();
+                mameSection.IsEffectivelyVisible.Should().BeFalse();
+                panel.IsEffectivelyEnabled.Should().BeTrue();
+                title.Text.Should().Be("Catégories du DAT");
+                ToolTip.GetTip(title).Should().Be(vm.Filters.DatCategories.Tooltip);
+                status.Text.Should().Be("Catégories des DAT No-Intro et Redump.");
+                var multidisk = window.FindControl<StackPanel>("GrpFilterMultidisk")!;
+                section.Bounds.Top.Should().BeGreaterThanOrEqualTo(multidisk.Bounds.Bottom, "the categories come after the multi-disc group");
+
+                // Every category in sight, the add-ons unchecked for a new configuration; a box acts on the option
+                var list = window.FindControl<ItemsControl>("ListDatCategories")!;
+                var boxes = list.GetVisualDescendants().OfType<CheckBox>().ToList();
+                boxes.Select(c => ((TextBlock)c.Content!).Text).Should().Equal(DatCategory.Known);
+                boxes.Should().OnlyContain(c => c.IsEffectivelyVisible);
+                boxes.Where(c => c.IsChecked != true).Select(c => ((TextBlock)c.Content!).Text).Should().Equal(DatCategory.AddOns);
+                list.GetVisualAncestors().TakeWhile(a => !ReferenceEquals(a, section)).OfType<ScrollViewer>()
+                    .Should().BeEmpty("only the page scrolls, never the list");
+                var first = boxes[0].TranslatePoint(default, list)!.Value;
+                var second = boxes[1].TranslatePoint(default, list)!.Value;
+                var third = boxes[2].TranslatePoint(default, list)!.Value;
+                second.Y.Should().Be(first.Y, "the categories are on two columns");
+                second.X.Should().BeGreaterThan(first.X);
+                third.X.Should().Be(first.X);
+                third.Y.Should().BeGreaterThan(first.Y);
+                boxes.Single(c => (string?)((TextBlock)c.Content!).Text == "Demos").IsChecked = false;
+                vm.NoIntroFilters.ExcludedDatCategories.Should().Equal(DatCategory.AddOns, "Demos");
 
                 box.IsChecked = false;
                 vm.NoIntroFilters.ExcludeBios.Should().BeTrue();
-                vm.Filters.DatCategories.KeepAllCommand.Execute(null);
+                window.FindControl<Button>("BtnDatCategoriesKeepAll")!.Command!.Execute(null);
                 Settle(window);
-                button.Content.Should().Be("Catégories du DAT : toutes");
-                button.Classes.Should().NotContain("changed");
+                vm.NoIntroFilters.ExcludedDatCategories.Should().BeEmpty();
+                boxes.Should().OnlyContain(c => c.IsChecked == true);
 
-                // MAME sets and software lists: greyed, the tooltip saying why
-                foreach (var (convention, boxTip, buttonTip) in new[]
-                {
-                    (NamingConvention.Mame, "filters.tooltip_keep_bios_mame", "filters.tooltip_dat_categories_mame"),
-                    (NamingConvention.MameSoftwareList, "filters.tooltip_no_effect_softlist_category", "filters.tooltip_dat_categories_softlist")
-                })
-                {
-                    vm.Directories.SelectedNamingConvention = convention;
-                    vm.Filters.IsNoIntroShown = true;
-                    Settle(window);
-                    box.IsEffectivelyVisible.Should().BeTrue(convention.ToString());
-                    box.IsEffectivelyEnabled.Should().BeFalse(convention.ToString());
-                    button.IsEffectivelyEnabled.Should().BeFalse(convention.ToString());
-                    ToolTip.GetShowOnDisabled(box).Should().BeTrue();
-                    ToolTip.GetShowOnDisabled(button).Should().BeTrue();
-                    ToolTip.GetTip(box).Should().Be(vm.Localization.Tr(boxTip));
-                    ToolTip.GetTip(button).Should().Be(vm.Localization.Tr(buttonTip));
-                }
+                // Software lists: greyed in place, the sentence under the title saying why
+                vm.Directories.SelectedNamingConvention = NamingConvention.MameSoftwareList;
+                vm.Filters.IsNoIntroShown = true;
+                Settle(window);
+                box.IsEffectivelyVisible.Should().BeTrue();
+                box.IsEffectivelyEnabled.Should().BeFalse();
+                ToolTip.GetShowOnDisabled(box).Should().BeTrue();
+                ToolTip.GetTip(box).Should().Be(vm.Localization.Tr("filters.tooltip_no_effect_softlist_category"));
+                section.IsEffectivelyVisible.Should().BeTrue();
+                panel.IsEffectivelyEnabled.Should().BeFalse();
+                title.IsEffectivelyEnabled.Should().BeTrue("its tooltip stays readable");
+                status.Text.Should().Be(vm.Localization.Tr("filters.dat_categories_no_effect_softlist"));
+
+                // A MAME run: the column goes to the content to keep, the categories are reduced under the dump quality
+                vm.Directories.SelectedNamingConvention = NamingConvention.Mame;
+                vm.Filters.IsNoIntroShown = true;
+                Settle(window);
+                box.IsEffectivelyEnabled.Should().BeFalse();
+                ToolTip.GetTip(box).Should().Be(vm.Localization.Tr("filters.tooltip_keep_bios_mame"));
+                section.IsEffectivelyVisible.Should().BeFalse();
+                mameSection.IsEffectivelyVisible.Should().BeTrue();
+                window.FindControl<TextBlock>("LblDatCategoriesMame")!.Text.Should().Be("Catégories du DAT");
+                ToolTip.GetTip(window.FindControl<TextBlock>("LblDatCategoriesMame")!).Should().Be(vm.Filters.DatCategories.Tooltip);
+                window.FindControl<TextBlock>("LblDatCategoriesMameStatus")!.Text
+                    .Should().Be(vm.Localization.Tr("filters.dat_categories_no_effect_mame"));
+
+                vm.Directories.SelectedNamingConvention = NamingConvention.NoIntro;
+                Settle(window);
+                status.Text.Should().Be("Catégories des DAT No-Intro et Redump.");
+                mameSection.IsEffectivelyVisible.Should().BeFalse();
             }
             finally
             {

@@ -98,11 +98,11 @@ les profils gardent les mêmes options (`exclude_translations`...), si bien qu'u
 ### Jeux, applications et add-ons
 
 Les DAT No-Intro et Redump rangent chaque jeu dans une ou plusieurs catégories : `Games`, `Add-Ons`, `Applications`,
-`Demos`, `Educational`, `Preproduction`, `Coverdiscs`, `Bonus Discs`... Le bouton **Catégories du DAT**, après les
-cases du groupe **Contenu à garder**, ouvre la liste de ces catégories : décochez celles dont vous ne voulez pas les
-jeux. Une fois le DAT lu, la liste donne ses catégories avec le nombre de jeux de chacune ; avant, ou pour un lot de
-DAT, elle donne les catégories qu'utilisent No-Intro et Redump. Le bouton nomme la catégorie exclue, ou compte les
-catégories exclues, et passe en gras tant qu'il en exclut une.
+`Demos`, `Educational`, `Preproduction`, `Coverdiscs`, `Bonus Discs`... La section **Catégories du DAT**, sous
+**Multi-disques**, donne ces catégories sur deux colonnes : décochez celles dont vous ne voulez pas les jeux. Une fois
+le DAT lu, elle donne ses catégories avec le nombre de jeux de chacune ; avant, ou pour un lot de DAT, elle donne les
+catégories qu'utilisent No-Intro et Redump. **Tout cocher** garde toutes les catégories ; **Tout décocher** les exclut
+toutes, pour ne recocher que celles que vous voulez garder.
 
 * Un jeu est exclu dès que **l'une** de ses catégories l'est : une bêta est à la fois `Games` et `Preproduction`, si
   bien que décocher `Preproduction` exclut les bêtas, et décocher `Games` les exclut aussi.
@@ -122,9 +122,10 @@ un BIOS de Master System qui contient un jeu) : la case **BIOS `[BIOS]`** les re
 leur catégorie. Elle est cochée par défaut.
 
 La Miss List et le fixdat ne dépendent d'aucun filtre : ils listent toujours tout ce qui manque du DAT. Le [DAT filtré
-du catalogue](exports.md) applique ces filtres comme un tri. Avec un DAT MAME ou des listes de logiciels, le bouton et
-la case sont grisés : les catégories d'une machine MAME viennent du fichier de catégories (voir [Filtres de
-genre](#filtres-de-genre)), et ses BIOS se règlent dans le cadre **Machines MAME**.
+du catalogue](exports.md) applique ces filtres comme un tri. Avec des listes de logiciels, les catégories du DAT et la
+case **BIOS** sont grisées. Avec un DAT MAME, la case est grisée et les catégories du DAT, réduites à leur titre et à
+une phrase, passent sous **Qualité des dumps** : les catégories d'une machine MAME viennent du fichier de catégories
+(voir [Filtres de genre](#filtres-de-genre)), et ses BIOS se règlent dans le cadre **Machines MAME**.
 
 ### Fichiers absents du DAT
 

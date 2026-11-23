@@ -1945,13 +1945,6 @@
                 <Style Selector="Grid.mame WrapPanel#GrpFilterContent > CheckBox#ChkFilterNotInDat">
                   <Setter Property="Margin" Value="0,0,24,4" />
                 </Style>
-                <Style Selector="WrapPanel#GrpFilterContent > DropDownButton#BtnDatCategories">
-                  <Setter Property="Margin" Value="0,2,0,4" />
-                  <Setter Property="HorizontalAlignment" Value="Left" />
-                </Style>
-                <Style Selector="Grid.mame WrapPanel#GrpFilterContent > DropDownButton#BtnDatCategories">
-                  <Setter Property="Margin" Value="0,0,24,4" />
-                </Style>
               </Grid.Styles>
 
               <!-- Column 1: dump quality, a single level; the exclusions one by one in a drop-down panel. Greyed with the
@@ -2057,6 +2050,23 @@
                     </DropDownButton.Flyout>
                   </DropDownButton>
                 </StackPanel>
+
+                <!-- The DAT categories with a MAME run: their column (that of the multi-disc group) gives its room to the
+                     content to keep, so they are reduced here to their title and the sentence saying why they have no
+                     effect -->
+                <StackPanel x:Name="GrpDatCategoriesMame"
+                            Margin="0,12,0,0"
+                            Spacing="4"
+                            IsVisible="{Binding Filters.AreMameOptionsShown}">
+                  <TextBlock x:Name="LblDatCategoriesMame"
+                             Classes="section-title"
+                             Text="{Binding I18n[filters.grp_dat_categories]}"
+                             ToolTip.Tip="{Binding Filters.DatCategories.Tooltip}" />
+                  <TextBlock x:Name="LblDatCategoriesMameStatus"
+                             Classes="form-hint"
+                             TextWrapping="Wrap"
+                             Text="{Binding Filters.DatCategoriesStatusText}" />
+                </StackPanel>
               </StackPanel>
 
               <!-- Column 2: content to keep, worded positively: a checked box keeps its category, the opposite of its
@@ -2145,65 +2155,6 @@
                             IsChecked="{Binding Filters.KeepBios, Mode=TwoWay}">
                     <TextBlock TextWrapping="Wrap"><Run Text="{Binding I18n[filters.chk_keep_bios]}" /> <Run Text="{Binding I18n[filters.tag_nointro_bios]}" Classes="tag" /></TextBlock>
                   </CheckBox>
-                  <!-- Categories the No-Intro and Redump DATs give their games (Games, Add-Ons, Applications...), in a
-                       drop-down panel: those of the DAT read with their number of games, or those the DATs use -->
-                  <DropDownButton x:Name="BtnDatCategories"
-                                  Classes="advanced-options"
-                                  Classes.changed="{Binding Filters.DatCategories.IsRestricted}"
-                                  IsVisible="{Binding Filters.IsNoIntroShown}"
-                                  IsEnabled="{Binding Filters.AreNoIntroOnlyOptionsApplicable}"
-                                  ToolTip.ShowOnDisabled="True"
-                                  Content="{Binding Filters.DatCategories.SummaryText}"
-                                  ToolTip.Tip="{Binding Filters.DatCategoriesTooltip}">
-                    <DropDownButton.Flyout>
-                      <Flyout Placement="BottomEdgeAlignedLeft">
-                        <StackPanel x:Name="PanelDatCategories" Spacing="4" MaxWidth="340">
-                          <TextBlock x:Name="LblDatCategoriesStatus"
-                                     FontSize="11"
-                                     TextWrapping="Wrap"
-                                     Foreground="{DynamicResource HintForegroundBrush}"
-                                     Text="{Binding Filters.DatCategories.StatusText}" />
-                          <TextBlock x:Name="LblDatCategoriesHint"
-                                     FontSize="11"
-                                     TextWrapping="Wrap"
-                                     Foreground="{DynamicResource HintForegroundBrush}"
-                                     Margin="0,0,0,2"
-                                     Text="{Binding I18n[filters.dat_categories_hint]}" />
-                          <!-- To keep only a few categories: uncheck them all, then check those to keep -->
-                          <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Button x:Name="BtnDatCategoriesKeepAll"
-                                    Classes="secondary-action"
-                                    FontSize="11"
-                                    Padding="10,2"
-                                    MinHeight="24"
-                                    ToolTip.Tip="{Binding I18n[filters.tooltip_dat_categories_keep_all]}"
-                                    Command="{Binding Filters.DatCategories.KeepAllCommand}"
-                                    Content="{Binding I18n[filters.btn_dat_categories_keep_all]}" />
-                            <Button x:Name="BtnDatCategoriesExcludeAll"
-                                    Classes="secondary-action"
-                                    FontSize="11"
-                                    Padding="10,2"
-                                    MinHeight="24"
-                                    ToolTip.Tip="{Binding I18n[filters.tooltip_dat_categories_exclude_all]}"
-                                    Command="{Binding Filters.DatCategories.ExcludeAllCommand}"
-                                    Content="{Binding I18n[filters.btn_dat_categories_exclude_all]}" />
-                          </StackPanel>
-                          <ScrollViewer MaxHeight="300" HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl x:Name="ListDatCategories" ItemsSource="{Binding Filters.DatCategories.Categories}">
-                              <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:DatCategoryOptionViewModel">
-                                  <CheckBox FontSize="11"
-                                            Margin="0,2"
-                                            Content="{Binding Label}"
-                                            IsChecked="{Binding IsKept, Mode=TwoWay}" />
-                                </DataTemplate>
-                              </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                          </ScrollViewer>
-                        </StackPanel>
-                      </Flyout>
-                    </DropDownButton.Flyout>
-                  </DropDownButton>
                   <!-- Whether these filters also apply to the files the DAT does not know: an option of every
                        convention, greyed in a MAME run or with software lists, where it has no effect. Last of the
                        group, so that with the MAME options it takes the room left on a row of boxes -->
@@ -2218,7 +2169,8 @@
                 </WrapPanel>
               </StackPanel>
 
-              <!-- Column 3: multi-disc sets; with the MAME options, its complete sets option is in the MAME card -->
+              <!-- Column 3: multi-disc sets, then the machines (TOSEC) or the DAT categories (No-Intro / Redump); with the
+                   MAME options, its complete sets option is in the MAME card and the DAT categories under the dump quality -->
               <StackPanel x:Name="ColFilterMultidisk"
                           Grid.Column="4"
                           VerticalAlignment="Top"
@@ -2240,6 +2192,66 @@
                             IsChecked="{Binding TosecFilters.SmartMultidiskGrouping, Mode=TwoWay}">
                     <TextBlock TextWrapping="Wrap" Text="{Binding I18n[tab2.chk_smart_multidisk]}" />
                   </CheckBox>
+                </StackPanel>
+
+                <!-- Categories the No-Intro and Redump DATs give their games (Games, Add-Ons, Applications...), all in
+                     sight: those of the DAT read with their number of games, or those the DATs use. A No-Intro / Redump
+                     option, where the TOSEC options show the Amiga and ZX Spectrum machines; greyed for the software
+                     lists, and in the dump quality column for a MAME run (GrpDatCategoriesMame) -->
+                <StackPanel x:Name="GrpFilterDatCategories"
+                            Margin="0,12,0,0"
+                            Spacing="4"
+                            IsVisible="{Binding Filters.IsNoIntroShown}">
+                  <TextBlock x:Name="LblDatCategories"
+                             Classes="section-title"
+                             Text="{Binding I18n[filters.grp_dat_categories]}"
+                             ToolTip.Tip="{Binding Filters.DatCategories.Tooltip}" />
+                  <TextBlock x:Name="LblDatCategoriesStatus"
+                             Classes="form-hint"
+                             TextWrapping="Wrap"
+                             Text="{Binding Filters.DatCategoriesStatusText}" />
+                  <StackPanel x:Name="PanelDatCategories"
+                              Spacing="4"
+                              IsEnabled="{Binding Filters.AreNoIntroOnlyOptionsApplicable}">
+                    <!-- Two columns, so that the twelve known categories take six rows; a long label wraps in its cell -->
+                    <ItemsControl x:Name="ListDatCategories" ItemsSource="{Binding Filters.DatCategories.Categories}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <UniformGrid Columns="2" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:DatCategoryOptionViewModel">
+                          <CheckBox FontSize="11"
+                                    MinWidth="0"
+                                    Margin="0,0,8,4"
+                                    IsChecked="{Binding IsKept, Mode=TwoWay}">
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Label}" />
+                          </CheckBox>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <!-- To keep only a few categories: uncheck them all, then check those to keep -->
+                    <WrapPanel x:Name="PanelDatCategoriesActions">
+                      <Button x:Name="BtnDatCategoriesKeepAll"
+                              Classes="secondary-action"
+                              FontSize="11"
+                              Padding="10,2"
+                              MinHeight="24"
+                              Margin="0,0,6,0"
+                              ToolTip.Tip="{Binding I18n[filters.tooltip_dat_categories_keep_all]}"
+                              Command="{Binding Filters.DatCategories.KeepAllCommand}"
+                              Content="{Binding I18n[filters.btn_dat_categories_keep_all]}" />
+                      <Button x:Name="BtnDatCategoriesExcludeAll"
+                              Classes="secondary-action"
+                              FontSize="11"
+                              Padding="10,2"
+                              MinHeight="24"
+                              ToolTip.Tip="{Binding I18n[filters.tooltip_dat_categories_exclude_all]}"
+                              Command="{Binding Filters.DatCategories.ExcludeAllCommand}"
+                              Content="{Binding I18n[filters.btn_dat_categories_exclude_all]}" />
+                    </WrapPanel>
+                  </StackPanel>
                 </StackPanel>
 
                 <!-- Amiga the collection is sorted for, from the chipset of the TOSEC names: a TOSEC option -->

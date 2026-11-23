@@ -35,30 +35,16 @@ public sealed partial class DatCategoryFiltersViewModel : ViewModelBase
     /// </summary>
     public ObservableCollection<DatCategoryOptionViewModel> Categories { get; } = [];
 
-    /// <summary>Whether a category excludes games: the button is then emphasized.</summary>
-    public bool IsRestricted => NoIntro.ExcludedDatCategories.Count > 0;
-
     /// <summary>What the list shows: the categories of the DAT read, a DAT without any, or the known categories.</summary>
     public string StatusText => _localization.Tr(
         _datCounts is null ? "filters.dat_categories_status_known"
         : _datCounts.Count == 0 ? "filters.dat_categories_status_none"
         : "filters.dat_categories_status_dat");
 
-    /// <summary>Text of the button: every category, the only one excluded, or how many are.</summary>
-    public string SummaryText =>
-        NoIntro.ExcludedDatCategories.Count switch
-        {
-            0 => _localization.Tr("filters.btn_dat_categories_all"),
-            1 => _localization.Tr("filters.btn_dat_categories_one", ("restriction", NoIntro.ExcludedDatCategories[0])),
-            var count => _localization.Tr("filters.btn_dat_categories_many", ("count", count))
-        };
-
-    /// <summary>Tooltip of the button: what the panel does, then the excluded categories.</summary>
-    public string SummaryTooltip =>
-        NoIntro.ExcludedDatCategories.Count == 0
-            ? _localization.Tr("filters.tooltip_dat_categories")
-            : _localization.Tr("filters.tooltip_dat_categories") + Environment.NewLine + Environment.NewLine +
-              _localization.Tr("filters.dat_categories_excluded", ("names", string.Join(", ", NoIntro.ExcludedDatCategories)));
+    /// <summary>Tooltip of the title of the section: what the categories do, and how a game is filed by them.</summary>
+    public string Tooltip =>
+        _localization.Tr("filters.tooltip_dat_categories") + Environment.NewLine + Environment.NewLine +
+        _localization.Tr("filters.dat_categories_hint");
 
     /// <summary>
     /// Shows the number of games of each category of the DAT read (<see cref="DirectoriesViewModel.DatCategoryCounts"/>):
@@ -79,7 +65,7 @@ public sealed partial class DatCategoryFiltersViewModel : ViewModelBase
         }
 
         OnPropertyChanged(nameof(StatusText));
-        NotifySummaryChanged();
+        OnPropertyChanged(nameof(Tooltip));
     }
 
     /// <summary>Keeps the games of every category: nothing is excluded by category any more.</summary>
@@ -113,13 +99,6 @@ public sealed partial class DatCategoryFiltersViewModel : ViewModelBase
             ? _localization.Tr("filters.dat_category_with_count", ("name", category), ("count", count))
             : category;
 
-    private void NotifySummaryChanged()
-    {
-        OnPropertyChanged(nameof(IsRestricted));
-        OnPropertyChanged(nameof(SummaryText));
-        OnPropertyChanged(nameof(SummaryTooltip));
-    }
-
     private void RebuildCategories()
     {
         var offered = _datCounts is { Count: > 0 } counts
@@ -142,7 +121,6 @@ public sealed partial class DatCategoryFiltersViewModel : ViewModelBase
 
         KeepAllCommand.NotifyCanExecuteChanged();
         ExcludeAllCommand.NotifyCanExecuteChanged();
-        NotifySummaryChanged();
     }
 
     // Rank of a category in the known order; those the known list does not have come after
@@ -180,11 +158,10 @@ public sealed partial class DatCategoryFiltersViewModel : ViewModelBase
 
         KeepAllCommand.NotifyCanExecuteChanged();
         ExcludeAllCommand.NotifyCanExecuteChanged();
-        NotifySummaryChanged();
     }
 }
 
-/// <summary>A category of the DATs in the panel of the DAT categories: checked when its games are kept.</summary>
+/// <summary>A category of the DATs in the DAT categories section: checked when its games are kept.</summary>
 public sealed class DatCategoryOptionViewModel : ObservableObject
 {
     private readonly DatCategoryFiltersViewModel _owner;
